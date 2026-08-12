@@ -108,11 +108,109 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 3,
+      "maxItems": 3,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "bearer-continuation-report.identity.session.bearer-authorize.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.bearer-authorize"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.bearer-continuation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.bearer-authorize; exact inputs: tenant_id, session_id, audience, continuation_ttl; initial state: active browser session exists"
+              },
+              "stimulus": {
+                "const": "Run identity.session.bearer-authorize for success, failure, outage, replay cases using tenant_id, session_id, audience, continuation_ttl and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict; required artifact fields: session_id, continuation_id, subject_id, audience_digest, revocation_observed, bearer_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict; required artifact fields: session_id, continuation_id, subject_id, audience_digest, revocation_observed, bearer_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "bearer-continuation-report.identity.session.bearer-issue.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.bearer-issue"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.bearer-continuation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.bearer-issue; exact inputs: tenant_id, session_id, audience, continuation_ttl; initial state: active browser session exists"
+              },
+              "stimulus": {
+                "const": "Run identity.session.bearer-issue for success, failure, outage, replay cases using tenant_id, session_id, audience, continuation_ttl and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict; required artifact fields: session_id, continuation_id, subject_id, audience_digest, revocation_observed, bearer_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict; required artifact fields: session_id, continuation_id, subject_id, audience_digest, revocation_observed, bearer_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,16 +240,16 @@
                 "const": "success,failure,outage,replay"
               },
               "preconditions": {
-                "const": "Operations: identity.session.bearer-issue, identity.session.bearer-authorize; exact inputs: tenant_id, session_id, audience, continuation_ttl; initial state: active browser session exists"
+                "const": "Operations: identity.session.bearer-authorize, identity.session.bearer-issue; exact inputs: tenant_id, session_id, audience, continuation_ttl; initial state: active browser session exists"
               },
               "stimulus": {
-                "const": "Run identity.session.bearer-issue then identity.session.bearer-authorize for success, failure, outage, replay cases using tenant_id, session_id, audience, continuation_ttl and capture every required artifact field"
+                "const": "Run identity.session.bearer-authorize then identity.session.bearer-issue for success, failure, outage, replay cases using tenant_id, session_id, audience, continuation_ttl and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict; required artifact fields: session_id, continuation_id, subject_id, audience_digest, revocation_observed"
+                "const": "Invariant: issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict; required artifact fields: session_id, continuation_id, subject_id, audience_digest, revocation_observed, bearer_transition_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict; required artifact fields: session_id, continuation_id, subject_id, audience_digest, revocation_observed"
+                "const": "Invariant: issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict; required artifact fields: session_id, continuation_id, subject_id, audience_digest, revocation_observed, bearer_transition_cases"
               },
               "result": {
                 "const": "pass"
@@ -216,6 +314,42 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "bearer-continuation-report.identity.session.bearer-authorize.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "bearer-continuation-report.identity.session.bearer-issue.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "bearer-continuation-report.journey.sessions.v1.behavior"
               }
             }
@@ -256,6 +390,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -264,16 +400,23 @@
         "continuation_id",
         "subject_id",
         "audience_digest",
-        "revocation_observed"
+        "revocation_observed",
+        "bearer_transition_cases"
       ],
       "properties": {
         "artifact_id": {
           "const": "bearer-continuation-report"
         },
+        "invariant_id": {
+          "const": "bearer-continuation-report.invariant"
+        },
+        "invariant": {
+          "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
+        },
         "operation_ids": {
           "const": [
-            "identity.session.bearer-issue",
-            "identity.session.bearer-authorize"
+            "identity.session.bearer-authorize",
+            "identity.session.bearer-issue"
           ]
         },
         "input_digest": {
@@ -395,316 +538,525 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
+          "minItems": 12,
+          "maxItems": 12,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.bearer-issue",
-                      "identity.session.bearer-authorize"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "audience",
-                      "continuation_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active browser session exists"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "continuation_id",
-                      "subject_id",
-                      "audience_digest",
-                      "revocation_observed"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "bearer-continuation-report.identity.session.bearer-authorize.behavior#success",
+                  "bearer-continuation-report.identity.session.bearer-authorize.behavior#failure",
+                  "bearer-continuation-report.identity.session.bearer-authorize.behavior#outage",
+                  "bearer-continuation-report.identity.session.bearer-authorize.behavior#replay",
+                  "bearer-continuation-report.identity.session.bearer-issue.behavior#success",
+                  "bearer-continuation-report.identity.session.bearer-issue.behavior#failure",
+                  "bearer-continuation-report.identity.session.bearer-issue.behavior#outage",
+                  "bearer-continuation-report.identity.session.bearer-issue.behavior#replay",
+                  "bearer-continuation-report.journey.sessions.v1.behavior#success",
+                  "bearer-continuation-report.journey.sessions.v1.behavior#failure",
+                  "bearer-continuation-report.journey.sessions.v1.behavior#outage",
+                  "bearer-continuation-report.journey.sessions.v1.behavior#replay"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "bearer-continuation-report.identity.session.bearer-authorize.behavior",
+                  "bearer-continuation-report.identity.session.bearer-issue.behavior",
+                  "bearer-continuation-report.journey.sessions.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.session.bearer-authorize",
+                  "identity.session.bearer-issue",
+                  "journey.sessions.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "bearer-continuation-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage",
+                  "replay"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.bearer-authorize",
+                    "identity.session.bearer-issue"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.bearer-issue",
-                      "identity.session.bearer-authorize"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "audience",
-                      "continuation_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active browser session exists"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "continuation_id",
-                      "subject_id",
-                      "audience_digest",
-                      "revocation_observed"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.bearer-issue",
-                      "identity.session.bearer-authorize"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "audience",
-                      "continuation_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active browser session exists"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "continuation_id",
-                      "subject_id",
-                      "audience_digest",
-                      "revocation_observed"
-                    ]
-                  }
+              "initial_state": {
+                "const": "active browser session exists"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable",
+                  "conflict"
+                ]
+              },
+              "expected_invariant": {
+                "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.bearer-authorize",
+                    "identity.session.bearer-issue"
+                  ]
                 }
               },
-              {
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.bearer-authorize",
+                    "identity.session.bearer-issue"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "session_id",
+                  "continuation_id",
+                  "subject_id",
+                  "audience_digest",
+                  "revocation_observed"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior#replay"
+                  "session_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior"
+                  "continuation_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
+                  "subject_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.bearer-issue",
-                      "identity.session.bearer-authorize"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "audience",
-                      "continuation_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active browser session exists"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
-                  },
-                  "observed_state_digest": {
+                  "audience_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "continuation_id",
-                      "subject_id",
-                      "audience_digest",
-                      "revocation_observed"
-                    ]
+                  "revocation_observed": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "bearer-continuation-report.identity.session.bearer-authorize.behavior#success",
+              "observation_id": "bearer-continuation-report.identity.session.bearer-authorize.behavior",
+              "claim_id": "identity.session.bearer-authorize",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.bearer-authorize"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:90b02817185c0880851d7a332a256b3aee609bf7d0eeb6d828e5c63f41bbbdbf",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.identity.session.bearer-authorize.behavior#failure",
+              "observation_id": "bearer-continuation-report.identity.session.bearer-authorize.behavior",
+              "claim_id": "identity.session.bearer-authorize",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.bearer-authorize"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:1bfbf69481852e9aec689d829040ca4d0b20880635c0add3811d79f65822c393",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.identity.session.bearer-authorize.behavior#outage",
+              "observation_id": "bearer-continuation-report.identity.session.bearer-authorize.behavior",
+              "claim_id": "identity.session.bearer-authorize",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.session.bearer-authorize"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:617e28602a9a305cdf0e3d089859f42a2d654dea5c80488a04116bb553cd2434",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.identity.session.bearer-authorize.behavior#replay",
+              "observation_id": "bearer-continuation-report.identity.session.bearer-authorize.behavior",
+              "claim_id": "identity.session.bearer-authorize",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.session.bearer-authorize"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:e25c4b7ba79f17f7bc12393dc8a03ecaedac9acb1d1ce63bc8e7310c1dabe227",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.identity.session.bearer-issue.behavior#success",
+              "observation_id": "bearer-continuation-report.identity.session.bearer-issue.behavior",
+              "claim_id": "identity.session.bearer-issue",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:bb1c7673ffa85ac35ba847a0323c43ec1be41434a4e57e3842cf37d6b0fd9b07",
+              "expected_operation_set": [
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.identity.session.bearer-issue.behavior#failure",
+              "observation_id": "bearer-continuation-report.identity.session.bearer-issue.behavior",
+              "claim_id": "identity.session.bearer-issue",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6a14fae61342ac650aecf30e8748a3ccbc3fce2120c6ee0c0173a9a2b5b5c9c8",
+              "expected_operation_set": [
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.identity.session.bearer-issue.behavior#outage",
+              "observation_id": "bearer-continuation-report.identity.session.bearer-issue.behavior",
+              "claim_id": "identity.session.bearer-issue",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:e66892264332703148db76115d6b1a0ab5dc2d99442c848995088999d2ece964",
+              "expected_operation_set": [
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.identity.session.bearer-issue.behavior#replay",
+              "observation_id": "bearer-continuation-report.identity.session.bearer-issue.behavior",
+              "claim_id": "identity.session.bearer-issue",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:a9a2437072b60fd109bd93a40a25a531c11e0e14b6eea696e7f721ddebdd6fb6",
+              "expected_operation_set": [
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.journey.sessions.v1.behavior#success",
+              "observation_id": "bearer-continuation-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:85aaafdf377db1607a1240abc5c8bfa0369abeac1a869b0add5253f185170ec1",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.journey.sessions.v1.behavior#failure",
+              "observation_id": "bearer-continuation-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:c9c1df110f1006bc4a222db11eb62a7e5c82775a34da642f2592819c31ec0577",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.journey.sessions.v1.behavior#outage",
+              "observation_id": "bearer-continuation-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:1f926af052044a2fb8df767acd3b04421338ba15839962128d888f3fc4e7a340",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "bearer-continuation-report.journey.sessions.v1.behavior#replay",
+              "observation_id": "bearer-continuation-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "audience",
+                "continuation_ttl"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:c54b173cc3984d67c58e329dbbc7f6e9fa1b6a7ef5e648affba7002d8f6d4e19",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue"
+              ]
+            }
+          ]
         },
         "session_id": {
           "type": "string",
@@ -724,6 +1076,156 @@
         },
         "revocation_observed": {
           "type": "boolean"
+        },
+        "bearer_transition_cases": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "sequence",
+                  "authorized",
+                  "issued_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "authorize-source-session"
+                  },
+                  "operation_id": {
+                    "const": "identity.session.bearer-authorize"
+                  },
+                  "sequence": {
+                    "const": 1
+                  },
+                  "authorized": {
+                    "const": true
+                  },
+                  "issued_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "sequence",
+                  "authorized",
+                  "issued_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "issue-bound-continuation"
+                  },
+                  "operation_id": {
+                    "const": "identity.session.bearer-issue"
+                  },
+                  "sequence": {
+                    "const": 2
+                  },
+                  "authorized": {
+                    "const": true
+                  },
+                  "issued_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "sequence",
+                  "authorized",
+                  "issued_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "authorize-source-session"
+                  },
+                  "operation_id": {
+                    "const": "identity.session.bearer-authorize"
+                  },
+                  "sequence": {
+                    "const": 1
+                  },
+                  "authorized": {
+                    "const": true
+                  },
+                  "issued_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "sequence",
+                  "authorized",
+                  "issued_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "issue-bound-continuation"
+                  },
+                  "operation_id": {
+                    "const": "identity.session.bearer-issue"
+                  },
+                  "sequence": {
+                    "const": 2
+                  },
+                  "authorized": {
+                    "const": true
+                  },
+                  "issued_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -732,340 +1234,6 @@
           "fields": [
             "revocation_observed"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.bearer-issue",
-                      "identity.session.bearer-authorize"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "audience",
-                      "continuation_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active browser session exists"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "continuation_id",
-                      "subject_id",
-                      "audience_digest",
-                      "revocation_observed"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.bearer-issue",
-                      "identity.session.bearer-authorize"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "audience",
-                      "continuation_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active browser session exists"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "continuation_id",
-                      "subject_id",
-                      "audience_digest",
-                      "revocation_observed"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.bearer-issue",
-                      "identity.session.bearer-authorize"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "audience",
-                      "continuation_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active browser session exists"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "continuation_id",
-                      "subject_id",
-                      "audience_digest",
-                      "revocation_observed"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "bearer-continuation-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.bearer-issue",
-                      "identity.session.bearer-authorize"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "audience",
-                      "continuation_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active browser session exists"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "issued bearer continuation preserves subject, tenant, audience, expiry, revocation, and freshness policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "continuation_id",
-                      "subject_id",
-                      "audience_digest",
-                      "revocation_observed"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

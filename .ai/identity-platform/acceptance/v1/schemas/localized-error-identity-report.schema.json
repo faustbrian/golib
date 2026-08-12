@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "localized-error-identity-report"
+        },
+        "invariant_id": {
+          "const": "localized-error-identity-report.invariant"
+        },
+        "invariant": {
+          "const": "localized message changes by locale while error class, code, HTTP status, and enumeration resistance remain identical"
         },
         "operation_ids": {
           "const": [
@@ -396,158 +404,270 @@
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "localized-error-identity-report.journey.localization.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "localized-error-identity-report.journey.localization.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.localization.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.signin"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "locale",
-                      "credential",
-                      "expected_error_class"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "same invalid credential is submitted under every supported locale"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "localized message changes by locale while error class, code, HTTP status, and enumeration resistance remain identical"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "locale_count",
-                      "stable_error",
-                      "http_status",
-                      "localized_message_digest",
-                      "identity_equivalence_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "localized-error-identity-report.journey.localization.v1.behavior#success",
+                  "localized-error-identity-report.journey.localization.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "localized-error-identity-report.journey.localization.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.localization.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "localized-error-identity-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.password.signin"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "same invalid credential is submitted under every supported locale"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "localized message changes by locale while error class, code, HTTP status, and enumeration resistance remain identical"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.password.signin"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.password.signin"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
+                  "locale_count",
                   "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "http_status",
+                  "localized_message_digest",
+                  "identity_equivalence_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "localized-error-identity-report.journey.localization.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "localized-error-identity-report.journey.localization.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.localization.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.signin"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "locale",
-                      "credential",
-                      "expected_error_class"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "same invalid credential is submitted under every supported locale"
+                  "locale_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
                   "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "localized message changes by locale while error class, code, HTTP status, and enumeration resistance remain identical"
-                  },
-                  "observed_state_digest": {
                     "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "locale_count",
-                      "stable_error",
-                      "http_status",
-                      "localized_message_digest",
-                      "identity_equivalence_digest"
+                    "enum": [
+                      "none",
+                      "invalid_input",
+                      "unauthenticated",
+                      "forbidden",
+                      "freshness_required",
+                      "not_found",
+                      "conflict",
+                      "rate_limited",
+                      "unavailable",
+                      "cancelled",
+                      "deadline_exceeded",
+                      "unknown_commit",
+                      "internal"
                     ]
+                  },
+                  "http_status": {
+                    "type": "integer",
+                    "enum": [
+                      400,
+                      401,
+                      403,
+                      404,
+                      409,
+                      429,
+                      503
+                    ]
+                  },
+                  "localized_message_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "identity_equivalence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "localized-error-identity-report.journey.localization.v1.behavior#success",
+              "observation_id": "localized-error-identity-report.journey.localization.v1.behavior",
+              "claim_id": "journey.localization.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.password.signin"
+              ],
+              "input_fields": [
+                "locale",
+                "credential",
+                "expected_error_class"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:fcfb4464b60fb53a6cd5f342f80190137046e63f8fb7d728a4c72d94ace84063",
+              "expected_operation_set": [
+                "identity.password.signin"
+              ],
+              "observed_operation_set": [
+                "identity.password.signin"
+              ]
+            },
+            {
+              "case_id": "localized-error-identity-report.journey.localization.v1.behavior#failure",
+              "observation_id": "localized-error-identity-report.journey.localization.v1.behavior",
+              "claim_id": "journey.localization.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.password.signin"
+              ],
+              "input_fields": [
+                "locale",
+                "credential",
+                "expected_error_class"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:a5aa09782ebccba108cebdcb448300793ed1143943bf24af8b017a4cf2d077b1",
+              "expected_operation_set": [
+                "identity.password.signin"
+              ],
+              "observed_operation_set": [
+                "identity.password.signin"
+              ]
+            }
+          ]
         },
         "locale_count": {
           "type": "integer",
@@ -599,170 +719,6 @@
           "fields": [
             "locale_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "localized-error-identity-report.journey.localization.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "localized-error-identity-report.journey.localization.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.localization.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.signin"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "locale",
-                      "credential",
-                      "expected_error_class"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "same invalid credential is submitted under every supported locale"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "localized message changes by locale while error class, code, HTTP status, and enumeration resistance remain identical"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "locale_count",
-                      "stable_error",
-                      "http_status",
-                      "localized_message_digest",
-                      "identity_equivalence_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "localized-error-identity-report.journey.localization.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "localized-error-identity-report.journey.localization.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.localization.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.signin"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "locale",
-                      "credential",
-                      "expected_error_class"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "same invalid credential is submitted under every supported locale"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "localized message changes by locale while error class, code, HTTP status, and enumeration resistance remain identical"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "locale_count",
-                      "stable_error",
-                      "http_status",
-                      "localized_message_digest",
-                      "identity_equivalence_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "organization-archive-restore-delete-report"
+        },
+        "invariant_id": {
+          "const": "organization-archive-restore-delete-report.invariant"
+        },
+        "invariant": {
+          "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
         },
         "operation_ids": {
           "const": [
@@ -398,472 +406,403 @@
           "type": "array",
           "minItems": 6,
           "maxItems": 6,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "organization-archive-restore-delete-report.journey.organizations.v1.behavior#success",
+                  "organization-archive-restore-delete-report.journey.organizations.v1.behavior#failure",
+                  "organization-archive-restore-delete-report.journey.organizations.v1.behavior#denial",
+                  "organization-archive-restore-delete-report.journey.organizations.v1.behavior#concurrency",
+                  "organization-archive-restore-delete-report.journey.organizations.v1.behavior#cleanup",
+                  "organization-archive-restore-delete-report.journey.organizations.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.organizations.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "organization-archive-restore-delete-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.archive",
+                    "identity.organization.restore",
+                    "identity.organization.delete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "organization is active with members, invitations, sessions, and SSO links"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.archive",
+                    "identity.organization.restore",
+                    "identity.organization.delete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.archive",
+                    "identity.organization.restore",
+                    "identity.organization.delete"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "organization_id",
+                  "archive_version",
+                  "restore_version",
+                  "deleted_cascade_count",
+                  "lifecycle_event_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#cleanup"
+                  "organization_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
+                  "archive_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
                   },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
+                  "restore_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
                   },
-                  "scenario": {
-                    "const": "cleanup"
+                  "deleted_cascade_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
+                  "lifecycle_event_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#success",
+              "observation_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.archive",
+                "identity.organization.restore",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "expected_version",
+                "retention_policy"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:17dea5887242f542fde4db8df2fa8fc04cda23af3db3640f17ea16bdb0298ddb",
+              "expected_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ],
+              "observed_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ]
+            },
+            {
+              "case_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#failure",
+              "observation_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.archive",
+                "identity.organization.restore",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "expected_version",
+                "retention_policy"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:437b0c2ad2e5f30485846ae6dd37197688c8ad28d3e2bd3edf42764b4b0b6a6a",
+              "expected_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ],
+              "observed_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ]
+            },
+            {
+              "case_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#denial",
+              "observation_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.archive",
+                "identity.organization.restore",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "expected_version",
+                "retention_policy"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:7c4f17cbf969d186632ddebafb9fe416da389d76b3f715ec98e0d19dd7fb039f",
+              "expected_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ],
+              "observed_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ]
+            },
+            {
+              "case_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#concurrency",
+              "observation_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.archive",
+                "identity.organization.restore",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "expected_version",
+                "retention_policy"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:f1c6a1d21eb26cfaff21d9e32c8f7ce11fe62b8916ef31258763d01d8f54ddf9",
+              "expected_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ],
+              "observed_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ]
+            },
+            {
+              "case_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#cleanup",
+              "observation_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.archive",
+                "identity.organization.restore",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "expected_version",
+                "retention_policy"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e123ca64e72208b5a97c942ef34243382523ad9ae022345f60511369073a4a9a",
+              "expected_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ],
+              "observed_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ]
+            },
+            {
+              "case_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#unknown-outcome",
+              "observation_id": "organization-archive-restore-delete-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.archive",
+                "identity.organization.restore",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "expected_version",
+                "retention_policy"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:69f2db06c4befea74d19ff4a62b7e4541df84173fb66a110f073349d78116454",
+              "expected_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ],
+              "observed_operation_set": [
+                "identity.organization.archive",
+                "identity.organization.delete",
+                "identity.organization.restore"
+              ]
+            }
+          ]
         },
         "organization_id": {
           "type": "string",
@@ -897,512 +836,6 @@
             "restore_version",
             "deleted_cascade_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.archive",
-                      "identity.organization.restore",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "expected_version",
-                      "retention_policy"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "organization is active with members, invitations, sessions, and SSO links"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "organization_id",
-                      "archive_version",
-                      "restore_version",
-                      "deleted_cascade_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

@@ -108,8 +108,8 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
+      "minItems": 8,
+      "maxItems": 8,
       "uniqueItems": true,
       "items": {
         "oneOf": [
@@ -228,6 +228,251 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior"
+              },
+              "claim_id": {
+                "const": "identity.audit-retention.legal-hold.create"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.audit-retention-plan-confirm-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.audit-retention.legal-hold.create; exact inputs: tenant_id, policy_version, cutoff, plan_id, plan_digest; initial state: eligible audit rows exist outside legal holds"
+              },
+              "stimulus": {
+                "const": "Run identity.audit-retention.legal-hold.create for success, failure, denial, replay, concurrency, unknown-outcome cases using tenant_id, policy_version, cutoff, plan_id, plan_digest and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior"
+              },
+              "claim_id": {
+                "const": "identity.audit-retention.legal-hold.release"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.audit-retention-plan-confirm-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.audit-retention.legal-hold.release; exact inputs: tenant_id, policy_version, cutoff, plan_id, plan_digest; initial state: eligible audit rows exist outside legal holds"
+              },
+              "stimulus": {
+                "const": "Run identity.audit-retention.legal-hold.release for success, failure, denial, replay, concurrency, unknown-outcome cases using tenant_id, policy_version, cutoff, plan_id, plan_digest and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior"
+              },
+              "claim_id": {
+                "const": "identity.audit-retention.legal-hold.update"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.audit-retention-plan-confirm-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.audit-retention.legal-hold.update; exact inputs: tenant_id, policy_version, cutoff, plan_id, plan_digest; initial state: eligible audit rows exist outside legal holds"
+              },
+              "stimulus": {
+                "const": "Run identity.audit-retention.legal-hold.update for success, failure, denial, replay, concurrency, unknown-outcome cases using tenant_id, policy_version, cutoff, plan_id, plan_digest and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior"
+              },
+              "claim_id": {
+                "const": "identity.audit-retention.policy.update"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.audit-retention-plan-confirm-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.audit-retention.policy.update; exact inputs: tenant_id, policy_version, cutoff, plan_id, plan_digest; initial state: eligible audit rows exist outside legal holds"
+              },
+              "stimulus": {
+                "const": "Run identity.audit-retention.policy.update for success, failure, denial, replay, concurrency, unknown-outcome cases using tenant_id, policy_version, cutoff, plan_id, plan_digest and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior"
+              },
+              "claim_id": {
+                "const": "identity.audit-retention.records.delete"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.audit-retention-plan-confirm-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.audit-retention.records.delete; exact inputs: tenant_id, policy_version, cutoff, plan_id, plan_digest; initial state: eligible audit rows exist outside legal holds"
+              },
+              "stimulus": {
+                "const": "Run identity.audit-retention.records.delete for success, failure, denial, replay, concurrency, unknown-outcome cases using tenant_id, policy_version, cutoff, plan_id, plan_digest and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
               },
               "claim_id": {
@@ -240,10 +485,10 @@
                 "const": "success,failure,denial,replay,concurrency,unknown-outcome"
               },
               "preconditions": {
-                "const": "Operations: identity.audit-retention.deletion.plan, identity.audit-retention.deletion.confirm; exact inputs: tenant_id, policy_version, cutoff, plan_id, plan_digest; initial state: eligible audit rows exist outside legal holds"
+                "const": "Operations: identity.audit-retention.deletion.confirm, identity.audit-retention.deletion.plan, identity.audit-retention.legal-hold.create, identity.audit-retention.legal-hold.release, identity.audit-retention.legal-hold.update, identity.audit-retention.policy.update, identity.audit-retention.records.delete; exact inputs: tenant_id, policy_version, cutoff, plan_id, plan_digest; initial state: eligible audit rows exist outside legal holds"
               },
               "stimulus": {
-                "const": "Run identity.audit-retention.deletion.plan then identity.audit-retention.deletion.confirm for success, failure, denial, replay, concurrency, unknown-outcome cases using tenant_id, policy_version, cutoff, plan_id, plan_digest and capture every required artifact field"
+                "const": "Run identity.audit-retention.deletion.confirm then identity.audit-retention.deletion.plan then identity.audit-retention.legal-hold.create then identity.audit-retention.legal-hold.release then identity.audit-retention.legal-hold.update then identity.audit-retention.policy.update then identity.audit-retention.records.delete for success, failure, denial, replay, concurrency, unknown-outcome cases using tenant_id, policy_version, cutoff, plan_id, plan_digest and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: plan_id, planned_record_count, deleted_record_count, legal_hold_record_count, plan_digest"
@@ -350,6 +595,96 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
               }
             }
@@ -390,6 +725,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -404,10 +741,21 @@
         "artifact_id": {
           "const": "audit-retention-plan-confirm-report"
         },
+        "invariant_id": {
+          "const": "audit-retention-plan-confirm-report.invariant"
+        },
+        "invariant": {
+          "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
+        },
         "operation_ids": {
           "const": [
+            "identity.audit-retention.deletion.confirm",
             "identity.audit-retention.deletion.plan",
-            "identity.audit-retention.deletion.confirm"
+            "identity.audit-retention.legal-hold.create",
+            "identity.audit-retention.legal-hold.release",
+            "identity.audit-retention.legal-hold.update",
+            "identity.audit-retention.policy.update",
+            "identity.audit-retention.records.delete"
           ]
         },
         "input_digest": {
@@ -529,1214 +877,1530 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 16,
-          "maxItems": 16,
+          "minItems": 46,
+          "maxItems": 46,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#success",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#denial",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#failure",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#replay",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#concurrency",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#cleanup",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#unknown-outcome",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#success",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#denial",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#failure",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#success",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#failure",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#denial",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#replay",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#concurrency",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#unknown-outcome",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#success",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#failure",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#denial",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#replay",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#concurrency",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#unknown-outcome",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#success",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#failure",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#denial",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#replay",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#concurrency",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#unknown-outcome",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#success",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#failure",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#denial",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#replay",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#concurrency",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#unknown-outcome",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#success",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#failure",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#denial",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#replay",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#concurrency",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#unknown-outcome",
+                  "audit-retention-plan-confirm-report.journey.administration.v1.behavior#success",
+                  "audit-retention-plan-confirm-report.journey.administration.v1.behavior#failure",
+                  "audit-retention-plan-confirm-report.journey.administration.v1.behavior#denial",
+                  "audit-retention-plan-confirm-report.journey.administration.v1.behavior#replay",
+                  "audit-retention-plan-confirm-report.journey.administration.v1.behavior#concurrency",
+                  "audit-retention-plan-confirm-report.journey.administration.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior",
+                  "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior",
+                  "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.audit-retention.deletion.confirm",
+                  "identity.audit-retention.deletion.plan",
+                  "identity.audit-retention.legal-hold.create",
+                  "identity.audit-retention.legal-hold.release",
+                  "identity.audit-retention.legal-hold.update",
+                  "identity.audit-retention.policy.update",
+                  "identity.audit-retention.records.delete",
+                  "journey.administration.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "audit-retention-plan-confirm-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "denial",
+                  "failure",
+                  "replay",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.audit-retention.deletion.confirm",
+                    "identity.audit-retention.deletion.plan",
+                    "identity.audit-retention.legal-hold.create",
+                    "identity.audit-retention.legal-hold.release",
+                    "identity.audit-retention.legal-hold.update",
+                    "identity.audit-retention.policy.update",
+                    "identity.audit-retention.records.delete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "eligible audit rows exist outside legal holds"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "denied",
+                  "failed",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "forbidden",
+                  "internal",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.audit-retention.deletion.confirm",
+                    "identity.audit-retention.deletion.plan",
+                    "identity.audit-retention.legal-hold.create",
+                    "identity.audit-retention.legal-hold.release",
+                    "identity.audit-retention.legal-hold.update",
+                    "identity.audit-retention.policy.update",
+                    "identity.audit-retention.records.delete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.audit-retention.deletion.confirm",
+                    "identity.audit-retention.deletion.plan",
+                    "identity.audit-retention.legal-hold.create",
+                    "identity.audit-retention.legal-hold.release",
+                    "identity.audit-retention.legal-hold.update",
+                    "identity.audit-retention.policy.update",
+                    "identity.audit-retention.records.delete"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "plan_id",
+                  "planned_record_count",
+                  "deleted_record_count",
+                  "legal_hold_record_count",
+                  "plan_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#concurrency"
+                  "plan_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
+                  "planned_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
+                  "deleted_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "concurrency"
+                  "legal_hold_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
+                  "plan_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.plan"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.plan"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.plan"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#success",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
+              "claim_id": "identity.audit-retention.deletion.confirm",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b8c66e91aae2a43c5d329388a7f78892c420836331e333ff7676c0b6386ff86b",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#denial",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
+              "claim_id": "identity.audit-retention.deletion.confirm",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:71bc3c88936f72a5275ba5af2e8ab6fcbd1cbad4c1d5f3fe0376c682bad4af45",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#failure",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
+              "claim_id": "identity.audit-retention.deletion.confirm",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:968d1aacda73609b5a2c2eaa3f5495e8731f070fbfe69b50f20aa73993d056ff",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#replay",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
+              "claim_id": "identity.audit-retention.deletion.confirm",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:bb23e96ecdfc7627ecb744c4ead4b78c2ced616af2710bb9ecce4201bdf211a9",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#concurrency",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
+              "claim_id": "identity.audit-retention.deletion.confirm",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:497f58dae834e9343ffc9609efbb9254a8efe34cc0d3d704aec79dceca545b99",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#cleanup",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
+              "claim_id": "identity.audit-retention.deletion.confirm",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f98fb54cf1f039f36c82a383f8d9918dfa68b3324cee5869d62a8050f27628e3",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#unknown-outcome",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
+              "claim_id": "identity.audit-retention.deletion.confirm",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:41615d2934d217f22ae284ba13ae1fd02d013e0cde1d741984fa3add252b0186",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#success",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior",
+              "claim_id": "identity.audit-retention.deletion.plan",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit-retention.deletion.plan"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:14758d503e592767b21dba2ce8eeab3c61c659ec88a5fd214a2ea082c0ab6833",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.plan"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.plan"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#denial",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior",
+              "claim_id": "identity.audit-retention.deletion.plan",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit-retention.deletion.plan"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:76022eb9374b41c0efd283640eb3dc540765612f866805306c36a8895d9f1f2a",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.plan"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.plan"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#failure",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior",
+              "claim_id": "identity.audit-retention.deletion.plan",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit-retention.deletion.plan"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b6ed2896be969791b6aebfd97f3e9967921c0438396a2eb62caca399cdd144ad",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.plan"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.plan"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#success",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.create",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d357492051b9ec52845e726b44fa4c9a602e5f0702532e8873ce92bb8cad735c",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#failure",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.create",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6b9128d7bbac1b68efcc65d410bb002148d7efbeef7c0491a1a492a5e3c95528",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#denial",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.create",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:0c33bf1ee1b0111c29b2c67be27ec58b81bfa1c2a915de4213632aa762f682a2",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#replay",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.create",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:1684c013abe182d63f4e147df9d4030a298a988ae1ec4b7bf555db778bfddac0",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#concurrency",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.create",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:76737996ec678bb19d61caeef17b34ca14eea8108d399da6cbe8e4b33fd65f0a",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior#unknown-outcome",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.create.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.create",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:0b94b1e31184c44431ad18f10b1a5b3871b59b94ef1a7c23b2a64e2dfef5c6c6",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.create"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#success",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.release",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:3cfb7491d333edb0d3c80871e2a9386c7a53d17db917a377b36ed4f0f1cd348c",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#failure",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.release",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:aaae6568882a5a71aebf39a3ef164948b265469f41b39983efe428444b91bedc",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#denial",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.release",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:7a9d816ab867092d3d95dffaf75a9e622835f1b197f4862386ec547c94c18526",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#replay",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.release",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:649b396f055b70dfd6dd1925a6dbc972e9deb490c248133db508d1dc063f154a",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#concurrency",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.release",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:32c81fc61fb3cc8cd915a473e025903c84905b7df96791b1f47f752a7ba35966",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior#unknown-outcome",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.release.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.release",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:b54559ee663bb0b87ebc03e330ee3b3a0c07302cbaf651b54eead07aa299f094",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.release"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#success",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.update",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c6a4d3c4709b5d67d34b718bf80dfd7982b23444e61dc19110dce9a65dc49669",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#failure",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.update",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:3ec837703f57bec46140936e479863eeeb84a70b2d23c0e8febdf54a6c8f3f31",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#denial",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.update",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:e6318fe55e7d92a60e1e6d9d63d08063cf03ba87996403cc1fa961f7361b15c6",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#replay",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.update",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:8d0288608c45ee4f63b00adb20302819c14cdbf294b09edc07b915c29b5051a9",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#concurrency",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.update",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:fd428f48ab341fd7de2bfb5ab8eff0efb4eec16e4ad183bb57a2a3bcaf572d2a",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior#unknown-outcome",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.legal-hold.update.behavior",
+              "claim_id": "identity.audit-retention.legal-hold.update",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:8eef1c829b72102a490c8a9dea2da274e89876aed00e0f987815d120a18e61f6",
+              "expected_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.legal-hold.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#success",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior",
+              "claim_id": "identity.audit-retention.policy.update",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit-retention.policy.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d619d197ea0ed0452a14a13fac95d69e924977635d3eaf2ddf965b86c1a24a71",
+              "expected_operation_set": [
+                "identity.audit-retention.policy.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.policy.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#failure",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior",
+              "claim_id": "identity.audit-retention.policy.update",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit-retention.policy.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:e72b4bbe2f71750e692e4a62b412687421854691a1b9892578864521e40cbe89",
+              "expected_operation_set": [
+                "identity.audit-retention.policy.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.policy.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#denial",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior",
+              "claim_id": "identity.audit-retention.policy.update",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit-retention.policy.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:e047a57e899ec1bfb0c19e0e0159fdbe777b3741fe6dfa4afd22dfaa81c71544",
+              "expected_operation_set": [
+                "identity.audit-retention.policy.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.policy.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#replay",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior",
+              "claim_id": "identity.audit-retention.policy.update",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.audit-retention.policy.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:dc007acd4566c2e56b127d4f92d4d3b0587bdb96946a0540f6fe1dd48469d5e9",
+              "expected_operation_set": [
+                "identity.audit-retention.policy.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.policy.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#concurrency",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior",
+              "claim_id": "identity.audit-retention.policy.update",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.audit-retention.policy.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:113e1cd3eaffdf32deb3ff5a6c2c71e603ec6656d380f39af5732bcbb54dafd1",
+              "expected_operation_set": [
+                "identity.audit-retention.policy.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.policy.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior#unknown-outcome",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior",
+              "claim_id": "identity.audit-retention.policy.update",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.audit-retention.policy.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:c2a57933d89310f2d85cee08e0b6f625ef8415ad1c5ebf86b98d7c929b01d2e4",
+              "expected_operation_set": [
+                "identity.audit-retention.policy.update"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.policy.update"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#success",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior",
+              "claim_id": "identity.audit-retention.records.delete",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b14d9a619cb90b425e33e495bdc46d3d43be85bcfb051b18df00892aaf25351d",
+              "expected_operation_set": [
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#failure",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior",
+              "claim_id": "identity.audit-retention.records.delete",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:2fc36b01cfd68ced47bae2fd658fc7c81a48baa7c4b984ddc58edb98525071d7",
+              "expected_operation_set": [
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#denial",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior",
+              "claim_id": "identity.audit-retention.records.delete",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:26d341a1de4ecd9f7f022acb0803a122a0c6ab69435e7c0b05943f0ce4bad6e7",
+              "expected_operation_set": [
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#replay",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior",
+              "claim_id": "identity.audit-retention.records.delete",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:28b1bb62822c6ade228b3672f015c8f29a20fc54b0a7daaad2ad2d4c3540e2bb",
+              "expected_operation_set": [
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#concurrency",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior",
+              "claim_id": "identity.audit-retention.records.delete",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:b69e6dd96b459e3e92d3aab6729abf7d86eca9fa06abcf100a35aa40a3d9ea1e",
+              "expected_operation_set": [
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior#unknown-outcome",
+              "observation_id": "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior",
+              "claim_id": "identity.audit-retention.records.delete",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:46c3a01bfbd7f01860c45bbf5248019c90c319932464c6721223d6a1ac1b5474",
+              "expected_operation_set": [
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#success",
+              "observation_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:70365ee3b2ed0ebfe61c81c5deb038ec96c3da69650790308aefd1bd37b3e540",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#failure",
+              "observation_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:be2b760afd8e7548d80348a242fcc3ecc5eaf021c31b4720c434e05b95c55d4b",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#denial",
+              "observation_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:2827239ea146a29d402cf8e6ffb01e99ff809c3eb88c92c223de2a888d54a5f7",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#replay",
+              "observation_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:895f3b6f54c9d4c058a75aec0a8aa860735765ed8577b4cc4547792c4df34aae",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#concurrency",
+              "observation_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:041783d668b5588908b2bf9db0319f817091bdad9dee5245dfd45fd5224c7599",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ]
+            },
+            {
+              "case_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#unknown-outcome",
+              "observation_id": "audit-retention-plan-confirm-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "policy_version",
+                "cutoff",
+                "plan_id",
+                "plan_digest"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:8050a60c5d808afe67e53504bad3e8992c0aee91d865aad77eb34770392a2b77",
+              "expected_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ],
+              "observed_operation_set": [
+                "identity.audit-retention.deletion.confirm",
+                "identity.audit-retention.deletion.plan",
+                "identity.audit-retention.legal-hold.create",
+                "identity.audit-retention.legal-hold.release",
+                "identity.audit-retention.legal-hold.update",
+                "identity.audit-retention.policy.update",
+                "identity.audit-retention.records.delete"
+              ]
+            }
+          ]
         },
         "plan_id": {
           "type": "string",
@@ -1775,1322 +2439,6 @@
           "kind": "equal",
           "left": "deleted_record_count",
           "right": "planned_record_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.confirm"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.plan"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.plan"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit-retention.deletion.plan"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit-retention.deletion.plan",
-                      "identity.audit-retention.deletion.confirm"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "policy_version",
-                      "cutoff",
-                      "plan_id",
-                      "plan_digest"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "eligible audit rows exist outside legal holds"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "confirm accepts only the exact unexpired plan digest and deletes exactly its eligible row set"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "plan_id",
-                      "planned_record_count",
-                      "deleted_record_count",
-                      "legal_hold_record_count",
-                      "plan_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

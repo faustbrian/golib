@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "browser-security-report"
+        },
+        "invariant_id": {
+          "const": "browser-security-report.invariant"
+        },
+        "invariant": {
+          "const": "trusted callback succeeds while untrusted origin, missing CSRF, and insecure cookie variants are rejected"
         },
         "operation_ids": {
           "const": [
@@ -397,238 +405,291 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "origin",
-                      "csrf_token",
-                      "callback_state",
-                      "cookie_attributes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "trusted origin and bound browser state are configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "trusted callback succeeds while untrusted origin, missing CSRF, and insecure cookie variants are rejected"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "trusted_origin_count",
-                      "csrf_rejected",
-                      "origin_rejected",
-                      "secure_cookie_observed",
-                      "same_site_mode"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "browser-security-report.cross.http-browser.v1.behavior#success",
+                  "browser-security-report.cross.http-browser.v1.behavior#failure",
+                  "browser-security-report.cross.http-browser.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "browser-security-report.cross.http-browser.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.http-browser.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "browser-security-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.popup-complete",
+                    "identity.openapi.document"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "origin",
-                      "csrf_token",
-                      "callback_state",
-                      "cookie_attributes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "trusted origin and bound browser state are configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "trusted callback succeeds while untrusted origin, missing CSRF, and insecure cookie variants are rejected"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "trusted_origin_count",
-                      "csrf_rejected",
-                      "origin_rejected",
-                      "secure_cookie_observed",
-                      "same_site_mode"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "trusted origin and bound browser state are configured"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "trusted callback succeeds while untrusted origin, missing CSRF, and insecure cookie variants are rejected"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.popup-complete",
+                    "identity.openapi.document"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.popup-complete",
+                    "identity.openapi.document"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "trusted_origin_count",
+                  "csrf_rejected",
+                  "origin_rejected",
+                  "secure_cookie_observed",
+                  "same_site_mode"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior#denial"
+                  "trusted_origin_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior"
+                  "csrf_rejected": {
+                    "type": "boolean"
                   },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
+                  "origin_rejected": {
+                    "type": "boolean"
                   },
-                  "scenario": {
-                    "const": "denial"
+                  "secure_cookie_observed": {
+                    "type": "boolean"
                   },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "origin",
-                      "csrf_token",
-                      "callback_state",
-                      "cookie_attributes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "trusted origin and bound browser state are configured"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "trusted callback succeeds while untrusted origin, missing CSRF, and insecure cookie variants are rejected"
-                  },
-                  "observed_state_digest": {
+                  "same_site_mode": {
                     "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "trusted_origin_count",
-                      "csrf_rejected",
-                      "origin_rejected",
-                      "secure_cookie_observed",
-                      "same_site_mode"
+                    "enum": [
+                      "strict",
+                      "lax",
+                      "none"
                     ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "browser-security-report.cross.http-browser.v1.behavior#success",
+              "observation_id": "browser-security-report.cross.http-browser.v1.behavior",
+              "claim_id": "cross.http-browser.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ],
+              "input_fields": [
+                "origin",
+                "csrf_token",
+                "callback_state",
+                "cookie_attributes"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:56d616335c7f72207a6c4b3b234f40bccbe93dbaed8d2c664e939ced2abbae9d",
+              "expected_operation_set": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ]
+            },
+            {
+              "case_id": "browser-security-report.cross.http-browser.v1.behavior#failure",
+              "observation_id": "browser-security-report.cross.http-browser.v1.behavior",
+              "claim_id": "cross.http-browser.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ],
+              "input_fields": [
+                "origin",
+                "csrf_token",
+                "callback_state",
+                "cookie_attributes"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:3013f65f036313dc21aae92f023d41bc344fc4358c804b5ba71d72c323279922",
+              "expected_operation_set": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ]
+            },
+            {
+              "case_id": "browser-security-report.cross.http-browser.v1.behavior#denial",
+              "observation_id": "browser-security-report.cross.http-browser.v1.behavior",
+              "claim_id": "cross.http-browser.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ],
+              "input_fields": [
+                "origin",
+                "csrf_token",
+                "callback_state",
+                "cookie_attributes"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:6eefbaf89d32ab902ae41ac4374876552028a519f4bb3408de1e68f5c1b620b8",
+              "expected_operation_set": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.popup-complete",
+                "identity.openapi.document"
+              ]
+            }
+          ]
         },
         "trusted_origin_count": {
           "type": "integer",
@@ -667,257 +728,6 @@
             "origin_rejected",
             "secure_cookie_observed"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "origin",
-                      "csrf_token",
-                      "callback_state",
-                      "cookie_attributes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "trusted origin and bound browser state are configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "trusted callback succeeds while untrusted origin, missing CSRF, and insecure cookie variants are rejected"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "trusted_origin_count",
-                      "csrf_rejected",
-                      "origin_rejected",
-                      "secure_cookie_observed",
-                      "same_site_mode"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "origin",
-                      "csrf_token",
-                      "callback_state",
-                      "cookie_attributes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "trusted origin and bound browser state are configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "trusted callback succeeds while untrusted origin, missing CSRF, and insecure cookie variants are rejected"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "trusted_origin_count",
-                      "csrf_rejected",
-                      "origin_rejected",
-                      "secure_cookie_observed",
-                      "same_site_mode"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "browser-security-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "origin",
-                      "csrf_token",
-                      "callback_state",
-                      "cookie_attributes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "trusted origin and bound browser state are configured"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "trusted callback succeeds while untrusted origin, missing CSRF, and insecure cookie variants are rejected"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "trusted_origin_count",
-                      "csrf_rejected",
-                      "origin_rejected",
-                      "secure_cookie_observed",
-                      "same_site_mode"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

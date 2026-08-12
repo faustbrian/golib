@@ -13,7 +13,7 @@ shown here.
 - Canonical goal after scaffolding: `pkg/identity/oauth/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/oauth:v1`; owned operation IDs: `contract:operation:identity.account.access-token:v1`, `contract:operation:identity.account.link-start:v1`, `contract:operation:identity.account.link-token:v1`, `contract:operation:identity.account.provider-info:v1`, `contract:operation:identity.account.refresh-token:v1`, `contract:operation:identity.oauth.callback:v1`, `contract:operation:identity.oauth.callback-form-post:v1`, `contract:operation:identity.oauth.popup-complete:v1`, `contract:operation:identity.oauth.signin-start:v1`, `contract:operation:identity.oauth.signin-token:v1`
 - Requires: `identity`, `identity/session`, `identity/risk`, `primitive/capability-identity-contracts`
-- Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `capability`, `capability/postgres`, `secret-envelope`, `audit`
+- Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `capability`, `secret-envelope`, `audit`
 - Unlocks after verification: `identity/oauth/postgres`, `identity/oauth/providers`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/http`
 
 ## Start gate
@@ -31,12 +31,12 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns generic provider registration and OAuth/OIDC authorization-code and PKCE social-login orchestration, callback state, token exchange/refresh, provider-proof and account-link orchestration, and provider-token lifecycle. It MUST NOT own provider-link rows, provider-subject uniqueness, final-access policy, account-link metadata, or the `lifecycle.dimension.social_link` authority version. Every link, relink, and unlink MUST invoke the public `identity` command and enlist `identity/postgres`; that participant alone mutates the authoritative link row, decides uniqueness/final-access, and advances the social-link version in the same unit of work as enlisted token-vault changes. Built-in provider facts belong to `identity/oauth/providers`; Google One Tap belongs to `identity/oauth/onetap`; preview callback forwarding belongs to `identity/oauth/proxy`. It MUST NOT emit `identity.oauth.verify_one_tap` or `identity.oauth.use_proxy`; the child modules are their sole event owners. It does not own enterprise SSO routing, OAuth authorization-server behavior, provider UI, or provider-specific SDK wrappers. Those exclusions MUST remain
+This module owns generic provider registration and OAuth/OIDC authorization-code and PKCE social-login orchestration, callback state, token exchange/refresh, provider-proof and account-link orchestration, and provider-token lifecycle. It MUST NOT own provider-link rows, provider-subject uniqueness, final-access policy, account-link metadata, or the `lifecycle.dimension.social_link` authority version. Every link, relink, and unlink MUST use injected storage-neutral authoritative linking and unit-of-work collaborators; concrete persistence wiring belongs to `identity/oauth/postgres` and reference composition. Built-in provider facts belong to `identity/oauth/providers`; Google One Tap belongs to `identity/oauth/onetap`; preview callback forwarding belongs to `identity/oauth/proxy`. It MUST NOT emit `identity.oauth.verify_one_tap` or `identity.oauth.use_proxy`; the child modules are their sole event owners. It does not own enterprise SSO routing, OAuth authorization-server behavior, provider UI, or provider-specific SDK wrappers. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Provider, ProviderRegistry, AuthorizationRequest, StateProfile, PKCEPolicy, Callback, TokenSet, TokenVault, LinkPolicy, ClaimsMapper, SessionIssuer, and RefreshCoordinator contracts. The generic provider contract MUST expose all endpoint, client-authentication, issuer/audience, scope, claims, refresh and revocation decisions needed by the separate built-in catalog without importing it. Public errors MUST be typed, stable,
+The design MUST define Provider, ProviderRegistry, AuthorizationRequest, StateProfile, PKCEPolicy, Callback, TokenSet, TokenVault, LinkPolicy, ClaimsMapper, SessionIssuer, RefreshCoordinator, AuthoritativeLinker, and LinkUnitOfWork contracts. `AuthoritativeLinker` MUST expose exactly `ApplyLink(context.Context, LinkCommand) (LinkResult, error)` and `LinkUnitOfWork` exactly `WithinLink(context.Context, LinkCommand, LinkParticipants) (LinkResult, error)`. Their commands MUST carry stable command identity, tenant, subject, provider proof, expected link/version, final-access policy, and contributor set; neither interface may expose SQL, `pgx`, adapter types, or callback-ordering pseudo-atomicity. The generic provider contract MUST expose all endpoint, client-authentication, issuer/audience, scope, claims, refresh and revocation decisions needed by the separate built-in catalog without importing it. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -143,7 +143,7 @@ involved.
   Unlink MUST preserve at least one allowed access path and classify provider
   revocation separately from local unlink.
 - Link, relink, and unlink are orchestration commands only. They MUST enlist
-  the identity command and `identity/postgres` authoritative mutation; OAuth
+  the injected `AuthoritativeLinker` through `LinkUnitOfWork`; OAuth
   proof or token-vault state MUST NOT independently create, replace, delete, or
   version a provider link.
 - Implicit linking MUST require fresh provider proof and a currently verified,

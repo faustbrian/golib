@@ -148,10 +148,10 @@
                 "const": "Run identity.risk.evaluate for success, failure, denial cases using tenant_id, operation_id, signals, policy_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: decision_id, policy_version, risk_score_basis_points, action, matched_rules_digest"
+                "const": "Invariant: same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: decision_id, policy_version, risk_score_basis_points, action, matched_rules_digest, trusted_profile_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: decision_id, policy_version, risk_score_basis_points, action, matched_rules_digest"
+                "const": "Invariant: same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: decision_id, policy_version, risk_score_basis_points, action, matched_rules_digest, trusted_profile_cases"
               },
               "result": {
                 "const": "pass"
@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -264,11 +266,18 @@
         "policy_version",
         "risk_score_basis_points",
         "action",
-        "matched_rules_digest"
+        "matched_rules_digest",
+        "trusted_profile_cases"
       ],
       "properties": {
         "artifact_id": {
           "const": "risk-policy-report"
+        },
+        "invariant_id": {
+          "const": "risk-policy-report.invariant"
+        },
+        "invariant": {
+          "const": "same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs"
         },
         "operation_ids": {
           "const": [
@@ -396,235 +405,284 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "operation_id",
-                      "signals",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "ordered risk rules and action thresholds are configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "decision_id",
-                      "policy_version",
-                      "risk_score_basis_points",
-                      "action",
-                      "matched_rules_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "risk-policy-report.journey.abuse-controls.v1.behavior#success",
+                  "risk-policy-report.journey.abuse-controls.v1.behavior#failure",
+                  "risk-policy-report.journey.abuse-controls.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "risk-policy-report.journey.abuse-controls.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.abuse-controls.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "risk-policy-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.evaluate"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "operation_id",
-                      "signals",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "ordered risk rules and action thresholds are configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "decision_id",
-                      "policy_version",
-                      "risk_score_basis_points",
-                      "action",
-                      "matched_rules_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "ordered risk rules and action thresholds are configured"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.evaluate"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.evaluate"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "decision_id",
+                  "policy_version",
+                  "risk_score_basis_points",
+                  "action",
+                  "matched_rules_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior#denial"
+                  "decision_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior"
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
                   },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
+                  "risk_score_basis_points": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
                   },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "allow",
+                      "challenge",
+                      "deny",
+                      "revoke"
                     ]
                   },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "operation_id",
-                      "signals",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "ordered risk rules and action thresholds are configured"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs"
-                  },
-                  "observed_state_digest": {
+                  "matched_rules_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "decision_id",
-                      "policy_version",
-                      "risk_score_basis_points",
-                      "action",
-                      "matched_rules_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "risk-policy-report.journey.abuse-controls.v1.behavior#success",
+              "observation_id": "risk-policy-report.journey.abuse-controls.v1.behavior",
+              "claim_id": "journey.abuse-controls.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "operation_id",
+                "signals",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:5c32e5679ff26efb51bac5ecae8590d4b1997511515f86c6c80a23ea37993712",
+              "expected_operation_set": [
+                "identity.risk.evaluate"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate"
+              ]
+            },
+            {
+              "case_id": "risk-policy-report.journey.abuse-controls.v1.behavior#failure",
+              "observation_id": "risk-policy-report.journey.abuse-controls.v1.behavior",
+              "claim_id": "journey.abuse-controls.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "operation_id",
+                "signals",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:4d4f34cf977103623913cf98bed1fee188d36eb54f94344616ae36a2c4e63b36",
+              "expected_operation_set": [
+                "identity.risk.evaluate"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate"
+              ]
+            },
+            {
+              "case_id": "risk-policy-report.journey.abuse-controls.v1.behavior#denial",
+              "observation_id": "risk-policy-report.journey.abuse-controls.v1.behavior",
+              "claim_id": "journey.abuse-controls.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "operation_id",
+                "signals",
+                "policy_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:00116ddeae8ffe3ebd4bb17c29379a0e754a7af94a3f59fce39f85b09caf4b2e",
+              "expected_operation_set": [
+                "identity.risk.evaluate"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate"
+              ]
+            }
+          ]
         },
         "decision_id": {
           "type": "string",
@@ -652,6 +710,140 @@
         "matched_rules_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "trusted_profile_cases": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "profile_source",
+                  "limit_override_allowed",
+                  "trusted_profile_loaded",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "trusted-operation-profile"
+                  },
+                  "profile_source": {
+                    "const": "API_OPERATIONS.md"
+                  },
+                  "limit_override_allowed": {
+                    "const": false
+                  },
+                  "trusted_profile_loaded": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "profile_source",
+                  "limit_override_allowed",
+                  "trusted_profile_loaded",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "untrusted-caller-limit"
+                  },
+                  "profile_source": {
+                    "const": "caller-input"
+                  },
+                  "limit_override_allowed": {
+                    "const": false
+                  },
+                  "trusted_profile_loaded": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "profile_source",
+                  "limit_override_allowed",
+                  "trusted_profile_loaded",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "trusted-operation-profile"
+                  },
+                  "profile_source": {
+                    "const": "API_OPERATIONS.md"
+                  },
+                  "limit_override_allowed": {
+                    "const": false
+                  },
+                  "trusted_profile_loaded": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "profile_source",
+                  "limit_override_allowed",
+                  "trusted_profile_loaded",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "untrusted-caller-limit"
+                  },
+                  "profile_source": {
+                    "const": "caller-input"
+                  },
+                  "limit_override_allowed": {
+                    "const": false
+                  },
+                  "trusted_profile_loaded": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -660,254 +852,6 @@
           "fields": [
             "policy_version"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "operation_id",
-                      "signals",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "ordered risk rules and action thresholds are configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "decision_id",
-                      "policy_version",
-                      "risk_score_basis_points",
-                      "action",
-                      "matched_rules_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "operation_id",
-                      "signals",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "ordered risk rules and action thresholds are configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "decision_id",
-                      "policy_version",
-                      "risk_score_basis_points",
-                      "action",
-                      "matched_rules_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "risk-policy-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "operation_id",
-                      "signals",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "ordered risk rules and action thresholds are configured"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "same canonical signals and version yield same allow, challenge, deny, or revoke action and explainable matched rule IDs"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "decision_id",
-                      "policy_version",
-                      "risk_score_basis_points",
-                      "action",
-                      "matched_rules_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

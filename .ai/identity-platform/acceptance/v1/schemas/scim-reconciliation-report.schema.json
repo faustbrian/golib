@@ -108,11 +108,158 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 4,
+      "maxItems": 4,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior"
+              },
+              "claim_id": {
+                "const": "identity.sso.directory-sync-apply"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.scim-reconciliation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,outage,replay,concurrency,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.sso.directory-sync-apply; exact inputs: tenant_id, connection_id, cursor, mapping_version, remote_changes; initial state: connection has a committed cursor and local authoritative ownership map"
+              },
+              "stimulus": {
+                "const": "Run identity.sso.directory-sync-apply for success, failure, denial, outage, replay, concurrency, unknown-outcome cases using tenant_id, connection_id, cursor, mapping_version, remote_changes and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest, reconciliation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest, reconciliation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior"
+              },
+              "claim_id": {
+                "const": "identity.sso.directory-sync-start"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.scim-reconciliation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,outage,replay,concurrency,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.sso.directory-sync-start; exact inputs: tenant_id, connection_id, cursor, mapping_version, remote_changes; initial state: connection has a committed cursor and local authoritative ownership map"
+              },
+              "stimulus": {
+                "const": "Run identity.sso.directory-sync-start for success, failure, denial, outage, replay, concurrency, unknown-outcome cases using tenant_id, connection_id, cursor, mapping_version, remote_changes and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest, reconciliation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest, reconciliation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior"
+              },
+              "claim_id": {
+                "const": "identity.sso.directory-sync-status"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.scim-reconciliation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,outage,replay,concurrency,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.sso.directory-sync-status; exact inputs: tenant_id, connection_id, cursor, mapping_version, remote_changes; initial state: connection has a committed cursor and local authoritative ownership map"
+              },
+              "stimulus": {
+                "const": "Run identity.sso.directory-sync-status for success, failure, denial, outage, replay, concurrency, unknown-outcome cases using tenant_id, connection_id, cursor, mapping_version, remote_changes and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest, reconciliation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest, reconciliation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,16 +289,16 @@
                 "const": "success,failure,denial,outage,replay,concurrency,unknown-outcome"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-reconcile, identity.scim.bulk; exact inputs: tenant_id, connection_id, cursor, mapping_version, remote_changes; initial state: connection has a committed cursor and local authoritative ownership map"
+                "const": "Operations: identity.sso.directory-sync-apply, identity.sso.directory-sync-start, identity.sso.directory-sync-status; exact inputs: tenant_id, connection_id, cursor, mapping_version, remote_changes; initial state: connection has a committed cursor and local authoritative ownership map"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-reconcile then identity.scim.bulk for success, failure, denial, outage, replay, concurrency, unknown-outcome cases using tenant_id, connection_id, cursor, mapping_version, remote_changes and capture every required artifact field"
+                "const": "Run identity.sso.directory-sync-apply then identity.sso.directory-sync-start then identity.sso.directory-sync-status for success, failure, denial, outage, replay, concurrency, unknown-outcome cases using tenant_id, connection_id, cursor, mapping_version, remote_changes and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest"
+                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest, reconciliation_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest"
+                "const": "Invariant: reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: connection_id, applied_change_count, conflict_count, previous_cursor_digest, committed_cursor_digest, reconciliation_cases"
               },
               "result": {
                 "const": "pass"
@@ -216,6 +363,60 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "scim-reconciliation-report.journey.scim.v1.behavior"
               }
             }
@@ -256,6 +457,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -264,16 +467,24 @@
         "applied_change_count",
         "conflict_count",
         "previous_cursor_digest",
-        "committed_cursor_digest"
+        "committed_cursor_digest",
+        "reconciliation_cases"
       ],
       "properties": {
         "artifact_id": {
           "const": "scim-reconciliation-report"
         },
+        "invariant_id": {
+          "const": "scim-reconciliation-report.invariant"
+        },
+        "invariant": {
+          "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
+        },
         "operation_ids": {
           "const": [
-            "identity.scim.connection-reconcile",
-            "identity.scim.bulk"
+            "identity.sso.directory-sync-apply",
+            "identity.sso.directory-sync-start",
+            "identity.sso.directory-sync-status"
           ]
         },
         "input_digest": {
@@ -395,551 +606,997 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 7,
-          "maxItems": 7,
+          "minItems": 28,
+          "maxItems": 28,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#success",
+                  "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#failure",
+                  "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#denial",
+                  "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#outage",
+                  "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#replay",
+                  "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#concurrency",
+                  "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#unknown-outcome",
+                  "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#success",
+                  "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#failure",
+                  "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#denial",
+                  "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#outage",
+                  "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#replay",
+                  "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#concurrency",
+                  "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#unknown-outcome",
+                  "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#success",
+                  "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#failure",
+                  "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#denial",
+                  "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#outage",
+                  "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#replay",
+                  "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#concurrency",
+                  "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#unknown-outcome",
+                  "scim-reconciliation-report.journey.scim.v1.behavior#success",
+                  "scim-reconciliation-report.journey.scim.v1.behavior#failure",
+                  "scim-reconciliation-report.journey.scim.v1.behavior#denial",
+                  "scim-reconciliation-report.journey.scim.v1.behavior#outage",
+                  "scim-reconciliation-report.journey.scim.v1.behavior#replay",
+                  "scim-reconciliation-report.journey.scim.v1.behavior#concurrency",
+                  "scim-reconciliation-report.journey.scim.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
+                  "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
+                  "scim-reconciliation-report.identity.sso.directory-sync-status.behavior",
+                  "scim-reconciliation-report.journey.scim.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.sso.directory-sync-apply",
+                  "identity.sso.directory-sync-start",
+                  "identity.sso.directory-sync-status",
+                  "journey.scim.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "scim-reconciliation-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "outage",
+                  "replay",
+                  "concurrency",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.directory-sync-apply",
+                    "identity.sso.directory-sync-start",
+                    "identity.sso.directory-sync-status"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "connection has a committed cursor and local authoritative ownership map"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.directory-sync-apply",
+                    "identity.sso.directory-sync-start",
+                    "identity.sso.directory-sync-status"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.directory-sync-apply",
+                    "identity.sso.directory-sync-start",
+                    "identity.sso.directory-sync-status"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "connection_id",
+                  "applied_change_count",
+                  "conflict_count",
+                  "previous_cursor_digest",
+                  "committed_cursor_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#replay"
+                  "connection_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
+                  "applied_change_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
+                  "conflict_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
+                  "previous_cursor_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "committed_cursor_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#success",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
+              "claim_id": "identity.sso.directory-sync-apply",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:06e8dcff0257d9c8388f7691394e35b44da99058563e20c3557b50808247e589",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#failure",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
+              "claim_id": "identity.sso.directory-sync-apply",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:88e171e22b1032af5ec86c69b8a896bd178f9e360abb3728a43dd189517f5ac4",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#denial",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
+              "claim_id": "identity.sso.directory-sync-apply",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:ffe4e093a9fbaee4eab371e745e316433a4c6a1accd3613b036de30ffd0e6374",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#outage",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
+              "claim_id": "identity.sso.directory-sync-apply",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:6178e2df02b784c65013f597f887a6ad94d47d4ef899573f7354887aa088254c",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#replay",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
+              "claim_id": "identity.sso.directory-sync-apply",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:d4e8c5eba4c1b79992b250b5e7a48036a62a6d9e955bda4eabf1fdfc3f11042f",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#concurrency",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
+              "claim_id": "identity.sso.directory-sync-apply",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:c28d06d89acdd511dfbc721456b893e03a63bd67b3f365fb1d3766a882b84996",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior#unknown-outcome",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
+              "claim_id": "identity.sso.directory-sync-apply",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:cce5111879874514ace1f31b9d8f6bd97c9b81fe5e17169673d3f1fe9de542a3",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#success",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
+              "claim_id": "identity.sso.directory-sync-start",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.sso.directory-sync-start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6685b545abdefb3af3a14c4e3d76b914724b1fc3e1ab1270ccf11fb8130aa72e",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-start"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-start"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#failure",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
+              "claim_id": "identity.sso.directory-sync-start",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.sso.directory-sync-start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:a99ce141ac9aecbfdf2dea3cbcb196da6989f4e1048099693d0be80ae26b07b3",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-start"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-start"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#denial",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
+              "claim_id": "identity.sso.directory-sync-start",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.sso.directory-sync-start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:65da2c9350a26a1463974ca00eebb917ab5d319251b2f3c90587e0fe9fa53c79",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-start"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-start"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#outage",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
+              "claim_id": "identity.sso.directory-sync-start",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.sso.directory-sync-start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:9ea60c28f9e89bbdba90f3cd323185a2b696ffbcdf3d4ae1fd275941796de218",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-start"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-start"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#replay",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
+              "claim_id": "identity.sso.directory-sync-start",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.sso.directory-sync-start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:dc6b4bccdc4e9241502c7a3a50bbc2de41261aa29b722c9f7845b52e2dc2d952",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-start"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-start"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#concurrency",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
+              "claim_id": "identity.sso.directory-sync-start",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.sso.directory-sync-start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:67dc032ce5b71254641b5d5369581975fc6720b09d58a0b429c86c615c0adb77",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-start"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-start"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior#unknown-outcome",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
+              "claim_id": "identity.sso.directory-sync-start",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.sso.directory-sync-start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:07fbf1f863cc080cb009f1d2433a7a22f7c81d16ea34bd18478b53292d01491f",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-start"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-start"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#success",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior",
+              "claim_id": "identity.sso.directory-sync-status",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:25e61bb6f9981c4b1d87502fba4027cf6fe22d813fd6179367f19432fccab7b7",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#failure",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior",
+              "claim_id": "identity.sso.directory-sync-status",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:f3860b964d564bcc46027f2dc2a2b24a854a1962bada5495e58cfa14a87cea89",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#denial",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior",
+              "claim_id": "identity.sso.directory-sync-status",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:7aaa89a9a236e07cdff516e85c2965bbd1a73889049e9adc26dc84569d4c9c4a",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#outage",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior",
+              "claim_id": "identity.sso.directory-sync-status",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:4c95ed568455125e52b66abe006d0b4da8ee1421c210668cba4c35ff7373f98a",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#replay",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior",
+              "claim_id": "identity.sso.directory-sync-status",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:278302ee93d3187f0443877c72a33a1d8d367f9f6d65847a709f0d6dcfbc081b",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#concurrency",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior",
+              "claim_id": "identity.sso.directory-sync-status",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:13de7d571e2d7051c31e40c1dfe9553e7ab46fbda86c7ebc0969909763bc307b",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior#unknown-outcome",
+              "observation_id": "scim-reconciliation-report.identity.sso.directory-sync-status.behavior",
+              "claim_id": "identity.sso.directory-sync-status",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:52a976b91ffbe3cc91d9928303b1fd5395310df536705222c257265accc3cabb",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.journey.scim.v1.behavior#success",
+              "observation_id": "scim-reconciliation-report.journey.scim.v1.behavior",
+              "claim_id": "journey.scim.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:74a1d907ab2e24f3fc69164f1e5e536420dfb4b0755f7a3afe119e2558410836",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.journey.scim.v1.behavior#failure",
+              "observation_id": "scim-reconciliation-report.journey.scim.v1.behavior",
+              "claim_id": "journey.scim.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:751bea46e66527d82e2a18f11b5fb24a12489f662f03b768f73ecaf4432cf481",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.journey.scim.v1.behavior#denial",
+              "observation_id": "scim-reconciliation-report.journey.scim.v1.behavior",
+              "claim_id": "journey.scim.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:052066bc154ab123c049fd3ee52d39e9bbd84b30478d2cb9fe3692806741326d",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.journey.scim.v1.behavior#outage",
+              "observation_id": "scim-reconciliation-report.journey.scim.v1.behavior",
+              "claim_id": "journey.scim.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:5c8924f8fe29afae14e6bd86ee22c9f0242f7b9133866318da10f799dd81e6aa",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.journey.scim.v1.behavior#replay",
+              "observation_id": "scim-reconciliation-report.journey.scim.v1.behavior",
+              "claim_id": "journey.scim.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:b2a61c9fd2d03158ce73168e5d7e8fc8d31a1aec263c29c59951e7d933c2830d",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.journey.scim.v1.behavior#concurrency",
+              "observation_id": "scim-reconciliation-report.journey.scim.v1.behavior",
+              "claim_id": "journey.scim.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:5f58bf760ac698b761764ea72020d9bc07e87dff2ea1dc826acc85a54c6f37ea",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ]
+            },
+            {
+              "case_id": "scim-reconciliation-report.journey.scim.v1.behavior#unknown-outcome",
+              "observation_id": "scim-reconciliation-report.journey.scim.v1.behavior",
+              "claim_id": "journey.scim.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "connection_id",
+                "cursor",
+                "mapping_version",
+                "remote_changes"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:520f45b113298dc794890c197ba45727b227853936d1687d3f05314ad4654b8b",
+              "expected_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ],
+              "observed_operation_set": [
+                "identity.sso.directory-sync-apply",
+                "identity.sso.directory-sync-start",
+                "identity.sso.directory-sync-status"
+              ]
+            }
+          ]
         },
         "connection_id": {
           "type": "string",
@@ -962,6 +1619,156 @@
         "committed_cursor_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "reconciliation_cases": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "mapping_matches",
+                  "applied_change_count",
+                  "cursor_advanced",
+                  "retry_required",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "matching-retry"
+                  },
+                  "mapping_matches": {
+                    "const": true
+                  },
+                  "applied_change_count": {
+                    "const": 1
+                  },
+                  "cursor_advanced": {
+                    "const": true
+                  },
+                  "retry_required": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "mapping_matches",
+                  "applied_change_count",
+                  "cursor_advanced",
+                  "retry_required",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mapping-mismatch"
+                  },
+                  "mapping_matches": {
+                    "const": false
+                  },
+                  "applied_change_count": {
+                    "const": 0
+                  },
+                  "cursor_advanced": {
+                    "const": false
+                  },
+                  "retry_required": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "mapping_matches",
+                  "applied_change_count",
+                  "cursor_advanced",
+                  "retry_required",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "matching-retry"
+                  },
+                  "mapping_matches": {
+                    "const": true
+                  },
+                  "applied_change_count": {
+                    "const": 1
+                  },
+                  "cursor_advanced": {
+                    "const": true
+                  },
+                  "retry_required": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "mapping_matches",
+                  "applied_change_count",
+                  "cursor_advanced",
+                  "retry_required",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mapping-mismatch"
+                  },
+                  "mapping_matches": {
+                    "const": false
+                  },
+                  "applied_change_count": {
+                    "const": 0
+                  },
+                  "cursor_advanced": {
+                    "const": false
+                  },
+                  "retry_required": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -971,596 +1778,6 @@
             "applied_change_count",
             "conflict_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "scim-reconciliation-report.journey.scim.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.scim.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.scim.connection-reconcile",
-                      "identity.scim.bulk"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "connection_id",
-                      "cursor",
-                      "mapping_version",
-                      "remote_changes"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "connection has a committed cursor and local authoritative ownership map"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation applies each remote version once, preserves application-owned fields, reports conflicts, and advances cursor only after commit"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "connection_id",
-                      "applied_change_count",
-                      "conflict_count",
-                      "previous_cursor_digest",
-                      "committed_cursor_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

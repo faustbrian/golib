@@ -316,7 +316,7 @@
       },
       {
         "unit": "capability/postgres",
-        "extension_unit": "primitive/capability-identity-contracts",
+        "extension_unit": "primitive/capability-postgres-identity-contracts",
         "package_path": "github.com/faustbrian/golib/pkg/capability/postgres",
         "depends_on": [
           "capability"

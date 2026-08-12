@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "operations-runbook-index"
+        },
+        "invariant_id": {
+          "const": "operations-runbook-index.invariant"
+        },
+        "invariant": {
+          "const": "every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference"
         },
         "operation_ids": {
           "const": [
@@ -396,158 +404,250 @@
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operations-runbook-index.cross.operability-provider-proof.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operations-runbook-index.cross.operability-provider-proof.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "runbook_catalog",
-                      "operation_catalog",
-                      "failure_class_catalog"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "operability requirements enumerate startup, shutdown, backup, restore, rotation, outage, and recovery actions"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "runbook_count",
-                      "covered_action_count",
-                      "missing_action_count",
-                      "index_digest",
-                      "owner_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "operations-runbook-index.cross.operability-provider-proof.v1.behavior#success",
+                  "operations-runbook-index.cross.operability-provider-proof.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "operations-runbook-index.cross.operability-provider-proof.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.operability-provider-proof.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "operations-runbook-index.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "operability requirements enumerate startup, shutdown, backup, restore, rotation, outage, and recovery actions"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "runbook_count",
+                  "covered_action_count",
+                  "missing_action_count",
+                  "index_digest",
+                  "owner_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "operations-runbook-index.cross.operability-provider-proof.v1.behavior#failure"
+                  "runbook_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "operations-runbook-index.cross.operability-provider-proof.v1.behavior"
+                  "covered_action_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
+                  "missing_action_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "runbook_catalog",
-                      "operation_catalog",
-                      "failure_class_catalog"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "operability requirements enumerate startup, shutdown, backup, restore, rotation, outage, and recovery actions"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference"
-                  },
-                  "observed_state_digest": {
+                  "index_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "owner_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "runbook_count",
-                      "covered_action_count",
-                      "missing_action_count",
-                      "index_digest",
-                      "owner_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "operations-runbook-index.cross.operability-provider-proof.v1.behavior#success",
+              "observation_id": "operations-runbook-index.cross.operability-provider-proof.v1.behavior",
+              "claim_id": "cross.operability-provider-proof.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.diagnostics"
+              ],
+              "input_fields": [
+                "runbook_catalog",
+                "operation_catalog",
+                "failure_class_catalog"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9a1acce630d70dd3f6e4c9a1de67a1b4d36bb1279c54885a20dbbb0ac26600c5",
+              "expected_operation_set": [
+                "identity.reference.diagnostics"
+              ],
+              "observed_operation_set": [
+                "identity.reference.diagnostics"
+              ]
+            },
+            {
+              "case_id": "operations-runbook-index.cross.operability-provider-proof.v1.behavior#failure",
+              "observation_id": "operations-runbook-index.cross.operability-provider-proof.v1.behavior",
+              "claim_id": "cross.operability-provider-proof.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.diagnostics"
+              ],
+              "input_fields": [
+                "runbook_catalog",
+                "operation_catalog",
+                "failure_class_catalog"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7bc02b846000c1bbef9cf066e7c1a09fcf3cfde78e74cef71c51b6e7cd87acdc",
+              "expected_operation_set": [
+                "identity.reference.diagnostics"
+              ],
+              "observed_operation_set": [
+                "identity.reference.diagnostics"
+              ]
+            }
+          ]
         },
         "runbook_count": {
           "type": "integer",
@@ -591,170 +691,6 @@
           "kind": "equal",
           "left": "covered_action_count",
           "right": "runbook_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operations-runbook-index.cross.operability-provider-proof.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operations-runbook-index.cross.operability-provider-proof.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "runbook_catalog",
-                      "operation_catalog",
-                      "failure_class_catalog"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "operability requirements enumerate startup, shutdown, backup, restore, rotation, outage, and recovery actions"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "runbook_count",
-                      "covered_action_count",
-                      "missing_action_count",
-                      "index_digest",
-                      "owner_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operations-runbook-index.cross.operability-provider-proof.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operations-runbook-index.cross.operability-provider-proof.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "runbook_catalog",
-                      "operation_catalog",
-                      "failure_class_catalog"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "operability requirements enumerate startup, shutdown, backup, restore, rotation, outage, and recovery actions"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "runbook_count",
-                      "covered_action_count",
-                      "missing_action_count",
-                      "index_digest",
-                      "owner_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

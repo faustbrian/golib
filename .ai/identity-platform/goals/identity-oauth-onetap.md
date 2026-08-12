@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/identity/oauth/onetap`
 - Canonical goal after scaffolding: `pkg/identity/oauth/onetap/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/oauth/onetap:v1`; owned operation IDs: `contract:operation:identity.oauth.onetap-callback:v1`, `contract:operation:identity.oauth.onetap-start:v1`
-- Requires: `identity/oauth`, `identity/oauth/providers`, `primitive/capability-identity-contracts`
+- Requires: `identity/oauth`, `identity/oauth/providers`, `identity/session`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `capability`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/http`
 

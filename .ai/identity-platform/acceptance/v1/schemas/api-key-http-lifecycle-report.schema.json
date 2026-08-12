@@ -108,11 +108,305 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 2,
-      "maxItems": 2,
+      "minItems": 10,
+      "maxItems": 10,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.create.behavior"
+              },
+              "claim_id": {
+                "const": "identity.apikey.create"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.apikey.create; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "stimulus": {
+                "const": "Run identity.apikey.create for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.delete.behavior"
+              },
+              "claim_id": {
+                "const": "identity.apikey.delete"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.apikey.delete; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "stimulus": {
+                "const": "Run identity.apikey.delete for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior"
+              },
+              "claim_id": {
+                "const": "identity.apikey.delete-expired"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.apikey.delete-expired; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "stimulus": {
+                "const": "Run identity.apikey.delete-expired for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.get.behavior"
+              },
+              "claim_id": {
+                "const": "identity.apikey.get"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.apikey.get; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "stimulus": {
+                "const": "Run identity.apikey.get for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.list.behavior"
+              },
+              "claim_id": {
+                "const": "identity.apikey.list"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.apikey.list; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "stimulus": {
+                "const": "Run identity.apikey.list for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior"
+              },
+              "claim_id": {
+                "const": "identity.apikey.rotate"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.apikey.rotate; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "stimulus": {
+                "const": "Run identity.apikey.rotate for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -148,10 +442,108 @@
                 "const": "Run identity.apikey.session-authenticate for success, denial, failure, outage, replay, cleanup cases using tenant_id, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, cleanup=pass/none; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, cleanup=pass/none; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, cleanup=pass/none; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, cleanup=pass/none; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.update.behavior"
+              },
+              "claim_id": {
+                "const": "identity.apikey.update"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.apikey.update; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "stimulus": {
+                "const": "Run identity.apikey.update for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.verify.behavior"
+              },
+              "claim_id": {
+                "const": "identity.apikey.verify"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay"
+              },
+              "preconditions": {
+                "const": "Operations: identity.apikey.verify; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "stimulus": {
+                "const": "Run identity.apikey.verify for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
               },
               "result": {
                 "const": "pass"
@@ -191,16 +583,16 @@
                 "const": "success,failure,denial,replay"
               },
               "preconditions": {
-                "const": "Operations: identity.apikey.create, identity.apikey.verify, identity.apikey.rotate, identity.apikey.delete, identity.apikey.session-authenticate; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
+                "const": "Operations: identity.apikey.create, identity.apikey.delete, identity.apikey.delete-expired, identity.apikey.get, identity.apikey.list, identity.apikey.rotate, identity.apikey.session-authenticate, identity.apikey.update, identity.apikey.verify; exact inputs: tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version; initial state: no key exists for key_name and API-key session authentication profile is explicitly configured"
               },
               "stimulus": {
-                "const": "Run identity.apikey.create then identity.apikey.verify then identity.apikey.rotate then identity.apikey.delete then identity.apikey.session-authenticate for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
+                "const": "Run identity.apikey.create then identity.apikey.delete then identity.apikey.delete-expired then identity.apikey.get then identity.apikey.list then identity.apikey.rotate then identity.apikey.session-authenticate then identity.apikey.update then identity.apikey.verify for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
               },
               "result": {
                 "const": "pass"
@@ -265,7 +657,151 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.create.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.delete.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.get.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.list.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.update.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "api-key-http-lifecycle-report.identity.apikey.verify.behavior"
               }
             }
           },
@@ -323,6 +859,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -334,19 +872,30 @@
         "deleted_secret_rejected",
         "disabled_profile_rejected",
         "enabled_session_authenticated",
-        "revocation_propagated"
+        "revocation_propagated",
+        "api_key_security_cases"
       ],
       "properties": {
         "artifact_id": {
           "const": "api-key-http-lifecycle-report"
         },
+        "invariant_id": {
+          "const": "api-key-http-lifecycle-report.invariant"
+        },
+        "invariant": {
+          "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
+        },
         "operation_ids": {
           "const": [
             "identity.apikey.create",
-            "identity.apikey.verify",
-            "identity.apikey.rotate",
             "identity.apikey.delete",
-            "identity.apikey.session-authenticate"
+            "identity.apikey.delete-expired",
+            "identity.apikey.get",
+            "identity.apikey.list",
+            "identity.apikey.rotate",
+            "identity.apikey.session-authenticate",
+            "identity.apikey.update",
+            "identity.apikey.verify"
           ]
         },
         "input_digest": {
@@ -468,824 +1017,1552 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 10,
-          "maxItems": 10,
+          "minItems": 42,
+          "maxItems": 42,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "api-key-http-lifecycle-report.identity.apikey.create.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.create.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.create.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.create.behavior#replay",
+                  "api-key-http-lifecycle-report.identity.apikey.delete.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.delete.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.delete.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.delete.behavior#replay",
+                  "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior#replay",
+                  "api-key-http-lifecycle-report.identity.apikey.get.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.get.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.get.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.get.behavior#replay",
+                  "api-key-http-lifecycle-report.identity.apikey.list.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.list.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.list.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.list.behavior#replay",
+                  "api-key-http-lifecycle-report.identity.apikey.rotate.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.rotate.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.rotate.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.rotate.behavior#replay",
+                  "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#outage",
+                  "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#replay",
+                  "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#cleanup",
+                  "api-key-http-lifecycle-report.identity.apikey.update.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.update.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.update.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.update.behavior#replay",
+                  "api-key-http-lifecycle-report.identity.apikey.verify.behavior#success",
+                  "api-key-http-lifecycle-report.identity.apikey.verify.behavior#failure",
+                  "api-key-http-lifecycle-report.identity.apikey.verify.behavior#denial",
+                  "api-key-http-lifecycle-report.identity.apikey.verify.behavior#replay",
+                  "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#success",
+                  "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#failure",
+                  "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#denial",
+                  "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#replay"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "api-key-http-lifecycle-report.identity.apikey.create.behavior",
+                  "api-key-http-lifecycle-report.identity.apikey.delete.behavior",
+                  "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior",
+                  "api-key-http-lifecycle-report.identity.apikey.get.behavior",
+                  "api-key-http-lifecycle-report.identity.apikey.list.behavior",
+                  "api-key-http-lifecycle-report.identity.apikey.rotate.behavior",
+                  "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior",
+                  "api-key-http-lifecycle-report.identity.apikey.update.behavior",
+                  "api-key-http-lifecycle-report.identity.apikey.verify.behavior",
+                  "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.apikey.create",
+                  "identity.apikey.delete",
+                  "identity.apikey.delete-expired",
+                  "identity.apikey.get",
+                  "identity.apikey.list",
+                  "identity.apikey.rotate",
+                  "identity.apikey.session-authenticate",
+                  "identity.apikey.update",
+                  "identity.apikey.verify",
+                  "journey.api-keys.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "api-key-http-lifecycle-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "replay",
+                  "outage",
+                  "cleanup"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.apikey.create",
+                    "identity.apikey.delete",
+                    "identity.apikey.delete-expired",
+                    "identity.apikey.get",
+                    "identity.apikey.list",
+                    "identity.apikey.rotate",
+                    "identity.apikey.session-authenticate",
+                    "identity.apikey.update",
+                    "identity.apikey.verify"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
+              "initial_state": {
+                "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied",
+                  "unavailable"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "conflict",
+                  "unavailable"
+                ]
+              },
+              "expected_invariant": {
+                "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 8
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.apikey.create",
+                    "identity.apikey.delete",
+                    "identity.apikey.delete-expired",
+                    "identity.apikey.get",
+                    "identity.apikey.list",
+                    "identity.apikey.rotate",
+                    "identity.apikey.session-authenticate",
+                    "identity.apikey.update",
+                    "identity.apikey.verify"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.apikey.create",
+                    "identity.apikey.delete",
+                    "identity.apikey.delete-expired",
+                    "identity.apikey.get",
+                    "identity.apikey.list",
+                    "identity.apikey.rotate",
+                    "identity.apikey.session-authenticate",
+                    "identity.apikey.update",
+                    "identity.apikey.verify"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "api_key_id",
+                  "created_secret_digest",
+                  "rotated_secret_digest",
+                  "old_secret_rejected",
+                  "deleted_secret_rejected",
+                  "disabled_profile_rejected",
+                  "enabled_session_authenticated",
+                  "revocation_propagated"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#replay"
+                  "api_key_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
+                  "created_secret_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "rotated_secret_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#cleanup"
+                  "old_secret_rejected": {
+                    "type": "boolean"
                   },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
+                  "deleted_secret_rejected": {
+                    "type": "boolean"
                   },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
+                  "disabled_profile_rejected": {
+                    "type": "boolean"
                   },
-                  "scenario": {
-                    "const": "cleanup"
+                  "enabled_session_authenticated": {
+                    "type": "boolean"
                   },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.verify",
-                      "identity.apikey.rotate",
-                      "identity.apikey.delete",
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "key_name",
-                      "scopes",
-                      "expires_at",
-                      "idempotency_key",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.verify",
-                      "identity.apikey.rotate",
-                      "identity.apikey.delete",
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "key_name",
-                      "scopes",
-                      "expires_at",
-                      "idempotency_key",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.verify",
-                      "identity.apikey.rotate",
-                      "identity.apikey.delete",
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "key_name",
-                      "scopes",
-                      "expires_at",
-                      "idempotency_key",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.verify",
-                      "identity.apikey.rotate",
-                      "identity.apikey.delete",
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "key_name",
-                      "scopes",
-                      "expires_at",
-                      "idempotency_key",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
+                  "revocation_propagated": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.create.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.create.behavior",
+              "claim_id": "identity.apikey.create",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:315b5f944201e7e29850f944fff437af3a6ac4a5158aee4ba5074da8f59c7d25",
+              "expected_operation_set": [
+                "identity.apikey.create"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.create.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.create.behavior",
+              "claim_id": "identity.apikey.create",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b2167fc3b09b94cfb13b4ccf33722c7feeb8c4dc5acfa666c561f73d0c546711",
+              "expected_operation_set": [
+                "identity.apikey.create"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.create.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.create.behavior",
+              "claim_id": "identity.apikey.create",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:f95b139c8250b218416c0aae1b9c27f8bb9cc79dedd7d3b15b4e45894d42d16f",
+              "expected_operation_set": [
+                "identity.apikey.create"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.create.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.create.behavior",
+              "claim_id": "identity.apikey.create",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.create"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:eef08bef98f930c5e752a6076bd73989a0a6547e26fd6291885cdfa48b4d3911",
+              "expected_operation_set": [
+                "identity.apikey.create"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.delete.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.delete.behavior",
+              "claim_id": "identity.apikey.delete",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:50449bb156026c543a1d70156826320968fa6be6b323f312402160f7a30f544f",
+              "expected_operation_set": [
+                "identity.apikey.delete"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.delete"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.delete.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.delete.behavior",
+              "claim_id": "identity.apikey.delete",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7c36056f3f13df93cde9d9183be6d948cdecfe13ddd18a218ce13094d0ae7b2d",
+              "expected_operation_set": [
+                "identity.apikey.delete"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.delete"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.delete.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.delete.behavior",
+              "claim_id": "identity.apikey.delete",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:829ef3f6fbe2d5566bda033b8a1d3efc0225d2af05c8d0f216a680449f179a65",
+              "expected_operation_set": [
+                "identity.apikey.delete"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.delete"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.delete.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.delete.behavior",
+              "claim_id": "identity.apikey.delete",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:98350578a8ac978b16da56c8d6812c1f07e78ee2d6ebbffd4f88903727af232d",
+              "expected_operation_set": [
+                "identity.apikey.delete"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.delete"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior",
+              "claim_id": "identity.apikey.delete-expired",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.delete-expired"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:876b10be0334a394794184cf36d004c49010eb2e16d9c2b54035ea3451b9869b",
+              "expected_operation_set": [
+                "identity.apikey.delete-expired"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.delete-expired"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior",
+              "claim_id": "identity.apikey.delete-expired",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.delete-expired"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:053a110fa4c622dc8c311a32a4e6923eeb16679f451fe6e7470579127b05b7f5",
+              "expected_operation_set": [
+                "identity.apikey.delete-expired"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.delete-expired"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior",
+              "claim_id": "identity.apikey.delete-expired",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.delete-expired"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:8f51ff93cb15a43df1d45489cdec1b5f70708b6bf7695431927bfbc8888eb4b8",
+              "expected_operation_set": [
+                "identity.apikey.delete-expired"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.delete-expired"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.delete-expired.behavior",
+              "claim_id": "identity.apikey.delete-expired",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.delete-expired"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:24075f28c854f0c207140b72916ca5a24c3adc5ce8ab5086fe5bfe32859bce30",
+              "expected_operation_set": [
+                "identity.apikey.delete-expired"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.delete-expired"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.get.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.get.behavior",
+              "claim_id": "identity.apikey.get",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:515d32aafe1d187d8394d785228e4b58eec3a2d065fe5ffabdccb399c52999ad",
+              "expected_operation_set": [
+                "identity.apikey.get"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.get"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.get.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.get.behavior",
+              "claim_id": "identity.apikey.get",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6cb38339833fc91008717f54ac7092170585c496b4e5d9e41e54621455db76c5",
+              "expected_operation_set": [
+                "identity.apikey.get"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.get"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.get.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.get.behavior",
+              "claim_id": "identity.apikey.get",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:2a9a4ce7f6e44127a1dc655836782785960f15bc945b43dbfc89b6ccc2082182",
+              "expected_operation_set": [
+                "identity.apikey.get"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.get"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.get.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.get.behavior",
+              "claim_id": "identity.apikey.get",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:5c81e32b49ebd05c3d33f099e15476a560ddb35604fc7d23845f94373e68b460",
+              "expected_operation_set": [
+                "identity.apikey.get"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.get"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.list.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.list.behavior",
+              "claim_id": "identity.apikey.list",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f12403ea94851960ed37c18f23f5dd3dbcc66b9417fcf877b74ba1bdc72cad8d",
+              "expected_operation_set": [
+                "identity.apikey.list"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.list"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.list.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.list.behavior",
+              "claim_id": "identity.apikey.list",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:92b35536fc683bf2f5acf84a3fc168ae0bbcd23176d44da4567978e2a41e9bb2",
+              "expected_operation_set": [
+                "identity.apikey.list"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.list"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.list.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.list.behavior",
+              "claim_id": "identity.apikey.list",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:6822b9ae6adc341cac47a89a999c4a46d79f3aa0cabe2189eb494278f5bac197",
+              "expected_operation_set": [
+                "identity.apikey.list"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.list"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.list.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.list.behavior",
+              "claim_id": "identity.apikey.list",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:481481ff1289466f6fd0ca24a34812f363a538714f28b1ff8dc5d33a708a06f4",
+              "expected_operation_set": [
+                "identity.apikey.list"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.list"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior",
+              "claim_id": "identity.apikey.rotate",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.rotate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6b3eb97bfb399fff43e10aecaac7132fa7e4a35717256295ec5debc81c453bd6",
+              "expected_operation_set": [
+                "identity.apikey.rotate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.rotate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior",
+              "claim_id": "identity.apikey.rotate",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.rotate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:5641a8904ef2a52359ae4e75d1d9b980133427ba2c3a4824807c7f7b03238ed5",
+              "expected_operation_set": [
+                "identity.apikey.rotate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.rotate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior",
+              "claim_id": "identity.apikey.rotate",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.rotate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:d5c89338ff933abce5bb1fa7a71bb5d77a1f3d71e977696fbd38baf9ac46a162",
+              "expected_operation_set": [
+                "identity.apikey.rotate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.rotate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.rotate.behavior",
+              "claim_id": "identity.apikey.rotate",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.rotate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:036e2b21db9d3cdc4377cd1da6ef7a3b86a9cca402ae8ccb712ffda4ae80b11a",
+              "expected_operation_set": [
+                "identity.apikey.rotate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.rotate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior",
+              "claim_id": "identity.apikey.session-authenticate",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.session-authenticate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c6c9c941e3cc19ba9d2c28fc7919be9a4a94e16b88645e4c44620db38f9138c9",
+              "expected_operation_set": [
+                "identity.apikey.session-authenticate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.session-authenticate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior",
+              "claim_id": "identity.apikey.session-authenticate",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.session-authenticate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:12b5f156d548ae33c97ae9bbea4861dd972712441d64fe435cab8e7cced56efa",
+              "expected_operation_set": [
+                "identity.apikey.session-authenticate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.session-authenticate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior",
+              "claim_id": "identity.apikey.session-authenticate",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.session-authenticate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:9b366501ca5ccb686dcadb7e580490f5f49b28c42bb90c733c6d312e9dcce091",
+              "expected_operation_set": [
+                "identity.apikey.session-authenticate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.session-authenticate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#outage",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior",
+              "claim_id": "identity.apikey.session-authenticate",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.apikey.session-authenticate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:b8745488841000152b6831347d6b4245ad4c2205e10877f604912758b270ac42",
+              "expected_operation_set": [
+                "identity.apikey.session-authenticate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.session-authenticate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior",
+              "claim_id": "identity.apikey.session-authenticate",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.session-authenticate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:e3e763404611145dca2db8dfb824e19008047224ea79073e5c7e5a3f934e6ac6",
+              "expected_operation_set": [
+                "identity.apikey.session-authenticate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.session-authenticate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#cleanup",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior",
+              "claim_id": "identity.apikey.session-authenticate",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.apikey.session-authenticate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e30419801b2339dee8353df24200b2644e6e8e32e7210f9a2f9c14c615f715cb",
+              "expected_operation_set": [
+                "identity.apikey.session-authenticate"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.session-authenticate"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.update.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.update.behavior",
+              "claim_id": "identity.apikey.update",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:eb7c96a4843abf4db6e6633eaf490ebd80820b3325d260740873512271be8814",
+              "expected_operation_set": [
+                "identity.apikey.update"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.update"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.update.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.update.behavior",
+              "claim_id": "identity.apikey.update",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:63269884c799025362ae50f37a8be04df9ceb1ffe6b454bc7d828014496b4f7c",
+              "expected_operation_set": [
+                "identity.apikey.update"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.update"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.update.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.update.behavior",
+              "claim_id": "identity.apikey.update",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:82b63b59b8ba2059aa3b243983ac79f8b19e4dbccfff23f8383508c56c489a07",
+              "expected_operation_set": [
+                "identity.apikey.update"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.update"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.update.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.update.behavior",
+              "claim_id": "identity.apikey.update",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:90874dd6c9ccae1ea7d77e3f03b58941842b3ca296a699a54d5d50cca0486385",
+              "expected_operation_set": [
+                "identity.apikey.update"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.update"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.verify.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.verify.behavior",
+              "claim_id": "identity.apikey.verify",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:3b62f1d26789331f908f14946b27a8d25cb600408a235c45dac57521c95c452d",
+              "expected_operation_set": [
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.verify.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.verify.behavior",
+              "claim_id": "identity.apikey.verify",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:c5250dbad55166ef39e31b1fa28dff703452b29931622827567a040cb9b34d3c",
+              "expected_operation_set": [
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.verify.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.verify.behavior",
+              "claim_id": "identity.apikey.verify",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:37170e9f49e5f9866804969f1b85fd1e803c709e3fbdb06c49785480ae5c4cb5",
+              "expected_operation_set": [
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.identity.apikey.verify.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.identity.apikey.verify.behavior",
+              "claim_id": "identity.apikey.verify",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:eada34ca07558490ac312c4d1c7c39d1d35776e340337673fc1b4164e492fcee",
+              "expected_operation_set": [
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#success",
+              "observation_id": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6b652c80a3d2d4d05a76e624bf5cdd847e9778b015d439585d9b3d3707df715c",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#failure",
+              "observation_id": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:eb208924c4bc197277d9f0f279a237322d253c85a602edda7a4c9f26a7fe5011",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#denial",
+              "observation_id": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:b65454b8a6c9dff6664f4de98f3419d600ec134032098b5ac263503fdf3ee155",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#replay",
+              "observation_id": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "key_name",
+                "scopes",
+                "expires_at",
+                "idempotency_key",
+                "api_key_secret",
+                "session_authentication_enabled",
+                "revocation_version"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:efc76f6b13380ba4d9aa215bef6b4fe5c17db84e6e679d0273b35bd0f425f9ab",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.delete",
+                "identity.apikey.delete-expired",
+                "identity.apikey.get",
+                "identity.apikey.list",
+                "identity.apikey.rotate",
+                "identity.apikey.session-authenticate",
+                "identity.apikey.update",
+                "identity.apikey.verify"
+              ]
+            }
+          ]
         },
         "api_key_id": {
           "type": "string",
@@ -1313,6 +2590,249 @@
         },
         "revocation_propagated": {
           "type": "boolean"
+        },
+        "api_key_security_cases": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "session_count",
+                  "cookie_count",
+                  "secret_reveal_count",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "verify-no-browser-session"
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "cookie_count": {
+                    "const": 0
+                  },
+                  "secret_reveal_count": {
+                    "const": 0
+                  },
+                  "outcome_unknown": {
+                    "const": false
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "session_count",
+                  "cookie_count",
+                  "secret_reveal_count",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "create-reveal-once"
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "cookie_count": {
+                    "const": 0
+                  },
+                  "secret_reveal_count": {
+                    "const": 1
+                  },
+                  "outcome_unknown": {
+                    "const": false
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "session_count",
+                  "cookie_count",
+                  "secret_reveal_count",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "create-ambiguous-recovery"
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "cookie_count": {
+                    "const": 0
+                  },
+                  "secret_reveal_count": {
+                    "const": 0
+                  },
+                  "outcome_unknown": {
+                    "const": true
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "session_count",
+                  "cookie_count",
+                  "secret_reveal_count",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "verify-no-browser-session"
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "cookie_count": {
+                    "const": 0
+                  },
+                  "secret_reveal_count": {
+                    "const": 0
+                  },
+                  "outcome_unknown": {
+                    "const": false
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "session_count",
+                  "cookie_count",
+                  "secret_reveal_count",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "create-reveal-once"
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "cookie_count": {
+                    "const": 0
+                  },
+                  "secret_reveal_count": {
+                    "const": 1
+                  },
+                  "outcome_unknown": {
+                    "const": false
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "session_count",
+                  "cookie_count",
+                  "secret_reveal_count",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "create-ambiguous-recovery"
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "cookie_count": {
+                    "const": 0
+                  },
+                  "secret_reveal_count": {
+                    "const": 0
+                  },
+                  "outcome_unknown": {
+                    "const": true
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -1325,890 +2845,6 @@
             "enabled_session_authenticated",
             "revocation_propagated"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.apikey.session-authenticate"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.verify",
-                      "identity.apikey.rotate",
-                      "identity.apikey.delete",
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "key_name",
-                      "scopes",
-                      "expires_at",
-                      "idempotency_key",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.verify",
-                      "identity.apikey.rotate",
-                      "identity.apikey.delete",
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "key_name",
-                      "scopes",
-                      "expires_at",
-                      "idempotency_key",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.verify",
-                      "identity.apikey.rotate",
-                      "identity.apikey.delete",
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "key_name",
-                      "scopes",
-                      "expires_at",
-                      "idempotency_key",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.verify",
-                      "identity.apikey.rotate",
-                      "identity.apikey.delete",
-                      "identity.apikey.session-authenticate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "key_name",
-                      "scopes",
-                      "expires_at",
-                      "idempotency_key",
-                      "api_key_secret",
-                      "session_authentication_enabled",
-                      "revocation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no key exists for key_name and API-key session authentication profile is explicitly configured"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "created_secret_digest",
-                      "rotated_secret_digest",
-                      "old_secret_rejected",
-                      "deleted_secret_rejected",
-                      "disabled_profile_rejected",
-                      "enabled_session_authenticated",
-                      "revocation_propagated"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

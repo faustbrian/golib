@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "distributed-rate-limit-report"
+        },
+        "invariant_id": {
+          "const": "distributed-rate-limit-report.invariant"
+        },
+        "invariant": {
+          "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
         },
         "operation_ids": {
           "const": [
@@ -396,314 +404,313 @@
           "type": "array",
           "minItems": 4,
           "maxItems": 4,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "route_id",
-                      "client_ip",
-                      "limit",
-                      "window"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "admitted_count",
-                      "rejected_count",
-                      "retry_after_seconds",
-                      "postgres_counter",
-                      "valkey_counter"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#success",
+                  "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#failure",
+                  "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#outage",
+                  "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#concurrency"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.abuse-controls.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "distributed-rate-limit-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage",
+                  "concurrency"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.evaluate"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "route_id",
-                      "client_ip",
-                      "limit",
-                      "window"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "admitted_count",
-                      "rejected_count",
-                      "retry_after_seconds",
-                      "postgres_counter",
-                      "valkey_counter"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "route_id",
-                      "client_ip",
-                      "limit",
-                      "window"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "admitted_count",
-                      "rejected_count",
-                      "retry_after_seconds",
-                      "postgres_counter",
-                      "valkey_counter"
-                    ]
-                  }
+              "initial_state": {
+                "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable",
+                  "conflict"
+                ]
+              },
+              "expected_invariant": {
+                "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.evaluate"
+                  ]
                 }
               },
-              {
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.evaluate"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "admitted_count",
+                  "rejected_count",
+                  "retry_after_seconds",
+                  "postgres_counter",
+                  "valkey_counter"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#concurrency"
+                  "admitted_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
+                  "rejected_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "concurrency"
+                  "postgres_counter": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "route_id",
-                      "client_ip",
-                      "limit",
-                      "window"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "admitted_count",
-                      "rejected_count",
-                      "retry_after_seconds",
-                      "postgres_counter",
-                      "valkey_counter"
-                    ]
+                  "valkey_counter": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#success",
+              "observation_id": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior",
+              "claim_id": "journey.abuse-controls.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "route_id",
+                "client_ip",
+                "limit",
+                "window"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a733577a5ea6e7b691570a04e42aa30fee1d2360b6f73db35992450fee1cb6a8",
+              "expected_operation_set": [
+                "identity.risk.evaluate"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate"
+              ]
+            },
+            {
+              "case_id": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#failure",
+              "observation_id": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior",
+              "claim_id": "journey.abuse-controls.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "route_id",
+                "client_ip",
+                "limit",
+                "window"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:51dc5c855be4bb93e11190eeccf2fc36c1388f914175c7c70e67c4ef29fb988d",
+              "expected_operation_set": [
+                "identity.risk.evaluate"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate"
+              ]
+            },
+            {
+              "case_id": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#outage",
+              "observation_id": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior",
+              "claim_id": "journey.abuse-controls.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "route_id",
+                "client_ip",
+                "limit",
+                "window"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:f852442ff653eaca5b295a126a775c534095f120f4f7a51c3ebbc14df0c95d32",
+              "expected_operation_set": [
+                "identity.risk.evaluate"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate"
+              ]
+            },
+            {
+              "case_id": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#concurrency",
+              "observation_id": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior",
+              "claim_id": "journey.abuse-controls.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "route_id",
+                "client_ip",
+                "limit",
+                "window"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:201ed8b054df7f1695fbb222230ada7ce972917fa303420b465c7a8303595ae8",
+              "expected_operation_set": [
+                "identity.risk.evaluate"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate"
+              ]
+            }
+          ]
         },
         "admitted_count": {
           "type": "integer",
@@ -746,340 +753,6 @@
           "kind": "equal",
           "left": "postgres_counter",
           "right": "valkey_counter"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "route_id",
-                      "client_ip",
-                      "limit",
-                      "window"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "admitted_count",
-                      "rejected_count",
-                      "retry_after_seconds",
-                      "postgres_counter",
-                      "valkey_counter"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "route_id",
-                      "client_ip",
-                      "limit",
-                      "window"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "admitted_count",
-                      "rejected_count",
-                      "retry_after_seconds",
-                      "postgres_counter",
-                      "valkey_counter"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "route_id",
-                      "client_ip",
-                      "limit",
-                      "window"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "admitted_count",
-                      "rejected_count",
-                      "retry_after_seconds",
-                      "postgres_counter",
-                      "valkey_counter"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.abuse-controls.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "route_id",
-                      "client_ip",
-                      "limit",
-                      "window"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey counters start at zero for the canonical client key"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent requests admit exactly limit operations and all later operations receive rate_limited with Retry-After"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "admitted_count",
-                      "rejected_count",
-                      "retry_after_seconds",
-                      "postgres_counter",
-                      "valkey_counter"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

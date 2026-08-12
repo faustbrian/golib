@@ -108,11 +108,60 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 2,
+      "maxItems": 2,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "locale-negotiation-report.identity.i18n.resolve.behavior"
+              },
+              "claim_id": {
+                "const": "identity.i18n.resolve"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.locale-negotiation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.i18n.resolve; exact inputs: explicit_locale, accept_language, tenant_default, platform_default; initial state: catalog contains translations for supported and partially supported locales"
+              },
+              "stimulus": {
+                "const": "Run identity.i18n.resolve for success, failure cases using explicit_locale, accept_language, tenant_default, platform_default and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: selected_locale, fallback_locale, fallback_count, catalog_digest, message_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: selected_locale, fallback_locale, fallback_count, catalog_digest, message_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,10 +191,10 @@
                 "const": "success,failure"
               },
               "preconditions": {
-                "const": "Operations: make check MODULES=pkg/identity/i18n; exact inputs: explicit_locale, accept_language, tenant_default, platform_default; initial state: catalog contains translations for supported and partially supported locales"
+                "const": "Operations: identity.i18n.resolve; exact inputs: explicit_locale, accept_language, tenant_default, platform_default; initial state: catalog contains translations for supported and partially supported locales"
               },
               "stimulus": {
-                "const": "Run make check MODULES=pkg/identity/i18n for success, failure cases using explicit_locale, accept_language, tenant_default, platform_default and capture every required artifact field"
+                "const": "Run identity.i18n.resolve for success, failure cases using explicit_locale, accept_language, tenant_default, platform_default and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: selected_locale, fallback_locale, fallback_count, catalog_digest, message_digest"
@@ -216,6 +265,24 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "locale-negotiation-report.identity.i18n.resolve.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "locale-negotiation-report.journey.localization.v1.behavior"
               }
             }
@@ -256,6 +323,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -270,9 +339,15 @@
         "artifact_id": {
           "const": "locale-negotiation-report"
         },
+        "invariant_id": {
+          "const": "locale-negotiation-report.invariant"
+        },
+        "invariant": {
+          "const": "selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity"
+        },
         "operation_ids": {
           "const": [
-            "make check MODULES=pkg/identity/i18n"
+            "identity.i18n.resolve"
           ]
         },
         "input_digest": {
@@ -394,162 +469,316 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 2,
-          "maxItems": 2,
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "locale-negotiation-report.journey.localization.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "locale-negotiation-report.journey.localization.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.localization.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/i18n"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "explicit_locale",
-                      "accept_language",
-                      "tenant_default",
-                      "platform_default"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "catalog contains translations for supported and partially supported locales"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "selected_locale",
-                      "fallback_locale",
-                      "fallback_count",
-                      "catalog_digest",
-                      "message_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "locale-negotiation-report.identity.i18n.resolve.behavior#success",
+                  "locale-negotiation-report.identity.i18n.resolve.behavior#failure",
+                  "locale-negotiation-report.journey.localization.v1.behavior#success",
+                  "locale-negotiation-report.journey.localization.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "locale-negotiation-report.identity.i18n.resolve.behavior",
+                  "locale-negotiation-report.journey.localization.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.i18n.resolve",
+                  "journey.localization.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "locale-negotiation-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.i18n.resolve"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "catalog contains translations for supported and partially supported locales"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.i18n.resolve"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.i18n.resolve"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "selected_locale",
+                  "fallback_locale",
+                  "fallback_count",
+                  "catalog_digest",
+                  "message_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "locale-negotiation-report.journey.localization.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "locale-negotiation-report.journey.localization.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.localization.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/i18n"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "explicit_locale",
+                  "selected_locale": {
+                    "type": "string",
+                    "enum": [
+                      "explicit",
                       "accept_language",
                       "tenant_default",
-                      "platform_default"
+                      "platform_default",
+                      "fallback"
                     ]
                   },
-                  "initial_state": {
-                    "const": "catalog contains translations for supported and partially supported locales"
+                  "fallback_locale": {
+                    "type": "string",
+                    "enum": [
+                      "explicit",
+                      "accept_language",
+                      "tenant_default",
+                      "platform_default",
+                      "fallback"
+                    ]
                   },
-                  "stable_error": {
-                    "const": "internal"
+                  "fallback_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "expected_invariant": {
-                    "const": "selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity"
-                  },
-                  "observed_state_digest": {
+                  "catalog_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "message_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "selected_locale",
-                      "fallback_locale",
-                      "fallback_count",
-                      "catalog_digest",
-                      "message_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "locale-negotiation-report.identity.i18n.resolve.behavior#success",
+              "observation_id": "locale-negotiation-report.identity.i18n.resolve.behavior",
+              "claim_id": "identity.i18n.resolve",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.i18n.resolve"
+              ],
+              "input_fields": [
+                "explicit_locale",
+                "accept_language",
+                "tenant_default",
+                "platform_default"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:60f42a29d2abe7c2f7c6ea9b082d3b5017ae3cd7f1c8b0470873a152f513ac34",
+              "expected_operation_set": [
+                "identity.i18n.resolve"
+              ],
+              "observed_operation_set": [
+                "identity.i18n.resolve"
+              ]
+            },
+            {
+              "case_id": "locale-negotiation-report.identity.i18n.resolve.behavior#failure",
+              "observation_id": "locale-negotiation-report.identity.i18n.resolve.behavior",
+              "claim_id": "identity.i18n.resolve",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.i18n.resolve"
+              ],
+              "input_fields": [
+                "explicit_locale",
+                "accept_language",
+                "tenant_default",
+                "platform_default"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:3b70df6edf83090cb2520c9aa7a3dce8b43953cb5b869f581162d1873364f662",
+              "expected_operation_set": [
+                "identity.i18n.resolve"
+              ],
+              "observed_operation_set": [
+                "identity.i18n.resolve"
+              ]
+            },
+            {
+              "case_id": "locale-negotiation-report.journey.localization.v1.behavior#success",
+              "observation_id": "locale-negotiation-report.journey.localization.v1.behavior",
+              "claim_id": "journey.localization.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.i18n.resolve"
+              ],
+              "input_fields": [
+                "explicit_locale",
+                "accept_language",
+                "tenant_default",
+                "platform_default"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:7b971873738730d50f4f6b5c74f17d52c84b0222b7d7852aa264685cce22a1e9",
+              "expected_operation_set": [
+                "identity.i18n.resolve"
+              ],
+              "observed_operation_set": [
+                "identity.i18n.resolve"
+              ]
+            },
+            {
+              "case_id": "locale-negotiation-report.journey.localization.v1.behavior#failure",
+              "observation_id": "locale-negotiation-report.journey.localization.v1.behavior",
+              "claim_id": "journey.localization.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.i18n.resolve"
+              ],
+              "input_fields": [
+                "explicit_locale",
+                "accept_language",
+                "tenant_default",
+                "platform_default"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:52073392a48ac94f4c747b68f7bf11a3c3d3588c3184a4588332d56223277418",
+              "expected_operation_set": [
+                "identity.i18n.resolve"
+              ],
+              "observed_operation_set": [
+                "identity.i18n.resolve"
+              ]
+            }
+          ]
         },
         "selected_locale": {
           "type": "string",
@@ -591,172 +820,6 @@
           "fields": [
             "fallback_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "locale-negotiation-report.journey.localization.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "locale-negotiation-report.journey.localization.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.localization.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/i18n"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "explicit_locale",
-                      "accept_language",
-                      "tenant_default",
-                      "platform_default"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "catalog contains translations for supported and partially supported locales"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "selected_locale",
-                      "fallback_locale",
-                      "fallback_count",
-                      "catalog_digest",
-                      "message_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "locale-negotiation-report.journey.localization.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "locale-negotiation-report.journey.localization.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.localization.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/i18n"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "explicit_locale",
-                      "accept_language",
-                      "tenant_default",
-                      "platform_default"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "catalog contains translations for supported and partially supported locales"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "selection follows explicit, header, tenant, platform order and missing messages fall back without changing the stable error identity"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "selected_locale",
-                      "fallback_locale",
-                      "fallback_count",
-                      "catalog_digest",
-                      "message_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

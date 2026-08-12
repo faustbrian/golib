@@ -108,11 +108,844 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 18,
+      "maxItems": 18,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.auth-headers"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.auth-headers; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.auth-headers for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.cookie-create"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.cookie-create; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.cookie-create for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.cookie-headers"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.cookie-headers; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.cookie-headers for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.cookies.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.cookies"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.cookies; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.cookies for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.delivery-capture"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.delivery-capture; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.delivery-capture for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.login.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.login"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.login; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.login for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.member-add.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.member-add"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.member-add; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.member-add for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.organization-create"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.organization-create; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.organization-create for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.organization-delete"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.organization-delete; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.organization-delete for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.organization-save"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.organization-save; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.organization-save for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.otp-clear"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.otp-clear; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.otp-clear for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.otp-get"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.otp-get; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.otp-get for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.reset.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.reset"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.reset; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.reset for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.store-conformance"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.store-conformance; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.store-conformance for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.user-create.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.user-create"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.user-create; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.user-create for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.user-delete"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.user-delete; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.user-delete for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.user-save.behavior"
+              },
+              "claim_id": {
+                "const": "identity.identitytest.user-save"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.identitytest.user-save; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+              },
+              "stimulus": {
+                "const": "Run identity.identitytest.user-save for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,10 +975,10 @@
                 "const": "success,failure,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.identitytest.organization-create, identity.identitytest.organization-save, identity.identitytest.organization-delete; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
+                "const": "Operations: identity.identitytest.auth-headers, identity.identitytest.cookie-create, identity.identitytest.cookie-headers, identity.identitytest.cookies, identity.identitytest.delivery-capture, identity.identitytest.login, identity.identitytest.member-add, identity.identitytest.organization-create, identity.identitytest.organization-delete, identity.identitytest.organization-save, identity.identitytest.otp-clear, identity.identitytest.otp-get, identity.identitytest.reset, identity.identitytest.store-conformance, identity.identitytest.user-create, identity.identitytest.user-delete, identity.identitytest.user-save; exact inputs: consumer_module, fixture_seed, organization_fixture; initial state: clean consumer imports identitytest without importing persistence adapters"
               },
               "stimulus": {
-                "const": "Run identity.identitytest.organization-create then identity.identitytest.organization-save then identity.identitytest.organization-delete for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
+                "const": "Run identity.identitytest.auth-headers then identity.identitytest.cookie-create then identity.identitytest.cookie-headers then identity.identitytest.cookies then identity.identitytest.delivery-capture then identity.identitytest.login then identity.identitytest.member-add then identity.identitytest.organization-create then identity.identitytest.organization-delete then identity.identitytest.organization-save then identity.identitytest.otp-clear then identity.identitytest.otp-get then identity.identitytest.reset then identity.identitytest.store-conformance then identity.identitytest.user-create then identity.identitytest.user-delete then identity.identitytest.user-save for success, failure, cleanup cases using consumer_module, fixture_seed, organization_fixture and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: consumer_module_digest, fixture_id, created_fixture_count, remaining_fixture_count, dependency_graph_digest"
@@ -216,6 +1049,312 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.cookies.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.login.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.member-add.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.reset.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.user-create.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "identitytest-cycle-free-report.identity.identitytest.user-save.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior"
               }
             }
@@ -256,6 +1395,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -270,11 +1411,31 @@
         "artifact_id": {
           "const": "identitytest-cycle-free-report"
         },
+        "invariant_id": {
+          "const": "identitytest-cycle-free-report.invariant"
+        },
+        "invariant": {
+          "const": "fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle"
+        },
         "operation_ids": {
           "const": [
+            "identity.identitytest.auth-headers",
+            "identity.identitytest.cookie-create",
+            "identity.identitytest.cookie-headers",
+            "identity.identitytest.cookies",
+            "identity.identitytest.delivery-capture",
+            "identity.identitytest.login",
+            "identity.identitytest.member-add",
             "identity.identitytest.organization-create",
+            "identity.identitytest.organization-delete",
             "identity.identitytest.organization-save",
-            "identity.identitytest.organization-delete"
+            "identity.identitytest.otp-clear",
+            "identity.identitytest.otp-get",
+            "identity.identitytest.reset",
+            "identity.identitytest.store-conformance",
+            "identity.identitytest.user-create",
+            "identity.identitytest.user-delete",
+            "identity.identitytest.user-save"
           ]
         },
         "input_digest": {
@@ -396,240 +1557,1726 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 3,
-          "maxItems": 3,
+          "minItems": 54,
+          "maxItems": 54,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.identitytest.organization-create",
-                      "identity.identitytest.organization-save",
-                      "identity.identitytest.organization-delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "consumer_module",
-                      "fixture_seed",
-                      "organization_fixture"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean consumer imports identitytest without importing persistence adapters"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "consumer_module_digest",
-                      "fixture_id",
-                      "created_fixture_count",
-                      "remaining_fixture_count",
-                      "dependency_graph_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.cookies.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.cookies.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.cookies.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.login.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.login.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.login.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.member-add.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.member-add.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.member-add.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.reset.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.reset.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.reset.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.user-create.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.user-create.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.user-create.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior#cleanup",
+                  "identitytest-cycle-free-report.identity.identitytest.user-save.behavior#success",
+                  "identitytest-cycle-free-report.identity.identitytest.user-save.behavior#failure",
+                  "identitytest-cycle-free-report.identity.identitytest.user-save.behavior#cleanup",
+                  "identitytest-cycle-free-report.journey.developer-use.v1.behavior#success",
+                  "identitytest-cycle-free-report.journey.developer-use.v1.behavior#failure",
+                  "identitytest-cycle-free-report.journey.developer-use.v1.behavior#cleanup"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.cookies.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.login.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.member-add.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.reset.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.user-create.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior",
+                  "identitytest-cycle-free-report.identity.identitytest.user-save.behavior",
+                  "identitytest-cycle-free-report.journey.developer-use.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.identitytest.auth-headers",
+                  "identity.identitytest.cookie-create",
+                  "identity.identitytest.cookie-headers",
+                  "identity.identitytest.cookies",
+                  "identity.identitytest.delivery-capture",
+                  "identity.identitytest.login",
+                  "identity.identitytest.member-add",
+                  "identity.identitytest.organization-create",
+                  "identity.identitytest.organization-delete",
+                  "identity.identitytest.organization-save",
+                  "identity.identitytest.otp-clear",
+                  "identity.identitytest.otp-get",
+                  "identity.identitytest.reset",
+                  "identity.identitytest.store-conformance",
+                  "identity.identitytest.user-create",
+                  "identity.identitytest.user-delete",
+                  "identity.identitytest.user-save",
+                  "journey.developer-use.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "identitytest-cycle-free-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "cleanup"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.identitytest.auth-headers",
+                    "identity.identitytest.cookie-create",
+                    "identity.identitytest.cookie-headers",
+                    "identity.identitytest.cookies",
+                    "identity.identitytest.delivery-capture",
+                    "identity.identitytest.login",
+                    "identity.identitytest.member-add",
+                    "identity.identitytest.organization-create",
+                    "identity.identitytest.organization-delete",
+                    "identity.identitytest.organization-save",
+                    "identity.identitytest.otp-clear",
+                    "identity.identitytest.otp-get",
+                    "identity.identitytest.reset",
+                    "identity.identitytest.store-conformance",
+                    "identity.identitytest.user-create",
+                    "identity.identitytest.user-delete",
+                    "identity.identitytest.user-save"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.identitytest.organization-create",
-                      "identity.identitytest.organization-save",
-                      "identity.identitytest.organization-delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "consumer_module",
-                      "fixture_seed",
-                      "organization_fixture"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean consumer imports identitytest without importing persistence adapters"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "consumer_module_digest",
-                      "fixture_id",
-                      "created_fixture_count",
-                      "remaining_fixture_count",
-                      "dependency_graph_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "clean consumer imports identitytest without importing persistence adapters"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.identitytest.auth-headers",
+                    "identity.identitytest.cookie-create",
+                    "identity.identitytest.cookie-headers",
+                    "identity.identitytest.cookies",
+                    "identity.identitytest.delivery-capture",
+                    "identity.identitytest.login",
+                    "identity.identitytest.member-add",
+                    "identity.identitytest.organization-create",
+                    "identity.identitytest.organization-delete",
+                    "identity.identitytest.organization-save",
+                    "identity.identitytest.otp-clear",
+                    "identity.identitytest.otp-get",
+                    "identity.identitytest.reset",
+                    "identity.identitytest.store-conformance",
+                    "identity.identitytest.user-create",
+                    "identity.identitytest.user-delete",
+                    "identity.identitytest.user-save"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.identitytest.auth-headers",
+                    "identity.identitytest.cookie-create",
+                    "identity.identitytest.cookie-headers",
+                    "identity.identitytest.cookies",
+                    "identity.identitytest.delivery-capture",
+                    "identity.identitytest.login",
+                    "identity.identitytest.member-add",
+                    "identity.identitytest.organization-create",
+                    "identity.identitytest.organization-delete",
+                    "identity.identitytest.organization-save",
+                    "identity.identitytest.otp-clear",
+                    "identity.identitytest.otp-get",
+                    "identity.identitytest.reset",
+                    "identity.identitytest.store-conformance",
+                    "identity.identitytest.user-create",
+                    "identity.identitytest.user-delete",
+                    "identity.identitytest.user-save"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "consumer_module_digest",
+                  "fixture_id",
+                  "created_fixture_count",
+                  "remaining_fixture_count",
+                  "dependency_graph_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.identitytest.organization-create",
-                      "identity.identitytest.organization-save",
-                      "identity.identitytest.organization-delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "consumer_module",
-                      "fixture_seed",
-                      "organization_fixture"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean consumer imports identitytest without importing persistence adapters"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle"
-                  },
-                  "observed_state_digest": {
+                  "consumer_module_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "fixture_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+                  },
+                  "created_fixture_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "remaining_fixture_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "dependency_graph_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "consumer_module_digest",
-                      "fixture_id",
-                      "created_fixture_count",
-                      "remaining_fixture_count",
-                      "dependency_graph_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior",
+              "claim_id": "identity.identitytest.auth-headers",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.auth-headers"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c9d58cb45f20b72bbec2e6031d5fa4007a4de4b4476c844248ee221e95493dce",
+              "expected_operation_set": [
+                "identity.identitytest.auth-headers"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.auth-headers"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior",
+              "claim_id": "identity.identitytest.auth-headers",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.auth-headers"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:da246e2a1da3133cf57731dbe65634d81c381b0ef119369de8d301e0692563ce",
+              "expected_operation_set": [
+                "identity.identitytest.auth-headers"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.auth-headers"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior",
+              "claim_id": "identity.identitytest.auth-headers",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.auth-headers"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:805c24c310106e9c960b0b22f1b339c5a9aea38632a289642b4c8756bd4f0bb6",
+              "expected_operation_set": [
+                "identity.identitytest.auth-headers"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.auth-headers"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior",
+              "claim_id": "identity.identitytest.cookie-create",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.cookie-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:8c743990f8b499e27f5ff9384311a75478f90dae1f5d6564295545c850de5962",
+              "expected_operation_set": [
+                "identity.identitytest.cookie-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookie-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior",
+              "claim_id": "identity.identitytest.cookie-create",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.cookie-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7a8f11d4fed9524c3243bcc11cc884564020b1b8f156175856aeb74b2e01fa91",
+              "expected_operation_set": [
+                "identity.identitytest.cookie-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookie-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior",
+              "claim_id": "identity.identitytest.cookie-create",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.cookie-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b3a64b5f9657bbde64040f20788c9bb3d243fca2773089303ef1dc83d6644db6",
+              "expected_operation_set": [
+                "identity.identitytest.cookie-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookie-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior",
+              "claim_id": "identity.identitytest.cookie-headers",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.cookie-headers"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:67b361664b43c82b82cdb0271b2b0d006f1f7f338fe5ddd3c198030893ed2f7b",
+              "expected_operation_set": [
+                "identity.identitytest.cookie-headers"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookie-headers"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior",
+              "claim_id": "identity.identitytest.cookie-headers",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.cookie-headers"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:e39d388fd9e1af2f3bc53d05ac8e260df4a0399fa211444114433cd1c14530c7",
+              "expected_operation_set": [
+                "identity.identitytest.cookie-headers"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookie-headers"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookie-headers.behavior",
+              "claim_id": "identity.identitytest.cookie-headers",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.cookie-headers"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a3a89eabf1137fefd429d532fefa08b573cf05cbb56e38599c117bd0ed3b0acd",
+              "expected_operation_set": [
+                "identity.identitytest.cookie-headers"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookie-headers"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookies.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookies.behavior",
+              "claim_id": "identity.identitytest.cookies",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.cookies"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a79dcb10863e04ae779cb322d27e61a3c2437b9f750dec06f4bbbc186dad182a",
+              "expected_operation_set": [
+                "identity.identitytest.cookies"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookies"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookies.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookies.behavior",
+              "claim_id": "identity.identitytest.cookies",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.cookies"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:52fb2a3d83dedc4c4daf86fbedf803b08aa66db3d8d0e9e27d84e0c3d47d5205",
+              "expected_operation_set": [
+                "identity.identitytest.cookies"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookies"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.cookies.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.cookies.behavior",
+              "claim_id": "identity.identitytest.cookies",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.cookies"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f21cb9aedfef43e2a5c5a5c4a755fd811a10bd32ff2064868a44071b23f90525",
+              "expected_operation_set": [
+                "identity.identitytest.cookies"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.cookies"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior",
+              "claim_id": "identity.identitytest.delivery-capture",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.delivery-capture"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c2228d2afea51071312e899dc6af6a7f96df44760794a5df2ff25f38891213a3",
+              "expected_operation_set": [
+                "identity.identitytest.delivery-capture"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.delivery-capture"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior",
+              "claim_id": "identity.identitytest.delivery-capture",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.delivery-capture"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:72999bfb85e747c278faee2d9490f185db693cdda3601e4f587e34e81465e32e",
+              "expected_operation_set": [
+                "identity.identitytest.delivery-capture"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.delivery-capture"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.delivery-capture.behavior",
+              "claim_id": "identity.identitytest.delivery-capture",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.delivery-capture"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:34b36dcbe8625f2b20dc2644af3c57388daf90a26d2884f271ffabea55fa195f",
+              "expected_operation_set": [
+                "identity.identitytest.delivery-capture"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.delivery-capture"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.login.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.login.behavior",
+              "claim_id": "identity.identitytest.login",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.login"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:5118acf956509b2238de6e96e59b8c77897d693db480f92afa739c424f29989a",
+              "expected_operation_set": [
+                "identity.identitytest.login"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.login"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.login.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.login.behavior",
+              "claim_id": "identity.identitytest.login",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.login"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:bf62682dc6af559126abbfee55af5868259ccf4ffb944be64bcb7a052895b513",
+              "expected_operation_set": [
+                "identity.identitytest.login"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.login"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.login.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.login.behavior",
+              "claim_id": "identity.identitytest.login",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.login"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:3e62882ac895d60960692126ea8cdd6054e263e9484fc7fa06fb655c7f6ec798",
+              "expected_operation_set": [
+                "identity.identitytest.login"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.login"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.member-add.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.member-add.behavior",
+              "claim_id": "identity.identitytest.member-add",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.member-add"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:0b995c056ad162bbe043cdbe33a6276541ca005c73e126e6e334f442f3a3b8ed",
+              "expected_operation_set": [
+                "identity.identitytest.member-add"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.member-add"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.member-add.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.member-add.behavior",
+              "claim_id": "identity.identitytest.member-add",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.member-add"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:94d69b5ea16defca41c1a7105321ba8969ab8643c364d0a083e1dc0884e3ec54",
+              "expected_operation_set": [
+                "identity.identitytest.member-add"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.member-add"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.member-add.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.member-add.behavior",
+              "claim_id": "identity.identitytest.member-add",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.member-add"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f18449a8ba035c777b106b4f94372f751325c8dd05e5bd947018a266ea24fc20",
+              "expected_operation_set": [
+                "identity.identitytest.member-add"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.member-add"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior",
+              "claim_id": "identity.identitytest.organization-create",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.organization-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:0ff58803e890845274c3dc1ebbb59d178c2c1182a65c5e1e3e1ea895797104ab",
+              "expected_operation_set": [
+                "identity.identitytest.organization-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior",
+              "claim_id": "identity.identitytest.organization-create",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.organization-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:a6b6bdd716c51ae9a65bce2229938cd10c43ae99689e9383e57f3c43dcdd3980",
+              "expected_operation_set": [
+                "identity.identitytest.organization-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-create.behavior",
+              "claim_id": "identity.identitytest.organization-create",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.organization-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c7ca1ac6bf50027fc617faef65b978e68c1260659c01bbb291d0ab80f654945a",
+              "expected_operation_set": [
+                "identity.identitytest.organization-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior",
+              "claim_id": "identity.identitytest.organization-delete",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.organization-delete"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:518d441a2a32d100bea9614e31c95f5fa0b45ffc1c8f5c06dbb1a5f182711dcd",
+              "expected_operation_set": [
+                "identity.identitytest.organization-delete"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-delete"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior",
+              "claim_id": "identity.identitytest.organization-delete",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.organization-delete"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:ac71f7eb038df3bff6046bf31a5d81ab1ce1237230dac20a23fb9360c7971a55",
+              "expected_operation_set": [
+                "identity.identitytest.organization-delete"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-delete"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-delete.behavior",
+              "claim_id": "identity.identitytest.organization-delete",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.organization-delete"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:33d32cbf049f43dd5423a2cd339eff3a897ca6b8ad1aa30dadf6b4fc3430cebc",
+              "expected_operation_set": [
+                "identity.identitytest.organization-delete"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-delete"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior",
+              "claim_id": "identity.identitytest.organization-save",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.organization-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:13d047b8598f6dab1c8aa94aaed1385541914b234bf8e4a4c5b7e6c185d86817",
+              "expected_operation_set": [
+                "identity.identitytest.organization-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-save"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior",
+              "claim_id": "identity.identitytest.organization-save",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.organization-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:945c830250c6ee021f2e871a3c9fe62aa2fad7a66f75865036772fd05e13b4f3",
+              "expected_operation_set": [
+                "identity.identitytest.organization-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-save"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.organization-save.behavior",
+              "claim_id": "identity.identitytest.organization-save",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.organization-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f476d8f6dbc07396ad474a80674e0761ef5a3e179cf124fbc377150748fc232a",
+              "expected_operation_set": [
+                "identity.identitytest.organization-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.organization-save"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior",
+              "claim_id": "identity.identitytest.otp-clear",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.otp-clear"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:57d9a510b7282b1baef8be4690edcfe254ef8525e492b7913e658ecdb1ebb494",
+              "expected_operation_set": [
+                "identity.identitytest.otp-clear"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.otp-clear"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior",
+              "claim_id": "identity.identitytest.otp-clear",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.otp-clear"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b07fb370dcabe999c6f03e404a14b45533592f378cf05763906f325e3f7fcbf8",
+              "expected_operation_set": [
+                "identity.identitytest.otp-clear"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.otp-clear"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.otp-clear.behavior",
+              "claim_id": "identity.identitytest.otp-clear",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.otp-clear"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:be529fc405dc3b3d3549a7c7d2b67a6362c2696ed78c916191e929034697e5c3",
+              "expected_operation_set": [
+                "identity.identitytest.otp-clear"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.otp-clear"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior",
+              "claim_id": "identity.identitytest.otp-get",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.otp-get"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:54f8951f81abada7f3a08062cc476eea929a5c12b8c2a71ed8cb37005642e6bb",
+              "expected_operation_set": [
+                "identity.identitytest.otp-get"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.otp-get"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior",
+              "claim_id": "identity.identitytest.otp-get",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.otp-get"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7cae0b2e6dcdbfb9be6d5e5bb5a232d34ff566a966ff7f645b3078fdf0e6c49f",
+              "expected_operation_set": [
+                "identity.identitytest.otp-get"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.otp-get"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.otp-get.behavior",
+              "claim_id": "identity.identitytest.otp-get",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.otp-get"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9cef0ba27151b385105c330b09b5fc9b1a78cf414852808b0bbf0154722fe2d6",
+              "expected_operation_set": [
+                "identity.identitytest.otp-get"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.otp-get"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.reset.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.reset.behavior",
+              "claim_id": "identity.identitytest.reset",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.reset"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9e16a7c977f75ff49e03fa44546c24f2b1e76a1ee90f80fce06cf8fa0cfb7e7b",
+              "expected_operation_set": [
+                "identity.identitytest.reset"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.reset"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.reset.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.reset.behavior",
+              "claim_id": "identity.identitytest.reset",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.reset"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:d53113b3b0bfdbde74e0cdf5eb37eaebcb2f63ebfc5787227ddd1d2edaaddfa8",
+              "expected_operation_set": [
+                "identity.identitytest.reset"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.reset"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.reset.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.reset.behavior",
+              "claim_id": "identity.identitytest.reset",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.reset"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f235158bc03fcf6716d54f5ddf7101b08c39985ddcd1a7a3bbf5bfcc02b56d07",
+              "expected_operation_set": [
+                "identity.identitytest.reset"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.reset"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior",
+              "claim_id": "identity.identitytest.store-conformance",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.store-conformance"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:010d5104f21666d014a2f02d90569a421a44a3ed0b0cfe6d6cb938df28a215d7",
+              "expected_operation_set": [
+                "identity.identitytest.store-conformance"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.store-conformance"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior",
+              "claim_id": "identity.identitytest.store-conformance",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.store-conformance"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:67266bbbec0e87916b124d35ce2206852b74f75c7e2219b1355a111b8b14599c",
+              "expected_operation_set": [
+                "identity.identitytest.store-conformance"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.store-conformance"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.store-conformance.behavior",
+              "claim_id": "identity.identitytest.store-conformance",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.store-conformance"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:24c476d56da22415f227217f88664c945ae58d3cab834449c3a7afcc4d8d1d8d",
+              "expected_operation_set": [
+                "identity.identitytest.store-conformance"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.store-conformance"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-create.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-create.behavior",
+              "claim_id": "identity.identitytest.user-create",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.user-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4d9dc8b90ca2b0441bc91a5bb00fe5f39337d808d7be7e40b4e2437af3ce2081",
+              "expected_operation_set": [
+                "identity.identitytest.user-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-create.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-create.behavior",
+              "claim_id": "identity.identitytest.user-create",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.user-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7ca984345a6f0fe4c98d788763c37de3c5e06adfc78316fc2366b853e8e9d1d4",
+              "expected_operation_set": [
+                "identity.identitytest.user-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-create.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-create.behavior",
+              "claim_id": "identity.identitytest.user-create",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.user-create"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:fe945f29acbb68e0fc299e7d25f3a93f49c75fc2af8c3cc2b3365922ba2b844b",
+              "expected_operation_set": [
+                "identity.identitytest.user-create"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-create"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior",
+              "claim_id": "identity.identitytest.user-delete",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.user-delete"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:3e1c71b05227d3ba90c01f5614243f2b96d826dbb2b002a2a7354e8af150ae04",
+              "expected_operation_set": [
+                "identity.identitytest.user-delete"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-delete"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior",
+              "claim_id": "identity.identitytest.user-delete",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.user-delete"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:e605066ebb2708728d43ddeda8471b5f8469f184dadda72a9006e712402696e2",
+              "expected_operation_set": [
+                "identity.identitytest.user-delete"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-delete"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-delete.behavior",
+              "claim_id": "identity.identitytest.user-delete",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.user-delete"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e88cdd827a3ba733e8de0b21b538c2dc629d7c69bfffa23cf69d8452115c9b00",
+              "expected_operation_set": [
+                "identity.identitytest.user-delete"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-delete"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-save.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-save.behavior",
+              "claim_id": "identity.identitytest.user-save",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.user-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:ec9eca46bde29ccc5d1c34c53d2ffd79b5134e717aa0a7d2500ea5ccd14db18b",
+              "expected_operation_set": [
+                "identity.identitytest.user-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-save"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-save.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-save.behavior",
+              "claim_id": "identity.identitytest.user-save",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.user-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:e9f746ba4212553b37e3b02a3d7219e380f65c5f2e4a29134fa5b666e0e80fcd",
+              "expected_operation_set": [
+                "identity.identitytest.user-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-save"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.identity.identitytest.user-save.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.identity.identitytest.user-save.behavior",
+              "claim_id": "identity.identitytest.user-save",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.user-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:378f246f8fcd6444ef4e7a76ba162bca193156c77133cc98146512d1946f3dec",
+              "expected_operation_set": [
+                "identity.identitytest.user-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.user-save"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#success",
+              "observation_id": "identitytest-cycle-free-report.journey.developer-use.v1.behavior",
+              "claim_id": "journey.developer-use.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:85fbaa991af46a765768089d48c577e5cb9dc0876f3ae1989951b055f620a9f1",
+              "expected_operation_set": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#failure",
+              "observation_id": "identitytest-cycle-free-report.journey.developer-use.v1.behavior",
+              "claim_id": "journey.developer-use.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6229ed395a521678dcd0d0bf1882d4d9621b2d557890854402ceb2c886e0e4fd",
+              "expected_operation_set": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ]
+            },
+            {
+              "case_id": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#cleanup",
+              "observation_id": "identitytest-cycle-free-report.journey.developer-use.v1.behavior",
+              "claim_id": "journey.developer-use.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ],
+              "input_fields": [
+                "consumer_module",
+                "fixture_seed",
+                "organization_fixture"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:078826f317d2046c10dea05cbf8e658969047dc2344305162960ee335656ac80",
+              "expected_operation_set": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ],
+              "observed_operation_set": [
+                "identity.identitytest.auth-headers",
+                "identity.identitytest.cookie-create",
+                "identity.identitytest.cookie-headers",
+                "identity.identitytest.cookies",
+                "identity.identitytest.delivery-capture",
+                "identity.identitytest.login",
+                "identity.identitytest.member-add",
+                "identity.identitytest.organization-create",
+                "identity.identitytest.organization-delete",
+                "identity.identitytest.organization-save",
+                "identity.identitytest.otp-clear",
+                "identity.identitytest.otp-get",
+                "identity.identitytest.reset",
+                "identity.identitytest.store-conformance",
+                "identity.identitytest.user-create",
+                "identity.identitytest.user-delete",
+                "identity.identitytest.user-save"
+              ]
+            }
+          ]
         },
         "consumer_module_digest": {
           "type": "string",
@@ -666,257 +3313,6 @@
           "fields": [
             "remaining_fixture_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.identitytest.organization-create",
-                      "identity.identitytest.organization-save",
-                      "identity.identitytest.organization-delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "consumer_module",
-                      "fixture_seed",
-                      "organization_fixture"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean consumer imports identitytest without importing persistence adapters"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "consumer_module_digest",
-                      "fixture_id",
-                      "created_fixture_count",
-                      "remaining_fixture_count",
-                      "dependency_graph_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.identitytest.organization-create",
-                      "identity.identitytest.organization-save",
-                      "identity.identitytest.organization-delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "consumer_module",
-                      "fixture_seed",
-                      "organization_fixture"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean consumer imports identitytest without importing persistence adapters"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "consumer_module_digest",
-                      "fixture_id",
-                      "created_fixture_count",
-                      "remaining_fixture_count",
-                      "dependency_graph_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "identitytest-cycle-free-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.identitytest.organization-create",
-                      "identity.identitytest.organization-save",
-                      "identity.identitytest.organization-delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "consumer_module",
-                      "fixture_seed",
-                      "organization_fixture"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean consumer imports identitytest without importing persistence adapters"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "fixture helpers create deterministic state, save explicit changes, delete owned fixtures, and leave no dependency cycle"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "consumer_module_digest",
-                      "fixture_id",
-                      "created_fixture_count",
-                      "remaining_fixture_count",
-                      "dependency_graph_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

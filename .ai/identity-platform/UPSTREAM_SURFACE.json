@@ -73,8 +73,8 @@
   "disposition_inventory": {
     "source": "UPSTREAM_DISPOSITIONS.md",
     "canonicalization": "document-order TSV of level-2 section plus every table data row's item, disposition, and rationale cells, with Markdown code ticks removed and LF terminator",
-    "count": 168,
-    "sha256": "bbd7349c3dfc1b1213f6ecf48f77a7ff81942437d827cd499c0c45814142c836"
+    "count": 169,
+    "sha256": "91fff3fb7cec2a5af966c7c976c272ddebff484838ffc30d30d4c5c050ef17f1"
   },
   "capability_inventory": {
     "source": "BETTER_AUTH_PARITY.md",
@@ -222,6 +222,7 @@
       "identity.oauth.onetap-callback",
       "identity.oauth.onetap-start",
       "identity.oauth.popup-complete",
+      "identity.oauth.provider-apple-client-secret-sign",
       "identity.oauth.provider-list",
       "identity.oauth.proxy-forward",
       "identity.oauth.signin-start",
@@ -413,8 +414,8 @@
       "identity.username.signup",
       "identity.username.update"
     ],
-    "count": 326,
-    "sha256": "bed5c22c351d22d40d92006f6ceedb755407b20628c0d8ab731ffee5589f410a"
+    "count": 327,
+    "sha256": "370785905e5be9b697b2f567489954f64c5a0b66071cb06af727459ec46573f6"
   },
   "owner_goal_closure": {
     "audit": "pkg/audit/.ai/GOAL.md",
@@ -468,9 +469,9 @@
   },
   "item_closure": {
     "canonicalization": "rows in disposition order as upstream_item_id, source_locator, source_kind, source_object_id, disposition_row_id, classification, sorted capability IDs, and sorted exact operation IDs; then lexicographically sorted capability-to-operation, operation-to-owner, and owner-to-goal edges; tab-separated with LF terminator",
-    "row_count": 168,
-    "capability_operation_edge_count": 889,
-    "sha256": "88f43accab0304344209b4af592b16c785de42880d766a362e0d9e72538b7a37",
+    "row_count": 169,
+    "capability_operation_edge_count": 891,
+    "sha256": "968df3ceffb99461256b3e485fd5a6c083a7ced5056a22dac3c220249888cc9d",
     "rows": [
       {
         "upstream_item_id": "docs/content/docs/concepts/api.mdx",
@@ -1367,6 +1368,31 @@
       {
         "upstream_item_id": "docs/content/docs/authentication/apple.mdx",
         "source_path": "docs/content/docs/authentication",
+        "disposition_row_id": "Core documentation and route surface\tauthentication Apple provider page",
+        "classification": "in-scope",
+        "capability_ids": [
+          "Social OAuth / generic OAuth"
+        ],
+        "operation_ids": [
+          "identity.account.access-token",
+          "identity.account.link-start",
+          "identity.account.link-token",
+          "identity.account.provider-info",
+          "identity.account.refresh-token",
+          "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
+          "identity.oauth.provider-apple-client-secret-sign",
+          "identity.oauth.provider-list",
+          "identity.oauth.signin-start",
+          "identity.oauth.signin-token"
+        ],
+        "source_locator": "docs/content/docs/authentication/apple.mdx",
+        "source_kind": "blob",
+        "source_object_id": "f02bf9d3c440e08fa4be2372dd97fc89167343bd"
+      },
+      {
+        "upstream_item_id": "docs/content/docs/authentication/other-social-providers.mdx",
+        "source_path": "docs/content/docs/authentication",
         "disposition_row_id": "Core documentation and route surface\tauthentication provider pages",
         "classification": "in-scope",
         "capability_ids": [
@@ -1384,9 +1410,9 @@
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
         ],
-        "source_locator": "docs/content/docs/authentication/apple.mdx",
+        "source_locator": "docs/content/docs/authentication/other-social-providers.mdx",
         "source_kind": "blob",
-        "source_object_id": "f02bf9d3c440e08fa4be2372dd97fc89167343bd"
+        "source_object_id": "efd61a62af6f66e20b1fabbc2f653e6df28d9f41"
       },
       {
         "upstream_item_id": "packages/better-auth/src/api/routes/account.ts",
@@ -3808,6 +3834,7 @@
           "identity.account.refresh-token",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.provider-apple-client-secret-sign",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -5556,6 +5583,7 @@
       "Generic OAuth configuration": [
         "identity.oauth.callback",
         "identity.oauth.callback-form-post",
+        "identity.oauth.provider-apple-client-secret-sign",
         "identity.oauth.provider-list",
         "identity.oauth.signin-start"
       ],
@@ -5835,6 +5863,7 @@
         "identity.account.refresh-token",
         "identity.oauth.callback",
         "identity.oauth.callback-form-post",
+        "identity.oauth.provider-apple-client-secret-sign",
         "identity.oauth.provider-list",
         "identity.oauth.signin-start",
         "identity.oauth.signin-token"
@@ -5918,7 +5947,7 @@
         "identity.deletion.request"
       ]
     },
-    "operation_owner_edge_count": 430
+    "operation_owner_edge_count": 431
   },
   "operation_contract_inventory": {
     "source": "API_OPERATIONS.md",
@@ -5937,7 +5966,7 @@
       "http_path",
       "openapi_operation_id"
     ],
-    "count": 326,
-    "sha256": "f12acf29a455db74806d03da3b8f95c2eb64347e10a9a6bc3a8531040da0583c"
+    "count": 327,
+    "sha256": "130a385a2b5f44f87cbe1efc0017779cd6db0c024d46610f5684da43216e6634"
   }
 }

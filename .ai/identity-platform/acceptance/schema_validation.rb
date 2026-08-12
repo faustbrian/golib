@@ -8,7 +8,81 @@ require "tempfile"
 require "fileutils"
 
 module AcceptanceSchemaValidation
+  class DuplicateKeyError < JSON::ParserError; end
+
   module_function
+
+  def parse_json(bytes, canonical: false)
+    value = JSON.parse(bytes)
+    reject_duplicate_keys!(bytes)
+    raise JSON::ParserError, "JSON bytes are not canonical" if canonical && bytes != JSON.pretty_generate(value) + "\n"
+
+    value
+  end
+
+  def reject_duplicate_keys!(bytes)
+    parse_json_value_for_keys(bytes, skip_json_whitespace(bytes, 0))
+  end
+
+  def skip_json_whitespace(bytes, index)
+    index += 1 while index < bytes.bytesize && [9, 10, 13, 32].include?(bytes.getbyte(index))
+    index
+  end
+
+  def parse_json_string_for_keys(bytes, index)
+    start = index
+    index += 1
+    while index < bytes.bytesize
+      byte = bytes.getbyte(index)
+      if byte == 34
+        index += 1
+        return [JSON.parse(bytes.byteslice(start...index)), index]
+      end
+      if byte == 92
+        index += bytes.getbyte(index + 1) == 117 ? 6 : 2
+      else
+        index += 1
+      end
+    end
+    raise JSON::ParserError, "unterminated JSON string"
+  end
+
+  def parse_json_value_for_keys(bytes, index)
+    case bytes.getbyte(index)
+    when 123
+      parse_json_object_for_keys(bytes, index)
+    when 91
+      index = skip_json_whitespace(bytes, index + 1)
+      return index + 1 if bytes.getbyte(index) == 93
+      loop do
+        index = skip_json_whitespace(bytes, parse_json_value_for_keys(bytes, index))
+        return index + 1 if bytes.getbyte(index) == 93
+        index = skip_json_whitespace(bytes, index + 1)
+      end
+    when 34
+      parse_json_string_for_keys(bytes, index).last
+    else
+      index += 1 while index < bytes.bytesize && ![9, 10, 13, 32, 44, 93, 125].include?(bytes.getbyte(index))
+      index
+    end
+  end
+
+  def parse_json_object_for_keys(bytes, index)
+    keys = {}
+    index = skip_json_whitespace(bytes, index + 1)
+    return index + 1 if bytes.getbyte(index) == 125
+    loop do
+      key, index = parse_json_string_for_keys(bytes, index)
+      raise DuplicateKeyError, "duplicate JSON object key #{key.inspect}" if keys.key?(key)
+
+      keys[key] = true
+      index = skip_json_whitespace(bytes, index)
+      index = skip_json_whitespace(bytes, index + 1)
+      index = skip_json_whitespace(bytes, parse_json_value_for_keys(bytes, index))
+      return index + 1 if bytes.getbyte(index) == 125
+      index = skip_json_whitespace(bytes, index + 1)
+    end
+  end
 
   def canonical(value)
     case value
@@ -51,8 +125,7 @@ module AcceptanceSchemaValidation
     expected_digest = "sha256:#{Digest::SHA256.hexdigest(receipt_bytes)}"
     findings = []
     findings << "#{path}.execution_receipt_sha256 does not bind receipt bytes" unless execution["execution_receipt_sha256"] == expected_digest
-    parsed = JSON.parse(receipt_bytes)
-    findings << "#{path} execution receipt is not canonical JSON" unless receipt_bytes == JSON.pretty_generate(parsed) + "\n"
+    parsed = parse_json(receipt_bytes, canonical: true)
     findings << "#{path} differs from separately captured execution receipt" unless parsed == execution_receipt_payload(execution)
     findings
   rescue JSON::ParserError => e
@@ -67,6 +140,16 @@ module AcceptanceSchemaValidation
     when "object"
       schema.fetch("required", []).to_h { |key| [key, sample(schema.fetch("properties").fetch(key))] }
     when "array"
+      if schema["x-exact-scenario-cases"]
+        item = schema.fetch("items")
+        common = item.fetch("required").to_h { |key| [key, sample(item.fetch("properties").fetch(key))] }
+        return schema.fetch("x-exact-scenario-cases").map { |spec| common.merge(spec) }
+      end
+      if schema["x-exact-operation-bindings"]
+        return schema.fetch("x-exact-operation-bindings").map do |binding|
+          binding.merge("executed" => true, "transcript_sha256" => "sha256:#{'a' * 64}")
+        end
+      end
       items = schema.fetch("items", {})
       return items.fetch("oneOf").map { |variant| sample(variant) } if items["oneOf"]
       Array.new(schema.fetch("minItems", 1)) { sample(items) }
@@ -123,6 +206,15 @@ module AcceptanceSchemaValidation
     if schema["contains"] && value.is_a?(Array)
       matches = value.count { |entry| errors(entry, schema.fetch("contains"), path).empty? }
       findings << "#{path} contains #{matches}, expected at least #{schema.fetch('minContains', 1)}" if matches < schema.fetch("minContains", 1)
+    end
+    if schema["x-exact-operation-bindings"] && value.is_a?(Array)
+      actual = value.map { |row| row.slice("operation_id", "handler_id", "openapi_operation_id") }
+      findings << "#{path} exact operation bindings drifted" unless actual == schema.fetch("x-exact-operation-bindings")
+    end
+    if schema["x-exact-scenario-cases"] && value.is_a?(Array)
+      fields = schema.fetch("x-exact-scenario-case-fields")
+      actual = value.map { |row| row.slice(*fields) }
+      findings << "#{path} exact scenario cases drifted" unless actual == schema.fetch("x-exact-scenario-cases")
     end
     schema.fetch("allOf", []).each { |part| findings.concat(errors(value, part, path)) }
     if schema["x-execution-proof"] == 2 && value.is_a?(Hash)
@@ -242,8 +334,8 @@ module AcceptanceExecutionRunner
     else
       findings << "#{path} live artifact digest drifted" unless capture.artifact_sha256 == "sha256:#{Digest::SHA256.hexdigest(capture.artifact_bytes)}"
       begin
-        live_payload = JSON.parse(capture.artifact_bytes)
-        committed_payload = JSON.parse(artifact_bytes)
+        live_payload = AcceptanceSchemaValidation.parse_json(capture.artifact_bytes, canonical: true)
+        committed_payload = AcceptanceSchemaValidation.parse_json(artifact_bytes, canonical: true)
         live_semantics = live_payload.reject { |key, _value| key == "execution" }
         committed_semantics = committed_payload.reject { |key, _value| key == "execution" }
         live_digest = Digest::SHA256.hexdigest(JSON.generate(AcceptanceSchemaValidation.canonical(live_semantics)))

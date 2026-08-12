@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "download-capability-report"
+        },
+        "invariant_id": {
+          "const": "download-capability-report.invariant"
+        },
+        "invariant": {
+          "const": "one bounded capability downloads the bound export and expiry, subject mismatch, and replay return denial"
         },
         "operation_ids": {
           "const": [
@@ -397,238 +405,288 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.download-capability-issue",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "export_id",
-                      "subject_id",
-                      "capability_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "completed export belongs to subject_id and has no active capability"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one bounded capability downloads the bound export and expiry, subject mismatch, and replay return denial"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "capability_digest",
-                      "download_count",
-                      "replay_rejected",
-                      "expiry_rejected"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "download-capability-report.journey.privacy-export.v1.behavior#success",
+                  "download-capability-report.journey.privacy-export.v1.behavior#failure",
+                  "download-capability-report.journey.privacy-export.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "download-capability-report.journey.privacy-export.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.privacy-export.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "download-capability-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.download-capability-issue",
+                    "identity.privacy-export.download"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.download-capability-issue",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "export_id",
-                      "subject_id",
-                      "capability_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "completed export belongs to subject_id and has no active capability"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "one bounded capability downloads the bound export and expiry, subject mismatch, and replay return denial"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "capability_digest",
-                      "download_count",
-                      "replay_rejected",
-                      "expiry_rejected"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "completed export belongs to subject_id and has no active capability"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "one bounded capability downloads the bound export and expiry, subject mismatch, and replay return denial"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.download-capability-issue",
+                    "identity.privacy-export.download"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.download-capability-issue",
+                    "identity.privacy-export.download"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "export_id",
+                  "capability_digest",
+                  "download_count",
+                  "replay_rejected",
+                  "expiry_rejected"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior#denial"
+                  "export_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.download-capability-issue",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "export_id",
-                      "subject_id",
-                      "capability_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "completed export belongs to subject_id and has no active capability"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "one bounded capability downloads the bound export and expiry, subject mismatch, and replay return denial"
-                  },
-                  "observed_state_digest": {
+                  "capability_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  "download_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "capability_digest",
-                      "download_count",
-                      "replay_rejected",
-                      "expiry_rejected"
-                    ]
+                  "replay_rejected": {
+                    "type": "boolean"
+                  },
+                  "expiry_rejected": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "download-capability-report.journey.privacy-export.v1.behavior#success",
+              "observation_id": "download-capability-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.privacy-export.download-capability-issue",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "export_id",
+                "subject_id",
+                "capability_ttl"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:657648d0948bc69c5a9d3e1b69eaaf90ce3610ca63aeecdaff509a0747967ee9",
+              "expected_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.download-capability-issue"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.download-capability-issue"
+              ]
+            },
+            {
+              "case_id": "download-capability-report.journey.privacy-export.v1.behavior#failure",
+              "observation_id": "download-capability-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.privacy-export.download-capability-issue",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "export_id",
+                "subject_id",
+                "capability_ttl"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b842bf72a52fdc65e23b807dfd993e26c757775b71e20c1669fbdd5d9b8f54b0",
+              "expected_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.download-capability-issue"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.download-capability-issue"
+              ]
+            },
+            {
+              "case_id": "download-capability-report.journey.privacy-export.v1.behavior#denial",
+              "observation_id": "download-capability-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.privacy-export.download-capability-issue",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "export_id",
+                "subject_id",
+                "capability_ttl"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:239533e8cf61e9239dbfce713fb2788c8b42184061eca8004bb13ceacde28113",
+              "expected_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.download-capability-issue"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.download-capability-issue"
+              ]
+            }
+          ]
         },
         "export_id": {
           "type": "string",
@@ -668,257 +726,6 @@
           "kind": "const",
           "field": "download_count",
           "value": 1
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.download-capability-issue",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "export_id",
-                      "subject_id",
-                      "capability_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "completed export belongs to subject_id and has no active capability"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one bounded capability downloads the bound export and expiry, subject mismatch, and replay return denial"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "capability_digest",
-                      "download_count",
-                      "replay_rejected",
-                      "expiry_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.download-capability-issue",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "export_id",
-                      "subject_id",
-                      "capability_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "completed export belongs to subject_id and has no active capability"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "one bounded capability downloads the bound export and expiry, subject mismatch, and replay return denial"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "capability_digest",
-                      "download_count",
-                      "replay_rejected",
-                      "expiry_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "download-capability-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.download-capability-issue",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "export_id",
-                      "subject_id",
-                      "capability_ttl"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "completed export belongs to subject_id and has no active capability"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "one bounded capability downloads the bound export and expiry, subject mismatch, and replay return denial"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "capability_digest",
-                      "download_count",
-                      "replay_rejected",
-                      "expiry_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

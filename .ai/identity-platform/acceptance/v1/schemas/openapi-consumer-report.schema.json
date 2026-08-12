@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "openapi-consumer-report"
+        },
+        "invariant_id": {
+          "const": "openapi-consumer-report.invariant"
+        },
+        "invariant": {
+          "const": "OpenAPI 3.1.1 contains every handler operation, request, response, error, and security scheme and generated client compiles"
         },
         "operation_ids": {
           "const": [
@@ -396,158 +404,249 @@
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "openapi-consumer-report.journey.developer-use.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "openapi-consumer-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "selected_modules",
-                      "extension_routes",
-                      "security_profiles"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "all core and selected extension handlers are composed"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "OpenAPI 3.1.1 contains every handler operation, request, response, error, and security scheme and generated client compiles"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "operation_count",
-                      "schema_count",
-                      "security_scheme_count",
-                      "generated_client_compiled",
-                      "openapi_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "openapi-consumer-report.journey.developer-use.v1.behavior#success",
+                  "openapi-consumer-report.journey.developer-use.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "openapi-consumer-report.journey.developer-use.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.developer-use.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "openapi-consumer-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.openapi.document"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "all core and selected extension handlers are composed"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "OpenAPI 3.1.1 contains every handler operation, request, response, error, and security scheme and generated client compiles"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.openapi.document"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.openapi.document"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "operation_count",
+                  "schema_count",
+                  "security_scheme_count",
+                  "generated_client_compiled",
+                  "openapi_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "openapi-consumer-report.journey.developer-use.v1.behavior#failure"
+                  "operation_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "openapi-consumer-report.journey.developer-use.v1.behavior"
+                  "schema_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
+                  "security_scheme_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "failure"
+                  "generated_client_compiled": {
+                    "type": "boolean"
                   },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "selected_modules",
-                      "extension_routes",
-                      "security_profiles"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "all core and selected extension handlers are composed"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "OpenAPI 3.1.1 contains every handler operation, request, response, error, and security scheme and generated client compiles"
-                  },
-                  "observed_state_digest": {
+                  "openapi_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "operation_count",
-                      "schema_count",
-                      "security_scheme_count",
-                      "generated_client_compiled",
-                      "openapi_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "openapi-consumer-report.journey.developer-use.v1.behavior#success",
+              "observation_id": "openapi-consumer-report.journey.developer-use.v1.behavior",
+              "claim_id": "journey.developer-use.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.openapi.document"
+              ],
+              "input_fields": [
+                "selected_modules",
+                "extension_routes",
+                "security_profiles"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:629859e868936b56e707e2e0dc3ebbfc1dc796762796580170a3c6f78cad392c",
+              "expected_operation_set": [
+                "identity.openapi.document"
+              ],
+              "observed_operation_set": [
+                "identity.openapi.document"
+              ]
+            },
+            {
+              "case_id": "openapi-consumer-report.journey.developer-use.v1.behavior#failure",
+              "observation_id": "openapi-consumer-report.journey.developer-use.v1.behavior",
+              "claim_id": "journey.developer-use.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.openapi.document"
+              ],
+              "input_fields": [
+                "selected_modules",
+                "extension_routes",
+                "security_profiles"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:3fddab3d02c5fe4f4faa81be4d34fa67200077ce511a4195fdb09aa5d253a280",
+              "expected_operation_set": [
+                "identity.openapi.document"
+              ],
+              "observed_operation_set": [
+                "identity.openapi.document"
+              ]
+            }
+          ]
         },
         "operation_count": {
           "type": "integer",
@@ -586,170 +685,6 @@
           "fields": [
             "generated_client_compiled"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "openapi-consumer-report.journey.developer-use.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "openapi-consumer-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "selected_modules",
-                      "extension_routes",
-                      "security_profiles"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "all core and selected extension handlers are composed"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "OpenAPI 3.1.1 contains every handler operation, request, response, error, and security scheme and generated client compiles"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "operation_count",
-                      "schema_count",
-                      "security_scheme_count",
-                      "generated_client_compiled",
-                      "openapi_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "openapi-consumer-report.journey.developer-use.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "openapi-consumer-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "selected_modules",
-                      "extension_routes",
-                      "security_profiles"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "all core and selected extension handlers are composed"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "OpenAPI 3.1.1 contains every handler operation, request, response, error, and security scheme and generated client compiles"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "operation_count",
-                      "schema_count",
-                      "security_scheme_count",
-                      "generated_client_compiled",
-                      "openapi_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

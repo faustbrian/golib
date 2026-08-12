@@ -120,13 +120,18 @@ The coordinator MUST use the repository branch and worktree skills.
    now-known assignment-state commit hash. Merge that finalization commit into
    only this newly assigned unit's worker branch, including when the unit is a
    dependency-free root. Render the complete prompt against that exact
-   finalization commit, commit its exact bytes and finalized attestation row in
+   finalization commit, commit its exact bytes and authorized assignment row in
    a third coordinator commit, and merge that attestation commit into only the
    assigned worker branch. The rendered `assignment-commit` MUST be the
    assignment-state commit; the rendered `integration-commit` MUST be the
    ledger-only finalization commit. A worker MUST NOT start before all three
-   commits exist, the attestation is finalized, or from an inventory that still
-   says `ready`.
+   commits exist, the authorization is finalized, or from an inventory that still
+   says `ready`. Immediately after spawn, record a distinct runtime attestation
+   bound to the immutable platform-returned worker task and agent ID plus the
+   actual platform-reported model, reasoning, fork-turn and subagent settings;
+   commit it and merge that exact commit into the worker branch before package
+   work. Pre-spawn requested settings MUST NOT substitute for this post-spawn
+   runtime evidence.
 5. For dependent work, the assignment commit MUST also contain every verified
    prerequisite implementation and coordinator registration commit.
 6. Integrate a returned worker with `git merge --no-ff` from its named branch.
@@ -295,11 +300,17 @@ When a package worker returns a completed package-local commit, the coordinator
 MUST:
 
 1. independently inspect the complete package diff and evidence;
-2. verify the returned tip is reachable from the assigned worker branch, the
-   rendered integration baseline is its ancestor, and the complete baseline-to-
-   tip diff changes only the assigned module root after subtracting every other
-   inventory module root nested beneath it; inspect every worker-authored commit
-   in that range rather than assuming the tip is the only package commit;
+2. verify the returned tip is reachable from the assigned worker branch and the
+   assignment authorization and runtime-attestation checkpoints are its
+   ancestors. Validate the rendered integration-baseline-to-assignment-
+   authorization-to-runtime-attestation envelope separately as coordinator-
+   owned state; then validate the runtime-attestation-checkpoint-to-tip
+   worker-authored range changes only the assigned module root after subtracting
+   every reserved nested root derived from the union of inventory,
+   root `modules.json`, and root `packages.json`. Inspect every worker-authored
+   commit and every merge parent in that latter range rather than assuming the tip is the only package
+   commit. Reject the return unless its immutable task/agent-bound runtime
+   attestation exists and matches the platform-reported spawn settings;
 3. integrate the branch with the required non-fast-forward merge;
 4. move the planning goal to the unit's declared canonical goal path;
 5. register the module and packages in every root manifest;
@@ -325,12 +336,20 @@ MUST:
    `HEAD` as the gate execution and revalidation revision, retain the original
    tested revision, and prove the exhaustive manifest and root identical at
    both revisions before accepting the prior result;
-9. for every confirmed package-local defect, commit an
-   `implemented-unverified -> in-progress` transition that restores the same
-   worker task as owner and retains its branch, worktree, assignment, and
-   generation; merge that exact transition commit into the clean worker branch,
-   re-render the repair prompt with the canonical goal path and current
-   baseline, and return the finding to that worker;
+9. for every confirmed package-local defect, allocate the next integrated-repair
+   epoch and commit an `implemented-unverified -> in-progress` transition that
+   restores the same worker task as owner and retains its branch, worktree,
+   assignment, and generation. In that same authorization commit, append the
+   exact `authorized` integrated-repair row, bind the current integration
+   baseline as that commit's first parent, the prior integrated checkpoint, the
+   clean worker checkpoint, canonical current goal path and goal-body digest, complete reserved-root
+   union, and committed rendered repair-prompt bytes and digest. Merge that exact
+   authorization commit into the worker branch before any edit. Validate only
+   its checkpoint-to-repaired-tip range as worker-authored, integrate the repair
+   by non-fast-forward merge, record that new merge as the integration
+   checkpoint, and append a matching `completed` row in a later coordinator
+   commit. A stale or changed binding MUST be superseded and reauthorized under
+   the next epoch; it MUST NOT be repaired under the original assignment prompt;
 10. after every final-input gate passes, commit each canonical local gate
     evidence v2 record and its artifacts against the captured revisions and
     exhaustive manifest, then commit the append-only local-gate binding plus
@@ -370,7 +389,9 @@ The coordinator MUST repeat this loop until completion:
    are full; readiness is durable independently of immediate assignment.
 5. Fill available worker slots with distinct `ready` units.
 6. Before spawning, complete the assignment-state/finalization protocol and
-   render both exact commits plus generation into its worker prompt.
+   render both exact commits plus generation into its worker prompt. After
+   spawn, complete the distinct platform runtime-attestation handshake before
+   allowing work or accepting a return.
 7. Supervise active workers without duplicating their work.
 8. On worker return, classify the result:
    - package-local requirements complete and focused gates pass:
@@ -392,8 +413,8 @@ Initial scheduling MUST start only the currently ready roots:
 `primitive/authorization-identity-contracts`,
 `primitive/capability-identity-contracts`,
 `primitive/identifier-identity-contracts`,
-`primitive/password-secret-contracts`, and `identity/delivery`. The first five are dependency-free primitive-extension
-prerequisites; the identity-platform scope remains 61 units, with 66
+`primitive/password-secret-contracts`, and `identity/delivery`. Five primitive extensions and `identity/delivery` are dependency-free;
+`primitive/capability-postgres-identity-contracts` follows `primitive/capability-identity-contracts`. The identity-platform scope remains 61 units, with 67
 schedulable units total. `identity` remains `proposed` until
 `primitive/authorization-identity-contracts` is verified; `webauthn` remains
 `proposed` until both `primitive/authentication-identity-contracts` and
@@ -422,6 +443,14 @@ whether its own persistent system goal may stop as blocked.
 When corrected work changes a verified unit's complete inputs, the coordinator
 MUST recompute transitive fingerprints and atomically demote every verified
 dependant whose complete fingerprint changed to `implemented-unverified`.
+Before any execution-mode acceptance and before final completion, it MUST
+recompute every verified unit's exhaustive input manifest and root at the exact
+current clean committed integration `HEAD`. Any mismatch MUST deterministically
+demote that unit and every verified reverse dependant whose complete root
+changed to `implemented-unverified` in one ancestry-preserving transition,
+clear their gate revision/root and stale external binding as required, and
+revalidate from that exact `HEAD`; an ancestor gate revision alone is not
+current evidence.
 Every unassigned `ready` transitive dependant whose start gate is no longer
 satisfied MUST return to `proposed` in that same commit, retaining its
 generation and empty assignment/evidence fields. This prerequisite-invalidation

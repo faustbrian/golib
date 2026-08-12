@@ -42,8 +42,8 @@ consumer-written workflow substitute is permitted:
   `ComposeProviders(ProviderSet)`, and `ComposeWorkers(WorkerSet)` accept the
   exact typed adapters selected by the reference profile; they MUST NOT perform
   reflection, global registration or service lookup.
-- `identity/delivery.Sender.Send(context.Context, DeliveryIntent)
-  (DeliveryReceipt, error)` is the sole application callback permitted for
+- `identity/delivery.Sender.Send(context.Context, Attempt)
+  (DeliveryResult, error)` is the sole application callback permitted for
   email/SMS delivery. The platform owns intent construction, persistence,
   idempotency, retry classification and outcome recovery.
 - `identity.PolicySet` is the exact immutable five-member contract in
@@ -340,7 +340,9 @@ Its handlers MUST call public package contracts exactly as a consumer would.
     and a fully redacted diagnostic summary through public operational APIs.
 18. **Privacy export:** an authenticated and freshly reauthenticated subject
     requests a bounded asynchronous export, observes authorized status, and
-    downloads one short-lived single-use encrypted artifact containing the
+    downloads one short-lived single-use capability-authorized JSON stream
+    that the server decrypts from an envelope-encrypted-at-rest artifact and
+    that contains the
     documented portable identity/account/session/device/organization/consent
     data and exclusions. Cross-tenant access, duplicate requests, cancellation,
     expiry, deletion races and delivery failure MUST preserve idempotency,
@@ -348,7 +350,10 @@ Its handlers MUST call public package contracts exactly as a consumer would.
     limitations MUST be explicit.
     Download MUST first call the separately authorized capability-issuance
     operation and then consume that capability once; status responses MUST NOT
-    contain a download credential.
+    contain a download credential. The response MUST be bounded
+    `application/json` with the recorded whole-document SHA-256 digest and MUST
+    never return ciphertext, an encrypted object-store stream, or key material
+    to the caller.
 19. **Audit investigation:** a permissioned investigator gets one record,
     searches exact indexed predicates, lists a bounded chronological page and
     exports the immutable query under one investigation ID. The suite MUST

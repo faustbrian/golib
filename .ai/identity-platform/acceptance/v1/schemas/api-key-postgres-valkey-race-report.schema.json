@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "api-key-postgres-valkey-race-report"
+        },
+        "invariant_id": {
+          "const": "api-key-postgres-valkey-race-report.invariant"
+        },
+        "invariant": {
+          "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
         },
         "operation_ids": {
           "const": [
@@ -398,395 +406,370 @@
           "type": "array",
           "minItems": 5,
           "maxItems": 5,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#success",
+                  "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#failure",
+                  "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#outage",
+                  "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#concurrency",
+                  "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.api-keys.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "api-key-postgres-valkey-race-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage",
+                  "concurrency",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.apikey.create",
+                    "identity.apikey.rotate",
+                    "identity.apikey.verify"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "PostgreSQL and Valkey contain the same active key version"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.apikey.create",
+                    "identity.apikey.rotate",
+                    "identity.apikey.verify"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.apikey.create",
+                    "identity.apikey.rotate",
+                    "identity.apikey.verify"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "api_key_id",
+                  "winner_version",
+                  "conflict_count",
+                  "postgres_state_digest",
+                  "valkey_state_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#unknown-outcome"
+                  "api_key_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
+                  "winner_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
                   },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
+                  "conflict_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
+                  "postgres_state_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "valkey_state_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#success",
+              "observation_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_id",
+                "rotation_version",
+                "idempotency_key"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4436c4190ace3ab232be1aeb3d1bf972a3cd93f05f2b5cfde7a4eb568fa2cf09",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#failure",
+              "observation_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_id",
+                "rotation_version",
+                "idempotency_key"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:dfbcc04d09af204d14bfbab85f0f802bef985e1e0bd54bad34dfdec78e6ddbbd",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#outage",
+              "observation_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_id",
+                "rotation_version",
+                "idempotency_key"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:6a2bf449296e5fde76ecadb3e0b8e381b4ae906a8f4c903f3169f7ada5d4b283",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#concurrency",
+              "observation_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_id",
+                "rotation_version",
+                "idempotency_key"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:769f67ac3d99593443f262954b74dab3d3adddbe7562e730bc77afa90f8a717c",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ]
+            },
+            {
+              "case_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#unknown-outcome",
+              "observation_id": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior",
+              "claim_id": "journey.api-keys.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "api_key_id",
+                "rotation_version",
+                "idempotency_key"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:28679d154447b920b3907ea8cee15c25aefa228be4e2534eebf27961d31a89cb",
+              "expected_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ],
+              "observed_operation_set": [
+                "identity.apikey.create",
+                "identity.apikey.rotate",
+                "identity.apikey.verify"
+              ]
+            }
+          ]
         },
         "api_key_id": {
           "type": "string",
@@ -823,428 +806,6 @@
           "kind": "equal",
           "left": "postgres_state_digest",
           "right": "valkey_state_digest"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.api-keys.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.apikey.create",
-                      "identity.apikey.rotate",
-                      "identity.apikey.verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "api_key_id",
-                      "rotation_version",
-                      "idempotency_key"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL and Valkey contain the same active key version"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "api_key_id",
-                      "winner_version",
-                      "conflict_count",
-                      "postgres_state_digest",
-                      "valkey_state_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

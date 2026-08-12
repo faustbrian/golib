@@ -108,11 +108,844 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 18,
+      "maxItems": 18,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.bearer-authorize.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.bearer-authorize"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.bearer-authorize; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.bearer-authorize for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.bearer-issue.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.bearer-issue"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.bearer-issue; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.bearer-issue for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.get.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.get"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.get; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.get for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.last-method-check.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.last-method-check"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.last-method-check; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.last-method-check for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.last-method-clear.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.last-method-clear"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.last-method-clear; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.last-method-clear for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.last-method-get.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.last-method-get"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.last-method-get; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.last-method-get for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.last-method-record.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.last-method-record"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.last-method-record; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.last-method-record for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.list.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.list"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.list; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.list for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.refresh.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.refresh"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.refresh; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.refresh for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.revoke-all.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.revoke-all"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.revoke-all; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.revoke-all for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.revoke-one.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.revoke-one"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.revoke-one; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.revoke-one for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.revoke-other.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.revoke-other"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.revoke-other; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.revoke-other for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.select-active.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.select-active"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.select-active; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.select-active for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.signout.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.signout"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.signout; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.signout for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.transfer-consume.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.transfer-consume"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.transfer-consume; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.transfer-consume for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.transfer-generate.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.transfer-generate"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.transfer-generate; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.transfer-generate for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.update.behavior"
+              },
+              "claim_id": {
+                "const": "identity.session.update"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.session-profile-contract-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial"
+              },
+              "preconditions": {
+                "const": "Operations: identity.session.update; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+              },
+              "stimulus": {
+                "const": "Run identity.session.update for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,16 +975,16 @@
                 "const": "success,failure,denial"
               },
               "preconditions": {
-                "const": "Operations: identity.session.get, identity.session.list, identity.session.refresh, identity.session.revoke-one; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
+                "const": "Operations: identity.session.bearer-authorize, identity.session.bearer-issue, identity.session.get, identity.session.last-method-check, identity.session.last-method-clear, identity.session.last-method-get, identity.session.last-method-record, identity.session.list, identity.session.refresh, identity.session.revoke-all, identity.session.revoke-one, identity.session.revoke-other, identity.session.select-active, identity.session.signout, identity.session.transfer-consume, identity.session.transfer-generate, identity.session.update; exact inputs: tenant_id, user_id, session_id, profile; initial state: active session was created under a named profile"
               },
               "stimulus": {
-                "const": "Run identity.session.get then identity.session.list then identity.session.refresh then identity.session.revoke-one for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
+                "const": "Run identity.session.bearer-authorize then identity.session.bearer-issue then identity.session.get then identity.session.last-method-check then identity.session.last-method-clear then identity.session.last-method-get then identity.session.last-method-record then identity.session.list then identity.session.refresh then identity.session.revoke-all then identity.session.revoke-one then identity.session.revoke-other then identity.session.select-active then identity.session.signout then identity.session.transfer-consume then identity.session.transfer-generate then identity.session.update for success, failure, denial cases using tenant_id, user_id, session_id, profile and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest"
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest"
+                "const": "Invariant: read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: session_id, profile_id, rotation_version, revoked, session_state_digest, session_race_cases"
               },
               "result": {
                 "const": "pass"
@@ -216,6 +1049,312 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "session-profile-contract-report.identity.session.bearer-authorize.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.bearer-issue.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.get.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.last-method-check.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.last-method-clear.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.last-method-get.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.last-method-record.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.list.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.refresh.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.revoke-all.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.revoke-one.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.revoke-other.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.select-active.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.signout.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.transfer-consume.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.transfer-generate.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "session-profile-contract-report.identity.session.update.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "session-profile-contract-report.journey.sessions.v1.behavior"
               }
             }
@@ -256,6 +1395,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -264,18 +1405,38 @@
         "profile_id",
         "rotation_version",
         "revoked",
-        "session_state_digest"
+        "session_state_digest",
+        "session_race_cases"
       ],
       "properties": {
         "artifact_id": {
           "const": "session-profile-contract-report"
         },
+        "invariant_id": {
+          "const": "session-profile-contract-report.invariant"
+        },
+        "invariant": {
+          "const": "read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use"
+        },
         "operation_ids": {
           "const": [
+            "identity.session.bearer-authorize",
+            "identity.session.bearer-issue",
             "identity.session.get",
+            "identity.session.last-method-check",
+            "identity.session.last-method-clear",
+            "identity.session.last-method-get",
+            "identity.session.last-method-record",
             "identity.session.list",
             "identity.session.refresh",
-            "identity.session.revoke-one"
+            "identity.session.revoke-all",
+            "identity.session.revoke-one",
+            "identity.session.revoke-other",
+            "identity.session.select-active",
+            "identity.session.signout",
+            "identity.session.transfer-consume",
+            "identity.session.transfer-generate",
+            "identity.session.update"
           ]
         },
         "input_digest": {
@@ -397,246 +1558,1780 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 3,
-          "maxItems": 3,
+          "minItems": 54,
+          "maxItems": 54,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.get",
-                      "identity.session.list",
-                      "identity.session.refresh",
-                      "identity.session.revoke-one"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "session_id",
-                      "profile"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active session was created under a named profile"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "profile_id",
-                      "rotation_version",
-                      "revoked",
-                      "session_state_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "session-profile-contract-report.identity.session.bearer-authorize.behavior#success",
+                  "session-profile-contract-report.identity.session.bearer-authorize.behavior#failure",
+                  "session-profile-contract-report.identity.session.bearer-authorize.behavior#denial",
+                  "session-profile-contract-report.identity.session.bearer-issue.behavior#success",
+                  "session-profile-contract-report.identity.session.bearer-issue.behavior#failure",
+                  "session-profile-contract-report.identity.session.bearer-issue.behavior#denial",
+                  "session-profile-contract-report.identity.session.get.behavior#success",
+                  "session-profile-contract-report.identity.session.get.behavior#failure",
+                  "session-profile-contract-report.identity.session.get.behavior#denial",
+                  "session-profile-contract-report.identity.session.last-method-check.behavior#success",
+                  "session-profile-contract-report.identity.session.last-method-check.behavior#failure",
+                  "session-profile-contract-report.identity.session.last-method-check.behavior#denial",
+                  "session-profile-contract-report.identity.session.last-method-clear.behavior#success",
+                  "session-profile-contract-report.identity.session.last-method-clear.behavior#failure",
+                  "session-profile-contract-report.identity.session.last-method-clear.behavior#denial",
+                  "session-profile-contract-report.identity.session.last-method-get.behavior#success",
+                  "session-profile-contract-report.identity.session.last-method-get.behavior#failure",
+                  "session-profile-contract-report.identity.session.last-method-get.behavior#denial",
+                  "session-profile-contract-report.identity.session.last-method-record.behavior#success",
+                  "session-profile-contract-report.identity.session.last-method-record.behavior#failure",
+                  "session-profile-contract-report.identity.session.last-method-record.behavior#denial",
+                  "session-profile-contract-report.identity.session.list.behavior#success",
+                  "session-profile-contract-report.identity.session.list.behavior#failure",
+                  "session-profile-contract-report.identity.session.list.behavior#denial",
+                  "session-profile-contract-report.identity.session.refresh.behavior#success",
+                  "session-profile-contract-report.identity.session.refresh.behavior#failure",
+                  "session-profile-contract-report.identity.session.refresh.behavior#denial",
+                  "session-profile-contract-report.identity.session.revoke-all.behavior#success",
+                  "session-profile-contract-report.identity.session.revoke-all.behavior#failure",
+                  "session-profile-contract-report.identity.session.revoke-all.behavior#denial",
+                  "session-profile-contract-report.identity.session.revoke-one.behavior#success",
+                  "session-profile-contract-report.identity.session.revoke-one.behavior#failure",
+                  "session-profile-contract-report.identity.session.revoke-one.behavior#denial",
+                  "session-profile-contract-report.identity.session.revoke-other.behavior#success",
+                  "session-profile-contract-report.identity.session.revoke-other.behavior#failure",
+                  "session-profile-contract-report.identity.session.revoke-other.behavior#denial",
+                  "session-profile-contract-report.identity.session.select-active.behavior#success",
+                  "session-profile-contract-report.identity.session.select-active.behavior#failure",
+                  "session-profile-contract-report.identity.session.select-active.behavior#denial",
+                  "session-profile-contract-report.identity.session.signout.behavior#success",
+                  "session-profile-contract-report.identity.session.signout.behavior#failure",
+                  "session-profile-contract-report.identity.session.signout.behavior#denial",
+                  "session-profile-contract-report.identity.session.transfer-consume.behavior#success",
+                  "session-profile-contract-report.identity.session.transfer-consume.behavior#failure",
+                  "session-profile-contract-report.identity.session.transfer-consume.behavior#denial",
+                  "session-profile-contract-report.identity.session.transfer-generate.behavior#success",
+                  "session-profile-contract-report.identity.session.transfer-generate.behavior#failure",
+                  "session-profile-contract-report.identity.session.transfer-generate.behavior#denial",
+                  "session-profile-contract-report.identity.session.update.behavior#success",
+                  "session-profile-contract-report.identity.session.update.behavior#failure",
+                  "session-profile-contract-report.identity.session.update.behavior#denial",
+                  "session-profile-contract-report.journey.sessions.v1.behavior#success",
+                  "session-profile-contract-report.journey.sessions.v1.behavior#failure",
+                  "session-profile-contract-report.journey.sessions.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "session-profile-contract-report.identity.session.bearer-authorize.behavior",
+                  "session-profile-contract-report.identity.session.bearer-issue.behavior",
+                  "session-profile-contract-report.identity.session.get.behavior",
+                  "session-profile-contract-report.identity.session.last-method-check.behavior",
+                  "session-profile-contract-report.identity.session.last-method-clear.behavior",
+                  "session-profile-contract-report.identity.session.last-method-get.behavior",
+                  "session-profile-contract-report.identity.session.last-method-record.behavior",
+                  "session-profile-contract-report.identity.session.list.behavior",
+                  "session-profile-contract-report.identity.session.refresh.behavior",
+                  "session-profile-contract-report.identity.session.revoke-all.behavior",
+                  "session-profile-contract-report.identity.session.revoke-one.behavior",
+                  "session-profile-contract-report.identity.session.revoke-other.behavior",
+                  "session-profile-contract-report.identity.session.select-active.behavior",
+                  "session-profile-contract-report.identity.session.signout.behavior",
+                  "session-profile-contract-report.identity.session.transfer-consume.behavior",
+                  "session-profile-contract-report.identity.session.transfer-generate.behavior",
+                  "session-profile-contract-report.identity.session.update.behavior",
+                  "session-profile-contract-report.journey.sessions.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.session.bearer-authorize",
+                  "identity.session.bearer-issue",
+                  "identity.session.get",
+                  "identity.session.last-method-check",
+                  "identity.session.last-method-clear",
+                  "identity.session.last-method-get",
+                  "identity.session.last-method-record",
+                  "identity.session.list",
+                  "identity.session.refresh",
+                  "identity.session.revoke-all",
+                  "identity.session.revoke-one",
+                  "identity.session.revoke-other",
+                  "identity.session.select-active",
+                  "identity.session.signout",
+                  "identity.session.transfer-consume",
+                  "identity.session.transfer-generate",
+                  "identity.session.update",
+                  "journey.sessions.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "session-profile-contract-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.bearer-authorize",
+                    "identity.session.bearer-issue",
+                    "identity.session.get",
+                    "identity.session.last-method-check",
+                    "identity.session.last-method-clear",
+                    "identity.session.last-method-get",
+                    "identity.session.last-method-record",
+                    "identity.session.list",
+                    "identity.session.refresh",
+                    "identity.session.revoke-all",
+                    "identity.session.revoke-one",
+                    "identity.session.revoke-other",
+                    "identity.session.select-active",
+                    "identity.session.signout",
+                    "identity.session.transfer-consume",
+                    "identity.session.transfer-generate",
+                    "identity.session.update"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.get",
-                      "identity.session.list",
-                      "identity.session.refresh",
-                      "identity.session.revoke-one"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "session_id",
-                      "profile"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active session was created under a named profile"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "profile_id",
-                      "rotation_version",
-                      "revoked",
-                      "session_state_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "active session was created under a named profile"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.bearer-authorize",
+                    "identity.session.bearer-issue",
+                    "identity.session.get",
+                    "identity.session.last-method-check",
+                    "identity.session.last-method-clear",
+                    "identity.session.last-method-get",
+                    "identity.session.last-method-record",
+                    "identity.session.list",
+                    "identity.session.refresh",
+                    "identity.session.revoke-all",
+                    "identity.session.revoke-one",
+                    "identity.session.revoke-other",
+                    "identity.session.select-active",
+                    "identity.session.signout",
+                    "identity.session.transfer-consume",
+                    "identity.session.transfer-generate",
+                    "identity.session.update"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.bearer-authorize",
+                    "identity.session.bearer-issue",
+                    "identity.session.get",
+                    "identity.session.last-method-check",
+                    "identity.session.last-method-clear",
+                    "identity.session.last-method-get",
+                    "identity.session.last-method-record",
+                    "identity.session.list",
+                    "identity.session.refresh",
+                    "identity.session.revoke-all",
+                    "identity.session.revoke-one",
+                    "identity.session.revoke-other",
+                    "identity.session.select-active",
+                    "identity.session.signout",
+                    "identity.session.transfer-consume",
+                    "identity.session.transfer-generate",
+                    "identity.session.update"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "session_id",
+                  "profile_id",
+                  "rotation_version",
+                  "revoked",
+                  "session_state_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior#denial"
+                  "session_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior"
+                  "profile_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
+                  "rotation_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
                   },
-                  "scenario": {
-                    "const": "denial"
+                  "revoked": {
+                    "type": "boolean"
                   },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.get",
-                      "identity.session.list",
-                      "identity.session.refresh",
-                      "identity.session.revoke-one"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "session_id",
-                      "profile"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active session was created under a named profile"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use"
-                  },
-                  "observed_state_digest": {
+                  "session_state_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "profile_id",
-                      "rotation_version",
-                      "revoked",
-                      "session_state_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "session-profile-contract-report.identity.session.bearer-authorize.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.bearer-authorize.behavior",
+              "claim_id": "identity.session.bearer-authorize",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.bearer-authorize"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:730d799d2aff298679d36c06d08e5f427e93e834a6d7c75f573464c801b48b1a",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.bearer-authorize.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.bearer-authorize.behavior",
+              "claim_id": "identity.session.bearer-authorize",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.bearer-authorize"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:72fae9d3a0647451854adc44d5ea733c912a247819afae00215a78641c9af06b",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.bearer-authorize.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.bearer-authorize.behavior",
+              "claim_id": "identity.session.bearer-authorize",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.bearer-authorize"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:fe5b1c72b3495fffa0ba3bf1edb190580abfadb32e6b07c3abd8f30c7913cb90",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.bearer-issue.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.bearer-issue.behavior",
+              "claim_id": "identity.session.bearer-issue",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:71684f644b507f35e277dac528c825112e5f1c8b3e9a8bf5c200122f1bdc99a5",
+              "expected_operation_set": [
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.bearer-issue.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.bearer-issue.behavior",
+              "claim_id": "identity.session.bearer-issue",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b91640b0b4836960e6d2d829101677b6d6ead3c473c46c59dd615bfa690f25c6",
+              "expected_operation_set": [
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.bearer-issue.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.bearer-issue.behavior",
+              "claim_id": "identity.session.bearer-issue",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.bearer-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:54ca7875f042b5d09ea1f84438543c35b1555a2baee185c7fc535fc25d70e086",
+              "expected_operation_set": [
+                "identity.session.bearer-issue"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-issue"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.get.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.get.behavior",
+              "claim_id": "identity.session.get",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:367dd3c18cb2df295bb2fb57459cef7bab58086a18b3e9c0518696958231dc84",
+              "expected_operation_set": [
+                "identity.session.get"
+              ],
+              "observed_operation_set": [
+                "identity.session.get"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.get.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.get.behavior",
+              "claim_id": "identity.session.get",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:309d035c283c2d16416fc9144e39ffab11348220502416be9f6f66f86321afdc",
+              "expected_operation_set": [
+                "identity.session.get"
+              ],
+              "observed_operation_set": [
+                "identity.session.get"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.get.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.get.behavior",
+              "claim_id": "identity.session.get",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:46c6be594a4232ddcdc5be109c84244932e1629898473e811eeb478077c6f879",
+              "expected_operation_set": [
+                "identity.session.get"
+              ],
+              "observed_operation_set": [
+                "identity.session.get"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-check.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-check.behavior",
+              "claim_id": "identity.session.last-method-check",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.last-method-check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:60a94ab353094f29b9bbb0a4adde5cd1aba6fd3f0c3e20a3d13f4723bd460b3c",
+              "expected_operation_set": [
+                "identity.session.last-method-check"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-check"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-check.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-check.behavior",
+              "claim_id": "identity.session.last-method-check",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.last-method-check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:f15ccfd56f72a8bf4ec634f3b38c76ce20c5b0b10860e607ea26f1594a757eca",
+              "expected_operation_set": [
+                "identity.session.last-method-check"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-check"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-check.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-check.behavior",
+              "claim_id": "identity.session.last-method-check",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.last-method-check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:3d5a32edf5a244a7c7fb716ef411716bb3def1130623b8465261fef91cb21357",
+              "expected_operation_set": [
+                "identity.session.last-method-check"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-check"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-clear.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-clear.behavior",
+              "claim_id": "identity.session.last-method-clear",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.last-method-clear"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:eb33bde56febbb3aacd83d571ef82434aef178071bff448e95c9a9470e112af7",
+              "expected_operation_set": [
+                "identity.session.last-method-clear"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-clear"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-clear.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-clear.behavior",
+              "claim_id": "identity.session.last-method-clear",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.last-method-clear"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:5d87303b6d286195cc1bce8aaa5ec0eaeacabbcc23674a947cfeabf40f613562",
+              "expected_operation_set": [
+                "identity.session.last-method-clear"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-clear"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-clear.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-clear.behavior",
+              "claim_id": "identity.session.last-method-clear",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.last-method-clear"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:a79e840134b9b4688473ad482d9deca5a8aaf8a74a99ae9978c84d42e308d041",
+              "expected_operation_set": [
+                "identity.session.last-method-clear"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-clear"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-get.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-get.behavior",
+              "claim_id": "identity.session.last-method-get",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.last-method-get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:0d9b0b6b036625db62b949da39ce368474ec597d2c8e3222a70640c7bc0ea686",
+              "expected_operation_set": [
+                "identity.session.last-method-get"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-get"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-get.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-get.behavior",
+              "claim_id": "identity.session.last-method-get",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.last-method-get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:4071a50251f42c8262786cedd44d56f8a741aa567ba657cfc82ebb5ae95f09a6",
+              "expected_operation_set": [
+                "identity.session.last-method-get"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-get"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-get.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-get.behavior",
+              "claim_id": "identity.session.last-method-get",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.last-method-get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:94e45d67ecabc2316fa874c032bebf36d4a33792ea5854aeaee45143d87a6cf9",
+              "expected_operation_set": [
+                "identity.session.last-method-get"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-get"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-record.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-record.behavior",
+              "claim_id": "identity.session.last-method-record",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.last-method-record"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d41800ce13b9e77afa34e616aa6f557f3e23e0282a990c4fc81709f35a5a315e",
+              "expected_operation_set": [
+                "identity.session.last-method-record"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-record"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-record.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-record.behavior",
+              "claim_id": "identity.session.last-method-record",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.last-method-record"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:8c83088ce6130a43abbd4cda6d3e99f26870d4d3a597598791cdaea66af4f0ec",
+              "expected_operation_set": [
+                "identity.session.last-method-record"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-record"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.last-method-record.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.last-method-record.behavior",
+              "claim_id": "identity.session.last-method-record",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.last-method-record"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:d789ee8fcd5e2072170bb30861c6fef4f13bbf2a14cfdbd9028b37b90a86c4c7",
+              "expected_operation_set": [
+                "identity.session.last-method-record"
+              ],
+              "observed_operation_set": [
+                "identity.session.last-method-record"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.list.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.list.behavior",
+              "claim_id": "identity.session.list",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f859a78421b7954581463619a3b1c132beabb5b705f8277d464512ee8eee03d9",
+              "expected_operation_set": [
+                "identity.session.list"
+              ],
+              "observed_operation_set": [
+                "identity.session.list"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.list.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.list.behavior",
+              "claim_id": "identity.session.list",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:fbb314618816b17c6c1f8c2ceb3c3a195b4e91193cd40cfac410d037ee645d0c",
+              "expected_operation_set": [
+                "identity.session.list"
+              ],
+              "observed_operation_set": [
+                "identity.session.list"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.list.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.list.behavior",
+              "claim_id": "identity.session.list",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:66b7dd34a5189aba1a6d2c99cbcdb54d30ec2389e6378ac4c225a4eea2f06511",
+              "expected_operation_set": [
+                "identity.session.list"
+              ],
+              "observed_operation_set": [
+                "identity.session.list"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.refresh.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.refresh.behavior",
+              "claim_id": "identity.session.refresh",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.refresh"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b6f70b6b07b5650680e757df28ba9edf6ffb1d37dcd7cb798c32959396eb1d48",
+              "expected_operation_set": [
+                "identity.session.refresh"
+              ],
+              "observed_operation_set": [
+                "identity.session.refresh"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.refresh.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.refresh.behavior",
+              "claim_id": "identity.session.refresh",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.refresh"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:a1e7067e57cfa3c4282eeec0daaa303e3bbe23a1bf9f778bbb3ae55fb664af6f",
+              "expected_operation_set": [
+                "identity.session.refresh"
+              ],
+              "observed_operation_set": [
+                "identity.session.refresh"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.refresh.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.refresh.behavior",
+              "claim_id": "identity.session.refresh",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.refresh"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:d5bb6a5ce4f2e8c62afa9d148be28c78e527ef7082329ec9ffedc8af7f21ea6d",
+              "expected_operation_set": [
+                "identity.session.refresh"
+              ],
+              "observed_operation_set": [
+                "identity.session.refresh"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-all.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-all.behavior",
+              "claim_id": "identity.session.revoke-all",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.revoke-all"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:10b8e82a7725cc6211b086c7ceceb6f80deaab1d80dba14e28a735d09c89f376",
+              "expected_operation_set": [
+                "identity.session.revoke-all"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-all"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-all.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-all.behavior",
+              "claim_id": "identity.session.revoke-all",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.revoke-all"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:0d4b679dbd8f470dfebe237e132fdee89ccf1b2bdc8e02699370b5e19c784b3f",
+              "expected_operation_set": [
+                "identity.session.revoke-all"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-all"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-all.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-all.behavior",
+              "claim_id": "identity.session.revoke-all",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.revoke-all"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:c786cf683458cbdadc6e9ddad3d631190f026cab0ad44f563f037fb5d0ec58b5",
+              "expected_operation_set": [
+                "identity.session.revoke-all"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-all"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-one.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-one.behavior",
+              "claim_id": "identity.session.revoke-one",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.revoke-one"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:38dd1845a866406e5bf811e1686a8674ab9d320ea8b46253a22268f55b876236",
+              "expected_operation_set": [
+                "identity.session.revoke-one"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-one"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-one.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-one.behavior",
+              "claim_id": "identity.session.revoke-one",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.revoke-one"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:3d663de5959b44ba606acb6cfc1d8d9bc6bb72591b0e4f9c00b766c0176c20e8",
+              "expected_operation_set": [
+                "identity.session.revoke-one"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-one"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-one.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-one.behavior",
+              "claim_id": "identity.session.revoke-one",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.revoke-one"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:d32ff5fdc2cd2feeb733226c5eea4f34d2f31e4150f2237705fd39effddaf07d",
+              "expected_operation_set": [
+                "identity.session.revoke-one"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-one"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-other.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-other.behavior",
+              "claim_id": "identity.session.revoke-other",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.revoke-other"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:59462337375d269cb46c8ebbf421dca35209214285011d38c3bfba4af3c8fb17",
+              "expected_operation_set": [
+                "identity.session.revoke-other"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-other"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-other.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-other.behavior",
+              "claim_id": "identity.session.revoke-other",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.revoke-other"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:8781cb04738990004f55f2832a2c721da011725c88dd17eef87b8d4aa4384297",
+              "expected_operation_set": [
+                "identity.session.revoke-other"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-other"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.revoke-other.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.revoke-other.behavior",
+              "claim_id": "identity.session.revoke-other",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.revoke-other"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:3f0adc6e00d1d7bd07c6200ae546de7ea6b5cd3b19287bdb97e1f37484d45fe3",
+              "expected_operation_set": [
+                "identity.session.revoke-other"
+              ],
+              "observed_operation_set": [
+                "identity.session.revoke-other"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.select-active.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.select-active.behavior",
+              "claim_id": "identity.session.select-active",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.select-active"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:3fba0b5809c48f16c59db55a6d96166abfd86079dc4ed119b30941919d1566a1",
+              "expected_operation_set": [
+                "identity.session.select-active"
+              ],
+              "observed_operation_set": [
+                "identity.session.select-active"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.select-active.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.select-active.behavior",
+              "claim_id": "identity.session.select-active",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.select-active"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:115f7126f9e9f56c70c0e29675b2690fc8e171dbb8913a0606b06a090b8246a6",
+              "expected_operation_set": [
+                "identity.session.select-active"
+              ],
+              "observed_operation_set": [
+                "identity.session.select-active"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.select-active.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.select-active.behavior",
+              "claim_id": "identity.session.select-active",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.select-active"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:587612e01737d75ea1cff7a549acb6d18e3c59b114d405bb8e85a565c04267cd",
+              "expected_operation_set": [
+                "identity.session.select-active"
+              ],
+              "observed_operation_set": [
+                "identity.session.select-active"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.signout.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.signout.behavior",
+              "claim_id": "identity.session.signout",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.signout"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4c9c6a521f615a954a32a11930dd5c43c11e661a70eba9c2066b67ca51b94d53",
+              "expected_operation_set": [
+                "identity.session.signout"
+              ],
+              "observed_operation_set": [
+                "identity.session.signout"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.signout.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.signout.behavior",
+              "claim_id": "identity.session.signout",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.signout"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:e2807728ac64acab25947d5306f0e7db51125e5385076d6d0864f437d2abb5f8",
+              "expected_operation_set": [
+                "identity.session.signout"
+              ],
+              "observed_operation_set": [
+                "identity.session.signout"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.signout.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.signout.behavior",
+              "claim_id": "identity.session.signout",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.signout"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:8dc8bc8ae54fc78bcc9a9cbbe824b8ea4f21d4707b8c401e91f43d6434c4a4ab",
+              "expected_operation_set": [
+                "identity.session.signout"
+              ],
+              "observed_operation_set": [
+                "identity.session.signout"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.transfer-consume.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.transfer-consume.behavior",
+              "claim_id": "identity.session.transfer-consume",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e133e53868d3a87db2f2bcec0b31f8885be9dfa75676a8597db4821ed5377664",
+              "expected_operation_set": [
+                "identity.session.transfer-consume"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.transfer-consume.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.transfer-consume.behavior",
+              "claim_id": "identity.session.transfer-consume",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b66ddc3596a2043ad6454a14aff036f7e2c582d32a9d41e59d53a4057770d5dc",
+              "expected_operation_set": [
+                "identity.session.transfer-consume"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.transfer-consume.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.transfer-consume.behavior",
+              "claim_id": "identity.session.transfer-consume",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:b961d01a212522b36f090a4afafc591c793fb28289b13c4c746019d00fd33742",
+              "expected_operation_set": [
+                "identity.session.transfer-consume"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.transfer-generate.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.transfer-generate.behavior",
+              "claim_id": "identity.session.transfer-generate",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.transfer-generate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:7e3d7b96b799c337e772bed27f083eeed62f16d493683f085fa0cba6685ae097",
+              "expected_operation_set": [
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.transfer-generate.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.transfer-generate.behavior",
+              "claim_id": "identity.session.transfer-generate",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.transfer-generate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:706652ce59e1155fca4b957379dbcd921d013d829d1857aa94ba134bd240dd00",
+              "expected_operation_set": [
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.transfer-generate.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.transfer-generate.behavior",
+              "claim_id": "identity.session.transfer-generate",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.transfer-generate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:285ea9f746ad9257076999c36cc51b49776e4238eb0fd575cccdc9779ba520ae",
+              "expected_operation_set": [
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.update.behavior#success",
+              "observation_id": "session-profile-contract-report.identity.session.update.behavior",
+              "claim_id": "identity.session.update",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:bfbca75a16ee118041e2b12df44f45f2dd2cb97213e4b84f77a3ebb3cdb7303d",
+              "expected_operation_set": [
+                "identity.session.update"
+              ],
+              "observed_operation_set": [
+                "identity.session.update"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.update.behavior#failure",
+              "observation_id": "session-profile-contract-report.identity.session.update.behavior",
+              "claim_id": "identity.session.update",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:58a1bdc0a2b0bc66387410daf23b7c06b517fca327393236e3c11d448f4ccef7",
+              "expected_operation_set": [
+                "identity.session.update"
+              ],
+              "observed_operation_set": [
+                "identity.session.update"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.identity.session.update.behavior#denial",
+              "observation_id": "session-profile-contract-report.identity.session.update.behavior",
+              "claim_id": "identity.session.update",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:1f14c3bfeb47dc2f7f924333abd1c9819b22822ceb0fd36204fcf6323f60aef2",
+              "expected_operation_set": [
+                "identity.session.update"
+              ],
+              "observed_operation_set": [
+                "identity.session.update"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.journey.sessions.v1.behavior#success",
+              "observation_id": "session-profile-contract-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c24fd34559a15f328c25a358b6ef5fc2f66f03b4168ce1760b48c49fd279d1ff",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.journey.sessions.v1.behavior#failure",
+              "observation_id": "session-profile-contract-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:cf23c9ebe2901085086b20b922f630557d68a191edc3135d63cb7fc695c70b38",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ]
+            },
+            {
+              "case_id": "session-profile-contract-report.journey.sessions.v1.behavior#denial",
+              "observation_id": "session-profile-contract-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "session_id",
+                "profile"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:ebe216495838d1d896db326cbced7263ffc34254b870402ae404028595d5f891",
+              "expected_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ],
+              "observed_operation_set": [
+                "identity.session.bearer-authorize",
+                "identity.session.bearer-issue",
+                "identity.session.get",
+                "identity.session.last-method-check",
+                "identity.session.last-method-clear",
+                "identity.session.last-method-get",
+                "identity.session.last-method-record",
+                "identity.session.list",
+                "identity.session.refresh",
+                "identity.session.revoke-all",
+                "identity.session.revoke-one",
+                "identity.session.revoke-other",
+                "identity.session.select-active",
+                "identity.session.signout",
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate",
+                "identity.session.update"
+              ]
+            }
+          ]
         },
         "session_id": {
           "type": "string",
@@ -657,6 +3352,249 @@
         "session_state_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "session_race_cases": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "successor_count",
+                  "replay_rejected",
+                  "cleanup_pending",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "refresh-rotates"
+                  },
+                  "successor_count": {
+                    "const": 1
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "cleanup_pending": {
+                    "const": false
+                  },
+                  "outcome_unknown": {
+                    "const": false
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "successor_count",
+                  "replay_rejected",
+                  "cleanup_pending",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "refresh-unknown"
+                  },
+                  "successor_count": {
+                    "const": 0
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "cleanup_pending": {
+                    "const": true
+                  },
+                  "outcome_unknown": {
+                    "const": true
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "successor_count",
+                  "replay_rejected",
+                  "cleanup_pending",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "cleanup-race"
+                  },
+                  "successor_count": {
+                    "const": 0
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "cleanup_pending": {
+                    "const": false
+                  },
+                  "outcome_unknown": {
+                    "const": false
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "successor_count",
+                  "replay_rejected",
+                  "cleanup_pending",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "refresh-rotates"
+                  },
+                  "successor_count": {
+                    "const": 1
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "cleanup_pending": {
+                    "const": false
+                  },
+                  "outcome_unknown": {
+                    "const": false
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "successor_count",
+                  "replay_rejected",
+                  "cleanup_pending",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "refresh-unknown"
+                  },
+                  "successor_count": {
+                    "const": 0
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "cleanup_pending": {
+                    "const": true
+                  },
+                  "outcome_unknown": {
+                    "const": true
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "successor_count",
+                  "replay_rejected",
+                  "cleanup_pending",
+                  "outcome_unknown",
+                  "resubmit_allowed",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "cleanup-race"
+                  },
+                  "successor_count": {
+                    "const": 0
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "cleanup_pending": {
+                    "const": false
+                  },
+                  "outcome_unknown": {
+                    "const": false
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -671,263 +3609,6 @@
           "fields": [
             "revoked"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.get",
-                      "identity.session.list",
-                      "identity.session.refresh",
-                      "identity.session.revoke-one"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "session_id",
-                      "profile"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active session was created under a named profile"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "profile_id",
-                      "rotation_version",
-                      "revoked",
-                      "session_state_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.get",
-                      "identity.session.list",
-                      "identity.session.refresh",
-                      "identity.session.revoke-one"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "session_id",
-                      "profile"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active session was created under a named profile"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "profile_id",
-                      "rotation_version",
-                      "revoked",
-                      "session_state_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "session-profile-contract-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.get",
-                      "identity.session.list",
-                      "identity.session.refresh",
-                      "identity.session.revoke-one"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "session_id",
-                      "profile"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active session was created under a named profile"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "read and list expose safe metadata, refresh follows rotation and expiry profile, and revoke prevents all later use"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "profile_id",
-                      "rotation_version",
-                      "revoked",
-                      "session_state_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

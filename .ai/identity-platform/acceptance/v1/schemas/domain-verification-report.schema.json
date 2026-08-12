@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "domain-verification-report"
+        },
+        "invariant_id": {
+          "const": "domain-verification-report.invariant"
+        },
+        "invariant": {
+          "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
         },
         "operation_ids": {
           "const": [
@@ -397,314 +405,316 @@
           "type": "array",
           "minItems": 4,
           "maxItems": 4,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.domain-challenge",
-                      "identity.sso.domain-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "domain",
-                      "challenge_method",
-                      "challenge_value"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "domain is unverified and no other tenant owns it"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "domain_digest",
-                      "challenge_id",
-                      "verified",
-                      "suffix_attack_rejected",
-                      "cross_tenant_rejected"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "domain-verification-report.journey.enterprise-federation.v1.behavior#success",
+                  "domain-verification-report.journey.enterprise-federation.v1.behavior#failure",
+                  "domain-verification-report.journey.enterprise-federation.v1.behavior#denial",
+                  "domain-verification-report.journey.enterprise-federation.v1.behavior#replay"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "domain-verification-report.journey.enterprise-federation.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.enterprise-federation.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "domain-verification-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "replay"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.domain-challenge",
+                    "identity.sso.domain-verify"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.domain-challenge",
-                      "identity.sso.domain-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "domain",
-                      "challenge_method",
-                      "challenge_value"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "domain is unverified and no other tenant owns it"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "domain_digest",
-                      "challenge_id",
-                      "verified",
-                      "suffix_attack_rejected",
-                      "cross_tenant_rejected"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.domain-challenge",
-                      "identity.sso.domain-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "domain",
-                      "challenge_method",
-                      "challenge_value"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "domain is unverified and no other tenant owns it"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "domain_digest",
-                      "challenge_id",
-                      "verified",
-                      "suffix_attack_rejected",
-                      "cross_tenant_rejected"
-                    ]
-                  }
+              "initial_state": {
+                "const": "domain is unverified and no other tenant owns it"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "conflict"
+                ]
+              },
+              "expected_invariant": {
+                "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.domain-challenge",
+                    "identity.sso.domain-verify"
+                  ]
                 }
               },
-              {
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.domain-challenge",
+                    "identity.sso.domain-verify"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "domain_digest",
+                  "challenge_id",
+                  "verified",
+                  "suffix_attack_rejected",
+                  "cross_tenant_rejected"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.domain-challenge",
-                      "identity.sso.domain-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "domain",
-                      "challenge_method",
-                      "challenge_value"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "domain is unverified and no other tenant owns it"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
-                  },
-                  "observed_state_digest": {
+                  "domain_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "challenge_id": {
                     "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "domain_digest",
-                      "challenge_id",
-                      "verified",
-                      "suffix_attack_rejected",
-                      "cross_tenant_rejected"
-                    ]
+                  "verified": {
+                    "type": "boolean"
+                  },
+                  "suffix_attack_rejected": {
+                    "type": "boolean"
+                  },
+                  "cross_tenant_rejected": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "domain-verification-report.journey.enterprise-federation.v1.behavior#success",
+              "observation_id": "domain-verification-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "domain",
+                "challenge_method",
+                "challenge_value"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:0e02c4c552bdf806558f12a1b8a4a1c1ea9d4ac407ba8d899989b72982d57221",
+              "expected_operation_set": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ],
+              "observed_operation_set": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ]
+            },
+            {
+              "case_id": "domain-verification-report.journey.enterprise-federation.v1.behavior#failure",
+              "observation_id": "domain-verification-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "domain",
+                "challenge_method",
+                "challenge_value"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:e46e42d3e3af01cb7228c42d8dee9e3a4caa593a52f559fadcb268e811de5b06",
+              "expected_operation_set": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ],
+              "observed_operation_set": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ]
+            },
+            {
+              "case_id": "domain-verification-report.journey.enterprise-federation.v1.behavior#denial",
+              "observation_id": "domain-verification-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "domain",
+                "challenge_method",
+                "challenge_value"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:849d9adf6a94d5eb13e9027f551d16937576148c0cd9236171d8c93f61dddf02",
+              "expected_operation_set": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ],
+              "observed_operation_set": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ]
+            },
+            {
+              "case_id": "domain-verification-report.journey.enterprise-federation.v1.behavior#replay",
+              "observation_id": "domain-verification-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "domain",
+                "challenge_method",
+                "challenge_value"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:b1d7eeb12eea7529a7813b2dcb66811fcdb6f3f51362b85dadaa36576179f8bb",
+              "expected_operation_set": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ],
+              "observed_operation_set": [
+                "identity.sso.domain-challenge",
+                "identity.sso.domain-verify"
+              ]
+            }
+          ]
         },
         "domain_digest": {
           "type": "string",
@@ -732,340 +742,6 @@
             "suffix_attack_rejected",
             "cross_tenant_rejected"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.domain-challenge",
-                      "identity.sso.domain-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "domain",
-                      "challenge_method",
-                      "challenge_value"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "domain is unverified and no other tenant owns it"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "domain_digest",
-                      "challenge_id",
-                      "verified",
-                      "suffix_attack_rejected",
-                      "cross_tenant_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.domain-challenge",
-                      "identity.sso.domain-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "domain",
-                      "challenge_method",
-                      "challenge_value"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "domain is unverified and no other tenant owns it"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "domain_digest",
-                      "challenge_id",
-                      "verified",
-                      "suffix_attack_rejected",
-                      "cross_tenant_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.domain-challenge",
-                      "identity.sso.domain-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "domain",
-                      "challenge_method",
-                      "challenge_value"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "domain is unverified and no other tenant owns it"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "domain_digest",
-                      "challenge_id",
-                      "verified",
-                      "suffix_attack_rejected",
-                      "cross_tenant_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "domain-verification-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.domain-challenge",
-                      "identity.sso.domain-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "domain",
-                      "challenge_method",
-                      "challenge_value"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "domain is unverified and no other tenant owns it"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "exact DNS or HTTPS proof verifies the canonical domain once; suffix, stale, and cross-tenant proofs remain denied"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "domain_digest",
-                      "challenge_id",
-                      "verified",
-                      "suffix_attack_rejected",
-                      "cross_tenant_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

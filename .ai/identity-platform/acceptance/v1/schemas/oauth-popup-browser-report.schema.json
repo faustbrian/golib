@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "oauth-popup-browser-report"
+        },
+        "invariant_id": {
+          "const": "oauth-popup-browser-report.invariant"
+        },
+        "invariant": {
+          "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
         },
         "operation_ids": {
           "const": [
@@ -396,390 +404,334 @@
           "type": "array",
           "minItems": 5,
           "maxItems": 5,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "oauth-popup-browser-report.journey.social-oauth.v1.behavior#success",
+                  "oauth-popup-browser-report.journey.social-oauth.v1.behavior#failure",
+                  "oauth-popup-browser-report.journey.social-oauth.v1.behavior#denial",
+                  "oauth-popup-browser-report.journey.social-oauth.v1.behavior#replay",
+                  "oauth-popup-browser-report.journey.social-oauth.v1.behavior#cleanup"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.social-oauth.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "oauth-popup-browser-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "replay",
+                  "cleanup"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.popup-complete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
+              "initial_state": {
+                "const": "popup state is bound to provider, opener origin, and callback URI"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "conflict"
+                ]
+              },
+              "expected_invariant": {
+                "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.popup-complete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.popup-complete"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "popup_state_digest",
+                  "posted_message_count",
+                  "target_origin_digest",
+                  "popup_closed",
+                  "replay_rejected"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
+                  "popup_state_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "posted_message_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "target_origin_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
+                  "popup_closed": {
+                    "type": "boolean"
+                  },
+                  "replay_rejected": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#success",
+              "observation_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior",
+              "claim_id": "journey.social-oauth.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.oauth.popup-complete"
+              ],
+              "input_fields": [
+                "provider_id",
+                "popup_origin",
+                "state",
+                "callback_parameters",
+                "opener_origin"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:97a46b79ce0ab21d92fd3351147c1bb38a5a26d83dd37ce00f143ac279615587",
+              "expected_operation_set": [
+                "identity.oauth.popup-complete"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.popup-complete"
+              ]
+            },
+            {
+              "case_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#failure",
+              "observation_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior",
+              "claim_id": "journey.social-oauth.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.oauth.popup-complete"
+              ],
+              "input_fields": [
+                "provider_id",
+                "popup_origin",
+                "state",
+                "callback_parameters",
+                "opener_origin"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:61fe4cd408a9bfba623fb35aaf775a7f34fc1be3269c5aee25653f7657214726",
+              "expected_operation_set": [
+                "identity.oauth.popup-complete"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.popup-complete"
+              ]
+            },
+            {
+              "case_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#denial",
+              "observation_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior",
+              "claim_id": "journey.social-oauth.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.oauth.popup-complete"
+              ],
+              "input_fields": [
+                "provider_id",
+                "popup_origin",
+                "state",
+                "callback_parameters",
+                "opener_origin"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:54fab34c40af3f0b15b69d359d2d9271ffb11adcb3f97bcab81662a06e810325",
+              "expected_operation_set": [
+                "identity.oauth.popup-complete"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.popup-complete"
+              ]
+            },
+            {
+              "case_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#replay",
+              "observation_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior",
+              "claim_id": "journey.social-oauth.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.oauth.popup-complete"
+              ],
+              "input_fields": [
+                "provider_id",
+                "popup_origin",
+                "state",
+                "callback_parameters",
+                "opener_origin"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:382d1cca4ddfcf85e04819dbc672e501302877891ebf29eba625d0d30b7ddf39",
+              "expected_operation_set": [
+                "identity.oauth.popup-complete"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.popup-complete"
+              ]
+            },
+            {
+              "case_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#cleanup",
+              "observation_id": "oauth-popup-browser-report.journey.social-oauth.v1.behavior",
+              "claim_id": "journey.social-oauth.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.oauth.popup-complete"
+              ],
+              "input_fields": [
+                "provider_id",
+                "popup_origin",
+                "state",
+                "callback_parameters",
+                "opener_origin"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:deb2f0449176948e1916ed4716cd8e1090b7f847928467bf30eea11fe7ce5f7a",
+              "expected_operation_set": [
+                "identity.oauth.popup-complete"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.popup-complete"
+              ]
+            }
+          ]
         },
         "popup_state_digest": {
           "type": "string",
@@ -819,423 +771,6 @@
           "kind": "const",
           "field": "posted_message_count",
           "value": 1
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.popup-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "popup_origin",
-                      "state",
-                      "callback_parameters",
-                      "opener_origin"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "popup state is bound to provider, opener origin, and callback URI"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "popup_state_digest",
-                      "posted_message_count",
-                      "target_origin_digest",
-                      "popup_closed",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

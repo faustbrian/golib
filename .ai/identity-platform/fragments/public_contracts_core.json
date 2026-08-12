@@ -464,6 +464,123 @@
           "concurrency": "Immutable typed value."
         },
         {
+          "name": "PrivacyExportInput",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "TenantID",
+              "type": "TenantID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact tenant authority for the immutable export snapshot."
+            },
+            {
+              "name": "SubjectID",
+              "type": "UserID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact authorized export subject."
+            },
+            {
+              "name": "SnapshotID",
+              "type": "SnapshotID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Immutable contributor-set and version-vector snapshot."
+            },
+            {
+              "name": "Category",
+              "type": "PrivacyExportCategory",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "One exact portable JSON section owned by the contributor."
+            },
+            {
+              "name": "PolicyVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Exact privacy/minimization policy version.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "ContributorVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Exact append-only projection, staged fragment, or journal checkpoint.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "MaximumBytes",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard fragment byte ceiling enforced before allocation and streaming.",
+              "bounds": "1..configured privacy export fragment maximum",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "identity owns the immutable contributor request; contributors retain no reference",
+          "concurrency": "Immutable and safe for one bounded contribution call."
+        },
+        {
+          "name": "PrivacyExportFragment",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Category",
+              "type": "PrivacyExportCategory",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Must equal the requested exact portable JSON section."
+            },
+            {
+              "name": "JSON",
+              "type": "io.ReadCloser",
+              "required": true,
+              "zero_value": "nil invalid",
+              "semantics": "Caller-closed bounded UTF-8 JSON value stream; ownership transfers to the coordinator and no ciphertext is permitted."
+            },
+            {
+              "name": "ContentLength",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Exact plaintext byte length checked against PrivacyExportInput.MaximumBytes.",
+              "bounds": "1..configured privacy export fragment maximum",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "Digest",
+              "type": "[32]byte",
+              "required": true,
+              "zero_value": "all-zero invalid",
+              "semantics": "SHA-256 of the exact plaintext JSON fragment."
+            },
+            {
+              "name": "ContributorVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Must reproduce the requested contributor checkpoint exactly.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "coordinator owns and closes JSON exactly once after bounded assembly",
+          "concurrency": "One worker owns the stream; concurrent reads are forbidden."
+        },
+        {
           "name": "PrivacyExportArtifact",
           "kind": "struct",
           "fields": [
@@ -501,7 +618,7 @@
               "type": "[32]byte",
               "required": true,
               "zero_value": "invalid",
-              "semantics": "Digest of exact encrypted artifact."
+              "semantics": "SHA-256 digest of the exact server-decrypted portable JSON document returned to the caller."
             },
             {
               "name": "EncryptionKeyVersion",
@@ -532,6 +649,160 @@
           "zero_value": "invalid until explicitly constructed",
           "ownership": "identity owns complete export artifact and contributor receipts",
           "concurrency": "Immutable typed value."
+        },
+        {
+          "name": "PrivacyExportObjectInput",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "JobID",
+              "type": "PrivacyExportJobID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact generation-fenced export job."
+            },
+            {
+              "name": "PlaintextJSON",
+              "type": "io.ReadCloser",
+              "required": true,
+              "zero_value": "nil invalid",
+              "semantics": "Caller-closed bounded portable JSON stream encrypted before durable write."
+            },
+            {
+              "name": "MaximumBytes",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard plaintext and ciphertext publication ceiling.",
+              "bounds": "1..configured privacy export artifact maximum",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "PlaintextDigest",
+              "type": "[32]byte",
+              "required": true,
+              "zero_value": "all-zero invalid",
+              "semantics": "Expected SHA-256 of the complete portable JSON document."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "artifact store consumes and closes the plaintext stream exactly once",
+          "concurrency": "One generation-fenced publication owns the input."
+        },
+        {
+          "name": "PrivacyExportDownload",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "JSON",
+              "type": "io.ReadCloser",
+              "required": true,
+              "zero_value": "nil invalid",
+              "semantics": "Caller-closed server-decrypted application/json stream; encrypted object bytes and key material are never returned."
+            },
+            {
+              "name": "ContentLength",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Exact bounded plaintext response length.",
+              "bounds": "1..configured privacy export artifact maximum",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "ContentDigest",
+              "type": "[32]byte",
+              "required": true,
+              "zero_value": "all-zero invalid",
+              "semantics": "SHA-256 of the exact JSON bytes yielded by JSON."
+            },
+            {
+              "name": "MediaType",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exactly application/json.",
+              "bounds": "16 ASCII bytes; exactly application/json"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "download caller closes JSON; store retains encrypted-at-rest ownership",
+          "concurrency": "Single-use stream; concurrent reads are forbidden."
+        },
+        {
+          "name": "PrivacyExportWork",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "JobID",
+              "type": "PrivacyExportJobID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact queued job."
+            },
+            {
+              "name": "Generation",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Fences stale workers and checkpoint writes.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "Deadline",
+              "type": "time.Time",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Hard UTC completion deadline derived from configured worker bounds."
+            },
+            {
+              "name": "MaximumBytes",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Whole-artifact plaintext ceiling.",
+              "bounds": "1..configured privacy export artifact maximum",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "workflow owns admission; one generation-fenced worker owns execution",
+          "concurrency": "Immutable."
+        },
+        {
+          "name": "PrivacyExportWorkResult",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Status",
+              "type": "PrivacyExportStatus",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Monotonic terminal or resumable running outcome."
+            },
+            {
+              "name": "Artifact",
+              "type": "PrivacyExportArtifact",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Present only for ready after all contributors and privacy-epoch recheck succeed."
+            },
+            {
+              "name": "CheckpointDigest",
+              "type": "[32]byte",
+              "required": true,
+              "zero_value": "all-zero invalid",
+              "semantics": "Digest of the durable resumable contributor checkpoint set."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "identity owns the durable worker result",
+          "concurrency": "Immutable."
         },
         {
           "name": "PrivacyExportCapability",
@@ -1434,8 +1705,7 @@
           "name": "PrivacyExportFormat",
           "kind": "enum",
           "constants": [
-            "PrivacyExportJSON",
-            "PrivacyExportCSVArchive"
+            "PrivacyExportJSON"
           ],
           "fields": [],
           "zero_value": "invalid unless a listed constant explicitly represents unknown",
@@ -1446,7 +1716,8 @@
           "name": "PrivacyExportStatus",
           "kind": "enum",
           "constants": [
-            "PrivacyExportPending",
+            "PrivacyExportQueued",
+            "PrivacyExportRunning",
             "PrivacyExportReady",
             "PrivacyExportFailed",
             "PrivacyExportExpired",
@@ -2407,12 +2678,14 @@
           "name": "PrivacyExportCategory",
           "kind": "enum",
           "constants": [
-            "PrivacyExportProfile",
-            "PrivacyExportIdentifiers",
+            "PrivacyExportIdentity",
             "PrivacyExportAccounts",
-            "PrivacyExportSecurity",
+            "PrivacyExportIdentifiers",
+            "PrivacyExportSessions",
+            "PrivacyExportDevices",
             "PrivacyExportOrganizations",
-            "PrivacyExportAudit"
+            "PrivacyExportMemberships",
+            "PrivacyExportConsents"
           ],
           "fields": [],
           "zero_value": "invalid unless a listed constant explicitly represents unknown",
@@ -2844,6 +3117,36 @@
           ]
         },
         {
+          "name": "PrivacyExportObjectStore",
+          "methods": [
+            {
+              "name": "Publish",
+              "signature": "Publish(ctx context.Context, input PrivacyExportObjectInput) (PrivacyExportArtifact, error)",
+              "semantics": "Atomically envelope-encrypts and publishes one bounded object; partial objects are never readable."
+            },
+            {
+              "name": "OpenDownload",
+              "signature": "OpenDownload(ctx context.Context, jobID PrivacyExportJobID, maximumBytes uint64) (PrivacyExportDownload, error)",
+              "semantics": "Authenticates retained key metadata, server-decrypts, verifies length/digest, and returns only bounded application/json plaintext."
+            },
+            {
+              "name": "Erase",
+              "signature": "Erase(ctx context.Context, jobID PrivacyExportJobID) error",
+              "semantics": "Idempotently removes the encrypted object and crypto-erases its data key after capability revocation."
+            }
+          ]
+        },
+        {
+          "name": "PrivacyExportWorker",
+          "methods": [
+            {
+              "name": "Run",
+              "signature": "Run(ctx context.Context, work PrivacyExportWork) (PrivacyExportWorkResult, error)",
+              "semantics": "Runs one deadline-, byte-, contributor-, and generation-bounded job with durable per-contributor checkpoints and no long-lived database snapshot."
+            }
+          ]
+        },
+        {
           "name": "Hook",
           "methods": [
             {
@@ -2961,6 +3264,31 @@
       "unit": "identity/postgres",
       "package_name": "postgres",
       "types": [
+        {
+          "name": "ContributorDescriptor",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Owner",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Canonical compile-time package owner.",
+              "bounds": "1..128 lowercase ASCII bytes"
+            },
+            {
+              "name": "ContractID",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact registered bounded contributor contract; aliases and runtime-generated IDs are forbidden.",
+              "bounds": "1..256 ASCII bytes"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "identity/postgres owns the sealed contributor registry; packages return immutable descriptors",
+          "concurrency": "Immutable and comparable."
+        },
         {
           "name": "Config",
           "kind": "struct",
@@ -3462,6 +3790,36 @@
       ],
       "interfaces": [
         {
+          "name": "Carrier",
+          "methods": [
+            {
+              "name": "Enlist",
+              "signature": "Enlist(contributor Contributor) error",
+              "semantics": "Registers one descriptor-bound compile-time typed contributor before the caller-owned transaction's first write; duplicate, undeclared, owner/contract mismatch, or late enlistment fails."
+            }
+          ]
+        },
+        {
+          "name": "Enlister",
+          "methods": [
+            {
+              "name": "Enlist",
+              "signature": "Enlist(context.Context, pgx.Tx) (Carrier, error)",
+              "semantics": "Binds a bounded carrier to exactly one caller-owned transaction; rejects nil, closed, foreign, or already-writing transactions before mutation and never commits or rolls back."
+            }
+          ]
+        },
+        {
+          "name": "Contributor",
+          "methods": [
+            {
+              "name": "Descriptor",
+              "signature": "Descriptor() ContributorDescriptor",
+              "semantics": "Returns the exact sealed owner/contract identity; it conveys no transaction or cross-package command authority."
+            }
+          ]
+        },
+        {
           "name": "Migrator",
           "methods": [
             {
@@ -3548,6 +3906,290 @@
       "unit": "identity/i18n",
       "package_name": "i18n",
       "types": [
+        {
+          "name": "ErrorIdentity",
+          "kind": "defined",
+          "underlying": "string",
+          "fields": [],
+          "bounds": "1..128 lowercase ASCII bytes",
+          "zero_value": "empty invalid",
+          "ownership": "the package defining the machine error owns one stable identity",
+          "concurrency": "Immutable and comparable."
+        },
+        {
+          "name": "ErrorRegistry",
+          "kind": "struct",
+          "fields": [],
+          "methods": [
+            {
+              "name": "Register",
+              "signature": "Register(ErrorIdentity, MessageID, ParameterSchema) error",
+              "semantics": "Before sealing, registers one owning package per machine identity and rejects duplicate/conflicting identity, message, or schema."
+            },
+            {
+              "name": "Resolve",
+              "signature": "Resolve(error) (MessageID, []SafeParameter, bool)",
+              "semantics": "After sealing, resolves only LocalizableError identity and validated safe parameters without inspecting error strings; unknown errors return false and preserve typed identity."
+            }
+          ],
+          "representation": "unexported",
+          "zero_value": "invalid; NewErrorRegistry constructs the only usable mutable-build/sealed-read lifecycle",
+          "ownership": "i18n owns registry state; callers may register during construction but cannot implement or replace its sealing behavior",
+          "concurrency": "Registration is single-owner before sealing; Resolve is immutable and safe for concurrent calls after NewResolver seals it."
+        },
+        {
+          "name": "SafeParameter",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Name",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Registered bounded placeholder name.",
+              "bounds": "1..128 ASCII bytes"
+            },
+            {
+              "name": "Value",
+              "type": "AttributeScalar",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Typed non-secret value validated against ParameterSchema; raw diagnostics and enumeration state are forbidden."
+            },
+            {
+              "name": "Context",
+              "type": "ParameterContext",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Declared final-output context; interpolation preserves it without escaping."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "originating error owns immutable safe values; resolver returns caller-owned copies",
+          "concurrency": "Immutable."
+        },
+        {
+          "name": "ParameterSchema",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Parameters",
+              "type": "[]ParameterSpec",
+              "required": true,
+              "zero_value": "nil means no parameters",
+              "semantics": "Ordered duplicate-free exact safe parameter declaration.",
+              "bounds": "maximum 32 parameters"
+            }
+          ],
+          "zero_value": "valid empty schema",
+          "ownership": "registry copies and seals the schema",
+          "concurrency": "Immutable after registration."
+        },
+        {
+          "name": "Preference",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "TenantID",
+              "type": "identity.TenantID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact tenant owner."
+            },
+            {
+              "name": "SubjectID",
+              "type": "identity.UserID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact personal-data subject."
+            },
+            {
+              "name": "Locale",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Canonical supported BCP 47 locale.",
+              "bounds": "1..64 ASCII bytes"
+            },
+            {
+              "name": "Version",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Optimistic preference version.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "ConsentNoticeVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Exact consent/notice version governing persistence.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "preference store owns durable personal data; callers receive immutable copies",
+          "concurrency": "Versioned immutable projection."
+        },
+        {
+          "name": "PreferenceKey",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "TenantID",
+              "type": "identity.TenantID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact tenant scope."
+            },
+            {
+              "name": "SubjectID",
+              "type": "identity.UserID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact subject scope."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "caller owns immutable lookup key",
+          "concurrency": "Immutable and comparable."
+        },
+        {
+          "name": "PreferenceCommand",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Key",
+              "type": "PreferenceKey",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact tenant and subject."
+            },
+            {
+              "name": "ExpectedVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is valid",
+              "semantics": "Optimistic mutation boundary.",
+              "bounds": "0 <= value <= 18446744073709551615",
+              "zero_valid": true,
+              "zero_value_detail": "create only"
+            },
+            {
+              "name": "Locale",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Canonical supported locale; unsupported locales fail without persistence.",
+              "bounds": "1..64 ASCII bytes"
+            },
+            {
+              "name": "ConsentNoticeVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Consent/notice accepted for this mutation.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "CommandID",
+              "type": "identity.CommandID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Stable idempotency and reconciliation identity."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "i18n owns mutation validation; store owns durable application",
+          "concurrency": "Immutable."
+        },
+        {
+          "name": "PreferenceLifecycleCommand",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Key",
+              "type": "PreferenceKey",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact tenant and subject."
+            },
+            {
+              "name": "Action",
+              "type": "identity.RetentionAction",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Export, anonymize, or delete only."
+            },
+            {
+              "name": "SnapshotID",
+              "type": "identity.SnapshotID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact lifecycle/export snapshot."
+            },
+            {
+              "name": "Generation",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Fences stale lifecycle application.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "CommandID",
+              "type": "identity.CommandID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Stable idempotency and unknown-outcome recovery identity."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "lifecycle coordinator owns immutable command",
+          "concurrency": "Immutable."
+        },
+        {
+          "name": "PreferenceLifecycleResult",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Fragment",
+              "type": "identity.PrivacyExportFragment",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Present only for export and categorized as consents."
+            },
+            {
+              "name": "Outcome",
+              "type": "identity.AttemptedCommitOutcome",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Explicit not-committed, committed, or unknown lifecycle outcome."
+            },
+            {
+              "name": "Version",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is valid",
+              "semantics": "Terminal preference version or zero when no preference existed.",
+              "bounds": "0 <= value <= 18446744073709551615",
+              "zero_valid": true,
+              "zero_value_detail": "absent"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "contributor owns result construction; coordinator owns returned fragment",
+          "concurrency": "Immutable."
+        },
         {
           "name": "MessageID",
           "kind": "defined",
@@ -3815,6 +4457,46 @@
       ],
       "interfaces": [
         {
+          "name": "LocalizableError",
+          "methods": [
+            {
+              "name": "ErrorIdentity",
+              "signature": "ErrorIdentity() ErrorIdentity",
+              "semantics": "Returns stable machine identity without inspecting Error text."
+            },
+            {
+              "name": "SafeParameters",
+              "signature": "SafeParameters() []SafeParameter",
+              "semantics": "Returns a bounded caller-owned copy containing no secrets or rendered message."
+            }
+          ]
+        },
+        {
+          "name": "PreferenceStore",
+          "methods": [
+            {
+              "name": "GetPreference",
+              "signature": "GetPreference(context.Context, PreferenceKey) (Preference, error)",
+              "semantics": "Returns the exact tenant/subject preference as an immutable copy without inferring or persisting a fallback."
+            },
+            {
+              "name": "SetPreference",
+              "signature": "SetPreference(context.Context, PreferenceCommand) (Preference, error)",
+              "semantics": "Atomically validates expected version, supported canonical locale, consent/notice version, and stable command identity."
+            }
+          ]
+        },
+        {
+          "name": "PreferenceLifecycleContributor",
+          "methods": [
+            {
+              "name": "ContributePreferenceLifecycle",
+              "signature": "ContributePreferenceLifecycle(context.Context, PreferenceLifecycleCommand) (PreferenceLifecycleResult, error)",
+              "semantics": "Contributes exact-snapshot export or generation-fenced anonymization/deletion with explicit unknown-outcome recovery."
+            }
+          ]
+        },
+        {
           "name": "Matcher",
           "methods": [
             {
@@ -3841,8 +4523,12 @@
           "semantics": "Locale maximum 64 bytes; at most 10000 messages; rejects duplicates/templates/placeholder mismatch."
         },
         {
-          "signature": "func NewResolver(catalogs []Catalog, fallbacks []string) (Resolver, error)",
-          "semantics": "At most 256 catalogs and 16 fallback locale tags; immutable snapshot."
+          "signature": "func NewErrorRegistry() *ErrorRegistry",
+          "semantics": "Returns an empty construction-time registry; NewResolver seals it and later Register calls fail."
+        },
+        {
+          "signature": "func NewResolver(catalogs []Catalog, fallbacks []string, registry *ErrorRegistry, preferences PreferenceStore) (Resolver, error)",
+          "semantics": "At most 256 catalogs and 16 fallback locale tags; rejects nil registry/preferences, seals the registry, and publishes one immutable snapshot."
         }
       ],
       "errors": [
@@ -4093,36 +4779,36 @@
               "type": "CSRFMode",
               "required": true,
               "zero_value": "invalid",
-              "semantics": "Closed origin-plus-token mode."
+              "semantics": "Discriminant for the closed CSRF/origin-protection union; each route selects exactly one listed mode and mode-specific fields MUST be absent when they do not apply."
             },
             {
               "name": "TokenHeader",
               "type": "string",
-              "required": true,
-              "zero_value": "invalid",
-              "semantics": "Canonical header name.",
+              "required": false,
+              "zero_value": "omitted unless Mode is CSRFSessionOriginAndToken or CSRFConditionalPreAuthSession",
+              "semantics": "Canonical token header; required only for the session-origin-plus-token and conditional pre-auth-session variants and forbidden for all other variants.",
               "bounds": "128 bytes"
             },
             {
               "name": "TokenMaximumAge",
               "type": "time.Duration",
-              "required": true,
-              "zero_value": "0 is invalid",
-              "semantics": "Positive maximum 24 hours.",
+              "required": false,
+              "zero_value": "0 is valid",
+              "semantics": "Positive token maximum age required only for token-bearing variants and forbidden for all other variants.",
               "bounds": "0 < value <= 24 hours",
-              "zero_valid": false,
-              "zero_value_detail": "invalid"
+              "zero_valid": true,
+              "zero_value_detail": "omitted for a variant without a token"
             },
             {
               "name": "RefererFallback",
               "type": "RefererFallbackPolicy",
-              "required": true,
-              "zero_value": "invalid",
-              "semantics": "Closed policy."
+              "required": false,
+              "zero_value": "omitted only for CSRFNone",
+              "semantics": "Required for CSRFExactOrigin, CSRFSessionOriginAndToken, CSRFConditionalPreAuthSession and CSRFBoundOrigin, including the conditional variant's exact-origin fallback; forbidden only for CSRFNone."
             }
           ],
-          "zero_value": "invalid until explicitly constructed",
-          "ownership": "HTTP owns exact-origin plus token/session binding",
+          "zero_value": "invalid until exactly one listed variant is selected and only that variant's fields are populated",
+          "ownership": "HTTP owns the closed none/exact-origin/session-origin-plus-token/conditional-pre-auth-session/bound-origin union and its exact field invariants",
           "concurrency": "Immutable."
         },
         {
@@ -4339,11 +5025,15 @@
           "name": "CSRFMode",
           "kind": "enum",
           "constants": [
-            "CSRFOriginAndToken"
+            "CSRFNone",
+            "CSRFExactOrigin",
+            "CSRFSessionOriginAndToken",
+            "CSRFConditionalPreAuthSession",
+            "CSRFBoundOrigin"
           ],
           "fields": [],
           "zero_value": "invalid unless a listed constant explicitly represents unknown",
-          "ownership": "HTTP owns the closed transport policy enum",
+          "ownership": "HTTP owns the closed transport-policy discriminant: none is permitted only for explicitly safe non-browser or safe-read routes; exact-origin requires trusted Origin/Referer; session-origin-plus-token binds authenticated session, exact origin, and token; conditional-pre-auth-session requires the pre-auth cookie/token only when present and otherwise exact origin; bound-origin compares the request origin to the flow-bound origin without a session token",
           "concurrency": "Immutable and comparable."
         },
         {
@@ -4477,10 +5167,10 @@
             },
             {
               "name": "CSRF",
-              "type": "CSRFMode",
+              "type": "CSRFPolicy",
               "required": true,
               "zero_value": "invalid",
-              "semantics": "Closed typed value."
+              "semantics": "Closed discriminated CSRF/origin-protection union; nullable-field inference and route-local combinations outside the five variants are forbidden."
             },
             {
               "name": "RatePolicy",
@@ -4936,6 +5626,60 @@
       "package_name": "reference",
       "types": [
         {
+          "name": "StoreSet",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "PrivacyExportObjects",
+              "type": "identity.PrivacyExportObjectStore",
+              "required": true,
+              "zero_value": "nil invalid",
+              "semantics": "Envelope-encrypted atomic artifact store; reference composition owns no object-store implementation lifetime."
+            },
+            {
+              "name": "LocalePreferences",
+              "type": "i18n.PreferenceStore",
+              "required": true,
+              "zero_value": "nil invalid",
+              "semantics": "Durable locale preference authority selected by the deployment profile."
+            },
+            {
+              "name": "LocalePreferenceLifecycle",
+              "type": "i18n.PreferenceLifecycleContributor",
+              "required": true,
+              "zero_value": "nil invalid",
+              "semantics": "Exact export/anonymization/deletion contributor for persisted locale preference."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "reference validates typed stores while implementations retain resource lifetime",
+          "concurrency": "Immutable after composition."
+        },
+        {
+          "name": "WorkerSet",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "PrivacyExport",
+              "type": "identity.PrivacyExportWorker",
+              "required": true,
+              "zero_value": "nil invalid",
+              "semantics": "Generation-fenced bounded asynchronous export worker."
+            },
+            {
+              "name": "PrivacyExportContributors",
+              "type": "[]identity.PrivacyExportContributor",
+              "required": true,
+              "zero_value": "nil invalid",
+              "semantics": "Exact ordered contributor set covering every configured portable category once.",
+              "bounds": "exactly 8 category owners; maximum 128 contributors"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "reference copies and seals the contributor set; worker implementations retain no mutable slice",
+          "concurrency": "Immutable after composition."
+        },
+        {
           "name": "Config",
           "kind": "struct",
           "fields": [
@@ -4952,6 +5696,20 @@
               "required": true,
               "zero_value": "invalid",
               "semantics": "Exact five-member immutable set."
+            },
+            {
+              "name": "Stores",
+              "type": "StoreSet",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact validated typed store wiring, including encrypted privacy-export artifacts and locale preference lifecycle."
+            },
+            {
+              "name": "Workers",
+              "type": "WorkerSet",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact validated bounded worker and privacy-export contributor wiring."
             },
             {
               "name": "HTTP",
@@ -5626,6 +6384,14 @@
         }
       ],
       "constructors": [
+        {
+          "signature": "func ComposeStores(stores StoreSet) (StoreSet, error)",
+          "semantics": "Rejects nil, duplicate, incompatible, or missing stores, including absent retained privacy-export decryption keys."
+        },
+        {
+          "signature": "func ComposeWorkers(workers WorkerSet) (WorkerSet, error)",
+          "semantics": "Rejects nil workers, missing/duplicate privacy categories, unsafe bounds, or contributors unable to reproduce their declared checkpoints."
+        },
         {
           "signature": "func ValidateConfig(config ReferenceConfig) (ValidationReport, error)",
           "semantics": "Returns all safe failures without side effects."
@@ -6376,7 +7142,7 @@
       "authorization": {
         "access": "session",
         "policy": "authenticated subject policy: session",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -6538,7 +7304,7 @@
       "authorization": {
         "access": "fresh",
         "policy": "authenticated subject policy: fresh",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -6677,7 +7443,7 @@
       "authorization": {
         "access": "admin principal",
         "policy": "administrative policy: admin principal",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -6825,7 +7591,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -6995,7 +7761,7 @@
       "authorization": {
         "access": "fresh admin",
         "policy": "administrative policy: fresh admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -7165,7 +7931,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -7308,7 +8074,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -7457,7 +8223,7 @@
       "authorization": {
         "access": "offline retention operator plus independent confirmer",
         "policy": "flow binding policy: offline retention operator plus independent confirmer",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -7605,7 +8371,7 @@
       "authorization": {
         "access": "offline retention operator",
         "policy": "flow binding policy: offline retention operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -7779,7 +8545,7 @@
       "authorization": {
         "access": "fresh privacy admin",
         "policy": "administrative policy: fresh privacy admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -7935,7 +8701,7 @@
       "authorization": {
         "access": "fresh privacy admin",
         "policy": "administrative policy: fresh privacy admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -8112,7 +8878,7 @@
       "authorization": {
         "access": "fresh privacy admin",
         "policy": "administrative policy: fresh privacy admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -8287,7 +9053,7 @@
       "authorization": {
         "access": "fresh privacy admin",
         "policy": "administrative policy: fresh privacy admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -8471,7 +9237,7 @@
       "authorization": {
         "access": "offline retention operator plus immutable plan confirmation",
         "policy": "flow binding policy: offline retention operator plus immutable plan confirmation",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -8672,7 +9438,7 @@
       "authorization": {
         "access": "fresh audit exporter plus investigation",
         "policy": "administrative policy: fresh audit exporter plus investigation",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -8799,7 +9565,7 @@
       "authorization": {
         "access": "fresh audit investigator",
         "policy": "administrative policy: fresh audit investigator",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -8960,7 +9726,7 @@
       "authorization": {
         "access": "fresh audit investigator",
         "policy": "administrative policy: fresh audit investigator",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -9134,7 +9900,7 @@
       "authorization": {
         "access": "fresh audit investigator",
         "policy": "administrative policy: fresh audit investigator",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -9276,7 +10042,7 @@
       "authorization": {
         "access": "session plus deletion capability",
         "policy": "authenticated subject policy: session plus deletion capability",
-        "csrf_origin": "origin"
+        "csrf_origin": "CSRFExactOrigin"
       },
       "transport": {
         "exposure": "both",
@@ -9421,7 +10187,7 @@
       "authorization": {
         "access": "session",
         "policy": "authenticated subject policy: session",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -9521,7 +10287,7 @@
       "authorization": {
         "access": "public",
         "policy": "none",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -9655,7 +10421,7 @@
       "authorization": {
         "access": "attempted/committed result",
         "policy": "flow binding policy: attempted/committed result",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -9789,7 +10555,7 @@
       "authorization": {
         "access": "operation context",
         "policy": "flow binding policy: operation context",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -9907,7 +10673,7 @@
       "authorization": {
         "access": "explicit/session/cookie/header context",
         "policy": "authenticated subject policy: explicit/session/cookie/header context",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10015,7 +10781,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10140,7 +10906,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10256,7 +11022,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10364,7 +11130,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10479,7 +11245,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10616,7 +11382,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10745,7 +11511,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10853,7 +11619,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -10961,7 +11727,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11076,7 +11842,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11187,7 +11953,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11312,7 +12078,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11424,7 +12190,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11539,7 +12305,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11647,7 +12413,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11755,7 +12521,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11870,7 +12636,7 @@
       "authorization": {
         "access": "test build only",
         "policy": "flow binding policy: test build only",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -11987,7 +12753,7 @@
       "authorization": {
         "access": "configured public/admin policy",
         "policy": "administrative policy: configured public/admin policy",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -12143,7 +12909,7 @@
       "authorization": {
         "access": "offline operator plus one-time bootstrap proof",
         "policy": "flow binding policy: offline operator plus one-time bootstrap proof",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -12287,7 +13053,7 @@
       "authorization": {
         "access": "fresh platform admin",
         "policy": "administrative policy: fresh platform admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -12434,7 +13200,7 @@
       "authorization": {
         "access": "fresh platform admin",
         "policy": "administrative policy: fresh platform admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -12589,7 +13355,7 @@
       "authorization": {
         "access": "fresh platform admin",
         "policy": "administrative policy: fresh platform admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -12742,7 +13508,7 @@
       "authorization": {
         "access": "fresh platform admin",
         "policy": "administrative policy: fresh platform admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -12889,7 +13655,7 @@
       "authorization": {
         "access": "fresh platform admin",
         "policy": "administrative policy: fresh platform admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -13059,7 +13825,7 @@
       "authorization": {
         "access": "fresh platform admin",
         "policy": "administrative policy: fresh platform admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -13195,7 +13961,7 @@
       "authorization": {
         "access": "fresh",
         "policy": "authenticated subject policy: fresh",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -13345,7 +14111,7 @@
       "authorization": {
         "access": "fresh plus export capability",
         "policy": "authenticated subject policy: fresh plus export capability",
-        "csrf_origin": "origin"
+        "csrf_origin": "CSRFExactOrigin"
       },
       "transport": {
         "exposure": "both",
@@ -13501,7 +14267,7 @@
       "authorization": {
         "access": "fresh export owner",
         "policy": "resource authorization policy: fresh export owner",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -13647,7 +14413,7 @@
       "authorization": {
         "access": "fresh",
         "policy": "authenticated subject policy: fresh",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -13780,7 +14546,7 @@
       "authorization": {
         "access": "fresh",
         "policy": "authenticated subject policy: fresh",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -13900,7 +14666,7 @@
       "authorization": {
         "access": "session",
         "policy": "authenticated subject policy: session",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -14062,7 +14828,7 @@
       "authorization": {
         "access": "session",
         "policy": "authenticated subject policy: session",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -14179,7 +14945,7 @@
       "authorization": {
         "access": "public",
         "policy": "none",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -14287,7 +15053,7 @@
       "authorization": {
         "access": "operator",
         "policy": "flow binding policy: operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -14395,7 +15161,7 @@
       "authorization": {
         "access": "operator",
         "policy": "flow binding policy: operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -14517,7 +15283,7 @@
       "authorization": {
         "access": "operator",
         "policy": "flow binding policy: operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -14641,7 +15407,7 @@
       "authorization": {
         "access": "operator",
         "policy": "flow binding policy: operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -14751,7 +15517,7 @@
       "authorization": {
         "access": "operator",
         "policy": "flow binding policy: operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -14869,7 +15635,7 @@
       "authorization": {
         "access": "operator",
         "policy": "flow binding policy: operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -14984,7 +15750,7 @@
       "authorization": {
         "access": "operator",
         "policy": "flow binding policy: operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -15134,7 +15900,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -15281,7 +16047,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -15406,7 +16172,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -15558,7 +16324,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -15700,7 +16466,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -15847,7 +16613,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -16000,7 +16766,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",

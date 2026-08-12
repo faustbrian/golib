@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/scim/organization`
 - Canonical goal after scaffolding: `pkg/scim/organization/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:scim/organization:v1`; owned operation IDs: none
-- Requires: `scim`, `identity`, `organization`
+- Requires: `scim`, `identity`, `organization`, `sso`
 - Consumes existing primitives: `authorization`, `audit`
 - Unlocks after verification: `scim/postgres`, `identity/http`
 
@@ -31,12 +31,12 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns mapping SCIM Users and Groups onto identity users, organization memberships, teams, and role-safe attributes. It does not own SCIM wire parsing, persistence, SSO, and arbitrary custom-schema engines. Those exclusions MUST remain
+This module owns mapping SCIM Users and Groups onto identity users, organization memberships, teams, and role-safe attributes. It does not own SCIM wire parsing, persistence, SSO orchestration, and arbitrary custom-schema engines. It implements only the SSO-owned directory-delta contributor boundary. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define UserMapper, GroupMapper, AttributePolicy, MembershipPolicy, DeprovisionPolicy, Conflict, Projection, and Reconciler contracts. Public errors MUST be typed, stable,
+The design MUST define UserMapper, GroupMapper, AttributePolicy, MembershipPolicy, DeprovisionPolicy, Conflict, Projection, and Reconciler contracts and implement the consumer-owned `sso.DirectorySyncContributor` exactly. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -97,8 +97,11 @@ involved.
   and orchestration, while identity and organization remain sole durable
   authorities; partial success MUST retain exact checkpoints.
 - Directory-sync generations, provider cursors, status, cancellation,
-  reconciliation and events belong to `sso`. This package MAY consume an
-  admitted version-bound delta batch, but MUST NOT create a second sync
+  reconciliation and events belong to `sso`. This package MUST translate each
+  admitted version-bound delta batch into public identity and organization
+  mapping commands, preserve its generation, mapping version, stable child
+  command IDs and predecessor checkpoint, and return exact committed, denied,
+  or unknown per-child outcomes. It MUST NOT create a second sync
   authority, cursor, scheduler or event stream.
 - The mapper MUST use only public `identity` and `organization` contracts for
   authoritative users, identifiers, memberships, teams and roles. It MUST NOT

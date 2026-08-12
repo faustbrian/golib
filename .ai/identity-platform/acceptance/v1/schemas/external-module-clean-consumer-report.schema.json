@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "external-module-clean-consumer-report"
+        },
+        "invariant_id": {
+          "const": "external-module-clean-consumer-report.invariant"
+        },
+        "invariant": {
+          "const": "external module compiles, composes its extension, and receives complete generated schema and OpenAPI declarations"
         },
         "operation_ids": {
           "const": [
@@ -397,235 +405,284 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.typed-modules-operations.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "external_module_path",
-                      "module_version",
-                      "selected_extensions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean module cache contains only published golib modules"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "external module compiles, composes its extension, and receives complete generated schema and OpenAPI declarations"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "module_version_digest",
-                      "compiled",
-                      "extension_route_count",
-                      "generated_schema_digest",
-                      "openapi_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#success",
+                  "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#failure",
+                  "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#cleanup"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.typed-modules-operations.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "external-module-clean-consumer-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "cleanup"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.schema-generate",
+                    "identity.openapi.document"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.typed-modules-operations.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "external_module_path",
-                      "module_version",
-                      "selected_extensions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean module cache contains only published golib modules"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "external module compiles, composes its extension, and receives complete generated schema and OpenAPI declarations"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "module_version_digest",
-                      "compiled",
-                      "extension_route_count",
-                      "generated_schema_digest",
-                      "openapi_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "clean module cache contains only published golib modules"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "external module compiles, composes its extension, and receives complete generated schema and OpenAPI declarations"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.schema-generate",
+                    "identity.openapi.document"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.schema-generate",
+                    "identity.openapi.document"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "module_version_digest",
+                  "compiled",
+                  "extension_route_count",
+                  "generated_schema_digest",
+                  "openapi_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.typed-modules-operations.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "external_module_path",
-                      "module_version",
-                      "selected_extensions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean module cache contains only published golib modules"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "external module compiles, composes its extension, and receives complete generated schema and OpenAPI declarations"
-                  },
-                  "observed_state_digest": {
+                  "module_version_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "compiled": {
+                    "type": "boolean"
+                  },
+                  "extension_route_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "generated_schema_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "module_version_digest",
-                      "compiled",
-                      "extension_route_count",
-                      "generated_schema_digest",
-                      "openapi_digest"
-                    ]
+                  "openapi_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#success",
+              "observation_id": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior",
+              "claim_id": "journey.typed-modules-operations.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.schema-generate",
+                "identity.openapi.document"
+              ],
+              "input_fields": [
+                "external_module_path",
+                "module_version",
+                "selected_extensions"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:3721fc3c9fd95f25c7528a0fe82b6420d407c2913e9477a4757c074d6fcaf3fb",
+              "expected_operation_set": [
+                "identity.openapi.document",
+                "identity.reference.schema-generate"
+              ],
+              "observed_operation_set": [
+                "identity.openapi.document",
+                "identity.reference.schema-generate"
+              ]
+            },
+            {
+              "case_id": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#failure",
+              "observation_id": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior",
+              "claim_id": "journey.typed-modules-operations.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.schema-generate",
+                "identity.openapi.document"
+              ],
+              "input_fields": [
+                "external_module_path",
+                "module_version",
+                "selected_extensions"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:f49996eb8495f4c4da27c12955834765c694fcbe7de56befcd3c9d86225b01f7",
+              "expected_operation_set": [
+                "identity.openapi.document",
+                "identity.reference.schema-generate"
+              ],
+              "observed_operation_set": [
+                "identity.openapi.document",
+                "identity.reference.schema-generate"
+              ]
+            },
+            {
+              "case_id": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#cleanup",
+              "observation_id": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior",
+              "claim_id": "journey.typed-modules-operations.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.schema-generate",
+                "identity.openapi.document"
+              ],
+              "input_fields": [
+                "external_module_path",
+                "module_version",
+                "selected_extensions"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4c9242e6c0309ef769223bc77101b9d57aa7163346d13237b13765fae40d16ad",
+              "expected_operation_set": [
+                "identity.openapi.document",
+                "identity.reference.schema-generate"
+              ],
+              "observed_operation_set": [
+                "identity.openapi.document",
+                "identity.reference.schema-generate"
+              ]
+            }
+          ]
         },
         "module_version_digest": {
           "type": "string",
@@ -660,254 +717,6 @@
           "fields": [
             "compiled"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.typed-modules-operations.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "external_module_path",
-                      "module_version",
-                      "selected_extensions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean module cache contains only published golib modules"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "external module compiles, composes its extension, and receives complete generated schema and OpenAPI declarations"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "module_version_digest",
-                      "compiled",
-                      "extension_route_count",
-                      "generated_schema_digest",
-                      "openapi_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.typed-modules-operations.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "external_module_path",
-                      "module_version",
-                      "selected_extensions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean module cache contains only published golib modules"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "external module compiles, composes its extension, and receives complete generated schema and OpenAPI declarations"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "module_version_digest",
-                      "compiled",
-                      "extension_route_count",
-                      "generated_schema_digest",
-                      "openapi_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.typed-modules-operations.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.openapi.document"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "external_module_path",
-                      "module_version",
-                      "selected_extensions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "clean module cache contains only published golib modules"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "external module compiles, composes its extension, and receives complete generated schema and OpenAPI declarations"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "module_version_digest",
-                      "compiled",
-                      "extension_route_count",
-                      "generated_schema_digest",
-                      "openapi_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

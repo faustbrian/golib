@@ -43,7 +43,7 @@ remain outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Verifier, Request, Result, Failure, ProviderEvidence, provider capability metadata, hostname/origin/action/site binding, the exact subject or anonymous flow, the selected unauthenticated pre-auth or authenticated subject/session or administrator actor context, optional score policy, clock, retry classification, and redaction contracts. It MUST represent unavailable provider fields without fabricating generic values. Public errors MUST be typed, stable,
+The design MUST define Verifier, VerifyRequest, Result, Failure, ProviderEvidence, provider capability metadata, hostname/origin/action/site binding, the exact subject or anonymous flow, the selected unauthenticated pre-auth or authenticated subject/session or administrator actor context, optional score policy, clock, retry classification, and redaction contracts. VerifyRequest MUST carry a closed tagged flow context, the identity/risk-derived replay fingerprint, and an optional canonical remote address whose disclosure is permitted only by the selected immutable provider profile and explicit configuration. It MUST represent unavailable provider fields without fabricating generic values. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -81,6 +81,10 @@ involved.
   action/hostname/origin availability and match status, challenge timestamp,
   score availability/value, provider reason codes and transport outcome. It
   MUST distinguish absent from empty and MUST NOT fabricate unsupported fields.
+  Provider-native evidence MUST be a closed bounded union for reCAPTCHA,
+  Turnstile, hCaptcha and CaptchaFox; exactly one discriminator-matching member
+  is present, arbitrary maps and raw response bodies are forbidden, and a new
+  provider or native field requires a reviewed contract revision.
 - Verification, rejection, replay, provider-unavailable and binding-mismatch
   events MUST use `.ai/identity-platform/SECURITY_EVENTS.md`; challenge expiry,
   tenant/site disablement and secret rotation MUST follow

@@ -37,9 +37,7 @@ module AcceptanceCatalogCheck
   def load_canonical(path)
     fail_check("missing #{path}") unless File.file?(path)
     bytes = File.read(path)
-    parsed = JSON.parse(bytes)
-    fail_check("non-canonical JSON #{path}") unless bytes == JSON.pretty_generate(parsed) + "\n"
-    parsed
+    AcceptanceSchemaValidation.parse_json(bytes, canonical: true)
   rescue JSON::ParserError => e
     fail_check("invalid JSON #{path}: #{e.message}")
   end
@@ -90,6 +88,10 @@ module AcceptanceCatalogCheck
       "stdout" => "#{artifact.fetch('artifact_id')} gate completed with attributable evidence\n", "stderr" => ""
     )
     AcceptanceSchemaValidation.bind_execution_proof!(execution)
+    value.fetch("scenario_cases").each do |scenario|
+      scenario["observed_values"].keys.each { |name| scenario.fetch("observed_values")[name] = deep_copy(value.fetch(name)) }
+      scenario["transcript_sha256"] = execution.fetch("captured_output_sha256")
+    end
     value
   end
 
@@ -132,9 +134,18 @@ module AcceptanceCatalogCheck
     errors << "revision relation drifted" unless valid_revision
     begin
       return errors unless evidence_bytes
-      evidence = JSON.parse(evidence_bytes)
+      evidence = AcceptanceSchemaValidation.parse_json(evidence_bytes, canonical: true)
       errors.concat(schema_errors(evidence, schema.dig("$defs", "artifact_evidence"))).map! { |error| "artifact payload #{error}" }
       execution = evidence.fetch("execution")
+      evidence.fetch("scenario_cases").each do |scenario|
+        observed_names = scenario.fetch("observed_values").keys
+        expected_values = observed_names.to_h { |name| [name, evidence.fetch(name)] }
+        if scenario.fetch("scenario") == "success" && scenario.fetch("observed_values") != expected_values
+          errors << "artifact payload #{scenario.fetch('case_id')} success values drifted from top-level aggregate"
+        end
+        errors << "artifact payload #{scenario.fetch('case_id')} observed value count drifted" unless scenario.fetch("observed_value_count") == scenario.fetch("observed_values").length
+        errors << "artifact payload #{scenario.fetch('case_id')} transcript is not execution-bound" unless scenario.fetch("transcript_sha256") == execution.fetch("captured_output_sha256")
+      end
       errors << "artifact execution revision is not record-bound" unless execution["tested_revision"] == record["tested_revision"]
       errors << "artifact execution input root is not record-bound" unless execution["input_root"] == record["input_root"]
       errors << "artifact execution tool is not record-bound" unless execution["tool"] == record.dig("tool_environment", "tool")
@@ -219,6 +230,10 @@ module AcceptanceCatalogCheck
     fail_check("negative fixture accepted: wrong artifact payload path") if record_artifact_errors(wrong_path, artifact, schema, evidence_bytes, receipt_bytes).empty?
     fail_check("negative fixture accepted: absent artifact payload bytes") if record_artifact_errors(deep_copy(record), artifact, schema, nil, receipt_bytes).empty?
     fail_check("negative fixture accepted: absent execution receipt bytes") if record_artifact_errors(deep_copy(record), artifact, schema, evidence_bytes, nil).empty?
+    compact_receipt = JSON.generate(AcceptanceSchemaValidation.parse_json(receipt_bytes))
+    fail_check("negative fixture accepted: non-canonical execution receipt JSON") if record_artifact_errors(deep_copy(record), artifact, schema, evidence_bytes, compact_receipt).empty?
+    duplicate_receipt = receipt_bytes.sub("{\n", "{\n  \"command\": \"duplicate\",\n")
+    fail_check("negative fixture accepted: duplicate execution receipt JSON key") if record_artifact_errors(deep_copy(record), artifact, schema, evidence_bytes, duplicate_receipt).empty?
     digest_mismatch_bytes = evidence_bytes + "\n"
     fail_check("negative fixture accepted: artifact digest differs from bytes") if record_artifact_errors(deep_copy(record), artifact, schema, digest_mismatch_bytes, receipt_bytes).empty?
     malformed_bytes = "{\n"
@@ -227,6 +242,20 @@ module AcceptanceCatalogCheck
     malformed_record.fetch("artifact_hashes").first["sha256"] = malformed_digest
     malformed_record.fetch("observations").each { |row| row["artifact_sha256"] = malformed_digest }
     fail_check("negative fixture accepted: malformed artifact JSON") if record_artifact_errors(malformed_record, artifact, schema, malformed_bytes, receipt_bytes).empty?
+
+    compact_bytes = JSON.generate(evidence)
+    compact_record = deep_copy(record)
+    compact_digest = "sha256:#{Digest::SHA256.hexdigest(compact_bytes)}"
+    compact_record.fetch("artifact_hashes").first["sha256"] = compact_digest
+    compact_record.fetch("observations").each { |row| row["artifact_sha256"] = compact_digest }
+    fail_check("negative fixture accepted: non-canonical artifact JSON") if record_artifact_errors(compact_record, artifact, schema, compact_bytes, receipt_bytes).empty?
+
+    duplicate_bytes = evidence_bytes.sub("{\n", "{\n  \"artifact_id\": #{JSON.generate(evidence.fetch('artifact_id'))},\n")
+    duplicate_record = deep_copy(record)
+    duplicate_digest = "sha256:#{Digest::SHA256.hexdigest(duplicate_bytes)}"
+    duplicate_record.fetch("artifact_hashes").first["sha256"] = duplicate_digest
+    duplicate_record.fetch("observations").each { |row| row["artifact_sha256"] = duplicate_digest }
+    fail_check("negative fixture accepted: duplicate artifact JSON key") if record_artifact_errors(duplicate_record, artifact, schema, duplicate_bytes, receipt_bytes).empty?
   end
 
   def record_for_evidence(record, evidence)
@@ -253,6 +282,9 @@ module AcceptanceCatalogCheck
     coherent_forgery = deep_copy(evidence)
     coherent_forgery.fetch("execution")["stdout"] = "FABRICATED: command was never executed\n"
     AcceptanceSchemaValidation.bind_execution_proof!(coherent_forgery.fetch("execution"))
+    coherent_forgery.fetch("scenario_cases").each do |scenario|
+      scenario["transcript_sha256"] = coherent_forgery.dig("execution", "captured_output_sha256")
+    end
     coherent_record, coherent_bytes = record_for_evidence(record, coherent_forgery)
     coherent_receipt_bytes = AcceptanceSchemaValidation.execution_receipt_bytes(coherent_forgery.fetch("execution"))
     coherent_receipt_digest = "sha256:#{Digest::SHA256.hexdigest(coherent_receipt_bytes)}"
@@ -373,7 +405,7 @@ module AcceptanceCatalogCheck
       assert_special_rejected.call("count-only OAuth endpoint proof", count_only)
       omitted_claim = deep_copy(evidence); omitted_claim["interoperability_claim_ids"] = omitted_claim.fetch("interoperability_claim_ids")[0...-1]
       assert_special_rejected.call("omitted OAuth interoperability claim", omitted_claim)
-      %w[continue_verified session_token_verified introspection_active_verified introspection_inactive_verified revocation_verified dynamic_registration_verified rfc7592_management_unselected oauth_discovery_verified oidc_discovery_verified jwks_verified logout_verified protected_resource_metadata_verified].each do |field|
+      %w[continue_verified session_token_verified introspection_active_verified introspection_inactive_verified revocation_verified dynamic_registration_verified oauth_discovery_verified oidc_discovery_verified jwks_verified logout_verified protected_resource_metadata_verified].each do |field|
         bypass = deep_copy(evidence); bypass[field] = false
         assert_special_rejected.call("#{field} bypass", bypass)
       end
@@ -430,6 +462,43 @@ module AcceptanceCatalogCheck
       assert_special_rejected.call("positive counter increase not persisted", missed_advance)
     end
 
+    if evidence.key?("provider_results") && %w[oauth-provider-matrix-report provider-evidence-index].include?(artifact.fetch("artifact_id"))
+      missing = deep_copy(evidence); missing.fetch("provider_results").pop
+      assert_special_rejected.call("missing canonical provider row", missing)
+      duplicate = deep_copy(evidence); duplicate.fetch("provider_results")[-1] = deep_copy(duplicate.fetch("provider_results").first)
+      assert_special_rejected.call("duplicate canonical provider row", duplicate)
+      unverified = deep_copy(evidence); unverified.fetch("provider_results").first["verified"] = false
+      assert_special_rejected.call("unverified canonical provider row", unverified)
+      not_run = deep_copy(evidence); not_run.fetch("provider_results").first["execution_outcome"] = "not-run"
+      assert_special_rejected.call("provider interoperability not run", not_run)
+    end
+    if evidence.key?("protocol_case_results")
+      missing = deep_copy(evidence); missing.fetch("protocol_case_results").pop
+      assert_special_rejected.call("missing selected protocol case", missing)
+      substituted = deep_copy(evidence); substituted.fetch("protocol_case_results").first["requirement_id"] = "foreign.requirement"
+      assert_special_rejected.call("substituted protocol requirement", substituted)
+      wrong_outcome = deep_copy(evidence); wrong_outcome.fetch("protocol_case_results").first["outcome"] = "self-declared"
+      assert_special_rejected.call("invalid protocol closure", wrong_outcome)
+    end
+    %w[cascade_transitions delivery_outcome_cases reconciliation_cases otp_operation_cases bearer_transition_cases api_key_security_cases session_race_cases trusted_profile_cases issuer_variant_cases repeat_sync_cases redirect_link_cases authority_transition_cases wire_contract_cases].each do |field|
+      next unless evidence.key?(field)
+
+      missing = deep_copy(evidence); missing.fetch(field).pop
+      assert_special_rejected.call("missing artifact-specific #{field} case", missing)
+      inconsistent = deep_copy(evidence); inconsistent.fetch(field).first["case_id"] = "coherent-forgery"
+      assert_special_rejected.call("cross-field inconsistent #{field} case", inconsistent)
+    end
+    if artifact.fetch("artifact_id") == "operation-handler-openapi-bijection"
+      %w[catalog_operation_ids handler_operation_ids openapi_operation_ids operation_bindings].each do |field|
+        missing = deep_copy(evidence); missing.fetch(field).pop
+        assert_special_rejected.call("missing #{field} member", missing)
+      end
+      substituted = deep_copy(evidence); substituted.fetch("catalog_operation_ids")[0] = "identity.foreign.operation"
+      assert_special_rejected.call("substituted canonical operation", substituted)
+      duplicate = deep_copy(evidence); duplicate.fetch("operation_bindings")[-1] = deep_copy(duplicate.fetch("operation_bindings").first)
+      assert_special_rejected.call("duplicate handler binding", duplicate)
+    end
+
     return unless artifact.fetch("artifact_id") == "coverage-mutation-report"
 
     incomplete_coverage = deep_copy(evidence)
@@ -449,13 +518,20 @@ module AcceptanceCatalogCheck
     product_units = public_contracts.fetch("units").map { |unit| unit.fetch("unit") }
     operation_rows = operations.fetch("operations")
     operation_by_id = operation_rows.to_h { |operation| [operation.fetch("id"), operation] }
-    fail_check("expected current 66-unit program catalog, got #{program_units.length}") unless program_units.length == 66 && program_units.uniq == program_units
+    fail_check("expected current 67-unit program catalog, got #{program_units.length}") unless program_units.length == 67 && program_units.uniq == program_units
     fail_check("expected current 61-unit product-contract catalog, got #{product_units.length}") unless product_units.length == 61 && product_units.uniq == product_units
     primitive_units = IdentityPlatformAcceptance::PRIMITIVE_PREREQUISITES.map { |row| row.fetch("unit") }
     fail_check("program/product unit distinction drifted") unless (program_units - product_units).sort == primitive_units.sort && (product_units - program_units).empty?
-    fail_check("expected current 326-operation catalog, got #{operation_rows.length}") unless operation_rows.length == 326 && operation_by_id.length == 326
+    fail_check("operation catalog contains duplicate IDs") unless operation_rows.length == operation_by_id.length
+    unless IdentityPlatformAcceptance.api_operation_ids.sort_by(&:b) == operation_rows.map { |operation| operation.fetch("id") }.sort_by(&:b)
+      fail_check("API operation catalog differs from canonical operation semantics")
+    end
     expected_catalog = IdentityPlatformAcceptance.catalog_document
     fail_check("ACCEPTANCE_ARTIFACTS.json drifted from its sources") unless catalog == expected_catalog
+    executable_operation_ids = catalog.fetch("artifacts").flat_map do |artifact|
+      artifact.fetch("covered_operations").filter_map { |operation| operation.fetch("id") if operation.fetch("kind") == "platform_operation" }
+    end.uniq
+    fail_check("executable artifact operation closure differs from API catalog") unless executable_operation_ids.sort_by(&:b) == IdentityPlatformAcceptance.api_operation_ids.sort_by(&:b)
     source_claims = (source.fetch("journeys") + source.fetch("cross_cutting")).map { |claim| claim.fetch("id") }
     source_artifacts = source.fetch("artifact_catalog").to_h { |artifact| [artifact.fetch("id"), artifact] }
     fail_check("expected exact 19-journey closure") unless source.fetch("journeys").map { |journey| journey.fetch("number") } == (1..19).to_a

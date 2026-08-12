@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/identity/oauth/proxy`
 - Canonical goal after scaffolding: `pkg/identity/oauth/proxy/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/oauth/proxy:v1`; owned operation IDs: `contract:operation:identity.oauth.proxy-forward:v1`
-- Requires: `identity/oauth`, `primitive/capability-identity-contracts`
+- Requires: `identity/oauth`, `identity/session`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `capability`, `secret-envelope`, `http-client`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/http`
 

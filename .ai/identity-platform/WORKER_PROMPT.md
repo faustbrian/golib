@@ -24,6 +24,10 @@ Work only in:
 - goal: <absolute-goal-path>
 
 Use model gpt-5.6-sol with medium reasoning. Do not spawn subagents.
+Before package work, require the coordinator's exact post-spawn runtime-
+attestation commit and verify that its immutable worker task and agent ID name
+this runtime and its platform-reported model, reasoning, fork-turn, and
+subagent settings are `gpt-5.6-sol`, `medium`, `none`, and `false`.
 
 Read completely before editing:
 1. repository AGENTS.md;
@@ -123,6 +127,8 @@ Workflow:
     rewriting an earlier package commit and MUST return the complete ordered
     commit list plus the current worker-branch tip.
 11. Do not push, rebase, or alter coordinator-owned state. Do not merge except
+    the exact post-spawn runtime-attestation commit before initial package work,
+    or
     when the coordinator sends an explicit recovery directive naming one exact
     resume/authorization commit after recording the corresponding
     `in-progress -> blocked -> in-progress` transitions and an `authorized`
@@ -135,6 +141,13 @@ Workflow:
     For that recovery merge, resolve only conflicts in the assigned package;
     stop and return coordinator-owned conflicts to the coordinator. Never
     discard, overwrite, or hide uncommitted work to make a recovery merge run.
+    For a defect found after integration, reject the original assignment prompt
+    as repair authority. Require the next `authorized` integrated-repair epoch,
+    verify its authorization commit first parent, prior integration checkpoint,
+    clean worker checkpoint, canonical goal path, rendered repair-prompt digest,
+    and complete reserved-root set, then merge exactly that authorization commit
+    before editing. A superseded, completed, stale, or identity-drifted epoch
+    does not authorize work.
 12. Before returning, prove the commit changes only the assigned canonical
     package directory and that the worktree contains no uncommitted package
     work.
@@ -165,19 +178,24 @@ integration and final-input gates.
 ## Coordinator rendering rules
 
 The coordinator MUST include only prerequisites whose integration-branch state
-is `verified`. The goal path MUST refer to the planning goal before
-integration and to the canonical package goal after it has moved. The worker
-branch MUST already contain the named integration commit.
+is `verified`. The initial assignment authorization MUST preserve its planning
+goal path and exact rendered bytes permanently even after the goal moves. A
+separately versioned integrated-repair authorization MUST use the canonical
+package goal path and current integration baseline. The worker branch MUST
+already contain the named integration commit.
 
 The coordinator MUST run
 `ruby .ai/identity-platform/render_shared_contracts.rb --check`, render the
 named unit, and replace `<shared-contract-applicability>` with that complete
 output. It MUST NOT hand-edit, summarize, add to, or omit rendered rows.
 
-The coordinator MUST render every other inventory module directory nested
-beneath the assigned module as a reserved descendant, or `none` when there is
-no such unit. Returned-path validation MUST use the assigned module root minus
-those reserved roots, not a simple directory-prefix check.
+The coordinator MUST render every nested registered root beneath the assigned
+module from the union of inventory canonical modules, root `modules.json`
+module directories, and every `module_directory` named by root `packages.json`,
+or `none` when there is no such root. Prompt rendering,
+worker return attestation, and returned-diff validation MUST use the identical
+sorted union and the assigned module root minus those reserved roots, not a
+simple directory-prefix check.
 
 The absolute goal path MUST resolve inside the assigned worktree. A repair or
 resumed assignment MUST receive a newly rendered prompt containing the current
@@ -187,10 +205,14 @@ the coordinator has moved it.
 The coordinator MUST include the raw assignment without additional
 implementation suggestions that narrow, reinterpret, or weaken the goal.
 
-Before spawn, it MUST commit the complete rendered bytes and finalized
-assignment attestation required by `PREFLIGHT_EVIDENCE.md`; any prompt/model,
+Before spawn, it MUST commit the complete rendered bytes and assignment
+authorization required by `PREFLIGHT_EVIDENCE.md`; any prompt/model,
 scope, descendant reservation, goal digest, fork-turn, or subagent-policy drift
 invalidates the assignment.
+
+Immediately after spawn, it MUST record the separate platform runtime
+attestation and merge that exact coordinator commit into the worker branch.
+Requested pre-spawn settings or this prompt's text are not runtime evidence.
 
 ## Pause and baseline-refresh handshake
 

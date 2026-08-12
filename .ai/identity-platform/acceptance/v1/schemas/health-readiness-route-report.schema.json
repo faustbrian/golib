@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "health-readiness-route-report"
+        },
+        "invariant_id": {
+          "const": "health-readiness-route-report.invariant"
+        },
+        "invariant": {
+          "const": "health remains live during dependency outage while ready returns unavailable until dependencies recover and drain is clear"
         },
         "operation_ids": {
           "const": [
@@ -397,160 +405,265 @@
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "health-readiness-route-report.cross.http-browser.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "health-readiness-route-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.health",
-                      "identity.readiness"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "dependency_status",
-                      "drain_state",
-                      "route_request"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "liveness process is running and readiness dependencies are independently controllable"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "health remains live during dependency outage while ready returns unavailable until dependencies recover and drain is clear"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "health_status",
-                      "readiness_status",
-                      "failed_dependency_count",
-                      "retry_after_seconds",
-                      "response_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "health-readiness-route-report.cross.http-browser.v1.behavior#success",
+                  "health-readiness-route-report.cross.http-browser.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "health-readiness-route-report.cross.http-browser.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.http-browser.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "health-readiness-route-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.health",
+                    "identity.readiness"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "liveness process is running and readiness dependencies are independently controllable"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "health remains live during dependency outage while ready returns unavailable until dependencies recover and drain is clear"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.health",
+                    "identity.readiness"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.health",
+                    "identity.readiness"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "health_status",
+                  "readiness_status",
+                  "failed_dependency_count",
+                  "retry_after_seconds",
+                  "response_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "health-readiness-route-report.cross.http-browser.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "health-readiness-route-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.health",
-                      "identity.readiness"
+                  "health_status": {
+                    "type": "string",
+                    "enum": [
+                      "live",
+                      "failed"
                     ]
                   },
-                  "input_fields": {
-                    "const": [
-                      "dependency_status",
-                      "drain_state",
-                      "route_request"
+                  "readiness_status": {
+                    "type": "string",
+                    "enum": [
+                      "ready",
+                      "unavailable",
+                      "draining"
                     ]
                   },
-                  "initial_state": {
-                    "const": "liveness process is running and readiness dependencies are independently controllable"
+                  "failed_dependency_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "stable_error": {
-                    "const": "internal"
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "expected_invariant": {
-                    "const": "health remains live during dependency outage while ready returns unavailable until dependencies recover and drain is clear"
-                  },
-                  "observed_state_digest": {
+                  "response_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "health_status",
-                      "readiness_status",
-                      "failed_dependency_count",
-                      "retry_after_seconds",
-                      "response_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "health-readiness-route-report.cross.http-browser.v1.behavior#success",
+              "observation_id": "health-readiness-route-report.cross.http-browser.v1.behavior",
+              "claim_id": "cross.http-browser.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.health",
+                "identity.readiness"
+              ],
+              "input_fields": [
+                "dependency_status",
+                "drain_state",
+                "route_request"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:08f097877bef0b529ae5e40f379133a51598dfcb7f75ce4bcf9b784274a52d73",
+              "expected_operation_set": [
+                "identity.health",
+                "identity.readiness"
+              ],
+              "observed_operation_set": [
+                "identity.health",
+                "identity.readiness"
+              ]
+            },
+            {
+              "case_id": "health-readiness-route-report.cross.http-browser.v1.behavior#failure",
+              "observation_id": "health-readiness-route-report.cross.http-browser.v1.behavior",
+              "claim_id": "cross.http-browser.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.health",
+                "identity.readiness"
+              ],
+              "input_fields": [
+                "dependency_status",
+                "drain_state",
+                "route_request"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:36c72bb2ad5b6c38a997a8fd0762c32f00ff9a33949d4a5d7c95a8a2d99b9ff4",
+              "expected_operation_set": [
+                "identity.health",
+                "identity.readiness"
+              ],
+              "observed_operation_set": [
+                "identity.health",
+                "identity.readiness"
+              ]
+            }
+          ]
         },
         "health_status": {
           "type": "string",
@@ -589,172 +702,6 @@
             "failed_dependency_count",
             "retry_after_seconds"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "health-readiness-route-report.cross.http-browser.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "health-readiness-route-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.health",
-                      "identity.readiness"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "dependency_status",
-                      "drain_state",
-                      "route_request"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "liveness process is running and readiness dependencies are independently controllable"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "health remains live during dependency outage while ready returns unavailable until dependencies recover and drain is clear"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "health_status",
-                      "readiness_status",
-                      "failed_dependency_count",
-                      "retry_after_seconds",
-                      "response_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "health-readiness-route-report.cross.http-browser.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "health-readiness-route-report.cross.http-browser.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.http-browser.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.health",
-                      "identity.readiness"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "dependency_status",
-                      "drain_state",
-                      "route_request"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "liveness process is running and readiness dependencies are independently controllable"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "health remains live during dependency outage while ready returns unavailable until dependencies recover and drain is clear"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "health_status",
-                      "readiness_status",
-                      "failed_dependency_count",
-                      "retry_after_seconds",
-                      "response_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

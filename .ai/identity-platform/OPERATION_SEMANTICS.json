@@ -2143,7 +2143,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "repeat",
-      "event_semantics": "Client/post-logout URI/state; exact session logout or denial, never cross-client global logout; emits exactly `identity.oauth_server.end_session`.",
+      "event_semantics": "Client/post-logout URI/state; exact session logout or denial, never cross-client global logout. Returns exactly one redirect, local-only, provider-complete, provider-error, timeout, or unknown-reconciliation outcome, with redirect/state data only on the redirect variant; emits exactly `identity.oauth_server.end_session`.",
       "http_method": "GET",
       "http_path": "/oauth2/end-session",
       "openapi_operation_id": "identity.oauth-server.end-session"
@@ -2262,7 +2262,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.oauth-token",
       "idempotency": "rotate",
-      "event_semantics": "Authorization-code, refresh-token or client-credentials grant; token response or standard OAuth error.",
+      "event_semantics": "Grant-discriminated token request: authorization_code requires code, exact redirect URI and PKCE verifier and forbids refresh token and scope; refresh_token requires only the refresh token variant and permits a non-expanding optional scope; client_credentials forbids code, redirect, verifier and refresh token. Resource is optional and remains within the selected grant/client authority. Returns a token response or standard OAuth error.",
       "http_method": "POST",
       "http_path": "/oauth2/token",
       "openapi_operation_id": "identity.oauth-server.token"
@@ -2314,7 +2314,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "Apple Form Post success carries code, ID token and state. Validate the front-channel ID token issuer, audience, `azp`, nonce, `c_hash`, time and subject before code exchange; the exchanged proof MUST have the same subject.",
+      "event_semantics": "Apple Form Post carries exactly one closed response variant: success requires code and ID token; error requires error and permits error_description. Both variants require state and RFC 9207 issuer, reject duplicate or cross-variant members, and preserve form_post transport. On success validate issuer, audience, `azp`, nonce, `c_hash`, time and subject before code exchange; the exchanged proof MUST have the same subject.",
       "http_method": "POST",
       "http_path": "/v1/oauth/callback/form-post",
       "openapi_operation_id": "identity.oauth.callback-form-post"
@@ -2370,6 +2370,23 @@
       "http_method": "POST",
       "http_path": "/v1/oauth/popup-complete",
       "openapi_operation_id": "identity.oauth.popup-complete"
+    },
+    {
+      "id": "identity.oauth.provider-apple-client-secret-sign",
+      "owners": [
+        "identity/oauth/providers"
+      ],
+      "exposure": "direct",
+      "access": "trusted Apple provider configuration",
+      "authorization": "flow binding policy: trusted Apple provider configuration",
+      "csrf_origin": "internal",
+      "risk_class": "internal",
+      "rate_policy": null,
+      "idempotency": "none",
+      "event_semantics": "Team issuer, client subject, key ID, secret-envelope-backed signing-key handle and bounded lifetime; reads issued-at once from the injected clock and returns a redacted Apple client-secret JWT whose protected header is exactly `alg=ES256,kid=<key ID>` and whose claims are exactly `iss=<team ID>,iat=<issued-at>,exp=<expiry>,aud=https://appleid.apple.com,sub=<client ID>`. It rejects zero, noncanonical or out-of-bound inputs, lifetimes above Apple's pinned 15,777,000-second maximum and non-P-256/ES256 keys; propagates cancellation and typed redacted signer failure without returning a token; accepts no raw private key, algorithm or audience input; and MUST NOT be registered as an HTTP handler or OpenAPI operation. Reads the injected clock exactly once and emits an unpadded compact JWS. The protected header JSON members are exactly alg=ES256 then kid; payload members are exactly iss, iat, exp, aud=https://appleid.apple.com, then sub, using minimal JSON escaping and whole-second integer NumericDates. Only the exact header.payload bytes are passed to the secret-envelope-backed key-handle signer, which returns one 64-byte JOSE P-256 R concatenated with S signature.",
+      "http_method": null,
+      "http_path": null,
+      "openapi_operation_id": null
     },
     {
       "id": "identity.oauth.provider-list",
@@ -2505,7 +2522,7 @@
       "risk_class": "admin",
       "rate_policy": "rate.admin",
       "idempotency": "keyed",
-      "event_semantics": "Version/reason; atomically enters archived non-authoritative state, revokes active access and preserves the bounded restoration window.",
+      "event_semantics": "Version/reason; atomically admits the archive, enters the authority-denying archived domain state, and returns the generation-bound cascade as archive-pending until asynchronous consumers close; terminal archived status is committed separately and external write-disablement limitations remain visible.",
       "http_method": "POST",
       "http_path": "/v1/organization/archive",
       "openapi_operation_id": "identity.organization.archive"
@@ -2539,7 +2556,7 @@
       "risk_class": "admin",
       "rate_policy": "rate.admin",
       "idempotency": "keyed",
-      "event_semantics": "Archived organization/version, explicit cascade plan digest and reason; performs terminal deletion or returns restoration-window, hold, last-owner or stale-plan denial.",
+      "event_semantics": "Archived organization/version, explicit cascade plan digest and reason; atomically admits authority-denying deletion as deletion-pending, then separately terminalizes as deleted, archived-held, or completed-local-with-external-limitation after generation-bound closure; restoration-window, last-owner, and stale-plan conditions deny admission.",
       "http_method": "POST",
       "http_path": "/v1/organization/delete",
       "openapi_operation_id": "identity.organization.delete"
@@ -2899,7 +2916,7 @@
       "risk_class": "admin",
       "rate_policy": "rate.admin",
       "idempotency": "keyed",
-      "event_semantics": "Archived organization/version and reason; restores eligible organization state without resurrecting expired credentials or grants.",
+      "event_semantics": "Archived organization/version and reason; atomically admits restore and advances local authority without resurrecting old credentials or grants, returns restore-pending until asynchronous consumers close, and terminalizes active separately while exposing external authority limitations.",
       "http_method": "POST",
       "http_path": "/v1/organization/restore",
       "openapi_operation_id": "identity.organization.restore"
@@ -4144,7 +4161,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "protocol-command",
-      "event_semantics": "Effective `scim.bulk.operations`, `scim.bulk.bytes`, `scim.bulk.fail_on_errors`, `scim.bulk.operation_bytes`, and `scim.bulk.response_bytes`; deterministic ordered replay from independently committed child checkpoints under server-owned request identity, with optional extension `Idempotency-Key`.",
+      "event_semantics": "Effective `scim.bulk.operations`, `scim.bulk.bytes`, `scim.bulk.fail_on_errors`, `scim.bulk.operation_bytes`, and `scim.bulk.response_bytes`; deterministic ordered replay under server-owned request identity, with optional extension `Idempotency-Key`; each acyclic singleton commits independently after predecessor SCC success, while every cyclic SCC commits atomically as one bounded transaction and rolls back completely on member failure.",
       "http_method": "POST",
       "http_path": "/scim/v2/Bulk",
       "openapi_operation_id": "identity.scim.bulk"
@@ -4516,7 +4533,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "read",
-      "event_semantics": "Exact feature support and effective `scim.page_max`, `scim.bulk.operations`, and decoded `scim.bulk.bytes`.",
+      "event_semantics": "Exact RFC 7643 Section 5 ServiceProviderConfig envelope from one effective runtime snapshot, including documentation URI, supported flags, filter/Bulk limits, and accepted bounded authentication schemes.",
       "http_method": "GET",
       "http_path": "/scim/v2/ServiceProviderConfig",
       "openapi_operation_id": "identity.scim.service-provider-config"
@@ -5434,7 +5451,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "Bounded LogoutRequest or LogoutResponse and issuer; RelayState is optional and, when present, is correlated and echoed exactly.",
+      "event_semantics": "Bounded message-discriminated LogoutRequest or LogoutResponse and issuer. NameID and optional SessionIndex are consumed only from LogoutRequest; LogoutResponse requires signed InResponseTo and stored outstanding-request context and cannot select sessions from response-supplied subject fields. RelayState is optional, limited to 80 wire bytes and, when present, is correlated and echoed exactly.",
       "http_method": "POST",
       "http_path": "/saml2/{provider_id}/slo",
       "openapi_operation_id": "identity.sso.saml-slo"

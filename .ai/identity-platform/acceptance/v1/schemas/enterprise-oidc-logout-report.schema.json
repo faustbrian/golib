@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "enterprise-oidc-logout-report"
+        },
+        "invariant_id": {
+          "const": "enterprise-oidc-logout-report.invariant"
+        },
+        "invariant": {
+          "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
         },
         "operation_ids": {
           "const": [
@@ -397,472 +405,385 @@
           "type": "array",
           "minItems": 6,
           "maxItems": 6,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#success",
+                  "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#failure",
+                  "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#denial",
+                  "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#outage",
+                  "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#replay",
+                  "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.enterprise-federation.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "enterprise-oidc-logout-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "outage",
+                  "replay",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.oidc-logout",
+                    "identity.sso.oidc-logout-complete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
+              "initial_state": {
+                "const": "provider session and local relying-party session are active"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.oidc-logout",
+                    "identity.sso.oidc-logout-complete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.sso.oidc-logout",
+                    "identity.sso.oidc-logout-complete"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "provider_id",
+                  "session_id",
+                  "logout_state_digest",
+                  "local_session_revoked",
+                  "replay_rejected"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#replay"
+                  "provider_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
+                  "session_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
+                  "logout_state_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  "local_session_revoked": {
+                    "type": "boolean"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
+                  "replay_rejected": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#success",
+              "observation_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "provider_id",
+                "id_token_hint",
+                "post_logout_redirect_uri",
+                "state"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c46b7221075df96be44bb869ed870d64aa4752387d75a0784bfc5ad2dc0d6c25",
+              "expected_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "observed_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ]
+            },
+            {
+              "case_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#failure",
+              "observation_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "provider_id",
+                "id_token_hint",
+                "post_logout_redirect_uri",
+                "state"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:9622f7425e3c3a3d095857d9f434f97a47c72b73d1a3fb180dd7d898f20eb3ba",
+              "expected_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "observed_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ]
+            },
+            {
+              "case_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#denial",
+              "observation_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "provider_id",
+                "id_token_hint",
+                "post_logout_redirect_uri",
+                "state"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:3aeb664c480cc712fff030d17b7f737437a862ba21f7d2c1acdb151cd87a8b56",
+              "expected_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "observed_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ]
+            },
+            {
+              "case_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#outage",
+              "observation_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "provider_id",
+                "id_token_hint",
+                "post_logout_redirect_uri",
+                "state"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:2da6105f2a2325e32f06aa706f42893664dc98c56e5dad14abeb196f870f71a6",
+              "expected_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "observed_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ]
+            },
+            {
+              "case_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#replay",
+              "observation_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "provider_id",
+                "id_token_hint",
+                "post_logout_redirect_uri",
+                "state"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:46cd168f39a03362d9d8089510dc0830628ce9e986a19732f10580f7175e554d",
+              "expected_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "observed_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ]
+            },
+            {
+              "case_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#unknown-outcome",
+              "observation_id": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior",
+              "claim_id": "journey.enterprise-federation.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "provider_id",
+                "id_token_hint",
+                "post_logout_redirect_uri",
+                "state"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:331db15c7b8fe03c67571b7b1c7f6f3ef672d130cf08fcdf4d3a6a2318246d0e",
+              "expected_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ],
+              "observed_operation_set": [
+                "identity.sso.oidc-logout",
+                "identity.sso.oidc-logout-complete"
+              ]
+            }
+          ]
         },
         "provider_id": {
           "type": "string",
@@ -890,512 +811,6 @@
             "local_session_revoked",
             "replay_rejected"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.enterprise-federation.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.sso.oidc-logout",
-                      "identity.sso.oidc-logout-complete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "provider_id",
-                      "id_token_hint",
-                      "post_logout_redirect_uri",
-                      "state"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "provider session and local relying-party session are active"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "RP-initiated logout validates redirect and state, completes provider callback once, and revokes the local session"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "provider_id",
-                      "session_id",
-                      "logout_state_digest",
-                      "local_session_revoked",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

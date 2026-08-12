@@ -108,11 +108,452 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 10,
+      "maxItems": 10,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation-send"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation-send; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation-send for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation.accept"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation.accept; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation.accept for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation.cancel"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation.cancel; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation.cancel for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation.expire"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation.expire; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation.expire for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation.get"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation.get; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation.get for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation.list"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation.list; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation.list for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation.list-mine"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation.list-mine; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation.list-mine for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation.reject"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation.reject; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation.reject for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior"
+              },
+              "claim_id": {
+                "const": "identity.organization.invitation.resend"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.organization.invitation.resend; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+              },
+              "stimulus": {
+                "const": "Run identity.organization.invitation.resend for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,10 +583,10 @@
                 "const": "success,failure,denial,replay,concurrency,cleanup,unknown-outcome"
               },
               "preconditions": {
-                "const": "Operations: identity.organization.invitation-send, identity.organization.invitation.accept, identity.organization.invitation.cancel, identity.organization.invitation.expire; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
+                "const": "Operations: identity.organization.invitation-send, identity.organization.invitation.accept, identity.organization.invitation.cancel, identity.organization.invitation.expire, identity.organization.invitation.get, identity.organization.invitation.list, identity.organization.invitation.list-mine, identity.organization.invitation.reject, identity.organization.invitation.resend; exact inputs: tenant_id, organization_id, email, role, invitation_token; initial state: recipient is not a member and no live invitation exists"
               },
               "stimulus": {
-                "const": "Run identity.organization.invitation-send then identity.organization.invitation.accept then identity.organization.invitation.cancel then identity.organization.invitation.expire for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
+                "const": "Run identity.organization.invitation-send then identity.organization.invitation.accept then identity.organization.invitation.cancel then identity.organization.invitation.expire then identity.organization.invitation.get then identity.organization.invitation.list then identity.organization.invitation.list-mine then identity.organization.invitation.reject then identity.organization.invitation.resend for success, failure, denial, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, organization_id, email, role, invitation_token and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: invitation_id, member_id, accepted_count, replay_rejected, invitation_event_digest"
@@ -216,6 +657,168 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
               }
             }
@@ -256,6 +859,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -270,12 +875,23 @@
         "artifact_id": {
           "const": "organization-invitation-lifecycle-report"
         },
+        "invariant_id": {
+          "const": "organization-invitation-lifecycle-report.invariant"
+        },
+        "invariant": {
+          "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
+        },
         "operation_ids": {
           "const": [
             "identity.organization.invitation-send",
             "identity.organization.invitation.accept",
             "identity.organization.invitation.cancel",
-            "identity.organization.invitation.expire"
+            "identity.organization.invitation.expire",
+            "identity.organization.invitation.get",
+            "identity.organization.invitation.list",
+            "identity.organization.invitation.list-mine",
+            "identity.organization.invitation.reject",
+            "identity.organization.invitation.resend"
           ]
         },
         "input_digest": {
@@ -397,565 +1013,2241 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 7,
-          "maxItems": 7,
+          "minItems": 70,
+          "maxItems": 70,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#success",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#failure",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#denial",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#replay",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#unknown-outcome",
+                  "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#success",
+                  "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#failure",
+                  "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#denial",
+                  "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#replay",
+                  "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#concurrency",
+                  "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#cleanup",
+                  "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior",
+                  "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior",
+                  "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.organization.invitation-send",
+                  "identity.organization.invitation.accept",
+                  "identity.organization.invitation.cancel",
+                  "identity.organization.invitation.expire",
+                  "identity.organization.invitation.get",
+                  "identity.organization.invitation.list",
+                  "identity.organization.invitation.list-mine",
+                  "identity.organization.invitation.reject",
+                  "identity.organization.invitation.resend",
+                  "journey.organizations.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "organization-invitation-lifecycle-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "replay",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.invitation-send",
+                    "identity.organization.invitation.accept",
+                    "identity.organization.invitation.cancel",
+                    "identity.organization.invitation.expire",
+                    "identity.organization.invitation.get",
+                    "identity.organization.invitation.list",
+                    "identity.organization.invitation.list-mine",
+                    "identity.organization.invitation.reject",
+                    "identity.organization.invitation.resend"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "recipient is not a member and no live invitation exists"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.invitation-send",
+                    "identity.organization.invitation.accept",
+                    "identity.organization.invitation.cancel",
+                    "identity.organization.invitation.expire",
+                    "identity.organization.invitation.get",
+                    "identity.organization.invitation.list",
+                    "identity.organization.invitation.list-mine",
+                    "identity.organization.invitation.reject",
+                    "identity.organization.invitation.resend"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.invitation-send",
+                    "identity.organization.invitation.accept",
+                    "identity.organization.invitation.cancel",
+                    "identity.organization.invitation.expire",
+                    "identity.organization.invitation.get",
+                    "identity.organization.invitation.list",
+                    "identity.organization.invitation.list-mine",
+                    "identity.organization.invitation.reject",
+                    "identity.organization.invitation.resend"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "invitation_id",
+                  "member_id",
+                  "accepted_count",
+                  "replay_rejected",
+                  "invitation_event_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#concurrency"
+                  "invitation_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
+                  "member_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
+                  "accepted_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "concurrency"
+                  "replay_rejected": {
+                    "type": "boolean"
                   },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
+                  "invitation_event_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
+              "claim_id": "identity.organization.invitation-send",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation-send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:311524b69e784a646e8b8245c312da1420b4b0a4e8fdf11d3029e07503dfbe94",
+              "expected_operation_set": [
+                "identity.organization.invitation-send"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
+              "claim_id": "identity.organization.invitation-send",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation-send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b2749073f58319124771ad14f3d2554fabe91d1b2db3561f1e45c99f93707b1e",
+              "expected_operation_set": [
+                "identity.organization.invitation-send"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
+              "claim_id": "identity.organization.invitation-send",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation-send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:7625f2014e74d92b5e15a8fc8dbc5397a16077ce97391d693a10009ff1e5dfed",
+              "expected_operation_set": [
+                "identity.organization.invitation-send"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
+              "claim_id": "identity.organization.invitation-send",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation-send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:01724d2b6a004ebc06164fe627976efd70715e1a387cfd6c176c24986c45340f",
+              "expected_operation_set": [
+                "identity.organization.invitation-send"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
+              "claim_id": "identity.organization.invitation-send",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation-send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:59d3adf33a4d175ab372fc5cefb37640162584680be543a8636cbe8f64a83143",
+              "expected_operation_set": [
+                "identity.organization.invitation-send"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
+              "claim_id": "identity.organization.invitation-send",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation-send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:515b914867d0a8ffe8cf78131852305f48f4c076beeecdee2d0b436db6824386",
+              "expected_operation_set": [
+                "identity.organization.invitation-send"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
+              "claim_id": "identity.organization.invitation-send",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation-send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:250b0c65be2b423a3cfac18afd4c92d3a949b22421449ecb895fcfcf881f468a",
+              "expected_operation_set": [
+                "identity.organization.invitation-send"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
+              "claim_id": "identity.organization.invitation.accept",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation.accept"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9ba295f7d517ef8c81fc9cbcb1e34b4095e7e1f49fed2413c545bc74813b2b98",
+              "expected_operation_set": [
+                "identity.organization.invitation.accept"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.accept"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
+              "claim_id": "identity.organization.invitation.accept",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation.accept"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:c78f214e55a9acf7dcea2b9e6f286c5e4871811ee6d228ea733aabf2baf1c2b8",
+              "expected_operation_set": [
+                "identity.organization.invitation.accept"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.accept"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
+              "claim_id": "identity.organization.invitation.accept",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation.accept"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:5a4de8f5c911bb01bf4e53393424a96ee88d783f1883c50c397e7d17809eef3b",
+              "expected_operation_set": [
+                "identity.organization.invitation.accept"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.accept"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
+              "claim_id": "identity.organization.invitation.accept",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation.accept"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:ea41ceedd6db4e1080cede2f6cb75c5f2837885d6e06262abaf0e1a8d9f6dc42",
+              "expected_operation_set": [
+                "identity.organization.invitation.accept"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.accept"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
+              "claim_id": "identity.organization.invitation.accept",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation.accept"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:9d2f00caaa0aec1693627f140116711d676498f629150c5445746ca4f994a4e5",
+              "expected_operation_set": [
+                "identity.organization.invitation.accept"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.accept"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
+              "claim_id": "identity.organization.invitation.accept",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation.accept"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f79915ac05d6b8d257c7a3ca667798517f988d9d205fbf8364df272dddeb9006",
+              "expected_operation_set": [
+                "identity.organization.invitation.accept"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.accept"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
+              "claim_id": "identity.organization.invitation.accept",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation.accept"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:56f30ce0fb1b0fe4cb96d1bbc705a5a15964689c7c45f97f0d59ecf43743896f",
+              "expected_operation_set": [
+                "identity.organization.invitation.accept"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.accept"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior",
+              "claim_id": "identity.organization.invitation.cancel",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation.cancel"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:2f5af19803dbcd1ab660ecacc636155843e1d182eeecb44817092befa3bcd440",
+              "expected_operation_set": [
+                "identity.organization.invitation.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.cancel"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior",
+              "claim_id": "identity.organization.invitation.cancel",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation.cancel"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:827463704cbfee79ee9015781bad131418a8bd66e35cd29011181e251120cc25",
+              "expected_operation_set": [
+                "identity.organization.invitation.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.cancel"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior",
+              "claim_id": "identity.organization.invitation.cancel",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation.cancel"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:430e2ecdff9568cb8e51aa136d9f4a27b6ec6e3af7223cf5ef4b0cea7dfef9ab",
+              "expected_operation_set": [
+                "identity.organization.invitation.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.cancel"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior",
+              "claim_id": "identity.organization.invitation.cancel",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation.cancel"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:a9ff9ae2e71d7120a8cd4e9be3cafe02bbe5d9dae4c3b48f2f414305019ba81a",
+              "expected_operation_set": [
+                "identity.organization.invitation.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.cancel"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior",
+              "claim_id": "identity.organization.invitation.cancel",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation.cancel"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:831bb0f993abb66d290cd513b33c2a8cf590ccf36214e534d5650df7e36cc44a",
+              "expected_operation_set": [
+                "identity.organization.invitation.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.cancel"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior",
+              "claim_id": "identity.organization.invitation.cancel",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation.cancel"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:08c80841feb53ce173b186ce732b540144e8b2b399cb62736d0049b96117b1fe",
+              "expected_operation_set": [
+                "identity.organization.invitation.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.cancel"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.cancel.behavior",
+              "claim_id": "identity.organization.invitation.cancel",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation.cancel"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:c729b38f449769ec0c5906e6f6daabc4f6ed8ed9bf88450cd376ea1cfbbdc674",
+              "expected_operation_set": [
+                "identity.organization.invitation.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.cancel"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior",
+              "claim_id": "identity.organization.invitation.expire",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation.expire"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c970fe05bd335dee7b29e6089655f3b1863d42f8fe6abc28c8f1dd2d93e562ea",
+              "expected_operation_set": [
+                "identity.organization.invitation.expire"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.expire"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior",
+              "claim_id": "identity.organization.invitation.expire",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation.expire"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:5ea9593bfe9e195ada0b33e1894aedb149c2f83bebc33d117c47a89a90880bb7",
+              "expected_operation_set": [
+                "identity.organization.invitation.expire"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.expire"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior",
+              "claim_id": "identity.organization.invitation.expire",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation.expire"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:9f640f207d0c6c9c47e7e0ab51117a40be24bfba1a82db4eae15cc55e34d464d",
+              "expected_operation_set": [
+                "identity.organization.invitation.expire"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.expire"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior",
+              "claim_id": "identity.organization.invitation.expire",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation.expire"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:30a689881c734170b3ecb4dbb70c9c009035f0e66fb9887056f22d46acdba401",
+              "expected_operation_set": [
+                "identity.organization.invitation.expire"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.expire"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior",
+              "claim_id": "identity.organization.invitation.expire",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation.expire"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:d80b6b2c85061fb2b0aa70daba05443f74e973e5bb526c3adfa5850545028530",
+              "expected_operation_set": [
+                "identity.organization.invitation.expire"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.expire"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior",
+              "claim_id": "identity.organization.invitation.expire",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation.expire"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d57675e7ed26e1c9c1a83dfa9d07dd78aec0c7640ffbffb9b6864c679ceac2b5",
+              "expected_operation_set": [
+                "identity.organization.invitation.expire"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.expire"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.expire.behavior",
+              "claim_id": "identity.organization.invitation.expire",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation.expire"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:6faa4ef799cb1e2a187995500bc6905f821b462b5e42d3e834e135352a0d302d",
+              "expected_operation_set": [
+                "identity.organization.invitation.expire"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.expire"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior",
+              "claim_id": "identity.organization.invitation.get",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:7e9bf9a37308bfddef7e0312dd212c4f49ccd767fb2c5297d28bea3545e0a755",
+              "expected_operation_set": [
+                "identity.organization.invitation.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.get"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior",
+              "claim_id": "identity.organization.invitation.get",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:f7c5111ca6d44f1461151a32c599a8efae1dadd97acca6f0564def918503a5d9",
+              "expected_operation_set": [
+                "identity.organization.invitation.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.get"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior",
+              "claim_id": "identity.organization.invitation.get",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:38fdcc29c0c6f20116c4db3c71bd7ff013c834535ffedb37f56faf93b5780f95",
+              "expected_operation_set": [
+                "identity.organization.invitation.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.get"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior",
+              "claim_id": "identity.organization.invitation.get",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:10cee5d18dbc15b45b8213fd4b2d1e33a1ad34ac3ca94147a254fbee754483d9",
+              "expected_operation_set": [
+                "identity.organization.invitation.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.get"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior",
+              "claim_id": "identity.organization.invitation.get",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:cff54313f950c6fe585a697f1cc41aed40f763506d557a482efde63137756e36",
+              "expected_operation_set": [
+                "identity.organization.invitation.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.get"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior",
+              "claim_id": "identity.organization.invitation.get",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:ba9b419cc5498eafec97c2bd2004fc3e02b1d283e4658c24fa0530d57e3e0fea",
+              "expected_operation_set": [
+                "identity.organization.invitation.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.get"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.get.behavior",
+              "claim_id": "identity.organization.invitation.get",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:7f234dec2db5a359b88cc3931a7b96748733e50c1155d066c0d43a0738c58f6a",
+              "expected_operation_set": [
+                "identity.organization.invitation.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.get"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior",
+              "claim_id": "identity.organization.invitation.list",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d049b2db646a4aa0c1c25ec5efc3c04e30fdf332826c63dd37014ae4243f5e42",
+              "expected_operation_set": [
+                "identity.organization.invitation.list"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior",
+              "claim_id": "identity.organization.invitation.list",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:2dcc8a6745e7531ecaca73210ceca0a057c4fb29b0a36cbb24729a108660ba7a",
+              "expected_operation_set": [
+                "identity.organization.invitation.list"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior",
+              "claim_id": "identity.organization.invitation.list",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:e16b3f2f483678f4a9be677f28277a8f84dd3f3b78331a7e05cd5004fecd31cd",
+              "expected_operation_set": [
+                "identity.organization.invitation.list"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior",
+              "claim_id": "identity.organization.invitation.list",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:7da44ffbd74e87843485c7390ba31ee0b4f8141c2796730ede6cc071bd89d71a",
+              "expected_operation_set": [
+                "identity.organization.invitation.list"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior",
+              "claim_id": "identity.organization.invitation.list",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:2acfca96003379e0272904a84f932e87aa5a36e7af427f63da5e1953f4ca4aa3",
+              "expected_operation_set": [
+                "identity.organization.invitation.list"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior",
+              "claim_id": "identity.organization.invitation.list",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:712c7ab01c36e2c5fc6316bb05fef9271fa10dabbdc9db731aa7f9baf508c09a",
+              "expected_operation_set": [
+                "identity.organization.invitation.list"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list.behavior",
+              "claim_id": "identity.organization.invitation.list",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:bfb9482aff379465c3decaf001150d8aec6bad58ea416a4686cccc05e3b4b55a",
+              "expected_operation_set": [
+                "identity.organization.invitation.list"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior",
+              "claim_id": "identity.organization.invitation.list-mine",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:eec4b620e10e720f25dbb8b84de5f36cd3d1fcd508d5f68b3f090598e47e76c8",
+              "expected_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior",
+              "claim_id": "identity.organization.invitation.list-mine",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:dde18cec5c8080738d393974565b9ee19c59c536058745bb68628908918cc847",
+              "expected_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior",
+              "claim_id": "identity.organization.invitation.list-mine",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:bdadf3779aef1b880646ef0144a6725809f46b91db1c14d086d4360224d695f6",
+              "expected_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior",
+              "claim_id": "identity.organization.invitation.list-mine",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:c37b5f8ecaa7e52e9f97775f53b56b36396179703e884047f86d6fe48cbcaae1",
+              "expected_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior",
+              "claim_id": "identity.organization.invitation.list-mine",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:60395c2365a11f35cfb41569c86247306e30c4992cf3a066425a858f978a5bc1",
+              "expected_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior",
+              "claim_id": "identity.organization.invitation.list-mine",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c118f26e66577041f4aaccb3fae2ea8b91ae84e03075a36a1b9b22f893a34f14",
+              "expected_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.list-mine.behavior",
+              "claim_id": "identity.organization.invitation.list-mine",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:f18362de02b73fcae0c51f3b9d15217e50be5da05e46f7f32a4499547750f8d0",
+              "expected_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.list-mine"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior",
+              "claim_id": "identity.organization.invitation.reject",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation.reject"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:8a7b4c1f7ae605f7dc2c0802858839c6b222199632fea709d4b184d0f6a4a3ea",
+              "expected_operation_set": [
+                "identity.organization.invitation.reject"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.reject"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior",
+              "claim_id": "identity.organization.invitation.reject",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation.reject"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:c9ffb1647f5072bca858b8bec33e86cdfa179efc147f3f8a248f8e6ebc7755ea",
+              "expected_operation_set": [
+                "identity.organization.invitation.reject"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.reject"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior",
+              "claim_id": "identity.organization.invitation.reject",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation.reject"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:d11a8d549c19de3edca266b7255d6ff72c513fad17beef834bf561c2c15cd858",
+              "expected_operation_set": [
+                "identity.organization.invitation.reject"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.reject"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior",
+              "claim_id": "identity.organization.invitation.reject",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation.reject"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:246b907659e32913eec17807c4896468845c01b392f80451016f30bf266c12d1",
+              "expected_operation_set": [
+                "identity.organization.invitation.reject"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.reject"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior",
+              "claim_id": "identity.organization.invitation.reject",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation.reject"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:d53213bcf1755bcb430f5d10f5ad0575539e9fb58992812e61a7e6a9a8fae11a",
+              "expected_operation_set": [
+                "identity.organization.invitation.reject"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.reject"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior",
+              "claim_id": "identity.organization.invitation.reject",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation.reject"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d682e5b76e0895b77fad18b5d357d404d9bf8e1346b99b6d9a2d1f3f3b81fd7a",
+              "expected_operation_set": [
+                "identity.organization.invitation.reject"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.reject"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.reject.behavior",
+              "claim_id": "identity.organization.invitation.reject",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation.reject"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:d8279d3b5afcc1bf7fe845035d16d5a4044ebd2846fcb4a857554b668d34053c",
+              "expected_operation_set": [
+                "identity.organization.invitation.reject"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.reject"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior",
+              "claim_id": "identity.organization.invitation.resend",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e2efb6176b84655a4b7950a86be7d2deb9bc355833fc08f60f3d450a87cce4ce",
+              "expected_operation_set": [
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior",
+              "claim_id": "identity.organization.invitation.resend",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:5585afbae9e1ce9dd3e42f67568566fd1c9b6f60b9d698b57349c4b7b35c8479",
+              "expected_operation_set": [
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior",
+              "claim_id": "identity.organization.invitation.resend",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:4c1f0bc7ddc7493a0af7c391d4d1cd532c3c5e2a83a267a9eb76bef182910bf7",
+              "expected_operation_set": [
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior",
+              "claim_id": "identity.organization.invitation.resend",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:92c836d79b4c5e918f76376c0a963d5fbcd2f395368cf81fee4cf569947c3db9",
+              "expected_operation_set": [
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior",
+              "claim_id": "identity.organization.invitation.resend",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:13097b388ab848f4bad86702de6f021ef4d00abc3253b2461b44037162e341e2",
+              "expected_operation_set": [
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior",
+              "claim_id": "identity.organization.invitation.resend",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f0b7d1fd6b90054aac9724ef466e801e7c2d5a593b81fd04e7ea64322119a0b3",
+              "expected_operation_set": [
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.identity.organization.invitation.resend.behavior",
+              "claim_id": "identity.organization.invitation.resend",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:2e3b453dff94fb90fbf43f06eace7bf650b8f69255f1a9931cdee88fb669a4b0",
+              "expected_operation_set": [
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#success",
+              "observation_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:61d99feb6947709072070d79cd87b8e7ac13de8fc75b55ed154dc31e8dd1fa86",
+              "expected_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#failure",
+              "observation_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:ace81201f55cbf4190c2cf5831eb7bfdf1d8508d5828c84817928fb7c8e699da",
+              "expected_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#denial",
+              "observation_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:7c1f3a26ea679e6a8fa55ec12a23ef170a9320a436be439d521b3bff6e4d6d67",
+              "expected_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#replay",
+              "observation_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:40219db19853b3fcffae85c3e9febb119a1d51da2d07a9b06357a47944607bf1",
+              "expected_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#concurrency",
+              "observation_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:2799c17906a04acb9bb578e2a4a7787593b8a5d303b020aa2e0ea11f51a44d6f",
+              "expected_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#cleanup",
+              "observation_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:da0c99f1fe111a06375ccf43c1e6ab348e3e66b208c9cc8ec034c3ce592d0421",
+              "expected_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ]
+            },
+            {
+              "case_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#unknown-outcome",
+              "observation_id": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior",
+              "claim_id": "journey.organizations.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "organization_id",
+                "email",
+                "role",
+                "invitation_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:416604298eb80ee49c3063509d4790bfaa86038a1bb3e87ebd28b7a89c3aec6f",
+              "expected_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ],
+              "observed_operation_set": [
+                "identity.organization.invitation-send",
+                "identity.organization.invitation.accept",
+                "identity.organization.invitation.cancel",
+                "identity.organization.invitation.expire",
+                "identity.organization.invitation.get",
+                "identity.organization.invitation.list",
+                "identity.organization.invitation.list-mine",
+                "identity.organization.invitation.reject",
+                "identity.organization.invitation.resend"
+              ]
+            }
+          ]
         },
         "invitation_id": {
           "type": "string",
@@ -995,610 +3287,6 @@
           "kind": "const",
           "field": "accepted_count",
           "value": 1
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "organization-invitation-lifecycle-report.journey.organizations.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.organizations.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.invitation-send",
-                      "identity.organization.invitation.accept",
-                      "identity.organization.invitation.cancel",
-                      "identity.organization.invitation.expire"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "organization_id",
-                      "email",
-                      "role",
-                      "invitation_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "recipient is not a member and no live invitation exists"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "send creates one invitation; accept adds one member; cancel, expiry, and replay cannot add membership"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "invitation_id",
-                      "member_id",
-                      "accepted_count",
-                      "replay_rejected",
-                      "invitation_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

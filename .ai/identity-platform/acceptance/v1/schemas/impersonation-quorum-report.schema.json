@@ -108,11 +108,354 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 8,
+      "maxItems": 8,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.approve.behavior"
+              },
+              "claim_id": {
+                "const": "identity.impersonation.approve"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.impersonation-quorum-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,concurrency"
+              },
+              "preconditions": {
+                "const": "Operations: identity.impersonation.approve; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+              },
+              "stimulus": {
+                "const": "Run identity.impersonation.approve for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.deny.behavior"
+              },
+              "claim_id": {
+                "const": "identity.impersonation.deny"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.impersonation-quorum-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,concurrency"
+              },
+              "preconditions": {
+                "const": "Operations: identity.impersonation.deny; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+              },
+              "stimulus": {
+                "const": "Run identity.impersonation.deny for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.quorum.behavior"
+              },
+              "claim_id": {
+                "const": "identity.impersonation.quorum"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.impersonation-quorum-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,concurrency"
+              },
+              "preconditions": {
+                "const": "Operations: identity.impersonation.quorum; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+              },
+              "stimulus": {
+                "const": "Run identity.impersonation.quorum for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.request.behavior"
+              },
+              "claim_id": {
+                "const": "identity.impersonation.request"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.impersonation-quorum-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,concurrency"
+              },
+              "preconditions": {
+                "const": "Operations: identity.impersonation.request; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+              },
+              "stimulus": {
+                "const": "Run identity.impersonation.request for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.revoke.behavior"
+              },
+              "claim_id": {
+                "const": "identity.impersonation.revoke"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.impersonation-quorum-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,concurrency"
+              },
+              "preconditions": {
+                "const": "Operations: identity.impersonation.revoke; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+              },
+              "stimulus": {
+                "const": "Run identity.impersonation.revoke for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.start.behavior"
+              },
+              "claim_id": {
+                "const": "identity.impersonation.start"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.impersonation-quorum-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,concurrency"
+              },
+              "preconditions": {
+                "const": "Operations: identity.impersonation.start; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+              },
+              "stimulus": {
+                "const": "Run identity.impersonation.start for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.stop.behavior"
+              },
+              "claim_id": {
+                "const": "identity.impersonation.stop"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.impersonation-quorum-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,concurrency"
+              },
+              "preconditions": {
+                "const": "Operations: identity.impersonation.stop; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+              },
+              "stimulus": {
+                "const": "Run identity.impersonation.stop for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,16 +485,16 @@
                 "const": "success,failure,denial,concurrency"
               },
               "preconditions": {
-                "const": "Operations: identity.impersonation.request, identity.impersonation.approve, identity.impersonation.start, identity.impersonation.stop; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+                "const": "Operations: identity.impersonation.approve, identity.impersonation.deny, identity.impersonation.quorum, identity.impersonation.request, identity.impersonation.revoke, identity.impersonation.start, identity.impersonation.stop; exact inputs: tenant_id, requester_id, approver_ids, target_user_id, reason; initial state: requester and distinct approvers satisfy configured roles but quorum is not yet reached"
               },
               "stimulus": {
-                "const": "Run identity.impersonation.request then identity.impersonation.approve then identity.impersonation.start then identity.impersonation.stop for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
+                "const": "Run identity.impersonation.approve then identity.impersonation.deny then identity.impersonation.quorum then identity.impersonation.request then identity.impersonation.revoke then identity.impersonation.start then identity.impersonation.stop for success, failure, denial, concurrency cases using tenant_id, requester_id, approver_ids, target_user_id, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest"
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest"
+                "const": "Invariant: duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, concurrency=pass/conflict; required artifact fields: request_id, distinct_approval_count, required_quorum, session_id, audit_event_digest, authority_transition_cases"
               },
               "result": {
                 "const": "pass"
@@ -216,6 +559,132 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.approve.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.deny.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.quorum.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.request.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.revoke.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.start.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "impersonation-quorum-report.identity.impersonation.stop.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "impersonation-quorum-report.journey.administration.v1.behavior"
               }
             }
@@ -256,6 +725,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -264,16 +735,26 @@
         "distinct_approval_count",
         "required_quorum",
         "session_id",
-        "audit_event_digest"
+        "audit_event_digest",
+        "authority_transition_cases"
       ],
       "properties": {
         "artifact_id": {
           "const": "impersonation-quorum-report"
         },
+        "invariant_id": {
+          "const": "impersonation-quorum-report.invariant"
+        },
+        "invariant": {
+          "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
+        },
         "operation_ids": {
           "const": [
-            "identity.impersonation.request",
             "identity.impersonation.approve",
+            "identity.impersonation.deny",
+            "identity.impersonation.quorum",
+            "identity.impersonation.request",
+            "identity.impersonation.revoke",
             "identity.impersonation.start",
             "identity.impersonation.stop"
           ]
@@ -397,328 +878,1144 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
+          "minItems": 32,
+          "maxItems": 32,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.impersonation.request",
-                      "identity.impersonation.approve",
-                      "identity.impersonation.start",
-                      "identity.impersonation.stop"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "requester_id",
-                      "approver_ids",
-                      "target_user_id",
-                      "reason"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "request_id",
-                      "distinct_approval_count",
-                      "required_quorum",
-                      "session_id",
-                      "audit_event_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "impersonation-quorum-report.identity.impersonation.approve.behavior#success",
+                  "impersonation-quorum-report.identity.impersonation.approve.behavior#failure",
+                  "impersonation-quorum-report.identity.impersonation.approve.behavior#denial",
+                  "impersonation-quorum-report.identity.impersonation.approve.behavior#concurrency",
+                  "impersonation-quorum-report.identity.impersonation.deny.behavior#success",
+                  "impersonation-quorum-report.identity.impersonation.deny.behavior#failure",
+                  "impersonation-quorum-report.identity.impersonation.deny.behavior#denial",
+                  "impersonation-quorum-report.identity.impersonation.deny.behavior#concurrency",
+                  "impersonation-quorum-report.identity.impersonation.quorum.behavior#success",
+                  "impersonation-quorum-report.identity.impersonation.quorum.behavior#failure",
+                  "impersonation-quorum-report.identity.impersonation.quorum.behavior#denial",
+                  "impersonation-quorum-report.identity.impersonation.quorum.behavior#concurrency",
+                  "impersonation-quorum-report.identity.impersonation.request.behavior#success",
+                  "impersonation-quorum-report.identity.impersonation.request.behavior#failure",
+                  "impersonation-quorum-report.identity.impersonation.request.behavior#denial",
+                  "impersonation-quorum-report.identity.impersonation.request.behavior#concurrency",
+                  "impersonation-quorum-report.identity.impersonation.revoke.behavior#success",
+                  "impersonation-quorum-report.identity.impersonation.revoke.behavior#failure",
+                  "impersonation-quorum-report.identity.impersonation.revoke.behavior#denial",
+                  "impersonation-quorum-report.identity.impersonation.revoke.behavior#concurrency",
+                  "impersonation-quorum-report.identity.impersonation.start.behavior#success",
+                  "impersonation-quorum-report.identity.impersonation.start.behavior#failure",
+                  "impersonation-quorum-report.identity.impersonation.start.behavior#denial",
+                  "impersonation-quorum-report.identity.impersonation.start.behavior#concurrency",
+                  "impersonation-quorum-report.identity.impersonation.stop.behavior#success",
+                  "impersonation-quorum-report.identity.impersonation.stop.behavior#failure",
+                  "impersonation-quorum-report.identity.impersonation.stop.behavior#denial",
+                  "impersonation-quorum-report.identity.impersonation.stop.behavior#concurrency",
+                  "impersonation-quorum-report.journey.administration.v1.behavior#success",
+                  "impersonation-quorum-report.journey.administration.v1.behavior#failure",
+                  "impersonation-quorum-report.journey.administration.v1.behavior#denial",
+                  "impersonation-quorum-report.journey.administration.v1.behavior#concurrency"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "impersonation-quorum-report.identity.impersonation.approve.behavior",
+                  "impersonation-quorum-report.identity.impersonation.deny.behavior",
+                  "impersonation-quorum-report.identity.impersonation.quorum.behavior",
+                  "impersonation-quorum-report.identity.impersonation.request.behavior",
+                  "impersonation-quorum-report.identity.impersonation.revoke.behavior",
+                  "impersonation-quorum-report.identity.impersonation.start.behavior",
+                  "impersonation-quorum-report.identity.impersonation.stop.behavior",
+                  "impersonation-quorum-report.journey.administration.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.impersonation.approve",
+                  "identity.impersonation.deny",
+                  "identity.impersonation.quorum",
+                  "identity.impersonation.request",
+                  "identity.impersonation.revoke",
+                  "identity.impersonation.start",
+                  "identity.impersonation.stop",
+                  "journey.administration.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "impersonation-quorum-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "concurrency"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.impersonation.approve",
+                    "identity.impersonation.deny",
+                    "identity.impersonation.quorum",
+                    "identity.impersonation.request",
+                    "identity.impersonation.revoke",
+                    "identity.impersonation.start",
+                    "identity.impersonation.stop"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.impersonation.request",
-                      "identity.impersonation.approve",
-                      "identity.impersonation.start",
-                      "identity.impersonation.stop"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "requester_id",
-                      "approver_ids",
-                      "target_user_id",
-                      "reason"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "request_id",
-                      "distinct_approval_count",
-                      "required_quorum",
-                      "session_id",
-                      "audit_event_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.impersonation.request",
-                      "identity.impersonation.approve",
-                      "identity.impersonation.start",
-                      "identity.impersonation.stop"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "requester_id",
-                      "approver_ids",
-                      "target_user_id",
-                      "reason"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "request_id",
-                      "distinct_approval_count",
-                      "required_quorum",
-                      "session_id",
-                      "audit_event_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "conflict"
+                ]
+              },
+              "expected_invariant": {
+                "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.impersonation.approve",
+                    "identity.impersonation.deny",
+                    "identity.impersonation.quorum",
+                    "identity.impersonation.request",
+                    "identity.impersonation.revoke",
+                    "identity.impersonation.start",
+                    "identity.impersonation.stop"
+                  ]
                 }
               },
-              {
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.impersonation.approve",
+                    "identity.impersonation.deny",
+                    "identity.impersonation.quorum",
+                    "identity.impersonation.request",
+                    "identity.impersonation.revoke",
+                    "identity.impersonation.start",
+                    "identity.impersonation.stop"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "request_id",
+                  "distinct_approval_count",
+                  "required_quorum",
+                  "session_id",
+                  "audit_event_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior#concurrency"
+                  "request_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior"
+                  "distinct_approval_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
+                  "required_quorum": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "concurrency"
+                  "session_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.impersonation.request",
-                      "identity.impersonation.approve",
-                      "identity.impersonation.start",
-                      "identity.impersonation.stop"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "requester_id",
-                      "approver_ids",
-                      "target_user_id",
-                      "reason"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
-                  },
-                  "observed_state_digest": {
+                  "audit_event_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "request_id",
-                      "distinct_approval_count",
-                      "required_quorum",
-                      "session_id",
-                      "audit_event_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.approve.behavior#success",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.approve.behavior",
+              "claim_id": "identity.impersonation.approve",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.impersonation.approve"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:5fc18fcda3a3250b9d07dcf52bb98c89c32224a3eb518360fd0392910f502fd9",
+              "expected_operation_set": [
+                "identity.impersonation.approve"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.approve"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.approve.behavior#failure",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.approve.behavior",
+              "claim_id": "identity.impersonation.approve",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.impersonation.approve"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:e95225a92564da260f93fc2301f14e27e0cab607703552793dff00919daf5e6b",
+              "expected_operation_set": [
+                "identity.impersonation.approve"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.approve"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.approve.behavior#denial",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.approve.behavior",
+              "claim_id": "identity.impersonation.approve",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.impersonation.approve"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:d4618c8047477d754c11766361547d763c385999ae0bcc64d2b05fb13e4bd23c",
+              "expected_operation_set": [
+                "identity.impersonation.approve"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.approve"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.approve.behavior#concurrency",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.approve.behavior",
+              "claim_id": "identity.impersonation.approve",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.impersonation.approve"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:ae2a3e2835099f76ad4d19cfcbd39422018621cd8fefaafb88e247eda9b340e8",
+              "expected_operation_set": [
+                "identity.impersonation.approve"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.approve"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.deny.behavior#success",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.deny.behavior",
+              "claim_id": "identity.impersonation.deny",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.impersonation.deny"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:751b0b09118dc5fc350803f66eed05a56fd3fd8adf624a46806cff77f5db189b",
+              "expected_operation_set": [
+                "identity.impersonation.deny"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.deny"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.deny.behavior#failure",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.deny.behavior",
+              "claim_id": "identity.impersonation.deny",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.impersonation.deny"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:0da6b73d8e4a5f73a28d869946f083eedc409532d53bc8b34fd29c363d4cc42d",
+              "expected_operation_set": [
+                "identity.impersonation.deny"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.deny"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.deny.behavior#denial",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.deny.behavior",
+              "claim_id": "identity.impersonation.deny",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.impersonation.deny"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:ef504aa2966b4513483891adc8ebb305e6d01c8c08be88b8aad3bf2013c5dfeb",
+              "expected_operation_set": [
+                "identity.impersonation.deny"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.deny"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.deny.behavior#concurrency",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.deny.behavior",
+              "claim_id": "identity.impersonation.deny",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.impersonation.deny"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:6c79c2915476ca19187f83dfcd4d1f814b50757fc70d14eaa0600c854b2fbc4e",
+              "expected_operation_set": [
+                "identity.impersonation.deny"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.deny"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.quorum.behavior#success",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.quorum.behavior",
+              "claim_id": "identity.impersonation.quorum",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.impersonation.quorum"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:021f83b54aba6788d2b776d8a096952f65824ff41ec0a7591d81e21e650f1999",
+              "expected_operation_set": [
+                "identity.impersonation.quorum"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.quorum"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.quorum.behavior#failure",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.quorum.behavior",
+              "claim_id": "identity.impersonation.quorum",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.impersonation.quorum"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b322118c115f2247c5289865e4ff967a4c911025cc39186198e291058477313a",
+              "expected_operation_set": [
+                "identity.impersonation.quorum"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.quorum"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.quorum.behavior#denial",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.quorum.behavior",
+              "claim_id": "identity.impersonation.quorum",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.impersonation.quorum"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:f350500211c851e498b18ebe1b818642458e44f4f196b0e97f94b792157fec94",
+              "expected_operation_set": [
+                "identity.impersonation.quorum"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.quorum"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.quorum.behavior#concurrency",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.quorum.behavior",
+              "claim_id": "identity.impersonation.quorum",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.impersonation.quorum"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:7738584a21216a0b312bc338d3c27991ebc573a820a2a879a7aeca6ce0378ae2",
+              "expected_operation_set": [
+                "identity.impersonation.quorum"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.quorum"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.request.behavior#success",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.request.behavior",
+              "claim_id": "identity.impersonation.request",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.impersonation.request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f94ef76d9197ff2946cbd555f121b703f6323feea9353bbe30058cc33fba3edf",
+              "expected_operation_set": [
+                "identity.impersonation.request"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.request"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.request.behavior#failure",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.request.behavior",
+              "claim_id": "identity.impersonation.request",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.impersonation.request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:07b6a9fbde32696abe11c92d95f67b13031f11c3d2f1f29065c4af69e390d8b9",
+              "expected_operation_set": [
+                "identity.impersonation.request"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.request"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.request.behavior#denial",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.request.behavior",
+              "claim_id": "identity.impersonation.request",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.impersonation.request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:d94aa5a48fd050e999f31c45e810ad0890b41690fd275c0ded97b13411d19fad",
+              "expected_operation_set": [
+                "identity.impersonation.request"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.request"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.request.behavior#concurrency",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.request.behavior",
+              "claim_id": "identity.impersonation.request",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.impersonation.request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:6464cdc6de937a81503cb7c74a35babd65453419746a6cf54edf457159d1d4c3",
+              "expected_operation_set": [
+                "identity.impersonation.request"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.request"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.revoke.behavior#success",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.revoke.behavior",
+              "claim_id": "identity.impersonation.revoke",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.impersonation.revoke"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:907c84b8ec8b0b5bdc16a59e312358b1b6aacc65106d24eeccd8267ad96f4252",
+              "expected_operation_set": [
+                "identity.impersonation.revoke"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.revoke"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.revoke.behavior#failure",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.revoke.behavior",
+              "claim_id": "identity.impersonation.revoke",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.impersonation.revoke"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:9f0b00b99340995e27321177bcd300a8d2a7105f177ea771d2981f0b56f28e44",
+              "expected_operation_set": [
+                "identity.impersonation.revoke"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.revoke"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.revoke.behavior#denial",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.revoke.behavior",
+              "claim_id": "identity.impersonation.revoke",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.impersonation.revoke"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:b97dd8964fb8b0b93a6b36634e71affb71e0d115ecb1ae5a5c28572ff8e7e714",
+              "expected_operation_set": [
+                "identity.impersonation.revoke"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.revoke"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.revoke.behavior#concurrency",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.revoke.behavior",
+              "claim_id": "identity.impersonation.revoke",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.impersonation.revoke"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:3b3dcb41bbc1aad7105c8fd9b7eedb014fccf89cbb17fc451507a6b3c4d20df7",
+              "expected_operation_set": [
+                "identity.impersonation.revoke"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.revoke"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.start.behavior#success",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.start.behavior",
+              "claim_id": "identity.impersonation.start",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.impersonation.start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:34fc245a1866f33eca869eb4e886b4affa41ee27bcc08a8d063f18a3bfbfd74e",
+              "expected_operation_set": [
+                "identity.impersonation.start"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.start"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.start.behavior#failure",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.start.behavior",
+              "claim_id": "identity.impersonation.start",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.impersonation.start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:d04d22992377e1fc3ce8e5d4ff3fb269d2755856ed382a7c41d0f16a8b9d3fc6",
+              "expected_operation_set": [
+                "identity.impersonation.start"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.start"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.start.behavior#denial",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.start.behavior",
+              "claim_id": "identity.impersonation.start",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.impersonation.start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:2410dde5479f105a6924aae4ef7ae86a47de98408a475910fb363ca68507f91e",
+              "expected_operation_set": [
+                "identity.impersonation.start"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.start"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.start.behavior#concurrency",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.start.behavior",
+              "claim_id": "identity.impersonation.start",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.impersonation.start"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:af3e1659d0ca89bd506141426eb32ec71399148dbc5ae4546dfc6197bd75ef2b",
+              "expected_operation_set": [
+                "identity.impersonation.start"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.start"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.stop.behavior#success",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.stop.behavior",
+              "claim_id": "identity.impersonation.stop",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.impersonation.stop"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:bf81f859d82eb3faa8b16fd8650e1ffd43f5cc30fd5b00a5995818a6ac809036",
+              "expected_operation_set": [
+                "identity.impersonation.stop"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.stop"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.stop.behavior#failure",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.stop.behavior",
+              "claim_id": "identity.impersonation.stop",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.impersonation.stop"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:3ebefe90c29ba8c6ea2217349a99b0331b6ef4d985b66610307cdf89766248b6",
+              "expected_operation_set": [
+                "identity.impersonation.stop"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.stop"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.stop.behavior#denial",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.stop.behavior",
+              "claim_id": "identity.impersonation.stop",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.impersonation.stop"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:086c061fedecb11cc827dc7f92152823d2715a4cef4ece114a73b7cf73cd1af9",
+              "expected_operation_set": [
+                "identity.impersonation.stop"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.stop"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.identity.impersonation.stop.behavior#concurrency",
+              "observation_id": "impersonation-quorum-report.identity.impersonation.stop.behavior",
+              "claim_id": "identity.impersonation.stop",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.impersonation.stop"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:6d5e69c5d40e642c79ed7f028bd0b5bc73aea55e6585faeea5b7cc4a7a2303f6",
+              "expected_operation_set": [
+                "identity.impersonation.stop"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.stop"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.journey.administration.v1.behavior#success",
+              "observation_id": "impersonation-quorum-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b2866e22db5beb81a0e7703bbbdd2d195c4f98e8d2feeaa506ff3d403185fa39",
+              "expected_operation_set": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.journey.administration.v1.behavior#failure",
+              "observation_id": "impersonation-quorum-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:48c6332178f7bc3a3b9bc44c4c2ae1a7cbacabcbabea35d9df128283826f7c59",
+              "expected_operation_set": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.journey.administration.v1.behavior#denial",
+              "observation_id": "impersonation-quorum-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:f99e8a0e3232025420c04b9281d5a37b6d8e2a1cbed8859fb8add4e51b71fd71",
+              "expected_operation_set": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ]
+            },
+            {
+              "case_id": "impersonation-quorum-report.journey.administration.v1.behavior#concurrency",
+              "observation_id": "impersonation-quorum-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "requester_id",
+                "approver_ids",
+                "target_user_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:da98b78e4f275279477d9449563dfe4736937950d871ed4178a7a3c8c4d7c6ef",
+              "expected_operation_set": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ],
+              "observed_operation_set": [
+                "identity.impersonation.approve",
+                "identity.impersonation.deny",
+                "identity.impersonation.quorum",
+                "identity.impersonation.request",
+                "identity.impersonation.revoke",
+                "identity.impersonation.start",
+                "identity.impersonation.stop"
+              ]
+            }
+          ]
         },
         "request_id": {
           "type": "string",
@@ -741,6 +2038,225 @@
         "audit_event_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "authority_transition_cases": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "grant_count",
+                  "session_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "explicit-denial"
+                  },
+                  "operation_id": {
+                    "const": "identity.impersonation.deny"
+                  },
+                  "grant_count": {
+                    "const": 0
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "state": {
+                    "const": "denied"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "grant_count",
+                  "session_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "quorum-reached"
+                  },
+                  "operation_id": {
+                    "const": "identity.impersonation.quorum"
+                  },
+                  "grant_count": {
+                    "const": 1
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "state": {
+                    "const": "approved"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "grant_count",
+                  "session_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "active-revocation"
+                  },
+                  "operation_id": {
+                    "const": "identity.impersonation.revoke"
+                  },
+                  "grant_count": {
+                    "const": 0
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "state": {
+                    "const": "revoked"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "grant_count",
+                  "session_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "explicit-denial"
+                  },
+                  "operation_id": {
+                    "const": "identity.impersonation.deny"
+                  },
+                  "grant_count": {
+                    "const": 0
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "state": {
+                    "const": "denied"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "grant_count",
+                  "session_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "quorum-reached"
+                  },
+                  "operation_id": {
+                    "const": "identity.impersonation.quorum"
+                  },
+                  "grant_count": {
+                    "const": 1
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "state": {
+                    "const": "approved"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "grant_count",
+                  "session_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "active-revocation"
+                  },
+                  "operation_id": {
+                    "const": "identity.impersonation.revoke"
+                  },
+                  "grant_count": {
+                    "const": 0
+                  },
+                  "session_count": {
+                    "const": 0
+                  },
+                  "state": {
+                    "const": "revoked"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -755,352 +2271,6 @@
           "kind": "equal",
           "left": "distinct_approval_count",
           "right": "required_quorum"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.impersonation.request",
-                      "identity.impersonation.approve",
-                      "identity.impersonation.start",
-                      "identity.impersonation.stop"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "requester_id",
-                      "approver_ids",
-                      "target_user_id",
-                      "reason"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "request_id",
-                      "distinct_approval_count",
-                      "required_quorum",
-                      "session_id",
-                      "audit_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.impersonation.request",
-                      "identity.impersonation.approve",
-                      "identity.impersonation.start",
-                      "identity.impersonation.stop"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "requester_id",
-                      "approver_ids",
-                      "target_user_id",
-                      "reason"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "request_id",
-                      "distinct_approval_count",
-                      "required_quorum",
-                      "session_id",
-                      "audit_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.impersonation.request",
-                      "identity.impersonation.approve",
-                      "identity.impersonation.start",
-                      "identity.impersonation.stop"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "requester_id",
-                      "approver_ids",
-                      "target_user_id",
-                      "reason"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "request_id",
-                      "distinct_approval_count",
-                      "required_quorum",
-                      "session_id",
-                      "audit_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "impersonation-quorum-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.impersonation.request",
-                      "identity.impersonation.approve",
-                      "identity.impersonation.start",
-                      "identity.impersonation.stop"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "requester_id",
-                      "approver_ids",
-                      "target_user_id",
-                      "reason"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "requester and distinct approvers satisfy configured roles but quorum is not yet reached"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "duplicate or self approval is denied, exact quorum enables one bounded session, and stop revokes it with audit events"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "request_id",
-                      "distinct_approval_count",
-                      "required_quorum",
-                      "session_id",
-                      "audit_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

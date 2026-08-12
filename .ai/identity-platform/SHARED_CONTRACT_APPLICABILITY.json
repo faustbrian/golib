@@ -52,6 +52,23 @@
         "none"
       ]
     },
+    "primitive/capability-postgres-identity-contracts": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "none"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
     "primitive/identifier-identity-contracts": {
       "transaction": [
         "none"
@@ -2865,6 +2882,7 @@
         "lifecycle.cascade.organization_restore"
       ],
       "configuration": [
+        "ref.scim.authentication_schemes",
         "ref.scim.bulk.bytes",
         "ref.scim.bulk.enabled",
         "ref.scim.bulk.execution",
@@ -2872,10 +2890,14 @@
         "ref.scim.bulk.operation_bytes",
         "ref.scim.bulk.operations",
         "ref.scim.bulk.response_bytes",
+        "ref.scim.change_password.enabled",
         "ref.scim.delete_tombstone_retention",
+        "ref.scim.documentation_uri",
         "ref.scim.error_detail_bytes",
+        "ref.scim.etag.enabled",
         "ref.scim.external_id_scope",
         "ref.scim.filter.depth",
+        "ref.scim.filter.enabled",
         "ref.scim.filter.nodes",
         "ref.scim.filter_bytes",
         "ref.scim.filter_tokens",
@@ -2884,14 +2906,17 @@
         "ref.scim.if_match",
         "ref.scim.page_default",
         "ref.scim.page_max",
+        "ref.scim.patch.enabled",
         "ref.scim.patch.operations",
         "ref.scim.path_bytes",
         "ref.scim.resource_attributes",
         "ref.scim.resource_depth",
+        "ref.scim.sort.enabled",
         "ref.scim.string_bytes",
         "ref.scim.token_bytes",
         "ref.scim.token_overlap",
         "ref.scim.token_ttl",
+        "ref.struct:ref.scim.authentication_schemes",
         "ref.struct:ref.scim.bulk_execution"
       ],
       "security_events": [

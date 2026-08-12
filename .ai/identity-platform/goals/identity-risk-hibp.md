@@ -41,7 +41,7 @@ generic risk decisions, user messaging, or other HIBP products.
 
 ## Required public contract
 
-The design MUST define a checker or signal-provider contract, configuration,
+The design MUST define a checker or signal-provider contract, CheckRequest, configuration,
 endpoint policy, padding policy, cache policy, result and breach-count bounds,
 typed failures, telemetry, and an adapter to the `identity/risk` signal
 contract. Public results MUST distinguish no match, a bounded match count,
@@ -61,6 +61,13 @@ or release transient sensitive buffers where practical. It MUST NOT transmit,
 log, cache, trace, or expose the complete password or complete SHA-1 digest.
 It MUST NOT log, trace, or expose the returned suffix set; it MAY cache that
 set only under the bounded private cache policy below.
+
+`CheckRequest` MUST accept the bounded candidate password as a borrowed
+`golibpassword.Secret` together with the trusted operation, tenant, action,
+purpose, subject scope, policy version and replay identifier. Prefix input is
+not a public request alternative: this module MUST derive the five-character
+uppercase SHA-1 prefix locally from the exact candidate and MUST compare the
+returned suffix set locally.
 
 ## Provider and privacy requirements
 

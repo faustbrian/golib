@@ -108,11 +108,354 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 8,
+      "maxItems": 8,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.config-validate.behavior"
+              },
+              "claim_id": {
+                "const": "identity.reference.config-validate"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.reference.config-validate; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+              },
+              "stimulus": {
+                "const": "Run identity.reference.config-validate for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.diagnostics.behavior"
+              },
+              "claim_id": {
+                "const": "identity.reference.diagnostics"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.reference.diagnostics; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+              },
+              "stimulus": {
+                "const": "Run identity.reference.diagnostics for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.migration-apply.behavior"
+              },
+              "claim_id": {
+                "const": "identity.reference.migration-apply"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.reference.migration-apply; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+              },
+              "stimulus": {
+                "const": "Run identity.reference.migration-apply for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.migration-plan.behavior"
+              },
+              "claim_id": {
+                "const": "identity.reference.migration-plan"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.reference.migration-plan; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+              },
+              "stimulus": {
+                "const": "Run identity.reference.migration-plan for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.migration-status.behavior"
+              },
+              "claim_id": {
+                "const": "identity.reference.migration-status"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.reference.migration-status; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+              },
+              "stimulus": {
+                "const": "Run identity.reference.migration-status for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.schema-generate.behavior"
+              },
+              "claim_id": {
+                "const": "identity.reference.schema-generate"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.reference.schema-generate; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+              },
+              "stimulus": {
+                "const": "Run identity.reference.schema-generate for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.secret-generate.behavior"
+              },
+              "claim_id": {
+                "const": "identity.reference.secret-generate"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.reference.secret-generate; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+              },
+              "stimulus": {
+                "const": "Run identity.reference.secret-generate for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,10 +485,10 @@
                 "const": "success,failure,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.reference.config-validate, identity.reference.migration-apply, identity.health; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+                "const": "Operations: identity.reference.config-validate, identity.reference.diagnostics, identity.reference.migration-apply, identity.reference.migration-plan, identity.reference.migration-status, identity.reference.schema-generate, identity.reference.secret-generate; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
               },
               "stimulus": {
-                "const": "Run identity.reference.config-validate then identity.reference.migration-apply then identity.health for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+                "const": "Run identity.reference.config-validate then identity.reference.diagnostics then identity.reference.migration-apply then identity.reference.migration-plan then identity.reference.migration-status then identity.reference.schema-generate then identity.reference.secret-generate for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
@@ -216,6 +559,132 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.config-validate.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.diagnostics.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.migration-apply.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.migration-plan.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.migration-status.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.schema-generate.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "clean-reference-stack-report.identity.reference.secret-generate.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "clean-reference-stack-report.journey.developer-use.v1.behavior"
               }
             }
@@ -256,6 +725,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -270,11 +741,21 @@
         "artifact_id": {
           "const": "clean-reference-stack-report"
         },
+        "invariant_id": {
+          "const": "clean-reference-stack-report.invariant"
+        },
+        "invariant": {
+          "const": "configuration validates, migrations apply once, and health reports the initialized stack ready"
+        },
         "operation_ids": {
           "const": [
             "identity.reference.config-validate",
+            "identity.reference.diagnostics",
             "identity.reference.migration-apply",
-            "identity.health"
+            "identity.reference.migration-plan",
+            "identity.reference.migration-status",
+            "identity.reference.schema-generate",
+            "identity.reference.secret-generate"
           ]
         },
         "input_digest": {
@@ -396,240 +877,869 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 3,
-          "maxItems": 3,
+          "minItems": 24,
+          "maxItems": 24,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate",
-                      "identity.reference.migration-apply",
-                      "identity.health"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "reference_config",
-                      "migration_plan",
-                      "service_deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "empty PostgreSQL and Valkey instances are reachable"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "configuration validates, migrations apply once, and health reports the initialized stack ready"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "migration_count",
-                      "applied_migration_count",
-                      "health_status",
-                      "configuration_digest",
-                      "schema_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "clean-reference-stack-report.identity.reference.config-validate.behavior#success",
+                  "clean-reference-stack-report.identity.reference.config-validate.behavior#failure",
+                  "clean-reference-stack-report.identity.reference.config-validate.behavior#cleanup",
+                  "clean-reference-stack-report.identity.reference.diagnostics.behavior#success",
+                  "clean-reference-stack-report.identity.reference.diagnostics.behavior#failure",
+                  "clean-reference-stack-report.identity.reference.diagnostics.behavior#cleanup",
+                  "clean-reference-stack-report.identity.reference.migration-apply.behavior#success",
+                  "clean-reference-stack-report.identity.reference.migration-apply.behavior#failure",
+                  "clean-reference-stack-report.identity.reference.migration-apply.behavior#cleanup",
+                  "clean-reference-stack-report.identity.reference.migration-plan.behavior#success",
+                  "clean-reference-stack-report.identity.reference.migration-plan.behavior#failure",
+                  "clean-reference-stack-report.identity.reference.migration-plan.behavior#cleanup",
+                  "clean-reference-stack-report.identity.reference.migration-status.behavior#success",
+                  "clean-reference-stack-report.identity.reference.migration-status.behavior#failure",
+                  "clean-reference-stack-report.identity.reference.migration-status.behavior#cleanup",
+                  "clean-reference-stack-report.identity.reference.schema-generate.behavior#success",
+                  "clean-reference-stack-report.identity.reference.schema-generate.behavior#failure",
+                  "clean-reference-stack-report.identity.reference.schema-generate.behavior#cleanup",
+                  "clean-reference-stack-report.identity.reference.secret-generate.behavior#success",
+                  "clean-reference-stack-report.identity.reference.secret-generate.behavior#failure",
+                  "clean-reference-stack-report.identity.reference.secret-generate.behavior#cleanup",
+                  "clean-reference-stack-report.journey.developer-use.v1.behavior#success",
+                  "clean-reference-stack-report.journey.developer-use.v1.behavior#failure",
+                  "clean-reference-stack-report.journey.developer-use.v1.behavior#cleanup"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "clean-reference-stack-report.identity.reference.config-validate.behavior",
+                  "clean-reference-stack-report.identity.reference.diagnostics.behavior",
+                  "clean-reference-stack-report.identity.reference.migration-apply.behavior",
+                  "clean-reference-stack-report.identity.reference.migration-plan.behavior",
+                  "clean-reference-stack-report.identity.reference.migration-status.behavior",
+                  "clean-reference-stack-report.identity.reference.schema-generate.behavior",
+                  "clean-reference-stack-report.identity.reference.secret-generate.behavior",
+                  "clean-reference-stack-report.journey.developer-use.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.reference.config-validate",
+                  "identity.reference.diagnostics",
+                  "identity.reference.migration-apply",
+                  "identity.reference.migration-plan",
+                  "identity.reference.migration-status",
+                  "identity.reference.schema-generate",
+                  "identity.reference.secret-generate",
+                  "journey.developer-use.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "clean-reference-stack-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "cleanup"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.config-validate",
+                    "identity.reference.diagnostics",
+                    "identity.reference.migration-apply",
+                    "identity.reference.migration-plan",
+                    "identity.reference.migration-status",
+                    "identity.reference.schema-generate",
+                    "identity.reference.secret-generate"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate",
-                      "identity.reference.migration-apply",
-                      "identity.health"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "reference_config",
-                      "migration_plan",
-                      "service_deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "empty PostgreSQL and Valkey instances are reachable"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "configuration validates, migrations apply once, and health reports the initialized stack ready"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "migration_count",
-                      "applied_migration_count",
-                      "health_status",
-                      "configuration_digest",
-                      "schema_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "empty PostgreSQL and Valkey instances are reachable"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "configuration validates, migrations apply once, and health reports the initialized stack ready"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.config-validate",
+                    "identity.reference.diagnostics",
+                    "identity.reference.migration-apply",
+                    "identity.reference.migration-plan",
+                    "identity.reference.migration-status",
+                    "identity.reference.schema-generate",
+                    "identity.reference.secret-generate"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.config-validate",
+                    "identity.reference.diagnostics",
+                    "identity.reference.migration-apply",
+                    "identity.reference.migration-plan",
+                    "identity.reference.migration-status",
+                    "identity.reference.schema-generate",
+                    "identity.reference.secret-generate"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "migration_count",
+                  "applied_migration_count",
+                  "health_status",
+                  "configuration_digest",
+                  "schema_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior#cleanup"
+                  "migration_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior"
+                  "applied_migration_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate",
-                      "identity.reference.migration-apply",
-                      "identity.health"
+                  "health_status": {
+                    "type": "string",
+                    "enum": [
+                      "live",
+                      "failed"
                     ]
                   },
-                  "input_fields": {
-                    "const": [
-                      "reference_config",
-                      "migration_plan",
-                      "service_deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "empty PostgreSQL and Valkey instances are reachable"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "configuration validates, migrations apply once, and health reports the initialized stack ready"
-                  },
-                  "observed_state_digest": {
+                  "configuration_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "schema_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "migration_count",
-                      "applied_migration_count",
-                      "health_status",
-                      "configuration_digest",
-                      "schema_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.config-validate.behavior#success",
+              "observation_id": "clean-reference-stack-report.identity.reference.config-validate.behavior",
+              "claim_id": "identity.reference.config-validate",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.config-validate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:59e11759d0d070895fb7dabc0cd0dc0dc0fcb40f6fe35822792af763b44a155f",
+              "expected_operation_set": [
+                "identity.reference.config-validate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.config-validate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.config-validate.behavior#failure",
+              "observation_id": "clean-reference-stack-report.identity.reference.config-validate.behavior",
+              "claim_id": "identity.reference.config-validate",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.config-validate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:ede9e4a84b1d251607da1e61ddab8ec99eefd1d3d82db2966a3c95d5046b83b8",
+              "expected_operation_set": [
+                "identity.reference.config-validate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.config-validate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.config-validate.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.identity.reference.config-validate.behavior",
+              "claim_id": "identity.reference.config-validate",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.config-validate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d56b635cecdac4a2f759a302d51b84e095fcb07287d156c6a1df30b3748c80de",
+              "expected_operation_set": [
+                "identity.reference.config-validate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.config-validate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.diagnostics.behavior#success",
+              "observation_id": "clean-reference-stack-report.identity.reference.diagnostics.behavior",
+              "claim_id": "identity.reference.diagnostics",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.diagnostics"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:76d8596e0ae22ca11675050d1473c7859b6ef49ea4eef592cf859c81aa5fcc75",
+              "expected_operation_set": [
+                "identity.reference.diagnostics"
+              ],
+              "observed_operation_set": [
+                "identity.reference.diagnostics"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.diagnostics.behavior#failure",
+              "observation_id": "clean-reference-stack-report.identity.reference.diagnostics.behavior",
+              "claim_id": "identity.reference.diagnostics",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.diagnostics"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:dda939d46c14cd0ccfaea80660a3dc72ef1cb5b04ffb7d22d57f5aa7b7318db6",
+              "expected_operation_set": [
+                "identity.reference.diagnostics"
+              ],
+              "observed_operation_set": [
+                "identity.reference.diagnostics"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.diagnostics.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.identity.reference.diagnostics.behavior",
+              "claim_id": "identity.reference.diagnostics",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.diagnostics"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a8786617311a63bdc711930d4fe56c91e389fa2c5a3cfd231d5a7f1aec81fd70",
+              "expected_operation_set": [
+                "identity.reference.diagnostics"
+              ],
+              "observed_operation_set": [
+                "identity.reference.diagnostics"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-apply.behavior#success",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-apply.behavior",
+              "claim_id": "identity.reference.migration-apply",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.migration-apply"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:fbe9ed237b79bde6078f7cdef74ec1ac7f0c0b1dce64baf6edacde6af23a0a57",
+              "expected_operation_set": [
+                "identity.reference.migration-apply"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-apply"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-apply.behavior#failure",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-apply.behavior",
+              "claim_id": "identity.reference.migration-apply",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.migration-apply"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:8c6461ce4d797e6b7485e7cbaf549fdb57580f061ea8dabe87ab2eef06c33d5f",
+              "expected_operation_set": [
+                "identity.reference.migration-apply"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-apply"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-apply.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-apply.behavior",
+              "claim_id": "identity.reference.migration-apply",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.migration-apply"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4cf033d91f08890d3073fbcd84e03e47b98b40fe3e2e9923f082c536263c998e",
+              "expected_operation_set": [
+                "identity.reference.migration-apply"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-apply"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-plan.behavior#success",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-plan.behavior",
+              "claim_id": "identity.reference.migration-plan",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.migration-plan"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:37bc4150acf29165486049971342dc19fd9fb66fbcdf45a6ed71b82a3f579d8b",
+              "expected_operation_set": [
+                "identity.reference.migration-plan"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-plan"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-plan.behavior#failure",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-plan.behavior",
+              "claim_id": "identity.reference.migration-plan",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.migration-plan"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:cbd59862ed0423bab4fabb54f5a7f4424639465228a536a645a616a7ea3f0f1e",
+              "expected_operation_set": [
+                "identity.reference.migration-plan"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-plan"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-plan.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-plan.behavior",
+              "claim_id": "identity.reference.migration-plan",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.migration-plan"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:84bd0e63dc526b373005c61976d9a10313fdab65706ce748aa5e7038949d12ca",
+              "expected_operation_set": [
+                "identity.reference.migration-plan"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-plan"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-status.behavior#success",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-status.behavior",
+              "claim_id": "identity.reference.migration-status",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.migration-status"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:8128d9c8ea33964a23d8af84a0617e8a4e4060421cf62d5032f3e1867e53aa44",
+              "expected_operation_set": [
+                "identity.reference.migration-status"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-status"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-status.behavior#failure",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-status.behavior",
+              "claim_id": "identity.reference.migration-status",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.migration-status"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:bc4910b2e29fb001333ef284fb66db711523c117d6105cbffad2625f3d5fe0c7",
+              "expected_operation_set": [
+                "identity.reference.migration-status"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-status"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-status.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-status.behavior",
+              "claim_id": "identity.reference.migration-status",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.migration-status"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:5db7d8b2d65e74bb8ad598a2ec8f9b76b217a10799df3ce90fdd00d751b46ac2",
+              "expected_operation_set": [
+                "identity.reference.migration-status"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-status"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.schema-generate.behavior#success",
+              "observation_id": "clean-reference-stack-report.identity.reference.schema-generate.behavior",
+              "claim_id": "identity.reference.schema-generate",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.schema-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6930b66d167e13865b0d5d5826f0ca5643270615577fff36ccc5014a2b6a9347",
+              "expected_operation_set": [
+                "identity.reference.schema-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.schema-generate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.schema-generate.behavior#failure",
+              "observation_id": "clean-reference-stack-report.identity.reference.schema-generate.behavior",
+              "claim_id": "identity.reference.schema-generate",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.schema-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:da59c52478e284f41e71a475062da55e8a671de83d92180f86fbd51461b3a9db",
+              "expected_operation_set": [
+                "identity.reference.schema-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.schema-generate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.schema-generate.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.identity.reference.schema-generate.behavior",
+              "claim_id": "identity.reference.schema-generate",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.schema-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a7fbe0661da41d40ecd958b18ebb10948e07c8329bcd9f3573aea2527c4e1928",
+              "expected_operation_set": [
+                "identity.reference.schema-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.schema-generate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.secret-generate.behavior#success",
+              "observation_id": "clean-reference-stack-report.identity.reference.secret-generate.behavior",
+              "claim_id": "identity.reference.secret-generate",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.secret-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4b3b93eee4835ceb0bfcf03cf905c073a26b371febbbd191ad4220dbbb9fadcc",
+              "expected_operation_set": [
+                "identity.reference.secret-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.secret-generate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.secret-generate.behavior#failure",
+              "observation_id": "clean-reference-stack-report.identity.reference.secret-generate.behavior",
+              "claim_id": "identity.reference.secret-generate",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.secret-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:be59e7d003d08d90378a70119f4825655e072979924ec4f16e7134517d3529de",
+              "expected_operation_set": [
+                "identity.reference.secret-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.secret-generate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.secret-generate.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.identity.reference.secret-generate.behavior",
+              "claim_id": "identity.reference.secret-generate",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.secret-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6bcd43391e113c3feaa3732699dab8e7f3a9f3f7ade9793e795b3ad00f7ca543",
+              "expected_operation_set": [
+                "identity.reference.secret-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.secret-generate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.journey.developer-use.v1.behavior#success",
+              "observation_id": "clean-reference-stack-report.journey.developer-use.v1.behavior",
+              "claim_id": "journey.developer-use.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4d3196527187e76d1925d169a2a5292b9928232ff016db8628f44a940eda7b78",
+              "expected_operation_set": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.journey.developer-use.v1.behavior#failure",
+              "observation_id": "clean-reference-stack-report.journey.developer-use.v1.behavior",
+              "claim_id": "journey.developer-use.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:017966766a616e6ad26b27be2bbc3b1099e947e1a519234de4f3cb9e4e912d44",
+              "expected_operation_set": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.journey.developer-use.v1.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.journey.developer-use.v1.behavior",
+              "claim_id": "journey.developer-use.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b8c70ab4142bc9ac52aaf959c18f8d2d42478baff1f62c57d6d599400d52e8c1",
+              "expected_operation_set": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ],
+              "observed_operation_set": [
+                "identity.reference.config-validate",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-apply",
+                "identity.reference.migration-plan",
+                "identity.reference.migration-status",
+                "identity.reference.schema-generate",
+                "identity.reference.secret-generate"
+              ]
+            }
+          ]
         },
         "migration_count": {
           "type": "integer",
@@ -669,257 +1779,6 @@
           "kind": "equal",
           "left": "applied_migration_count",
           "right": "migration_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate",
-                      "identity.reference.migration-apply",
-                      "identity.health"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "reference_config",
-                      "migration_plan",
-                      "service_deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "empty PostgreSQL and Valkey instances are reachable"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "configuration validates, migrations apply once, and health reports the initialized stack ready"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "migration_count",
-                      "applied_migration_count",
-                      "health_status",
-                      "configuration_digest",
-                      "schema_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate",
-                      "identity.reference.migration-apply",
-                      "identity.health"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "reference_config",
-                      "migration_plan",
-                      "service_deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "empty PostgreSQL and Valkey instances are reachable"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "configuration validates, migrations apply once, and health reports the initialized stack ready"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "migration_count",
-                      "applied_migration_count",
-                      "health_status",
-                      "configuration_digest",
-                      "schema_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "clean-reference-stack-report.journey.developer-use.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.developer-use.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate",
-                      "identity.reference.migration-apply",
-                      "identity.health"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "reference_config",
-                      "migration_plan",
-                      "service_deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "empty PostgreSQL and Valkey instances are reachable"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "configuration validates, migrations apply once, and health reports the initialized stack ready"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "migration_count",
-                      "applied_migration_count",
-                      "health_status",
-                      "configuration_digest",
-                      "schema_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

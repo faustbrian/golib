@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -268,6 +270,12 @@
       "properties": {
         "artifact_id": {
           "const": "authorization-cross-tenant-report"
+        },
+        "invariant_id": {
+          "const": "authorization-cross-tenant-report.invariant"
+        },
+        "invariant": {
+          "const": "target-tenant reads return forbidden and emit no target payload"
         },
         "operation_ids": {
           "const": [
@@ -396,232 +404,294 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.get",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "actor_tenant_id",
-                      "target_tenant_id",
-                      "target_resource_id"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "actor has authority only in actor_tenant_id"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "target-tenant reads return forbidden and emit no target payload"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "target_resource_id",
-                      "stable_error",
-                      "target_payload_absent",
-                      "authorization_event_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#success",
+                  "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#failure",
+                  "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.extension-access-policy.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "authorization-cross-tenant-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.get",
+                    "identity.session.get"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.get",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "actor_tenant_id",
-                      "target_tenant_id",
-                      "target_resource_id"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "actor has authority only in actor_tenant_id"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "target-tenant reads return forbidden and emit no target payload"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "target_resource_id",
-                      "stable_error",
-                      "target_payload_absent",
-                      "authorization_event_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "actor has authority only in actor_tenant_id"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "target-tenant reads return forbidden and emit no target payload"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 4
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.get",
+                    "identity.session.get"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.organization.get",
+                    "identity.session.get"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
+                  "target_resource_id",
                   "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "target_payload_absent",
+                  "authorization_event_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.get",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "actor_tenant_id",
-                      "target_tenant_id",
-                      "target_resource_id"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "actor has authority only in actor_tenant_id"
+                  "target_resource_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
                   "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "target-tenant reads return forbidden and emit no target payload"
-                  },
-                  "observed_state_digest": {
                     "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "target_resource_id",
-                      "stable_error",
-                      "target_payload_absent",
-                      "authorization_event_digest"
+                    "enum": [
+                      "none",
+                      "invalid_input",
+                      "unauthenticated",
+                      "forbidden",
+                      "freshness_required",
+                      "not_found",
+                      "conflict",
+                      "rate_limited",
+                      "unavailable",
+                      "cancelled",
+                      "deadline_exceeded",
+                      "unknown_commit",
+                      "internal"
                     ]
+                  },
+                  "target_payload_absent": {
+                    "type": "boolean"
+                  },
+                  "authorization_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#success",
+              "observation_id": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.organization.get",
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "actor_tenant_id",
+                "target_tenant_id",
+                "target_resource_id"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:2ff6f6da66dd6b622c6a74e4d11ddb4b55edb84d2a185aed1d59bcfaba097fda",
+              "expected_operation_set": [
+                "identity.organization.get",
+                "identity.session.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.get",
+                "identity.session.get"
+              ]
+            },
+            {
+              "case_id": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#failure",
+              "observation_id": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.organization.get",
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "actor_tenant_id",
+                "target_tenant_id",
+                "target_resource_id"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:eb323ade3ab760f3e42dd19aa6eda57d28f78e432d5f4ff80905672262923988",
+              "expected_operation_set": [
+                "identity.organization.get",
+                "identity.session.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.get",
+                "identity.session.get"
+              ]
+            },
+            {
+              "case_id": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#denial",
+              "observation_id": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.organization.get",
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "actor_tenant_id",
+                "target_tenant_id",
+                "target_resource_id"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:1a06cdf785decd95b023b0fc7ae05b0513d9c3a12e42c1bd4764954fbaa1bf92",
+              "expected_operation_set": [
+                "identity.organization.get",
+                "identity.session.get"
+              ],
+              "observed_operation_set": [
+                "identity.organization.get",
+                "identity.session.get"
+              ]
+            }
+          ]
         },
         "target_resource_id": {
           "type": "string",
@@ -659,251 +729,6 @@
           "fields": [
             "target_payload_absent"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.get",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "actor_tenant_id",
-                      "target_tenant_id",
-                      "target_resource_id"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "actor has authority only in actor_tenant_id"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "target-tenant reads return forbidden and emit no target payload"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "target_resource_id",
-                      "stable_error",
-                      "target_payload_absent",
-                      "authorization_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.get",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "actor_tenant_id",
-                      "target_tenant_id",
-                      "target_resource_id"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "actor has authority only in actor_tenant_id"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "target-tenant reads return forbidden and emit no target payload"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "target_resource_id",
-                      "stable_error",
-                      "target_payload_absent",
-                      "authorization_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.organization.get",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "actor_tenant_id",
-                      "target_tenant_id",
-                      "target_resource_id"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "actor has authority only in actor_tenant_id"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "target-tenant reads return forbidden and emit no target payload"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "target_resource_id",
-                      "stable_error",
-                      "target_payload_absent",
-                      "authorization_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

@@ -226,9 +226,9 @@ MUST equal the ID-token subject for the same grant.
 The generic reference authorization response mode is `query`; fragment and
 JWT-secured response modes are not selected. The sole `form_post` selection is
 the built-in Apple social-provider profile: it MUST carry exactly one of the
-bound success tuple `code`, `id_token`, `state` or the bound error tuple
-`error`, optional bounded `error_description`, `state` under the pinned OAuth
-2.0 Form Post Response Mode at the exact registered HTTPS callback. It MUST
+bound success tuple `code`, `id_token`, `state`, `iss` or the bound error tuple
+`error`, optional bounded `error_description`, `state`, `iss` under the pinned
+OAuth 2.0 Form Post Response Mode at the exact registered HTTPS callback. It MUST
 reject missing or duplicated members, a success missing either `code` or
 `id_token`, query, fragment, JWT-secured, or caller-selected response-mode
 substitution.
@@ -240,6 +240,13 @@ relying-party profiles. Its
 and the provider MUST validate the `id_token_hint` issuer, audience, signature,
 and session binding before accepting it as logout context. Front-channel and
 back-channel logout are not selected and MUST be omitted from metadata.
+Authorization request parsing preserves parameter presence: absent `prompt`
+is distinct from a present non-empty closed prompt set, and absent `max_age`
+is distinct from explicit `max_age=0`, which requires immediate
+reauthentication. Token endpoint parsing is grant-discriminated before
+credential use; variant fields that do not belong to the selected grant are
+rejected, while omitted optional `scope` or `resource` parameters preserve the
+existing grant/client authority and never broaden scope or audience.
 
 The reference issuer is origin-only and has no path other than `/`.
 Path-bearing issuers are rejected at configuration validation, so RFC 8414 and
@@ -289,11 +296,15 @@ HTTP-POST AuthnRequest and HTTP-Redirect Response are unsupported. Artifact,
 SOAP, and ECP are
 unsupported. SP-initiated logout and inbound Single Logout are selected: every
 logout message MUST be signed, bind the exact entity ID, destination,
-request/response ID, session index, and subject mapping, use the normal
+request/response ID and use the normal
 clock-skew/replay authority, and revoke the local session even when the remote
 outcome is unavailable or unknown. A logout response MUST correlate to one
-outstanding request and MUST NOT establish that the IdP revoked any session
-beyond its signed status.
+outstanding request through signed `InResponseTo`; it MUST recover provider,
+NameID, optional SessionIndex and local-session context only from that stored
+request and MUST NOT accept response-supplied subject/session fields as
+authority or establish that the IdP revoked any session beyond its signed
+status. Only a signed LogoutRequest supplies NameID and optional SessionIndex
+as logout targets.
 An inbound LogoutRequest arrives only by HTTP-POST at the exact configured SP
 SLO URL; its signed response is returned only with HTTP-POST to the verified
 IdP response endpoint. An outbound LogoutRequest uses HTTP-Redirect, and its
@@ -308,6 +319,10 @@ the exact transmitted percent-encoded query sequence
 after signing that sequence. Missing, duplicated, unsupported, or mismatched
 `SigAlg` is rejected, and the verifier MUST NOT substitute the configured
 default for an inbound value.
+Whenever RelayState is present in any selected SAML binding, its transmitted
+value MUST be at most 80 bytes and contain only an opaque handle to bounded
+internal correlation state. Raw application state MUST NOT be placed on the
+wire. Protocol-valid RelayState absence remains representable and valid.
 
 An inbound login MUST contain trusted signature coverage over the exact
 Response or Assertion node from which identity is consumed. The reference
@@ -390,7 +405,10 @@ Users, Groups, ListResponse, Error, PATCH, filter, sort, pagination, ETags, and
 Bulk MUST match those RFCs for every advertised capability.
 HTTP 428 behavior is pinned to RFC 6585. Every SCIM error response MUST use
 `application/scim+json`, include the string form of the actual HTTP status in
-`status`. `scimType` is OPTIONAL and, when present, MUST be one registered for
+`status`, and include exactly
+`schemas=["urn:ietf:params:scim:api:messages:2.0:Error"]`. A numeric JSON
+`status`, a mismatched status, an omitted Error schema, or an additional Error
+schema is forbidden. `scimType` is OPTIONAL and, when present, MUST be one registered for
 that error condition; errors such as not-found that have no registered type
 MUST omit it. `detail` MUST be bounded and enumeration-safe. HTML, provider
 text, and internal errors are forbidden.
@@ -446,12 +464,24 @@ filter attribute path, PATCH path, `sortBy`, `attributes`, and
 Bulk admission MUST durably persist the parent, every ordered child, and the
 complete dependency/SCC plan before executing a child. A positive
 `failOnErrors` cutoff is reached only by that many durable failed child results;
-zero or omission means no cutoff. Once reached, every remaining not-started
-persisted child transitions to the durable state `skipped` and emits
+zero or omission means no cutoff. Once reached, every remaining admitted
+persisted child that has not entered `running` transitions to the durable state `skipped` and emits
 `identity.scim.bulk_skip_child`. `skipped` means unprocessed: it is omitted from
 BulkResponse `Operations` and has no wire status, location, version, Error body,
 or private `scimType`. Replay returns processed child results in request order
 from durable checkpoints and does not reinterpret a skipped child as failed.
+The same connection scope and exact canonical Bulk request fingerprint MUST
+recover that durable parent and replay its semantic result; a changed
+fingerprint, including changed operations, ordering, `failOnErrors`, target, or
+precondition, MUST conflict before mutation and MUST NOT expose or reuse the
+prior result. A singleton acyclic SCC MUST execute its one child in one
+independent child transaction. A cyclic SCC MUST stage every member, defer only
+within-SCC reference checks, and commit every member in one bounded transaction
+or roll the entire SCC back; neither case makes the whole Bulk request atomic.
+The only valid persisted child states are admitted, running, succeeded, failed,
+dependency-blocked, and skipped. Only succeeded and failed states carry a wire
+result; dependency-blocked remains pending reconciliation, and skipped remains
+unprocessed with no wire result.
 Each BulkResponse operation MUST include the request operation's method and MUST
 include `bulkId` exactly when the request operation supplied it; a POST child
 MUST supply a unique request-local `bulkId`. `failOnErrors` is zero/omitted or
@@ -467,7 +497,15 @@ Absent `sortBy` uses server-generated `id` ascending; absent `sortOrder` means
 ascending. Sort uses the selected SCIM comparison semantics and a stable server
 ID tie-break. `totalResults` and Resources come from the same transaction
 snapshot. Each request observes one transaction snapshot;
-there is no cross-request snapshot promise. ServiceProviderConfig MUST bind
+there is no cross-request snapshot promise. ServiceProviderConfig MUST include
+exactly one
+`urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig` schema and expose
+the RFC 7643 Section 5 `documentationUri`, `patch.supported`,
+`bulk.{supported,maxOperations,maxPayloadSize}`, `filter.{supported,maxResults}`,
+`changePassword.supported`, `sort.supported`, `etag.supported`, and bounded
+`authenticationSchemes` wire fields. Every value MUST be derived from the same
+effective runtime configuration and capability catalog used to admit requests.
+It MUST bind
 `filter.maxResults` to effective `scim.page_max`, `bulk.maxOperations` to
 effective `scim.bulk.operations`, and `bulk.maxPayloadSize` to the effective
 decoded `scim.bulk.bytes` limit. It MUST advertise `filter.supported` and
@@ -475,6 +513,13 @@ decoded `scim.bulk.bytes` limit. It MUST advertise `filter.supported` and
 substitute raw-route, per-operation, or response byte limits for
 `bulk.maxPayloadSize`. Every advertised schema-valid filter/sort uses an
 indexed plan or a bounded fallback; only invalid grammar/path is unsupported.
+Every Schema resource MUST include exactly
+`schemas=["urn:ietf:params:scim:schemas:core:2.0:Schema"]`; every ResourceType
+resource MUST include exactly
+`schemas=["urn:ietf:params:scim:schemas:core:2.0:ResourceType"]`; and every
+ResourceType `schemaExtensions` entry MUST be an object containing the exact
+extension `schema` URI and explicit Boolean `required` value. Bare extension
+URI arrays are forbidden.
 
 RFC 7644 Section 3.4.3 POST search is selected at `/scim/v2/.search`,
 `/scim/v2/Users/.search`, and `/scim/v2/Groups/.search`. Each accepts the exact

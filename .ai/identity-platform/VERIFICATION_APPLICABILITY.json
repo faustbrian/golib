@@ -100,6 +100,39 @@
       }
     },
     {
+      "unit": "primitive/capability-postgres-identity-contracts",
+      "selectors": {
+        "race": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-postgres-identity-contracts is a prerequisite contract extension; executable verification belongs to the canonical package gate"
+        },
+        "fuzz": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-postgres-identity-contracts is a prerequisite contract extension; executable verification belongs to the canonical package gate"
+        },
+        "hostile": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-postgres-identity-contracts is a prerequisite contract extension; executable verification belongs to the canonical package gate"
+        },
+        "leak": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-postgres-identity-contracts is a prerequisite contract extension; executable verification belongs to the canonical package gate"
+        },
+        "benchmark": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-postgres-identity-contracts is a prerequisite contract extension; executable verification belongs to the canonical package gate"
+        },
+        "infrastructure": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-postgres-identity-contracts is a prerequisite contract extension; executable verification belongs to the canonical package gate"
+        },
+        "provider_interoperability": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-postgres-identity-contracts is a prerequisite contract extension; executable verification belongs to the canonical package gate"
+        }
+      }
+    },
+    {
       "unit": "primitive/identifier-identity-contracts",
       "selectors": {
         "race": {

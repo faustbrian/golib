@@ -524,6 +524,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -545,6 +547,12 @@
       "properties": {
         "artifact_id": {
           "const": "operational-api-redaction-report"
+        },
+        "invariant_id": {
+          "const": "operational-api-redaction-report.invariant"
+        },
+        "invariant": {
+          "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
         },
         "operation_ids": {
           "const": [
@@ -677,1661 +685,874 @@
           "type": "array",
           "minItems": 19,
           "maxItems": 19,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "operational-api-redaction-report.identity.audit.export.behavior#success",
+                  "operational-api-redaction-report.identity.audit.export.behavior#denial",
+                  "operational-api-redaction-report.identity.audit.export.behavior#failure",
+                  "operational-api-redaction-report.identity.audit.export.behavior#outage",
+                  "operational-api-redaction-report.identity.audit.export.behavior#cleanup",
+                  "operational-api-redaction-report.identity.audit.get.behavior#success",
+                  "operational-api-redaction-report.identity.audit.get.behavior#denial",
+                  "operational-api-redaction-report.identity.audit.get.behavior#failure",
+                  "operational-api-redaction-report.identity.audit.list.behavior#success",
+                  "operational-api-redaction-report.identity.audit.list.behavior#denial",
+                  "operational-api-redaction-report.identity.audit.list.behavior#failure",
+                  "operational-api-redaction-report.identity.audit.search.behavior#success",
+                  "operational-api-redaction-report.identity.audit.search.behavior#denial",
+                  "operational-api-redaction-report.identity.audit.search.behavior#failure",
+                  "operational-api-redaction-report.journey.audit-investigation.v1.behavior#success",
+                  "operational-api-redaction-report.journey.audit-investigation.v1.behavior#failure",
+                  "operational-api-redaction-report.journey.audit-investigation.v1.behavior#denial",
+                  "operational-api-redaction-report.journey.audit-investigation.v1.behavior#outage",
+                  "operational-api-redaction-report.journey.audit-investigation.v1.behavior#cleanup"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "operational-api-redaction-report.identity.audit.export.behavior",
+                  "operational-api-redaction-report.identity.audit.get.behavior",
+                  "operational-api-redaction-report.identity.audit.list.behavior",
+                  "operational-api-redaction-report.identity.audit.search.behavior",
+                  "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.audit.export",
+                  "identity.audit.get",
+                  "identity.audit.list",
+                  "identity.audit.search",
+                  "journey.audit-investigation.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "operational-api-redaction-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "denial",
+                  "failure",
+                  "outage",
+                  "cleanup"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics",
+                    "identity.reference.migration-status",
+                    "identity.audit.get",
+                    "identity.audit.search",
+                    "identity.audit.list",
+                    "identity.audit.export"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
+              "initial_state": {
+                "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "denied",
+                  "failed",
+                  "unavailable"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "forbidden",
+                  "internal",
+                  "unavailable"
+                ]
+              },
+              "expected_invariant": {
+                "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 13
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics",
+                    "identity.reference.migration-status",
+                    "identity.audit.get",
+                    "identity.audit.search",
+                    "identity.audit.list",
+                    "identity.audit.export"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics",
+                    "identity.reference.migration-status",
+                    "identity.audit.get",
+                    "identity.audit.search",
+                    "identity.audit.list",
+                    "identity.audit.export"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "investigation_id",
+                  "get_record_count",
+                  "search_record_count",
+                  "list_record_count",
+                  "exported_record_count",
+                  "redacted_field_count",
+                  "access_event_count",
+                  "export_event_count",
+                  "cursor_digest",
+                  "content_digest",
+                  "cross_tenant_rejected",
+                  "forbidden_indistinguishable",
+                  "secret_match_count"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#cleanup"
+                  "investigation_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
+                  "get_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "identity.audit.export"
+                  "search_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "cleanup"
+                  "list_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
+                  "exported_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
+                  "redacted_field_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
+                  "access_event_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
+                  "export_event_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
+                  "cursor_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "content_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.get"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.get"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.get"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.list"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.list"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.list"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.list"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.list"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.list"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.search"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.search"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.search"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.search"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.search"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.search"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
+                  "cross_tenant_rejected": {
+                    "type": "boolean"
+                  },
+                  "forbidden_indistinguishable": {
+                    "type": "boolean"
+                  },
+                  "secret_match_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.export.behavior#success",
+              "observation_id": "operational-api-redaction-report.identity.audit.export.behavior",
+              "claim_id": "identity.audit.export",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "indexed_predicates",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:90b17c04bb1df11200da55fd41938b8d32f3850dd3a4dc5d2fb5006fc8b6c7dc",
+              "expected_operation_set": [
+                "identity.audit.export"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.export.behavior#denial",
+              "observation_id": "operational-api-redaction-report.identity.audit.export.behavior",
+              "claim_id": "identity.audit.export",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "indexed_predicates",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:edfc12e8209bf26e948d272df9a72c4e1e230f8f2a5d4862af806a92eacd935c",
+              "expected_operation_set": [
+                "identity.audit.export"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.export.behavior#failure",
+              "observation_id": "operational-api-redaction-report.identity.audit.export.behavior",
+              "claim_id": "identity.audit.export",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "indexed_predicates",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:63dab99957db93dc7adff2beced91c0d60929741aa68c7531754f25043ec7107",
+              "expected_operation_set": [
+                "identity.audit.export"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.export.behavior#outage",
+              "observation_id": "operational-api-redaction-report.identity.audit.export.behavior",
+              "claim_id": "identity.audit.export",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "indexed_predicates",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:d29340ce2526612d91f0d8f50987e4eaf1caa8df53dea8f4fef4af4078d0a44c",
+              "expected_operation_set": [
+                "identity.audit.export"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.export.behavior#cleanup",
+              "observation_id": "operational-api-redaction-report.identity.audit.export.behavior",
+              "claim_id": "identity.audit.export",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "indexed_predicates",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:5e936b6b071cfbe095b79bd216795a93c9ac9c0ca9f24b2d7558e69c793e7a8f",
+              "expected_operation_set": [
+                "identity.audit.export"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.get.behavior#success",
+              "observation_id": "operational-api-redaction-report.identity.audit.get.behavior",
+              "claim_id": "identity.audit.get",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "record_id",
+                "field_grants"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:382a204a996e5777b0600bce5a636459af0f31c43a14ef722b67a9ba2d21fc19",
+              "expected_operation_set": [
+                "identity.audit.get"
+              ],
+              "observed_operation_set": [
+                "identity.audit.get"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.get.behavior#denial",
+              "observation_id": "operational-api-redaction-report.identity.audit.get.behavior",
+              "claim_id": "identity.audit.get",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "record_id",
+                "field_grants"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:669013a4d8719fe5298968fd17707891c1380885ba9128b379e4b30918b760cf",
+              "expected_operation_set": [
+                "identity.audit.get"
+              ],
+              "observed_operation_set": [
+                "identity.audit.get"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.get.behavior#failure",
+              "observation_id": "operational-api-redaction-report.identity.audit.get.behavior",
+              "claim_id": "identity.audit.get",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "record_id",
+                "field_grants"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:be95a29521533acd03238e50cb9968645e7dc72690d6cc587b3b6a0b39fd863d",
+              "expected_operation_set": [
+                "identity.audit.get"
+              ],
+              "observed_operation_set": [
+                "identity.audit.get"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.list.behavior#success",
+              "observation_id": "operational-api-redaction-report.identity.audit.list.behavior",
+              "claim_id": "identity.audit.list",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "cursor",
+                "limit",
+                "time_bounds",
+                "field_grants"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:03d378ce231efc5024da62f274c606d4fb177e9a5b3b315dcba41f8e8e009c40",
+              "expected_operation_set": [
+                "identity.audit.list"
+              ],
+              "observed_operation_set": [
+                "identity.audit.list"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.list.behavior#denial",
+              "observation_id": "operational-api-redaction-report.identity.audit.list.behavior",
+              "claim_id": "identity.audit.list",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "cursor",
+                "limit",
+                "time_bounds",
+                "field_grants"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:65286041683574cac0530a1cc7fc25be03c2ce26cb7a9f1e27ca5ab910f6ddaa",
+              "expected_operation_set": [
+                "identity.audit.list"
+              ],
+              "observed_operation_set": [
+                "identity.audit.list"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.list.behavior#failure",
+              "observation_id": "operational-api-redaction-report.identity.audit.list.behavior",
+              "claim_id": "identity.audit.list",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit.list"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "cursor",
+                "limit",
+                "time_bounds",
+                "field_grants"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6f4781c1f47816032057a9f520085c269b5d069d3825b68682cb4be27646252f",
+              "expected_operation_set": [
+                "identity.audit.list"
+              ],
+              "observed_operation_set": [
+                "identity.audit.list"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.search.behavior#success",
+              "observation_id": "operational-api-redaction-report.identity.audit.search.behavior",
+              "claim_id": "identity.audit.search",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.audit.search"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "indexed_predicates",
+                "time_bounds",
+                "field_grants"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:dda9fd2abfb1ad8bb1020129d143ae39aa1294f515686a74590940b148c7c456",
+              "expected_operation_set": [
+                "identity.audit.search"
+              ],
+              "observed_operation_set": [
+                "identity.audit.search"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.search.behavior#denial",
+              "observation_id": "operational-api-redaction-report.identity.audit.search.behavior",
+              "claim_id": "identity.audit.search",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.audit.search"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "indexed_predicates",
+                "time_bounds",
+                "field_grants"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:421a74f728b33cf520fa27f119914d287c38df0db588d42390d68296ec4500aa",
+              "expected_operation_set": [
+                "identity.audit.search"
+              ],
+              "observed_operation_set": [
+                "identity.audit.search"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.identity.audit.search.behavior#failure",
+              "observation_id": "operational-api-redaction-report.identity.audit.search.behavior",
+              "claim_id": "identity.audit.search",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.audit.search"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "indexed_predicates",
+                "time_bounds",
+                "field_grants"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:671aa80a144f3763030d99899236719b88354c4c2211f4adfc40d85777aa5e0e",
+              "expected_operation_set": [
+                "identity.audit.search"
+              ],
+              "observed_operation_set": [
+                "identity.audit.search"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#success",
+              "observation_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior",
+              "claim_id": "journey.audit-investigation.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status",
+                "identity.audit.get",
+                "identity.audit.search",
+                "identity.audit.list",
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "record_id",
+                "indexed_predicates",
+                "cursor",
+                "limit",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit",
+                "secret_shaped_configuration"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:583cd7109e638d701b9501135d234a60549e4b67c5ef2a3b618c5eb7e5781d53",
+              "expected_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#failure",
+              "observation_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior",
+              "claim_id": "journey.audit-investigation.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status",
+                "identity.audit.get",
+                "identity.audit.search",
+                "identity.audit.list",
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "record_id",
+                "indexed_predicates",
+                "cursor",
+                "limit",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit",
+                "secret_shaped_configuration"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:dad38eaaf2e979b484bcfb672bb0973e94c060dbb6899f1160946929183b1017",
+              "expected_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#denial",
+              "observation_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior",
+              "claim_id": "journey.audit-investigation.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status",
+                "identity.audit.get",
+                "identity.audit.search",
+                "identity.audit.list",
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "record_id",
+                "indexed_predicates",
+                "cursor",
+                "limit",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit",
+                "secret_shaped_configuration"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:5727c07d2f700d7772d8edba35642a6e459327f174eb15660226be204f6d92c9",
+              "expected_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#outage",
+              "observation_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior",
+              "claim_id": "journey.audit-investigation.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status",
+                "identity.audit.get",
+                "identity.audit.search",
+                "identity.audit.list",
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "record_id",
+                "indexed_predicates",
+                "cursor",
+                "limit",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit",
+                "secret_shaped_configuration"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:46d344c5f2d7a3398aa27055d67b99602c660fcae8761fd8c7ad082778aec1a4",
+              "expected_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ]
+            },
+            {
+              "case_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#cleanup",
+              "observation_id": "operational-api-redaction-report.journey.audit-investigation.v1.behavior",
+              "claim_id": "journey.audit-investigation.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status",
+                "identity.audit.get",
+                "identity.audit.search",
+                "identity.audit.list",
+                "identity.audit.export"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "investigation_id",
+                "record_id",
+                "indexed_predicates",
+                "cursor",
+                "limit",
+                "time_bounds",
+                "field_grants",
+                "export_byte_limit",
+                "secret_shaped_configuration"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:8b6be0321ca59aafb14bdcbdaa1020789eb2d7a7ba8852c23d7478795465eb66",
+              "expected_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ],
+              "observed_operation_set": [
+                "identity.audit.export",
+                "identity.audit.get",
+                "identity.audit.list",
+                "identity.audit.search",
+                "identity.reference.diagnostics",
+                "identity.reference.migration-status"
+              ]
+            }
+          ]
         },
         "investigation_id": {
           "type": "string",
@@ -2417,1792 +1638,6 @@
             "cross_tenant_rejected",
             "forbidden_indistinguishable"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.export.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.export"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.get"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.get"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.get.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.get"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.list"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.list"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.list"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.list"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.list.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.list"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.list"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.search"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.search"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.search"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.search"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.identity.audit.search.behavior"
-                  },
-                  "claim_id": {
-                    "const": "identity.audit.search"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.audit.search"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "indexed_predicates",
-                      "time_bounds",
-                      "field_grants"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.audit-investigation.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics",
-                      "identity.reference.migration-status",
-                      "identity.audit.get",
-                      "identity.audit.search",
-                      "identity.audit.list",
-                      "identity.audit.export"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "investigation_id",
-                      "record_id",
-                      "indexed_predicates",
-                      "cursor",
-                      "limit",
-                      "time_bounds",
-                      "field_grants",
-                      "export_byte_limit",
-                      "secret_shaped_configuration"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "investigation_id",
-                      "get_record_count",
-                      "search_record_count",
-                      "list_record_count",
-                      "exported_record_count",
-                      "redacted_field_count",
-                      "access_event_count",
-                      "export_event_count",
-                      "cursor_digest",
-                      "content_digest",
-                      "cross_tenant_rejected",
-                      "forbidden_indistinguishable",
-                      "secret_match_count"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

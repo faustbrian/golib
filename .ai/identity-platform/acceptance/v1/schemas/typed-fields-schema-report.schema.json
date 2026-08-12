@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "typed-fields-schema-report"
+        },
+        "invariant_id": {
+          "const": "typed-fields-schema-report.invariant"
+        },
+        "invariant": {
+          "const": "generated schema matches declarations and runtime create and read preserve types, defaults, permissions, redaction, and migration version"
         },
         "operation_ids": {
           "const": [
@@ -398,244 +406,308 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.user.create",
-                      "identity.user.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "field_declarations",
-                      "defaults",
-                      "validation_rules",
-                      "permissions",
-                      "sensitivity"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed user, account, and session field declarations are versioned"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "generated schema matches declarations and runtime create and read preserve types, defaults, permissions, redaction, and migration version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_count",
-                      "schema_version",
-                      "defaulted_field_count",
-                      "redacted_field_count",
-                      "schema_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#success",
+                  "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#failure",
+                  "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.identity-lifecycle.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "typed-fields-schema-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.schema-generate",
+                    "identity.user.create",
+                    "identity.user.get"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.user.create",
-                      "identity.user.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "field_declarations",
-                      "defaults",
-                      "validation_rules",
-                      "permissions",
-                      "sensitivity"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed user, account, and session field declarations are versioned"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "generated schema matches declarations and runtime create and read preserve types, defaults, permissions, redaction, and migration version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_count",
-                      "schema_version",
-                      "defaulted_field_count",
-                      "redacted_field_count",
-                      "schema_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "typed user, account, and session field declarations are versioned"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "generated schema matches declarations and runtime create and read preserve types, defaults, permissions, redaction, and migration version"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.schema-generate",
+                    "identity.user.create",
+                    "identity.user.get"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.schema-generate",
+                    "identity.user.create",
+                    "identity.user.get"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "field_count",
+                  "schema_version",
+                  "defaulted_field_count",
+                  "redacted_field_count",
+                  "schema_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#denial"
+                  "field_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior"
+                  "schema_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
                   },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
+                  "defaulted_field_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "denial"
+                  "redacted_field_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.user.create",
-                      "identity.user.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "field_declarations",
-                      "defaults",
-                      "validation_rules",
-                      "permissions",
-                      "sensitivity"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed user, account, and session field declarations are versioned"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "generated schema matches declarations and runtime create and read preserve types, defaults, permissions, redaction, and migration version"
-                  },
-                  "observed_state_digest": {
+                  "schema_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_count",
-                      "schema_version",
-                      "defaulted_field_count",
-                      "redacted_field_count",
-                      "schema_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#success",
+              "observation_id": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ],
+              "input_fields": [
+                "field_declarations",
+                "defaults",
+                "validation_rules",
+                "permissions",
+                "sensitivity"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9bfc1dad5edabfcc58f2f36e86ef603974403abbe14f5bdf051480d3dcced69e",
+              "expected_operation_set": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ],
+              "observed_operation_set": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ]
+            },
+            {
+              "case_id": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#failure",
+              "observation_id": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ],
+              "input_fields": [
+                "field_declarations",
+                "defaults",
+                "validation_rules",
+                "permissions",
+                "sensitivity"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:02d03df4ddb710e9a62287f781b0112c766eb5513469bf2d381673c2a0171c80",
+              "expected_operation_set": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ],
+              "observed_operation_set": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ]
+            },
+            {
+              "case_id": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#denial",
+              "observation_id": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ],
+              "input_fields": [
+                "field_declarations",
+                "defaults",
+                "validation_rules",
+                "permissions",
+                "sensitivity"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:a05c5d61f017e271bcb35ffa8f06fde55850217b5cc5cd55bb7059dfddfcffdc",
+              "expected_operation_set": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ],
+              "observed_operation_set": [
+                "identity.reference.schema-generate",
+                "identity.user.create",
+                "identity.user.get"
+              ]
+            }
+          ]
         },
         "field_count": {
           "type": "integer",
@@ -671,263 +743,6 @@
             "defaulted_field_count",
             "redacted_field_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.user.create",
-                      "identity.user.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "field_declarations",
-                      "defaults",
-                      "validation_rules",
-                      "permissions",
-                      "sensitivity"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed user, account, and session field declarations are versioned"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "generated schema matches declarations and runtime create and read preserve types, defaults, permissions, redaction, and migration version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_count",
-                      "schema_version",
-                      "defaulted_field_count",
-                      "redacted_field_count",
-                      "schema_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.user.create",
-                      "identity.user.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "field_declarations",
-                      "defaults",
-                      "validation_rules",
-                      "permissions",
-                      "sensitivity"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed user, account, and session field declarations are versioned"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "generated schema matches declarations and runtime create and read preserve types, defaults, permissions, redaction, and migration version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_count",
-                      "schema_version",
-                      "defaulted_field_count",
-                      "redacted_field_count",
-                      "schema_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.schema-generate",
-                      "identity.user.create",
-                      "identity.user.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "field_declarations",
-                      "defaults",
-                      "validation_rules",
-                      "permissions",
-                      "sensitivity"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed user, account, and session field declarations are versioned"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "generated schema matches declarations and runtime create and read preserve types, defaults, permissions, redaction, and migration version"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_count",
-                      "schema_version",
-                      "defaulted_field_count",
-                      "redacted_field_count",
-                      "schema_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

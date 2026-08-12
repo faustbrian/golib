@@ -132,7 +132,13 @@ semantic_id_for = lambda do |path, source_path|
   when "docs/content/docs/concepts"
     row_id.call("Core documentation and route surface", "concepts #{File.basename(path, ".mdx")}")
   when "docs/content/docs/authentication"
-    item = path.end_with?("/email-password.mdx") ? "authentication email-password" : "authentication provider pages"
+    item = if path.end_with?("/email-password.mdx")
+             "authentication email-password"
+           elsif path.end_with?("/apple.mdx")
+             "authentication Apple provider page"
+           else
+             "authentication provider pages"
+           end
     row_id.call("Core documentation and route surface", item)
   when "docs/content/docs/plugins"
     relative = path.delete_prefix("docs/content/docs/plugins/")

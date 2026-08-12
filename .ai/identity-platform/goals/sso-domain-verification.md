@@ -22,8 +22,8 @@ The worker MUST read and satisfy
 `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin until the
 coordinator has marked `sso/domain-verification` `in-progress`, recorded this
 worker, and verified both prerequisites. Build the concrete DNS TXT and HTTPS
-well-known proof engine that can move an organization domain claim to verified
-state before enterprise SSO routing uses it.
+well-known proof engine that produces bounded classified evidence for SSO
+orchestration. Only `organization` may move a domain claim to verified state.
 
 ## Ownership boundary
 
@@ -39,13 +39,23 @@ schemas or publish competing operation definitions.
 
 ## Required public contract
 
-The public API MUST define immutable `Profile`, `Challenge`, `ProofMethod`,
-`DNSResolver`, bounded HTTPS fetcher, `Evidence`, `Verifier`, `Clock` and typed
+The public API MUST define immutable `Profile`, `VerificationRequest`,
+`ProofMethod`, `DNSResolver`, bounded HTTPS fetcher, `ObservedDomainEvidence`,
+`Verifier`, `Clock` and typed
 result/failure contracts. It MUST define supported DNS record name/value and
 HTTPS path/media/body formats exactly, along with challenge entropy, expiry,
 retry, cache, quorum and clock behavior. Construction MUST reject an empty
 method set, unsafe timeout/size limits, insecure HTTPS policy and ambiguous
 domain configuration.
+`Verifier` MUST expose exactly
+`Verify(context.Context, VerificationRequest) (ObservedDomainEvidence, error)`.
+`VerificationRequest` MUST bind tenant, organization, canonical domain, claim
+ID/version, method, purpose, challenge digest, and expiry.
+`ObservedDomainEvidence` is non-authoritative observed evidence only and MUST
+bind that request identity, method, checked-at time, evidence expiry, and
+stable classification without containing a writable organization proof or
+route. Only `organization.DomainEvidenceTransition` may translate it into the
+authoritative `organization.DomainProof`.
 
 ## Required behavior and security
 

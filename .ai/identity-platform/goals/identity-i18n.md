@@ -32,13 +32,22 @@ behavior required by supplied catalogs, and locale-source precedence. It does
 not translate logs/audit records, infer sensitive demographics, own HTTP
 cookies/headers, or replace typed domain errors.
 
-Public contracts MUST define immutable `Catalog`, `MessageID`, locale matcher,
+Public contracts MUST define immutable `Catalog`, `MessageID`, `ErrorRegistry`,
+`LocalizableError`, `SafeParameter`, locale matcher,
 resolver inputs for explicit preference, authenticated session preference,
 cookie, `Accept-Language` and default, and a localized error wrapper that
 retains `errors.Is`/`errors.As`, machine code, original message identity and
 safe parameters. Missing locale/message/parameter and malformed input behavior
 MUST be deterministic. Catalog loading MUST reject duplicate IDs, invalid
 templates and incompatible placeholder sets across translations.
+`LocalizableError` MUST expose stable machine error identity and bounded typed
+safe parameters without a rendered message. `ErrorRegistry` MUST expose exactly
+`Register(ErrorIdentity, MessageID, ParameterSchema) error` during construction
+and `Resolve(error) (MessageID, []SafeParameter, bool)` after sealing. Each
+machine identity MUST have one owning-package registration; duplicate or
+conflicting registrations fail construction, unknown errors preserve their
+typed identity without guessing a message, and lookup MUST NOT inspect error
+strings or expose secret parameters.
 
 ## Required behavior and privacy
 
@@ -55,11 +64,22 @@ bounded result may be telemetry dimensions only through controlled cardinality.
 Concurrent reads MUST be immutable or synchronized; catalog updates MUST be
 atomic and deterministic.
 
-Locale ownership MUST remain split explicitly: this module canonicalizes and
-matches locale preferences and renders a typed message into a transport-neutral
-value; identity owns a user's persisted preference, session may cache it, and
-HTTP owns trusted cookie/header extraction and response metadata. Persistence,
-export and deletion MUST follow `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
+Locale ownership MUST remain split explicitly: this module owns preference
+mutation policy and defines the consumer-owned `PreferenceStore` and
+`PreferenceLifecycleContributor` interfaces; session may cache a resolved
+preference, and HTTP owns trusted cookie/header extraction and response
+metadata. `PreferenceStore` MUST expose exactly
+`GetPreference(context.Context, PreferenceKey) (Preference, error)` and
+`SetPreference(context.Context, PreferenceCommand) (Preference, error)`.
+`PreferenceLifecycleContributor` MUST expose exactly
+`ContributePreferenceLifecycle(context.Context, PreferenceLifecycleCommand) (PreferenceLifecycleResult, error)`
+for export, anonymization, and deletion. Commands MUST bind tenant, subject,
+expected version, canonical locale, consent/notice version, stable command ID,
+and lifecycle snapshot/generation where applicable. Concrete persistence and
+reference composition implement these interfaces downstream; no already-
+scheduled upstream package is retroactively assigned a new public contract.
+Persistence, export and deletion MUST follow
+`.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
 Escaping MUST occur exactly once in the owner of the final output context.
 Catalog interpolation MUST preserve typed parameters and reject templates that

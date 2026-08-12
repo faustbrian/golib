@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -276,6 +278,12 @@
       "properties": {
         "artifact_id": {
           "const": "privacy-export-lifecycle-report"
+        },
+        "invariant_id": {
+          "const": "privacy-export-lifecycle-report.invariant"
+        },
+        "invariant": {
+          "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
         },
         "operation_ids": {
           "const": [
@@ -406,626 +414,520 @@
           "type": "array",
           "minItems": 7,
           "maxItems": 7,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#success",
+                  "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#failure",
+                  "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#denial",
+                  "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#outage",
+                  "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#concurrency",
+                  "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#cleanup",
+                  "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.privacy-export.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "privacy-export-lifecycle-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "outage",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.request",
+                    "identity.privacy-export.status",
+                    "identity.privacy-export.cancel",
+                    "identity.privacy-export.download"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 12
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.request",
+                    "identity.privacy-export.status",
+                    "identity.privacy-export.cancel",
+                    "identity.privacy-export.download"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.request",
+                    "identity.privacy-export.status",
+                    "identity.privacy-export.cancel",
+                    "identity.privacy-export.download"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "export_id",
+                  "job_version",
+                  "exported_record_count",
+                  "contributor_checkpoint_count",
+                  "restart_resumed_contributor_count",
+                  "worker_restart_count",
+                  "long_lived_postgres_snapshot_count",
+                  "mixed_cut_rejected",
+                  "snapshot_version_vector_digest",
+                  "restart_reconstruction_digest",
+                  "temporary_artifact_count",
+                  "lifecycle_event_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#concurrency"
+                  "export_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
+                  "job_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
                   },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
+                  "exported_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "concurrency"
+                  "contributor_checkpoint_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
+                  "restart_resumed_contributor_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
+                  "worker_restart_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
+                  "long_lived_postgres_snapshot_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
+                  "mixed_cut_rejected": {
+                    "type": "boolean"
                   },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
+                  "snapshot_version_vector_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "restart_reconstruction_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#cleanup"
+                  "temporary_artifact_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
+                  "lifecycle_event_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#success",
+              "observation_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.status",
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "export_id",
+                "idempotency_key",
+                "contributor_checkpoints",
+                "worker_interrupt_after_fragment",
+                "projection_or_staged_fragment_mode"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4a8e67c60b191dc1d1e6de5c6bdb8fd72a069ca2b52b4663807ad6d0f834acb9",
+              "expected_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ]
+            },
+            {
+              "case_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#failure",
+              "observation_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.status",
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "export_id",
+                "idempotency_key",
+                "contributor_checkpoints",
+                "worker_interrupt_after_fragment",
+                "projection_or_staged_fragment_mode"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:5fa470f531ac15022b3208b126c0b38a49f53f6c6961c19f21094aa5a255f456",
+              "expected_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ]
+            },
+            {
+              "case_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#denial",
+              "observation_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.status",
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "export_id",
+                "idempotency_key",
+                "contributor_checkpoints",
+                "worker_interrupt_after_fragment",
+                "projection_or_staged_fragment_mode"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:d1181cec09472d1a699adcb0fdd8cbaf41138fa81207e2b35111322b45e4a6cf",
+              "expected_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ]
+            },
+            {
+              "case_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#outage",
+              "observation_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.status",
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "export_id",
+                "idempotency_key",
+                "contributor_checkpoints",
+                "worker_interrupt_after_fragment",
+                "projection_or_staged_fragment_mode"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:2b93b0af38b07b5d8b0db6c332be0732d7f3a0e0e2c073e1bdde393af6656a02",
+              "expected_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ]
+            },
+            {
+              "case_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#concurrency",
+              "observation_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.status",
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "export_id",
+                "idempotency_key",
+                "contributor_checkpoints",
+                "worker_interrupt_after_fragment",
+                "projection_or_staged_fragment_mode"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:54f8edf86f5e31753918181478aa7521640f762c9325f224d779bdcf351894ce",
+              "expected_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ]
+            },
+            {
+              "case_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#cleanup",
+              "observation_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.status",
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "export_id",
+                "idempotency_key",
+                "contributor_checkpoints",
+                "worker_interrupt_after_fragment",
+                "projection_or_staged_fragment_mode"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:72f3b88280dd827c4ab2c82bef884eb04c9b0267f78b42f438de03c02f75aecd",
+              "expected_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ]
+            },
+            {
+              "case_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#unknown-outcome",
+              "observation_id": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.status",
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "export_id",
+                "idempotency_key",
+                "contributor_checkpoints",
+                "worker_interrupt_after_fragment",
+                "projection_or_staged_fragment_mode"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:31dd8413da95467c4735c06e90477e39e8211b0bf863bf88347b6be86e5e688d",
+              "expected_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.cancel",
+                "identity.privacy-export.download",
+                "identity.privacy-export.request",
+                "identity.privacy-export.status"
+              ]
+            }
+          ]
         },
         "export_id": {
           "type": "string",
@@ -1115,673 +1017,6 @@
           "kind": "equal",
           "left": "restart_resumed_contributor_count",
           "right": "contributor_checkpoint_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.status",
-                      "identity.privacy-export.cancel",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "export_id",
-                      "idempotency_key",
-                      "contributor_checkpoints",
-                      "worker_interrupt_after_fragment",
-                      "projection_or_staged_fragment_mode"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "job_version",
-                      "exported_record_count",
-                      "contributor_checkpoint_count",
-                      "restart_resumed_contributor_count",
-                      "worker_restart_count",
-                      "long_lived_postgres_snapshot_count",
-                      "mixed_cut_rejected",
-                      "snapshot_version_vector_digest",
-                      "restart_reconstruction_digest",
-                      "temporary_artifact_count",
-                      "lifecycle_event_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

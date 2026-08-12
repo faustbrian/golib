@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "typed-hooks-report"
+        },
+        "invariant_id": {
+          "const": "typed-hooks-report.invariant"
+        },
+        "invariant": {
+          "const": "before hooks may deny before state change; after hooks observe result without mutating principal truth; timeout follows declared policy"
         },
         "operation_ids": {
           "const": [
@@ -397,238 +405,290 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.hooks.before",
-                      "identity.hooks.after"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "hook_order",
-                      "typed_context",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "before and after hooks are registered with explicit order and immutable context"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "before hooks may deny before state change; after hooks observe result without mutating principal truth; timeout follows declared policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "before_hook_count",
-                      "after_hook_count",
-                      "executed_order_digest",
-                      "denial_prevented_write",
-                      "hook_result_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "typed-hooks-report.journey.extension-access-policy.v1.behavior#success",
+                  "typed-hooks-report.journey.extension-access-policy.v1.behavior#failure",
+                  "typed-hooks-report.journey.extension-access-policy.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "typed-hooks-report.journey.extension-access-policy.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.extension-access-policy.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "typed-hooks-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.hooks.before",
+                    "identity.hooks.after"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.hooks.before",
-                      "identity.hooks.after"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "hook_order",
-                      "typed_context",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "before and after hooks are registered with explicit order and immutable context"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "before hooks may deny before state change; after hooks observe result without mutating principal truth; timeout follows declared policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "before_hook_count",
-                      "after_hook_count",
-                      "executed_order_digest",
-                      "denial_prevented_write",
-                      "hook_result_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "before and after hooks are registered with explicit order and immutable context"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "before hooks may deny before state change; after hooks observe result without mutating principal truth; timeout follows declared policy"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.hooks.before",
+                    "identity.hooks.after"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.hooks.before",
+                    "identity.hooks.after"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "before_hook_count",
+                  "after_hook_count",
+                  "executed_order_digest",
+                  "denial_prevented_write",
+                  "hook_result_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior#denial"
+                  "before_hook_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior"
+                  "after_hook_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.hooks.before",
-                      "identity.hooks.after"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "hook_order",
-                      "typed_context",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "before and after hooks are registered with explicit order and immutable context"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "before hooks may deny before state change; after hooks observe result without mutating principal truth; timeout follows declared policy"
-                  },
-                  "observed_state_digest": {
+                  "executed_order_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "denial_prevented_write": {
+                    "type": "boolean"
+                  },
+                  "hook_result_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "before_hook_count",
-                      "after_hook_count",
-                      "executed_order_digest",
-                      "denial_prevented_write",
-                      "hook_result_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "typed-hooks-report.journey.extension-access-policy.v1.behavior#success",
+              "observation_id": "typed-hooks-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.hooks.before",
+                "identity.hooks.after"
+              ],
+              "input_fields": [
+                "operation_id",
+                "hook_order",
+                "typed_context",
+                "deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:022d900083b9d2f5b74fb9e659f320de3b11accb764fdc2e7f1466d8b7984de5",
+              "expected_operation_set": [
+                "identity.hooks.after",
+                "identity.hooks.before"
+              ],
+              "observed_operation_set": [
+                "identity.hooks.after",
+                "identity.hooks.before"
+              ]
+            },
+            {
+              "case_id": "typed-hooks-report.journey.extension-access-policy.v1.behavior#failure",
+              "observation_id": "typed-hooks-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.hooks.before",
+                "identity.hooks.after"
+              ],
+              "input_fields": [
+                "operation_id",
+                "hook_order",
+                "typed_context",
+                "deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:ca22802d4ee502baf1d88bc12f4fd3ed404dd4f37b527b26799d47a64ba3259e",
+              "expected_operation_set": [
+                "identity.hooks.after",
+                "identity.hooks.before"
+              ],
+              "observed_operation_set": [
+                "identity.hooks.after",
+                "identity.hooks.before"
+              ]
+            },
+            {
+              "case_id": "typed-hooks-report.journey.extension-access-policy.v1.behavior#denial",
+              "observation_id": "typed-hooks-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.hooks.before",
+                "identity.hooks.after"
+              ],
+              "input_fields": [
+                "operation_id",
+                "hook_order",
+                "typed_context",
+                "deadline"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:058ca408c83248dfcc4c1568655244de593ea5a19cb791d3408b9a9bcf761b47",
+              "expected_operation_set": [
+                "identity.hooks.after",
+                "identity.hooks.before"
+              ],
+              "observed_operation_set": [
+                "identity.hooks.after",
+                "identity.hooks.before"
+              ]
+            }
+          ]
         },
         "before_hook_count": {
           "type": "integer",
@@ -665,257 +725,6 @@
           "fields": [
             "denial_prevented_write"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.hooks.before",
-                      "identity.hooks.after"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "hook_order",
-                      "typed_context",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "before and after hooks are registered with explicit order and immutable context"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "before hooks may deny before state change; after hooks observe result without mutating principal truth; timeout follows declared policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "before_hook_count",
-                      "after_hook_count",
-                      "executed_order_digest",
-                      "denial_prevented_write",
-                      "hook_result_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.hooks.before",
-                      "identity.hooks.after"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "hook_order",
-                      "typed_context",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "before and after hooks are registered with explicit order and immutable context"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "before hooks may deny before state change; after hooks observe result without mutating principal truth; timeout follows declared policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "before_hook_count",
-                      "after_hook_count",
-                      "executed_order_digest",
-                      "denial_prevented_write",
-                      "hook_result_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "typed-hooks-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.hooks.before",
-                      "identity.hooks.after"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "hook_order",
-                      "typed_context",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "before and after hooks are registered with explicit order and immutable context"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "before hooks may deny before state change; after hooks observe result without mutating principal truth; timeout follows declared policy"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "before_hook_count",
-                      "after_hook_count",
-                      "executed_order_digest",
-                      "denial_prevented_write",
-                      "hook_result_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

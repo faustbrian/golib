@@ -109,9 +109,15 @@ involved.
   `.ai/identity-platform/TRANSACTION_CONTRACT.md`: atomically admit the scoped
   idempotency mapping, parent and ordered independently random child commands;
   persist each child's bulk ID, dependencies, fingerprint, order and result;
-  commit executing children independently; and deterministically rebuild parent
-  state for every declared child and responses for every processed child from
-  durable ordered checkpoints after partial commit or restart. A positive
+  compute and persist the deterministic dependency graph and strongly connected
+  components before the first child mutation; commit each acyclic singleton
+  independently after its predecessor components conclusively succeed; commit
+  every cyclic SCC atomically as one bounded transaction with preallocated final
+  resource IDs and deferred within-SCC referential checks; and deterministically
+  rebuild parent state for every declared child and responses for every processed
+  child from durable ordered checkpoints after partial commit or restart. A
+  cyclic SCC member failure MUST roll back the complete SCC so no partial cycle
+  is exposed. A positive
   `failOnErrors` value durably marks every
   remaining not-started child skipped only after that many child results are
   durably failed; zero or omission disables the cutoff. Unknown dependencies

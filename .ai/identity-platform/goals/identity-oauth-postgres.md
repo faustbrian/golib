@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/identity/oauth/postgres`
 - Canonical goal after scaffolding: `pkg/identity/oauth/postgres/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/oauth/postgres:v1`; owned operation IDs: none
-- Requires: `identity/oauth`, `identity/postgres`, `primitive/capability-identity-contracts`
+- Requires: `identity/oauth`, `identity/postgres`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
 - Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
@@ -37,6 +37,10 @@ authority version. It owns token-vault metadata and the
 social-link changes MUST enlist `identity/postgres` to mutate its authoritative
 row and version in the same unit of work. It does not perform OAuth requests,
 validate identity proof, choose linking policy or issue sessions.
+It MUST implement the core `AuthoritativeLinker` and `LinkUnitOfWork`
+collaborators by wiring the public `identity/postgres` authoritative link
+participant with `capability/postgres` and its token-vault participant. It MUST
+NOT expose those concrete adapter types through `identity/oauth`.
 The adapter MUST store the RP transaction's PKCE verifier only as authenticated
 ciphertext under `struct:ref.oauth.rp_transaction`, never as plaintext or as a
 non-recoverable substitute for the verifier. Its keyed commitment is the sole

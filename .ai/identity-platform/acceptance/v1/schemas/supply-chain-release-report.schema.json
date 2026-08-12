@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "supply-chain-release-report"
+        },
+        "invariant_id": {
+          "const": "supply-chain-release-report.invariant"
+        },
+        "invariant": {
+          "const": "vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound"
         },
         "operation_ids": {
           "const": [
@@ -396,160 +404,251 @@
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "supply-chain-release-report.cross.final-acceptance.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "supply-chain-release-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "module_set",
-                      "dependency_lockfiles",
-                      "artifact_digests",
-                      "provenance_records"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "release candidate contains all affected modules and immutable dependency inputs"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "module_count",
-                      "artifact_count",
-                      "sbom_digest",
-                      "provenance_digest",
-                      "release_report_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "supply-chain-release-report.cross.final-acceptance.v1.behavior#success",
+                  "supply-chain-release-report.cross.final-acceptance.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "supply-chain-release-report.cross.final-acceptance.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.final-acceptance.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "supply-chain-release-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "release candidate contains all affected modules and immutable dependency inputs"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "module_count",
+                  "artifact_count",
+                  "sbom_digest",
+                  "provenance_digest",
+                  "release_report_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "supply-chain-release-report.cross.final-acceptance.v1.behavior#failure"
+                  "module_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "supply-chain-release-report.cross.final-acceptance.v1.behavior"
+                  "artifact_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "module_set",
-                      "dependency_lockfiles",
-                      "artifact_digests",
-                      "provenance_records"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "release candidate contains all affected modules and immutable dependency inputs"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound"
-                  },
-                  "observed_state_digest": {
+                  "sbom_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "provenance_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "module_count",
-                      "artifact_count",
-                      "sbom_digest",
-                      "provenance_digest",
-                      "release_report_digest"
-                    ]
+                  "release_report_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "supply-chain-release-report.cross.final-acceptance.v1.behavior#success",
+              "observation_id": "supply-chain-release-report.cross.final-acceptance.v1.behavior",
+              "claim_id": "cross.final-acceptance.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "module_set",
+                "dependency_lockfiles",
+                "artifact_digests",
+                "provenance_records"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:076760f141d0e466cfd12d707259d469e8964fa4265fd49bdb1b2f0ab483b1b9",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            },
+            {
+              "case_id": "supply-chain-release-report.cross.final-acceptance.v1.behavior#failure",
+              "observation_id": "supply-chain-release-report.cross.final-acceptance.v1.behavior",
+              "claim_id": "cross.final-acceptance.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "module_set",
+                "dependency_lockfiles",
+                "artifact_digests",
+                "provenance_records"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:1ee37d4c7c947f3a8d595792db555454664a90e6a0c64fd304a8d7069bdf44f4",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            }
+          ]
         },
         "module_count": {
           "type": "integer",
@@ -581,172 +680,6 @@
             "module_count",
             "artifact_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "supply-chain-release-report.cross.final-acceptance.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "supply-chain-release-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "module_set",
-                      "dependency_lockfiles",
-                      "artifact_digests",
-                      "provenance_records"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "release candidate contains all affected modules and immutable dependency inputs"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "module_count",
-                      "artifact_count",
-                      "sbom_digest",
-                      "provenance_digest",
-                      "release_report_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "supply-chain-release-report.cross.final-acceptance.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "supply-chain-release-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "module_set",
-                      "dependency_lockfiles",
-                      "artifact_digests",
-                      "provenance_records"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "release candidate contains all affected modules and immutable dependency inputs"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "module_count",
-                      "artifact_count",
-                      "sbom_digest",
-                      "provenance_digest",
-                      "release_report_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

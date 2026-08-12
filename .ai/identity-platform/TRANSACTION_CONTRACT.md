@@ -207,7 +207,18 @@ and fail closed, not guess rollback.
 
 ## PostgreSQL unit of work
 
-1. **`tx.uow.enlist`:** `Enlist(owner, contributor)` MUST register every
+`identity/postgres` owns the sole transaction-enlistment vocabulary. Its
+canonical `Enlister` accepts a caller-owned `pgx.Tx` and returns a bounded
+`Carrier` for that exact transaction. The carrier registers the complete typed
+contributor set before the first write, exposes no commit or rollback method,
+and becomes unusable when the caller transaction closes. Nil, closed, foreign,
+duplicate, undeclared, or late enlistment fails before mutation. Every
+identity-platform PostgreSQL consumer MUST depend on
+`identitypostgres.Enlister`; `identity.PostgresCarrier`, constructor-supplied
+`identitypostgres.Carrier`, and package-local carrier facades are forbidden.
+
+1. **`tx.uow.enlist`:** `Carrier.Enlist(contributor)` MUST validate the
+   contributor's sealed `ContributorDescriptor` and register every
    compile-time typed command, RiskEvidence, CaptchaEvidence, capability, OTP,
    domain, session,
    outbox, and effect contributor before the reservation transaction's first

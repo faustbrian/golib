@@ -11,18 +11,54 @@ module IdentityPlatformAcceptance
   OPERATIONS = File.join(ROOT, "OPERATION_SEMANTICS.json")
   API_OPERATIONS = File.join(ROOT, "API_OPERATIONS.md")
   PUBLIC_CONTRACTS = File.join(ROOT, "PUBLIC_CONTRACTS.json")
+  CONFIGURATION_CATALOGS = File.join(ROOT, "CONFIGURATION_CATALOGS.json")
+  PROTOCOL_CONFORMANCE = File.join(ROOT, "PROTOCOL_CONFORMANCE_MANIFEST.json")
   CATALOG = File.join(ROOT, "ACCEPTANCE_ARTIFACTS.json")
   SCHEMA_ROOT = File.join(__dir__, "v1", "schemas")
 
   PRIMITIVE_PREREQUISITES = [
     {"unit" => "primitive/authentication-identity-contracts", "goal_path" => "goals/primitive-authentication-identity-contracts.md", "module_gates" => ["make check MODULES=pkg/authentication"]},
     {"unit" => "primitive/authorization-identity-contracts", "goal_path" => "goals/primitive-authorization-identity-contracts.md", "module_gates" => ["make check MODULES=pkg/authorization"]},
-    {"unit" => "primitive/capability-identity-contracts", "goal_path" => "goals/primitive-capability-identity-contracts.md", "module_gates" => ["make check MODULES=pkg/capability", "make check MODULES=pkg/capability/postgres"]},
+    {"unit" => "primitive/capability-identity-contracts", "goal_path" => "goals/primitive-capability-identity-contracts.md", "module_gates" => ["make check MODULES=pkg/capability"]},
+    {"unit" => "primitive/capability-postgres-identity-contracts", "goal_path" => "goals/primitive-capability-postgres-identity-contracts.md", "module_gates" => ["make check MODULES=pkg/capability/postgres"]},
     {"unit" => "primitive/identifier-identity-contracts", "goal_path" => "goals/primitive-identifier-identity-contracts.md", "module_gates" => ["make check MODULES=pkg/identifier"]},
     {"unit" => "primitive/password-secret-contracts", "goal_path" => "goals/primitive-password-secret-contracts.md", "module_gates" => ["make check MODULES=pkg/password"]}
   ].map { |row| row.merge("required_before_artifact_producers" => true, "produces_end_state_artifacts" => false) }.freeze
 
   COMMON_SCENARIOS = %w[success failure].freeze
+  SUPPLEMENTAL_OPERATION_CLAIMS = {
+    "api-key-http-lifecycle-report" => %w[identity.apikey.create identity.apikey.delete identity.apikey.rotate identity.apikey.session-authenticate identity.apikey.verify],
+    "bearer-continuation-report" => %w[identity.session.bearer-authorize identity.session.bearer-issue],
+    "platform-authority-version-report" => %w[identity.platform.permission-statement.create identity.platform.permission-statement.delete identity.platform.permission-statement.update identity.platform.role.create identity.platform.role.delete identity.platform.role.update],
+    "impersonation-quorum-report" => %w[identity.impersonation.approve identity.impersonation.deny identity.impersonation.quorum identity.impersonation.request identity.impersonation.revoke identity.impersonation.start identity.impersonation.stop],
+    "mfa-recovery-report" => %w[identity.admin.mfa-recovery-issue identity.admin.mfa-reset],
+    "organization-invitation-lifecycle-report" => %w[identity.organization.invitation-send identity.organization.invitation.accept identity.organization.invitation.cancel identity.organization.invitation.expire identity.organization.invitation.get identity.organization.invitation.list identity.organization.invitation.list-mine identity.organization.invitation.reject identity.organization.invitation.resend],
+    "remember-policy-propagation-report" => %w[identity.anonymous.signin identity.anonymous.upgrade identity.email.verification-confirm identity.magic-link.consume identity.mfa.otp-verify identity.mfa.recovery-use identity.mfa.security-key-assert-verify identity.mfa.totp-verify identity.oauth.callback identity.oauth.callback-form-post identity.oauth.onetap-callback identity.oauth.signin-token identity.otp.email-verify identity.otp.signin identity.passkey.register-verify identity.passkey.signin-verify identity.password.signin identity.password.signup identity.phone.password-signin identity.phone.signin identity.phone.verify identity.session.refresh identity.sso.oauth-callback identity.sso.oidc-callback identity.sso.saml-acs identity.sso.saml-idp-init],
+    "sso-provider-lifecycle-report" => %w[identity.sso.directory-sync-apply identity.sso.directory-sync-cancel identity.sso.directory-sync-start identity.sso.directory-sync-status identity.sso.oauth-callback identity.sso.oidc-callback identity.sso.provider.enable identity.sso.provider.get identity.sso.provider.list identity.sso.saml-acs identity.sso.saml-idp-init identity.sso.saml-logout-start identity.sso.saml-metadata identity.sso.saml-slo identity.sso.saml-start],
+    "unknown-outcome-reconciliation-report" => %w[identity.delivery.cancel identity.delivery.enqueue identity.delivery.receipt-record identity.delivery.reconcile identity.delivery.status-get],
+    "oauth-provider-matrix-report" => %w[identity.account.link-start identity.account.unlink identity.oauth.callback identity.oauth.callback-form-post identity.oauth.signin-start],
+    "session-profile-contract-report" => %w[identity.session.get identity.session.list identity.session.refresh identity.session.revoke-all identity.session.revoke-one identity.session.revoke-other identity.session.signout identity.session.update],
+    "otp-reservation-report" => %w[identity.otp.check identity.otp.send identity.otp.signin],
+    "scim-reconciliation-report" => %w[identity.sso.directory-sync-apply identity.sso.directory-sync-start identity.sso.directory-sync-status]
+  }.transform_values { |ids| ids.sort_by(&:b).freeze }.freeze
+  SUPPLEMENTAL_OPERATION_PREFIXES = {
+    "platform-authority-version-report" => %w[identity.admin. identity.platform.],
+    "reference-http-identity-lifecycle" => %w[identity.anonymous. identity.deletion. identity.profile. identity.user. identity.username.],
+    "api-key-http-lifecycle-report" => %w[identity.apikey.],
+    "audit-retention-plan-confirm-report" => %w[identity.audit-retention.],
+    "reference-http-password-journey" => %w[identity.email. identity.password. identity.phone.],
+    "locale-negotiation-report" => %w[identity.i18n.],
+    "identitytest-cycle-free-report" => %w[identity.identitytest.],
+    "mfa-recovery-report" => %w[identity.mfa.],
+    "oauth-provider-matrix-report" => %w[identity.account. identity.oauth.],
+    "oauth-oidc-conformance-report" => %w[identity.oauth-server.],
+    "organization-concurrency-report" => %w[identity.organization.],
+    "otp-reservation-report" => %w[identity.otp.],
+    "clean-reference-stack-report" => %w[identity.reference.],
+    "scim-connection-lifecycle-report" => %w[identity.scim.connection-],
+    "session-profile-contract-report" => %w[identity.session.],
+    "sso-provider-lifecycle-report" => %w[identity.sso.]
+  }.freeze
   EXTRA_SCENARIOS = {
     "denial" => %w[
       api-key-http-lifecycle-report audit-retention-plan-confirm-report authorization-cross-tenant-report
@@ -121,12 +157,12 @@ module IdentityPlatformAcceptance
     localized-error-identity-report|identity.password.signin|locale,credential,expected_error_class|same invalid credential is submitted under every supported locale|localized message changes by locale while error class, code, HTTP status, and enumeration resistance remain identical|locale_count:count,stable_error:error,http_status:http_status,localized_message_digest:digest,identity_equivalence_digest:digest
     mfa-recovery-report|identity.mfa.recovery-regenerate,identity.mfa.recovery-use,identity.admin.mfa-recovery-issue,identity.admin.mfa-reset|tenant_id,user_id,recovery_code,reauthentication_proof,reset_generation,approval_id,approved_recovery_channel,reason|MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval|regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret|recovery_set_id:id,generated_code_count:count,consumed_code_count:count,old_code_rejected:boolean,reset_generation:version,independent_approval_count:count,recovery_capability_id:id,audit_event_digest:digest
     native-token-mode-report|identity.account.link-token|provider,token_mode,provider_token,nonce,audience|provider catalog declares the submitted native token mode|supported token validates issuer, audience, nonce, and provider subject; unsupported mode or mismatched claim links no account|provider_id:id,token_mode:token_mode,linked_account_id:id,nonce_rejected:boolean,audience_rejected:boolean
-    oauth-oidc-conformance-report|identity.oauth-server.authorize,identity.oauth-server.continue,identity.oauth-server.token,identity.oauth-server.session-token,identity.oauth-server.userinfo,identity.oauth-server.introspect,identity.oauth-server.revoke,identity.oauth-server.dynamic-register,identity.oauth-server.discovery-oauth,identity.oauth-server.discovery-oidc,identity.oauth-server.jwks,identity.oauth-server.end-session,identity.oauth-server.protected-resource-metadata|client_id,redirect_uri,response_type,scope,state,nonce,code_verifier,access_token,resource|the OAuth and OIDC fixture client, protected resource, pinned RFC fixtures, and pinned OpenID Foundation conformance suite revision are registered while RFC 7592 management remains explicitly unselected|exact endpoint execution proves authorization, bounded continuation, authorization-code and session-token issuance, UserInfo, active and inactive introspection, revocation, RFC 7591 dynamic registration without a registration access token, OAuth and OIDC discovery, JWKS, RP-initiated logout, and RFC 9728 protected-resource metadata; RFC 7592 management remains unselected and no success evidence is claimed; invalid redirect, PKCE, nonce, replay, revoked token, issuer, and resource variants are rejected; every exact interoperability claim is independently attributable to the pinned suite or fixture evidence|endpoint_operation_ids:oauth_oidc_operation_ids,endpoint_operation_count:count,interoperability_claim_ids:oauth_oidc_interoperability_claims,conformance_suite_revision:oauth_oidc_suite_revision,authorization_code_digest:digest,access_token_digest:digest,id_token_digest:digest,userinfo_digest:digest,continue_verified:boolean,session_token_verified:boolean,introspection_active_verified:boolean,introspection_inactive_verified:boolean,revocation_verified:boolean,dynamic_registration_verified:boolean,rfc7592_management_unselected:boolean,registration_access_token_issued_count:count,oauth_discovery_verified:boolean,oidc_discovery_verified:boolean,jwks_verified:boolean,logout_verified:boolean,protected_resource_metadata_verified:boolean,independent_transcript_digest:digest,conformance_case_count:count
+    oauth-oidc-conformance-report|identity.oauth-server.authorize,identity.oauth-server.continue,identity.oauth-server.token,identity.oauth-server.session-token,identity.oauth-server.userinfo,identity.oauth-server.introspect,identity.oauth-server.revoke,identity.oauth-server.dynamic-register,identity.oauth-server.discovery-oauth,identity.oauth-server.discovery-oidc,identity.oauth-server.jwks,identity.oauth-server.end-session,identity.oauth-server.protected-resource-metadata|client_id,redirect_uri,response_type,scope,state,nonce,code_verifier,access_token,resource|the OAuth and OIDC fixture client, protected resource, pinned RFC fixtures, and pinned OpenID Foundation conformance suite revision are registered with RFC 7592 management selected as an explicit unsupported closure|exact endpoint execution proves authorization, bounded continuation, authorization-code and session-token issuance, UserInfo, active and inactive introspection, revocation, RFC 7591 dynamic registration without a registration access token, OAuth and OIDC discovery, JWKS, RP-initiated logout, and RFC 9728 protected-resource metadata; RFC 7592 management is proven unsupported with no success evidence; invalid redirect, PKCE, nonce, replay, revoked token, issuer, and resource variants are rejected; every exact interoperability claim is independently attributable to the pinned suite or fixture evidence|endpoint_operation_ids:oauth_oidc_operation_ids,endpoint_operation_count:count,interoperability_claim_ids:oauth_oidc_interoperability_claims,conformance_suite_revision:oauth_oidc_suite_revision,authorization_code_digest:digest,access_token_digest:digest,id_token_digest:digest,userinfo_digest:digest,continue_verified:boolean,session_token_verified:boolean,introspection_active_verified:boolean,introspection_inactive_verified:boolean,revocation_verified:boolean,dynamic_registration_verified:boolean,registration_access_token_issued_count:count,oauth_discovery_verified:boolean,oidc_discovery_verified:boolean,jwks_verified:boolean,logout_verified:boolean,protected_resource_metadata_verified:boolean,independent_transcript_digest:digest,conformance_case_count:count
     oauth-popup-browser-report|identity.oauth.popup-complete|provider_id,popup_origin,state,callback_parameters,opener_origin|popup state is bound to provider, opener origin, and callback URI|valid callback posts one bounded result to the exact opener and closes; wrong origin, state, and replay disclose nothing|popup_state_digest:digest,posted_message_count:count,target_origin_digest:digest,popup_closed:boolean,replay_rejected:boolean
     oauth-provider-matrix-report|identity.oauth.signin-start,identity.oauth.callback|provider,response_mode,scopes,redirect_uri,state|all pinned provider catalog entries have exact endpoint and claim fixtures|every provider completes its declared query or form_post response and maps profile, denial, and provider error consistently|provider_count:count,successful_provider_count:count,form_post_provider_count:count,error_mapping_count:count,matrix_digest:digest
     oauth-proxy-no-write-report|identity.oauth.proxy-forward|provider_id,upstream_request,state,redirect_uri|proxy has no persistence writer and exact upstream allowlist is configured|authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows|relayed_parameter_count:count,identity_row_delta:count,account_row_delta:count,session_row_delta:count,callback_digest:digest
     openapi-consumer-report|identity.openapi.document|selected_modules,extension_routes,security_profiles|all core and selected extension handlers are composed|OpenAPI 3.1.1 contains every handler operation, request, response, error, and security scheme and generated client compiles|operation_count:count,schema_count:count,security_scheme_count:count,generated_client_compiled:boolean,openapi_digest:digest
-    operation-handler-openapi-bijection|identity.openapi.document|operation_catalog,handler_catalog,openapi_document|326 canonical operations and composed handler set are loaded|each exposed operation has exactly one handler and OpenAPI operation and no handler or OpenAPI row is orphaned|operation_count:count,handler_count:count,openapi_operation_count:count,duplicate_count:count,bijection_digest:digest
+    operation-handler-openapi-bijection|identity.openapi.document|operation_catalog,handler_catalog,openapi_document|327 canonical operations and composed handler set are loaded|each exposed operation has exactly one handler and OpenAPI operation and no handler or OpenAPI row is orphaned|operation_count:count,handler_count:count,openapi_operation_count:count,duplicate_count:count,bijection_digest:digest
     operational-api-redaction-report|identity.reference.diagnostics,identity.reference.migration-status,identity.audit.get,identity.audit.search,identity.audit.list,identity.audit.export|tenant_id,investigation_id,record_id,indexed_predicates,cursor,limit,time_bounds,field_grants,export_byte_limit,secret_shaped_configuration|one immutable audit investigation contains permissioned and redacted records while reference diagnostics contain credentials, tokens, keys, DSNs, and safe identifiers|diagnostic and migration outputs retain safe identifiers with zero secret matches; audit get, indexed search, bounded chronological list, and immutable export share one investigation ID, enforce grants and tenant scope, emit access and export events, preserve stable cursors and tamper-evident digests, and make absent and forbidden indistinguishable|investigation_id:id,get_record_count:count,search_record_count:count,list_record_count:count,exported_record_count:count,redacted_field_count:count,access_event_count:count,export_event_count:count,cursor_digest:digest,content_digest:digest,cross_tenant_rejected:boolean,forbidden_indistinguishable:boolean,secret_match_count:count
     operations-runbook-index|identity.reference.diagnostics|runbook_catalog,operation_catalog,failure_class_catalog|operability requirements enumerate startup, shutdown, backup, restore, rotation, outage, and recovery actions|every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference|runbook_count:count,covered_action_count:count,missing_action_count:count,index_digest:digest,owner_digest:digest
     organization-archive-restore-delete-report|identity.organization.archive,identity.organization.restore,identity.organization.delete|tenant_id,organization_id,expected_version,retention_policy|organization is active with members, invitations, sessions, and SSO links|archive blocks active use, restore re-enables retained state, and confirmed delete removes or tombstones every declared cascade|organization_id:id,archive_version:version,restore_version:version,deleted_cascade_count:count,lifecycle_event_digest:digest
@@ -173,7 +209,7 @@ module IdentityPlatformAcceptance
     "token_mode" => %w[id_token opaque_access_token], "user_state" => %w[active suspended anonymized deleted]
   }.freeze
 
-  ZERO_EVIDENCE_FIELDS = /(?:secret_match_count|full_secret_match_count|partial_secret_match_count|redaction_match_count|redirect_follow_count|absent_match_count|registration_access_token_issued_count|duplicate_count|duplicate_effect_count|duplicate_delivery_count|duplicate_attempt_increment_count|ordinary_failure_compromise_event_count|stateless_verifier_durable_write_count|long_lived_postgres_snapshot_count|identity_row_delta|account_row_delta|session_row_delta|missing_evidence_count|missing_action_count|remaining_fixture_count|remaining_schedule_count|temporary_artifact_count)/.freeze
+  ZERO_EVIDENCE_FIELDS = /(?:password_transmission_count|full_hash_transmission_count|secret_match_count|full_secret_match_count|partial_secret_match_count|redaction_match_count|redirect_follow_count|absent_match_count|registration_access_token_issued_count|duplicate_count|duplicate_effect_count|duplicate_delivery_count|duplicate_attempt_increment_count|ordinary_failure_compromise_event_count|stateless_verifier_durable_write_count|long_lived_postgres_snapshot_count|identity_row_delta|account_row_delta|session_row_delta|missing_evidence_count|missing_action_count|remaining_fixture_count|remaining_schedule_count|temporary_artifact_count)/.freeze
   EQUALITY_RULES = {
     "affected-gate-report" => [["passed_module_count", "selected_module_count"]],
     "api-key-postgres-valkey-race-report" => [["postgres_state_digest", "valkey_state_digest"]],
@@ -186,7 +222,6 @@ module IdentityPlatformAcceptance
     "impersonation-quorum-report" => [["distinct_approval_count", "required_quorum"]],
     "instrumentation-report" => [["metric_record_count", "log_record_count"], ["metric_record_count", "span_record_count"]],
     "oauth-provider-matrix-report" => [["successful_provider_count", "provider_count"]],
-    "operation-handler-openapi-bijection" => [["operation_count", "handler_count"], ["operation_count", "openapi_operation_count"]],
     "operations-runbook-index" => [["covered_action_count", "runbook_count"]],
     "otp-reservation-report" => [["aborted_result_count", "failed_attempt_count"]],
     "passkey-browser-ceremony-report" => [["credential_id", "registered_credential_id"], ["credential_id", "listed_credential_id"], ["credential_id", "signin_credential_id"], ["credential_id", "updated_credential_id"], ["credential_id", "deleted_credential_id"]],
@@ -203,7 +238,6 @@ module IdentityPlatformAcceptance
     "instrumentation-report" => {"metric_record_count" => 1, "log_record_count" => 1, "span_record_count" => 1},
     "oauth-popup-browser-report" => {"posted_message_count" => 1},
     "oauth-oidc-conformance-report" => {"endpoint_operation_count" => 13},
-    "operation-handler-openapi-bijection" => {"operation_count" => 326},
     "organization-concurrency-report" => {"conflict_count" => 1},
     "organization-invitation-lifecycle-report" => {"accepted_count" => 1},
     "otp-reservation-report" => {"issued_code_count" => 1, "consumed_code_count" => 1},
@@ -223,6 +257,28 @@ module IdentityPlatformAcceptance
     JSON.parse(File.read(SOURCE))
   end
 
+  def synchronize_supplemental_operation_claims!
+    document = source
+    rows = document.fetch("artifact_catalog").to_h { |row| [row.fetch("id"), row] }
+    supplemental_operation_claims.each do |artifact_id, operation_ids|
+      row = rows.fetch(artifact_id)
+      row["operation_claims"] = operation_ids
+      row["observation_ids"] = claim_ids(row).map { |claim_id| "#{artifact_id}.#{claim_id}.behavior" }
+    end
+    File.write(SOURCE, canonical_json(document))
+    @profiles = nil
+  end
+
+  def supplemental_operation_claims
+    expanded = SUPPLEMENTAL_OPERATION_CLAIMS.transform_values(&:dup)
+    SUPPLEMENTAL_OPERATION_PREFIXES.each do |artifact_id, prefixes|
+      selected = api_operation_ids.select { |operation_id| prefixes.any? { |prefix| operation_id.start_with?(prefix) } }
+      selected.reject! { |operation_id| operation_id.start_with?("identity.organization.invitation.") } if artifact_id == "organization-concurrency-report"
+      expanded[artifact_id] = (Array(expanded[artifact_id]) + selected).uniq.sort_by(&:b)
+    end
+    expanded
+  end
+
   def profiles
     @profiles ||= begin
       result = PROFILE_ROWS.lines(chomp: true).reject(&:empty?).to_h do |line|
@@ -234,8 +290,112 @@ module IdentityPlatformAcceptance
       }]
       end
       result.fetch("captcha-four-provider-report")["operation_ids"] = ["identity.risk.captcha-verify", *captcha_protected_target_ids]
+      result.fetch("operation-handler-openapi-bijection")["operation_ids"] = api_operation_ids
+      result.fetch("operation-handler-openapi-bijection")["evidence_fields"].merge!(
+        "catalog_operation_ids" => "api_operation_ids", "handler_operation_ids" => "handler_operation_ids",
+        "openapi_operation_ids" => "openapi_operation_ids", "direct_operation_ids" => "direct_operation_ids",
+        "middleware_operation_ids" => "middleware_operation_ids", "operation_bindings" => "operation_bindings"
+      )
+      %w[oauth-provider-matrix-report provider-evidence-index].each do |artifact_id|
+        result.fetch(artifact_id).fetch("evidence_fields")["provider_results"] = "provider_matrix_results"
+      end
+      result.fetch("oauth-oidc-conformance-report").fetch("evidence_fields").delete("rfc7592_management_unselected")
+      protocol_artifact_requirements.each_key do |artifact_id|
+        result.fetch(artifact_id).fetch("evidence_fields")["protocol_case_results"] = "protocol_case_results:#{artifact_id}"
+      end
+      supplemental_operation_claims.each do |artifact_id, operation_ids|
+        result.fetch(artifact_id)["operation_ids"] = operation_ids
+      end
+      {
+        "postgres-lifecycle-cascade-report" => ["cascade_transitions", "cascade_transition_cases"],
+        "unknown-outcome-reconciliation-report" => ["delivery_outcome_cases", "delivery_outcome_cases"],
+        "scim-reconciliation-report" => ["reconciliation_cases", "scim_reconciliation_cases"],
+        "otp-reservation-report" => ["otp_operation_cases", "otp_operation_cases"],
+        "bearer-continuation-report" => ["bearer_transition_cases", "bearer_transition_cases"],
+        "api-key-http-lifecycle-report" => ["api_key_security_cases", "api_key_security_cases"],
+        "session-profile-contract-report" => ["session_race_cases", "session_race_cases"],
+        "risk-policy-report" => ["trusted_profile_cases", "trusted_risk_profile_cases"],
+        "remember-policy-propagation-report" => ["issuer_variant_cases", "remember_issuer_variant_cases"],
+        "sso-provider-lifecycle-report" => ["repeat_sync_cases", "sso_repeat_sync_cases"],
+        "oauth-provider-matrix-report" => ["redirect_link_cases", "social_redirect_link_cases"],
+        "impersonation-quorum-report" => ["authority_transition_cases", "impersonation_authority_cases"]
+      }.each do |artifact_id, (field, kind)|
+        result.fetch(artifact_id).fetch("evidence_fields")[field] = kind
+      end
+      result.fetch("hibp-interoperability-report").fetch("evidence_fields").merge!(
+        "local_password_input_count" => "count", "local_sha1_computation_count" => "count",
+        "password_transmission_count" => "count", "full_hash_transmission_count" => "count"
+      )
+      result.fetch("scim-rfc-conformance-report").fetch("evidence_fields")["wire_contract_cases"] = "scim_wire_contract_cases"
       result
     end
+  end
+
+  def api_operation_ids
+    @api_operation_ids ||= File.readlines(API_OPERATIONS, chomp: true)
+      .filter_map { |line| line[/^\| `(identity\.[a-z0-9.-]+)` \|/, 1] }.uniq.freeze
+  end
+
+  def canonical_operation_rows
+    @canonical_operation_rows ||= JSON.parse(File.read(OPERATIONS)).fetch("operations").freeze
+  end
+
+  def handler_operation_ids
+    @handler_operation_ids ||= canonical_operation_rows.select { |row| %w[both protocol].include?(row.fetch("exposure")) }.map { |row| row.fetch("id") }.freeze
+  end
+
+  def openapi_operation_ids
+    @openapi_operation_ids ||= canonical_operation_rows.select { |row| %w[both protocol].include?(row.fetch("exposure")) }.map { |row| row.fetch("openapi_operation_id") }.uniq.freeze
+  end
+
+  def exposure_operation_ids(exposure)
+    canonical_operation_rows.select { |row| row.fetch("exposure") == exposure }.map { |row| row.fetch("id") }
+  end
+
+  def provider_matrix_rows
+    @provider_matrix_rows ||= begin
+      configuration = JSON.parse(File.read(CONFIGURATION_CATALOGS))
+      provider_ids = configuration.dig("providers", "ids")
+      rows = configuration.dig("provider_matrix", "rows")
+      row_ids = rows.map { |row| row.fetch("id") }
+      raise "provider matrix must contain the exact 43-provider catalog" unless provider_ids.length == 43 && row_ids == provider_ids && row_ids.uniq == row_ids
+
+      rows.freeze
+    end
+  end
+
+  def protocol_artifact_requirements
+    @protocol_artifact_requirements ||= begin
+      requirements = JSON.parse(File.read(PROTOCOL_CONFORMANCE)).fetch("clause_pins")
+      consumer_sets = {
+        "captcha-four-provider-report" => %w[identity/risk/captcha identity/risk/captcha/recaptcha identity/risk/captcha/turnstile identity/risk/captcha/hcaptcha identity/risk/captcha/captchafox],
+        "hibp-interoperability-report" => %w[identity/risk/hibp],
+        "oauth-oidc-conformance-report" => %w[oauth-server oauth-server/oidc],
+        "scim-rfc-conformance-report" => %w[scim scim/postgres],
+        "sso-provider-lifecycle-report" => %w[sso/oauth2 sso/oidc sso/saml],
+        "webauthn-conformance-report" => %w[webauthn webauthn/postgres passkey passkey/postgres]
+      }
+      consumer_sets.to_h do |artifact_id, consumers|
+        selected = requirements.select { |row| !(row.fetch("consumers") & consumers).empty? }
+        [artifact_id, selected.freeze]
+      end.freeze
+    end
+  end
+
+  def protocol_operation_ids(artifact_id, requirement_id)
+    return profiles.fetch(artifact_id).fetch("operation_ids") if requirement_id.start_with?("source.")
+    return ["identity.risk.captcha-verify"] if artifact_id == "captcha-four-provider-report"
+    return ["identity.risk.hibp-check"] if artifact_id == "hibp-interoperability-report"
+    return profiles.fetch("scim-rfc-conformance-report").fetch("operation_ids") if artifact_id == "scim-rfc-conformance-report"
+    return profiles.fetch("sso-provider-lifecycle-report").fetch("operation_ids") if artifact_id == "sso-provider-lifecycle-report"
+    return %w[identity.passkey.register-verify identity.passkey.signin-verify] if artifact_id == "webauthn-conformance-report"
+    return ["identity.oauth-server.protected-resource-metadata"] if requirement_id.include?("protected-resource")
+    return ["identity.oauth-server.dynamic-register"] if requirement_id.include?("dynamic-registration")
+    return %w[identity.oauth-server.discovery-oauth identity.oauth-server.discovery-oidc] if requirement_id.include?("discovery")
+    return ["identity.oauth-server.end-session"] if requirement_id.include?("logout")
+    return %w[identity.oauth-server.authorize identity.oauth-server.token identity.oauth-server.userinfo] if requirement_id.start_with?("oidc.")
+
+    %w[identity.oauth-server.authorize identity.oauth-server.token]
   end
 
   def captcha_protected_target_ids
@@ -383,29 +543,204 @@ module IdentityPlatformAcceptance
     {
       "schema_version" => 1,
       "authority" => "END_STATE_ACCEPTANCE.json",
-      "program_unit_catalog" => {"path" => ".ai/identity-platform/GOAL_MANIFEST.json", "required_count" => 66},
+      "program_unit_catalog" => {"path" => ".ai/identity-platform/GOAL_MANIFEST.json", "required_count" => 67},
       "product_contract_unit_catalog" => {"path" => ".ai/identity-platform/PUBLIC_CONTRACTS.json", "required_count" => 61},
       "primitive_prerequisites" => PRIMITIVE_PREREQUISITES,
-      "operation_catalog" => {"path" => ".ai/identity-platform/OPERATION_SEMANTICS.json", "required_count" => 326},
+      "operation_catalog" => {"path" => ".ai/identity-platform/OPERATION_SEMANTICS.json", "required_count" => api_operation_ids.length},
       "artifacts" => artifacts
     }
   end
 
 
   def field_schema(kind)
+    return {"const" => api_operation_ids} if kind == "api_operation_ids"
+    return {"const" => handler_operation_ids} if kind == "handler_operation_ids"
+    return {"const" => openapi_operation_ids} if kind == "openapi_operation_ids"
+    return {"const" => exposure_operation_ids("direct")} if kind == "direct_operation_ids"
+    return {"const" => exposure_operation_ids("middleware")} if kind == "middleware_operation_ids"
+    if kind == "operation_bindings"
+      exact = canonical_operation_rows.select { |row| %w[both protocol].include?(row.fetch("exposure")) }.map do |operation|
+        operation_id = operation.fetch("id")
+        {"operation_id" => operation_id, "handler_id" => operation_id.delete_prefix("identity.").tr(".", "/"),
+         "openapi_operation_id" => operation.fetch("openapi_operation_id")}
+      end
+      properties = {
+        "operation_id" => {"type" => "string", "enum" => handler_operation_ids},
+        "handler_id" => {"type" => "string", "minLength" => 1},
+        "openapi_operation_id" => {"type" => "string", "enum" => openapi_operation_ids},
+        "executed" => {"const" => true}, "transcript_sha256" => field_schema("digest")
+      }
+      return {"type" => "array", "minItems" => exact.length, "maxItems" => exact.length, "uniqueItems" => true,
+              "items" => {"type" => "object", "additionalProperties" => false, "required" => properties.keys, "properties" => properties},
+              "x-exact-operation-bindings" => exact}
+    end
+    if kind == "provider_matrix_results"
+      variants = provider_matrix_rows.map do |provider|
+        properties = {
+          "provider_id" => {"const" => provider.fetch("id")},
+          "catalog_row_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider)))}"},
+          "protocol" => {"const" => provider.fetch("protocol")},
+          "response_type" => {"const" => provider.dig("response", "type")},
+          "response_mode" => {"const" => provider.dig("response", "mode")},
+          "token_auth" => {"const" => provider.fetch("token_auth")},
+          "pkce_status" => {"const" => provider.dig("pkce", "status")},
+          "nonce_status" => {"const" => provider.dig("nonce", "status")},
+          "state_status" => {"const" => provider.dig("state", "status")},
+          "native_token_modes" => {"const" => provider.dig("native_token_signin", "modes")},
+          "configuration_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider.fetch('configuration'))))}"},
+          "endpoint_profile_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider.fetch('endpoints'))))}"},
+          "scope_profile_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider.fetch('scopes'))))}"},
+          "identity_source_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider.fetch('identity_sources'))))}"},
+          "claim_mapping_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider.fetch('claims'))))}"},
+          "account_policy_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider.fetch('account_policy'))))}"},
+          "token_lifecycle_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider.fetch('token_lifecycle'))))}"},
+          "incompatibility_sha256" => {"const" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_value(provider.fetch('incompatibilities'))))}"},
+          "source_locator" => {"const" => provider.dig("evidence", "source")},
+          "official_docs_status" => {"const" => provider.dig("evidence", "official_docs")},
+          "catalog_interoperability_status" => {"const" => provider.dig("evidence", "interoperability")},
+          "execution_outcome" => {"const" => "passed"}, "verified" => {"const" => true},
+          "transcript_sha256" => field_schema("digest")
+        }
+        {"type" => "object", "additionalProperties" => false, "required" => properties.keys, "properties" => properties}
+      end
+      return {"type" => "array", "minItems" => 43, "maxItems" => 43, "uniqueItems" => true,
+              "items" => {"oneOf" => variants}, "allOf" => variants.map { |variant| {"contains" => variant, "minContains" => 1} }}
+    end
+    if kind.start_with?("protocol_case_results:")
+      artifact_id = kind.split(":", 2).last
+      variants = protocol_artifact_requirements.fetch(artifact_id).map do |requirement|
+        operation_ids = protocol_operation_ids(artifact_id, requirement.fetch("requirement_id"))
+        outcome = requirement.fetch("disposition") == "unsupported" ? "unsupported" : "passed"
+        properties = {
+          "case_id" => {"const" => "#{artifact_id}:#{requirement.fetch('requirement_id')}"},
+          "suite_case_id" => {"const" => "#{requirement.fetch('source_id')}:#{requirement.fetch('requirement_id')}"},
+          "requirement_id" => {"const" => requirement.fetch("requirement_id")},
+          "operation_ids" => {"const" => operation_ids}, "outcome" => {"const" => outcome},
+          "source_id" => {"const" => requirement.fetch("source_id")}, "locator" => {"const" => requirement.fetch("locator")},
+          "transcript_sha256" => field_schema("digest")
+        }
+        {"type" => "object", "additionalProperties" => false, "required" => properties.keys, "properties" => properties}
+      end
+      return {"type" => "array", "minItems" => variants.length, "maxItems" => variants.length, "uniqueItems" => true,
+              "items" => {"oneOf" => variants}, "allOf" => variants.map { |variant| {"contains" => variant, "minContains" => 1} }}
+    end
+    if kind == "scim_wire_contract_cases"
+      cases = [
+        {"case_id" => "service-provider-config", "operation_id" => "identity.scim.service-provider-config",
+         "schemas" => ["urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"], "patch_supported" => true,
+         "bulk_supported" => true, "bulk_max_operations" => 100},
+        {"case_id" => "schemas-list-response", "operation_id" => "identity.scim.schemas-list",
+         "schemas" => ["urn:ietf:params:scim:api:messages:2.0:ListResponse"], "total_results" => 2,
+         "start_index" => 1, "items_per_page" => 2},
+        {"case_id" => "invalid-filter-error", "operation_id" => "identity.scim.search",
+         "schemas" => ["urn:ietf:params:scim:api:messages:2.0:Error"], "status" => "400", "scim_type" => "invalidFilter"},
+        {"case_id" => "bulk-too-many-error", "operation_id" => "identity.scim.bulk",
+         "schemas" => ["urn:ietf:params:scim:api:messages:2.0:Error"], "status" => "413", "scim_type" => "tooMany"}
+      ]
+      variants = cases.map do |entry|
+        properties = entry.to_h { |key, value| [key, {"const" => value}] }
+        properties["transcript_sha256"] = field_schema("digest")
+        {"type" => "object", "additionalProperties" => false, "required" => properties.keys, "properties" => properties}
+      end
+      return {"type" => "array", "minItems" => variants.length, "maxItems" => variants.length, "uniqueItems" => true,
+              "items" => {"oneOf" => variants}, "allOf" => variants.map { |variant| {"contains" => variant, "minContains" => 1} }}
+    end
+    artifact_cases = {
+      "cascade_transition_cases" => [
+        {"case_id" => "owner-admission", "generation" => 1, "owner_commit_count" => 1,
+         "consumer_ids" => %w[api-key audit authorization-cache impersonation oauth-grants risk session], "acknowledged_consumer_ids" => [],
+         "consumer_mutation_count" => 0, "consumer_ack_count" => 0, "terminalization_count" => 0, "state" => "pending"},
+        {"case_id" => "generation-bound-closure", "generation" => 1, "owner_commit_count" => 1,
+         "consumer_ids" => %w[api-key audit authorization-cache impersonation oauth-grants risk session],
+         "acknowledged_consumer_ids" => %w[api-key audit authorization-cache impersonation oauth-grants risk session],
+         "consumer_mutation_count" => 7, "consumer_ack_count" => 7, "terminalization_count" => 1, "state" => "terminal"}
+      ],
+      "delivery_outcome_cases" => [
+        {"case_id" => "provider-outcome-unknown", "state" => "outcome-unknown", "resubmit_allowed" => false, "authoritative_proof_count" => 0, "terminalization_count" => 0},
+        {"case_id" => "provider-outcome-reconciled", "state" => "confirmed", "resubmit_allowed" => false, "authoritative_proof_count" => 1, "terminalization_count" => 1}
+      ],
+      "scim_reconciliation_cases" => [
+        {"case_id" => "matching-retry", "mapping_matches" => true, "applied_change_count" => 1, "cursor_advanced" => true, "retry_required" => false},
+        {"case_id" => "mapping-mismatch", "mapping_matches" => false, "applied_change_count" => 0, "cursor_advanced" => false, "retry_required" => true}
+      ],
+      "otp_operation_cases" => [
+        {"case_id" => "check-non-consuming", "operation_id" => "identity.otp.check", "valid" => true, "consumed_code_count" => 0},
+        {"case_id" => "signin-consuming", "operation_id" => "identity.otp.signin", "valid" => true, "consumed_code_count" => 1}
+      ],
+      "bearer_transition_cases" => [
+        {"case_id" => "authorize-source-session", "operation_id" => "identity.session.bearer-authorize", "sequence" => 1, "authorized" => true, "issued_count" => 0},
+        {"case_id" => "issue-bound-continuation", "operation_id" => "identity.session.bearer-issue", "sequence" => 2, "authorized" => true, "issued_count" => 1}
+      ],
+      "api_key_security_cases" => [
+        {"case_id" => "verify-no-browser-session", "session_count" => 0, "cookie_count" => 0, "secret_reveal_count" => 0, "outcome_unknown" => false, "resubmit_allowed" => false},
+        {"case_id" => "create-reveal-once", "session_count" => 0, "cookie_count" => 0, "secret_reveal_count" => 1, "outcome_unknown" => false, "resubmit_allowed" => false},
+        {"case_id" => "create-ambiguous-recovery", "session_count" => 0, "cookie_count" => 0, "secret_reveal_count" => 0, "outcome_unknown" => true, "resubmit_allowed" => false}
+      ],
+      "session_race_cases" => [
+        {"case_id" => "refresh-rotates", "successor_count" => 1, "replay_rejected" => true, "cleanup_pending" => false, "outcome_unknown" => false, "resubmit_allowed" => false},
+        {"case_id" => "refresh-unknown", "successor_count" => 0, "replay_rejected" => true, "cleanup_pending" => true, "outcome_unknown" => true, "resubmit_allowed" => false},
+        {"case_id" => "cleanup-race", "successor_count" => 0, "replay_rejected" => true, "cleanup_pending" => false, "outcome_unknown" => false, "resubmit_allowed" => false}
+      ],
+      "trusted_risk_profile_cases" => [
+        {"case_id" => "trusted-operation-profile", "profile_source" => "API_OPERATIONS.md", "limit_override_allowed" => false, "trusted_profile_loaded" => true},
+        {"case_id" => "untrusted-caller-limit", "profile_source" => "caller-input", "limit_override_allowed" => false, "trusted_profile_loaded" => false}
+      ],
+      "sso_repeat_sync_cases" => [
+        {"case_id" => "repeat-login-current-mapping", "mapping_version_current" => true, "duplicate_membership_count" => 0, "terminal" => true},
+        {"case_id" => "directory-sync-retry", "mapping_version_current" => true, "duplicate_membership_count" => 0, "terminal" => false}
+      ],
+      "social_redirect_link_cases" => [
+        {"case_id" => "redirect-link", "operation_id" => "identity.account.link-start", "state_bound" => true, "account_link_count" => 1, "session_count" => 0},
+        {"case_id" => "redirect-unlink", "operation_id" => "identity.account.unlink", "state_bound" => true, "account_link_count" => 0, "session_count" => 0}
+      ],
+      "impersonation_authority_cases" => [
+        {"case_id" => "explicit-denial", "operation_id" => "identity.impersonation.deny", "grant_count" => 0, "session_count" => 0, "state" => "denied"},
+        {"case_id" => "quorum-reached", "operation_id" => "identity.impersonation.quorum", "grant_count" => 1, "session_count" => 0, "state" => "approved"},
+        {"case_id" => "active-revocation", "operation_id" => "identity.impersonation.revoke", "grant_count" => 0, "session_count" => 0, "state" => "revoked"}
+      ]
+    }
+    if artifact_cases.key?(kind)
+      variants = artifact_cases.fetch(kind).map do |entry|
+        properties = entry.to_h { |key, value| [key, {"const" => value}] }
+        properties["transcript_sha256"] = field_schema("digest")
+        {"type" => "object", "additionalProperties" => false, "required" => properties.keys, "properties" => properties}
+      end
+      return {"type" => "array", "minItems" => variants.length, "maxItems" => variants.length, "uniqueItems" => true,
+              "items" => {"oneOf" => variants}, "allOf" => variants.map { |variant| {"contains" => variant, "minContains" => 1} }}
+    end
+    if kind == "remember_issuer_variant_cases"
+      cases = supplemental_operation_claims.fetch("remember-policy-propagation-report").product([false, true])
+      variants = cases.map do |operation_id, remember|
+        properties = {"case_id" => {"const" => "#{operation_id}:remember=#{remember}"}, "operation_id" => {"const" => operation_id},
+                      "remember" => {"const" => remember}, "cookie_mode" => {"const" => remember ? "persistent" : "browser-session"},
+                      "session_issued" => {"const" => true}, "transcript_sha256" => field_schema("digest")}
+        {"type" => "object", "additionalProperties" => false, "required" => properties.keys, "properties" => properties}
+      end
+      return {"type" => "array", "minItems" => variants.length, "maxItems" => variants.length, "uniqueItems" => true,
+              "items" => {"oneOf" => variants}, "allOf" => variants.map { |variant| {"contains" => variant, "minContains" => 1} }}
+    end
     if kind == "captcha_provider_ids"
       return {"const" => %w[recaptcha turnstile hcaptcha captchafox]}
     end
     if kind == "captcha_provider_results"
-      variants = %w[recaptcha turnstile hcaptcha captchafox].map do |provider_id|
+      native = {
+        "recaptcha" => ["https://www.google.com/recaptcha/api/siteverify", "remoteip", "hostname", true],
+        "turnstile" => ["https://challenges.cloudflare.com/turnstile/v0/siteverify", "remoteip", "hostname", true],
+        "hcaptcha" => ["https://api.hcaptcha.com/siteverify", "remoteip", "hostname", false],
+        "captchafox" => ["https://api.captchafox.com/siteverify", "remoteIp", "hostname", false]
+      }
+      variants = native.map do |provider_id, (endpoint, remote_ip_field, hostname_field, action_supported)|
         {
           "type" => "object", "additionalProperties" => false,
-          "required" => %w[provider_id evidence_mode verified evidence_digest result_digest],
+          "required" => %w[provider_id endpoint request_content_type remote_ip_field hostname_field action_supported evidence_mode verified request_digest response_digest evidence_digest result_digest],
           "properties" => {
             "provider_id" => {"const" => provider_id},
+            "endpoint" => {"const" => endpoint}, "request_content_type" => {"const" => "application/x-www-form-urlencoded"},
+            "remote_ip_field" => {"const" => remote_ip_field}, "hostname_field" => {"const" => hostname_field},
+            "action_supported" => {"const" => action_supported},
             "evidence_mode" => {"type" => "string", "enum" => %w[sandbox fixture]},
             "verified" => {"const" => true},
-            "evidence_digest" => field_schema("digest"),
+            "request_digest" => field_schema("digest"), "response_digest" => field_schema("digest"), "evidence_digest" => field_schema("digest"),
             "result_digest" => field_schema("digest")
           }
         }
@@ -526,7 +861,7 @@ module IdentityPlatformAcceptance
       return {"const" => %w[identity.oauth-server.authorize identity.oauth-server.continue identity.oauth-server.token identity.oauth-server.session-token identity.oauth-server.userinfo identity.oauth-server.introspect identity.oauth-server.revoke identity.oauth-server.dynamic-register identity.oauth-server.discovery-oauth identity.oauth-server.discovery-oidc identity.oauth-server.jwks identity.oauth-server.end-session identity.oauth-server.protected-resource-metadata]}
     end
     if kind == "oauth_oidc_interoperability_claims"
-      return {"const" => %w[authorization-code-pkce authorization-continue session-token oidc-userinfo introspection-active introspection-inactive token-revocation dynamic-client-registration rfc7592-management-unselected oauth-discovery oidc-discovery jwks rp-initiated-logout rfc9728-protected-resource-metadata]}
+      return {"const" => %w[authorization-code-pkce authorization-continue session-token oidc-userinfo introspection-active introspection-inactive token-revocation dynamic-client-registration rfc7592-management-unsupported oauth-discovery oidc-discovery jwks rp-initiated-logout rfc9728-protected-resource-metadata]}
     end
     return {"const" => "openid-foundation-conformance-suite@3f2bc78770e9ebdbb8165b6be86ae85b99bb2fc8"} if kind == "oauth_oidc_suite_revision"
     if kind == "saml_endpoint_ids"
@@ -558,6 +893,23 @@ module IdentityPlatformAcceptance
     rules << {"kind" => "zero", "fields" => zero} unless zero.empty?
     rules << {"kind" => "true", "fields" => truthy} unless truthy.empty?
     CONST_RULES.fetch(artifact_id, {}).each { |field, value| rules << {"kind" => "const", "field" => field, "value" => value} }
+    if artifact_id == "operation-handler-openapi-bijection"
+      {"operation_count" => api_operation_ids.length, "handler_count" => handler_operation_ids.length,
+       "openapi_operation_count" => openapi_operation_ids.length, "duplicate_count" => 0}.each do |field, value|
+        rules << {"kind" => "const", "field" => field, "value" => value}
+      end
+    end
+    if artifact_id == "oauth-provider-matrix-report"
+      rules << {"kind" => "const", "field" => "provider_count", "value" => provider_matrix_rows.length}
+      rules << {"kind" => "const", "field" => "successful_provider_count", "value" => provider_matrix_rows.length}
+    elsif artifact_id == "provider-evidence-index"
+      rules << {"kind" => "const", "field" => "provider_count", "value" => provider_matrix_rows.length}
+      rules << {"kind" => "const", "field" => "indexed_provider_count", "value" => provider_matrix_rows.length}
+    end
+    if artifact_id == "hibp-interoperability-report"
+      rules << {"kind" => "const", "field" => "local_password_input_count", "value" => 1}
+      rules << {"kind" => "const", "field" => "local_sha1_computation_count", "value" => 1}
+    end
     rules << {"kind" => "const", "field" => "protected_target_count", "value" => captcha_protected_target_ids.length} if artifact_id == "captcha-four-provider-report"
     EQUALITY_RULES.fetch(artifact_id, []).each { |left, right| rules << {"kind" => "equal", "left" => left, "right" => right} }
     rules
@@ -606,40 +958,66 @@ module IdentityPlatformAcceptance
     cases = claim_ids(source_row).flat_map do |claim_id|
       scenario_names_for_claim(source_row, claim_id).map { |scenario| [claim_id, scenario] }
     end
-    case_schemas = cases.map do |claim_id, scenario|
+    observed_value_properties = profile.fetch("evidence_fields").filter_map do |name, kind|
+      value_schema = field_schema(kind)
+      next if value_schema.fetch("type", nil) == "array" || value_schema["const"].is_a?(Array)
+
+      [name, value_schema]
+    end.to_h
+    case_specs = cases.map do |claim_id, scenario|
       status, error = scenario_outcome(scenario)
       observation_id = observation_by_claim.fetch(claim_id)
+      operation_ids = operation_ids_for_claim(source_row, claim_id)
       {
-        "type" => "object", "additionalProperties" => false,
-        "required" => %w[case_id observation_id claim_id scenario operation_ids input_fields initial_state status stable_error expected_invariant observed_state_digest observed_event_digest observed_fields],
-        "properties" => {
-          "case_id" => {"const" => "#{observation_id}##{scenario}"},
-          "observation_id" => {"const" => observation_id}, "claim_id" => {"const" => claim_id},
-          "scenario" => {"const" => scenario}, "status" => {"const" => status},
-          "operation_ids" => {"const" => operation_ids_for_claim(source_row, claim_id)},
-          "input_fields" => {"const" => input_fields_for_claim(source_row, claim_id)},
-          "initial_state" => {"const" => profile.fetch("initial_state")},
-          "stable_error" => {"const" => error}, "expected_invariant" => {"const" => profile.fetch("invariant")},
-          "observed_state_digest" => field_schema("digest"),
-          "observed_event_digest" => field_schema("digest"),
-          "observed_fields" => {"const" => profile.fetch("evidence_fields").keys}
-        }
+        "case_id" => "#{observation_id}##{scenario}", "observation_id" => observation_id, "claim_id" => claim_id,
+        "scenario" => scenario, "operation_ids" => operation_ids, "input_fields" => input_fields_for_claim(source_row, claim_id),
+        "status" => status, "stable_error" => error,
+        "artifact_contract_sha256" => "sha256:#{Digest::SHA256.hexdigest([id, claim_id, scenario, profile.fetch('invariant')].join("\0"))}",
+        "expected_operation_set" => operation_ids.sort_by(&:b), "observed_operation_set" => operation_ids.sort_by(&:b)
       }
     end
+    exact_case_fields = case_specs.first.keys
+    artifact_operation_ids = profile.fetch("operation_ids")
+    scenario_properties = {
+      "case_id" => {"type" => "string", "enum" => case_specs.map { |spec| spec.fetch("case_id") }},
+      "observation_id" => {"type" => "string", "enum" => observation_by_claim.values},
+      "claim_id" => {"type" => "string", "enum" => claim_ids(source_row)},
+      "invariant_id" => {"const" => "#{id}.invariant"},
+      "scenario" => {"type" => "string", "enum" => cases.map(&:last).uniq},
+      "operation_ids" => {"type" => "array", "minItems" => 1, "uniqueItems" => true, "items" => {"type" => "string", "enum" => artifact_operation_ids}},
+      "input_fields" => {"type" => "array", "minItems" => 1, "uniqueItems" => true, "items" => {"type" => "string", "minLength" => 1}},
+      "initial_state" => {"const" => profile.fetch("initial_state")},
+      "status" => {"type" => "string", "enum" => cases.map { |_claim_id, scenario| scenario_outcome(scenario).first }.uniq},
+      "stable_error" => {"type" => "string", "enum" => cases.map { |_claim_id, scenario| scenario_outcome(scenario).last }.uniq},
+      "expected_invariant" => {"const" => profile.fetch("invariant")},
+      "observed_state_digest" => field_schema("digest"), "observed_event_digest" => field_schema("digest"),
+      "transcript_sha256" => field_schema("digest"), "artifact_contract_sha256" => field_schema("digest"),
+      "observed_value_count" => {"const" => observed_value_properties.length},
+      "ordered_steps" => {"const" => %w[precondition-established stimulus-executed outcome-observed transcript-bound]},
+      "expected_operation_set" => {"type" => "array", "minItems" => 1, "uniqueItems" => true, "items" => {"type" => "string", "enum" => artifact_operation_ids}},
+      "observed_operation_set" => {"type" => "array", "minItems" => 1, "uniqueItems" => true, "items" => {"type" => "string", "enum" => artifact_operation_ids}},
+      "observed_values" => {"type" => "object", "additionalProperties" => false,
+                            "required" => observed_value_properties.keys, "properties" => observed_value_properties}
+    }
+    scenario_case_schema = {"type" => "object", "additionalProperties" => false,
+                            "required" => scenario_properties.keys, "properties" => scenario_properties}
     properties = {
       "artifact_id" => {"const" => id},
+      "invariant_id" => {"const" => "#{id}.invariant"},
+      "invariant" => {"const" => profile.fetch("invariant")},
       "operation_ids" => {"const" => profile.fetch("operation_ids")},
       "input_digest" => field_schema("digest"),
       "execution" => execution_schema(artifact),
-      "scenario_cases" => {"type" => "array", "minItems" => cases.length, "maxItems" => cases.length, "items" => {"oneOf" => case_schemas}}
+      "scenario_cases" => {"type" => "array", "minItems" => cases.length, "maxItems" => cases.length, "uniqueItems" => true,
+                           "items" => scenario_case_schema, "x-exact-scenario-case-fields" => exact_case_fields,
+                           "x-exact-scenario-cases" => case_specs}
     }
     profile.fetch("evidence_fields").each { |name, kind| properties[name] = field_schema(kind) }
     {
       "type" => "object", "additionalProperties" => false,
       "required" => properties.keys,
       "properties" => properties,
-      "x-semantic-rules" => semantic_rules(id),
-      "allOf" => case_schemas.map { |case_schema| {"properties" => {"scenario_cases" => {"contains" => case_schema, "minContains" => 1}}} }
+      "x-semantic-rules" => semantic_rules(id)
     }
   end
 
@@ -712,5 +1090,13 @@ module IdentityPlatformAcceptance
 
   def canonical_json(value)
     JSON.pretty_generate(value) + "\n"
+  end
+
+  def canonical_value(value)
+    case value
+    when Hash then value.keys.sort.to_h { |key| [key, canonical_value(value.fetch(key))] }
+    when Array then value.map { |entry| canonical_value(entry) }
+    else value
+    end
   end
 end

@@ -148,7 +148,7 @@
     {
       "authorization": {
         "access": "fresh recovery admin plus independent approval",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "administrative policy: fresh recovery admin plus independent approval"
       },
       "collaborators": [
@@ -307,7 +307,7 @@
     {
       "authorization": {
         "access": "fresh recovery admin plus independent approval",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "administrative policy: fresh recovery admin plus independent approval"
       },
       "collaborators": [
@@ -472,7 +472,7 @@
     {
       "authorization": {
         "access": "admin",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "administrative policy: admin"
       },
       "collaborators": [],
@@ -644,7 +644,7 @@
     {
       "authorization": {
         "access": "anonymous session",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: anonymous session"
       },
       "collaborators": [
@@ -810,7 +810,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: public plus pre-auth transaction"
       },
       "collaborators": [],
@@ -964,7 +964,7 @@
     {
       "authorization": {
         "access": "anonymous session plus permanent proof",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: anonymous session plus permanent proof"
       },
       "collaborators": [],
@@ -1116,7 +1116,7 @@
     {
       "authorization": {
         "access": "session owner or email admin",
-        "csrf_origin": "none",
+        "csrf_origin": "CSRFNone",
         "policy": "authenticated subject policy: session owner or email admin"
       },
       "collaborators": [],
@@ -1209,7 +1209,7 @@
     {
       "authorization": {
         "access": "session owner or email admin",
-        "csrf_origin": "none",
+        "csrf_origin": "CSRFNone",
         "policy": "authenticated subject policy: session owner or email admin"
       },
       "collaborators": [],
@@ -1329,7 +1329,7 @@
     {
       "authorization": {
         "access": "fresh owner or fresh email admin",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh owner or fresh email admin"
       },
       "collaborators": [
@@ -1503,7 +1503,7 @@
     {
       "authorization": {
         "access": "email-change capability",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: email-change capability"
       },
       "collaborators": [],
@@ -1658,7 +1658,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [],
@@ -1812,7 +1812,7 @@
     {
       "authorization": {
         "access": "pre-auth-bound email capability when issuing a session, otherwise email capability",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "authenticated subject policy: pre-auth-bound email capability when issuing a session, otherwise email capability"
       },
       "collaborators": [],
@@ -1959,7 +1959,7 @@
     {
       "authorization": {
         "access": "public or session",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "authenticated subject policy: public or session"
       },
       "collaborators": [],
@@ -2113,7 +2113,7 @@
     {
       "authorization": {
         "access": "pre-auth-bound magic-link capability",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: pre-auth-bound magic-link capability"
       },
       "collaborators": [],
@@ -2277,7 +2277,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: public plus pre-auth transaction"
       },
       "collaborators": [],
@@ -2431,7 +2431,7 @@
     {
       "authorization": {
         "access": "fresh plus factor proof",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh plus factor proof"
       },
       "collaborators": [],
@@ -2576,7 +2576,7 @@
     {
       "authorization": {
         "access": "fresh plus primary proof",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh plus primary proof"
       },
       "collaborators": [],
@@ -2723,7 +2723,7 @@
     {
       "authorization": {
         "access": "fresh plus factor proof",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh plus factor proof"
       },
       "collaborators": [],
@@ -2887,7 +2887,7 @@
     {
       "authorization": {
         "access": "session",
-        "csrf_origin": "none",
+        "csrf_origin": "CSRFNone",
         "policy": "authenticated subject policy: session"
       },
       "collaborators": [],
@@ -2992,7 +2992,7 @@
     {
       "authorization": {
         "access": "MFA continuation",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: MFA continuation"
       },
       "collaborators": [
@@ -3146,7 +3146,7 @@
     {
       "authorization": {
         "access": "MFA continuation",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: MFA continuation"
       },
       "collaborators": [
@@ -3302,7 +3302,7 @@
     {
       "authorization": {
         "access": "fresh plus factor proof",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh plus factor proof"
       },
       "collaborators": [],
@@ -3435,7 +3435,7 @@
     {
       "authorization": {
         "access": "MFA continuation",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: MFA continuation"
       },
       "collaborators": [],
@@ -3582,7 +3582,7 @@
     {
       "authorization": {
         "access": "MFA continuation",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: MFA continuation"
       },
       "collaborators": [
@@ -3724,7 +3724,7 @@
     {
       "authorization": {
         "access": "MFA continuation",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: MFA continuation"
       },
       "collaborators": [
@@ -3872,7 +3872,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [
@@ -4006,7 +4006,7 @@
     {
       "authorization": {
         "access": "enrollment challenge",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "flow binding policy: enrollment challenge"
       },
       "collaborators": [
@@ -4140,7 +4140,7 @@
     {
       "authorization": {
         "access": "pending enrollment",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "flow binding policy: pending enrollment"
       },
       "collaborators": [],
@@ -4234,7 +4234,7 @@
     {
       "authorization": {
         "access": "pending/signin challenge",
-        "csrf_origin": "origin or CSRF",
+        "csrf_origin": "CSRFConditionalPreAuthSession",
         "policy": "flow binding policy: pending/signin challenge"
       },
       "collaborators": [],
@@ -4395,7 +4395,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [],
@@ -4526,7 +4526,7 @@
     {
       "authorization": {
         "access": "purpose challenge",
-        "csrf_origin": "none",
+        "csrf_origin": "CSRFNone",
         "policy": "flow binding policy: purpose challenge"
       },
       "collaborators": [],
@@ -4643,7 +4643,7 @@
     {
       "authorization": {
         "access": "change challenge",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "flow binding policy: change challenge"
       },
       "collaborators": [
@@ -4795,7 +4795,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [
@@ -4944,7 +4944,7 @@
     {
       "authorization": {
         "access": "pre-auth-bound email challenge when issuing a session, otherwise email challenge",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "authenticated subject policy: pre-auth-bound email challenge when issuing a session, otherwise email challenge"
       },
       "collaborators": [
@@ -5093,7 +5093,7 @@
     {
       "authorization": {
         "access": "reset challenge",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: reset challenge"
       },
       "collaborators": [
@@ -5245,7 +5245,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction for signin, session, or MFA continuation by purpose",
-        "csrf_origin": "origin or CSRF",
+        "csrf_origin": "CSRFConditionalPreAuthSession",
         "policy": "authenticated subject policy: public plus pre-auth transaction for signin, session, or MFA continuation by purpose"
       },
       "collaborators": [],
@@ -5399,7 +5399,7 @@
     {
       "authorization": {
         "access": "pre-auth-bound public challenge",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: pre-auth-bound public challenge"
       },
       "collaborators": [],
@@ -5565,7 +5565,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [],
@@ -5733,7 +5733,7 @@
     {
       "authorization": {
         "access": "session",
-        "csrf_origin": "none",
+        "csrf_origin": "CSRFNone",
         "policy": "authenticated subject policy: session"
       },
       "collaborators": [],
@@ -5820,7 +5820,7 @@
     {
       "authorization": {
         "access": "session or pre-auth transaction",
-        "csrf_origin": "CSRF or origin",
+        "csrf_origin": "CSRFConditionalPreAuthSession",
         "policy": "authenticated subject policy: session or pre-auth transaction"
       },
       "collaborators": [
@@ -5976,7 +5976,7 @@
     {
       "authorization": {
         "access": "pre-auth-bound registration challenge for unauthenticated registration, otherwise session-bound registration challenge",
-        "csrf_origin": "CSRF or origin",
+        "csrf_origin": "CSRFConditionalPreAuthSession",
         "policy": "authenticated subject policy: pre-auth-bound registration challenge for unauthenticated registration, otherwise session-bound registration challenge"
       },
       "collaborators": [
@@ -6132,7 +6132,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: public plus pre-auth transaction"
       },
       "collaborators": [
@@ -6282,7 +6282,7 @@
     {
       "authorization": {
         "access": "pre-auth-bound assertion challenge",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: pre-auth-bound assertion challenge"
       },
       "collaborators": [
@@ -6437,7 +6437,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [],
@@ -6586,7 +6586,7 @@
     {
       "authorization": {
         "access": "fresh plus current-password proof",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh plus current-password proof"
       },
       "collaborators": [],
@@ -6743,7 +6743,7 @@
     {
       "authorization": {
         "access": "reset capability",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: reset capability"
       },
       "collaborators": [],
@@ -6903,7 +6903,7 @@
     {
       "authorization": {
         "access": "reset capability",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: reset capability"
       },
       "collaborators": [],
@@ -6990,7 +6990,7 @@
     {
       "authorization": {
         "access": "public",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "none"
       },
       "collaborators": [],
@@ -7130,7 +7130,7 @@
     {
       "authorization": {
         "access": "fresh or reset/admin proof",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "administrative policy: fresh or reset/admin proof"
       },
       "collaborators": [],
@@ -7280,7 +7280,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: public plus pre-auth transaction"
       },
       "collaborators": [],
@@ -7459,7 +7459,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: public plus pre-auth transaction"
       },
       "collaborators": [],
@@ -7642,7 +7642,7 @@
     {
       "authorization": {
         "access": "session",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: session"
       },
       "collaborators": [],
@@ -7790,7 +7790,7 @@
     {
       "authorization": {
         "access": "explicitly enabled reset capability plus phone OTP plus independent factor",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: explicitly enabled reset capability plus phone OTP plus independent factor"
       },
       "collaborators": [
@@ -7970,7 +7970,7 @@
     {
       "authorization": {
         "access": "explicitly enabled public recovery plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: explicitly enabled public recovery plus pre-auth transaction"
       },
       "collaborators": [
@@ -8133,7 +8133,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: public plus pre-auth transaction"
       },
       "collaborators": [
@@ -8314,7 +8314,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [],
@@ -8462,7 +8462,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction for signup/signin, or session-authenticated number-change",
-        "csrf_origin": "origin or CSRF",
+        "csrf_origin": "CSRFConditionalPreAuthSession",
         "policy": "authenticated subject policy: public plus pre-auth transaction for signup/signin, or session-authenticated number-change"
       },
       "collaborators": [],
@@ -8616,7 +8616,7 @@
     {
       "authorization": {
         "access": "pre-auth-bound public challenge",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: pre-auth-bound public challenge"
       },
       "collaborators": [],
@@ -8782,7 +8782,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [],
@@ -8922,7 +8922,7 @@
     {
       "authorization": {
         "access": "pre-auth-bound phone challenge for signup/session issuance, or session-bound number-change challenge",
-        "csrf_origin": "origin or CSRF",
+        "csrf_origin": "CSRFConditionalPreAuthSession",
         "policy": "authenticated subject policy: pre-auth-bound phone challenge for signup/session issuance, or session-bound number-change challenge"
       },
       "collaborators": [],
@@ -9091,7 +9091,7 @@
     {
       "authorization": {
         "access": "public",
-        "csrf_origin": "none",
+        "csrf_origin": "CSRFNone",
         "policy": "none"
       },
       "collaborators": [],
@@ -9186,7 +9186,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: public plus pre-auth transaction"
       },
       "collaborators": [
@@ -9349,7 +9349,7 @@
     {
       "authorization": {
         "access": "public plus pre-auth transaction",
-        "csrf_origin": "origin",
+        "csrf_origin": "CSRFExactOrigin",
         "policy": "flow binding policy: public plus pre-auth transaction"
       },
       "collaborators": [
@@ -9528,7 +9528,7 @@
     {
       "authorization": {
         "access": "fresh",
-        "csrf_origin": "CSRF",
+        "csrf_origin": "CSRFSessionOriginAndToken",
         "policy": "authenticated subject policy: fresh"
       },
       "collaborators": [],
@@ -9850,6 +9850,59 @@
       ],
       "package_name": "password",
       "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Profile",
+              "type": "RegistrationPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Complete closed package policy; the reference composer materializes every default before construction."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "CredentialStore",
+              "type": "CredentialStore",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil CredentialStore dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Delivery",
+              "type": "Delivery",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Delivery dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "PasswordVerifier",
+              "type": "PasswordVerifier",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil PasswordVerifier dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "SessionIssuer",
+              "type": "SessionIssuer",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil SessionIssuer dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
         {
           "concurrency": "immutable value; safe for concurrent reads",
           "fields": [
@@ -10592,7 +10645,58 @@
         }
       ],
       "package_name": "postgres",
-      "types": [],
+      "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Schema",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Validated PostgreSQL identifier selected before any query.",
+              "bounds": "1..63 ASCII bytes"
+            },
+            {
+              "name": "MaxPageSize",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard result-page ceiling; callers cannot raise it.",
+              "bounds": "1..1000",
+              "zero_valid": false,
+              "zero_value_detail": "0 selects no usable page bound"
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Pool",
+              "type": "*pgxpool.Pool",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required bounded PostgreSQL pool; caller owns pool lifetime."
+            },
+            {
+              "name": "UnitOfWork",
+              "type": "identitypostgres.Enlister",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required transaction enlistment authority; adapter does not own it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        }
+      ],
       "unit": "identity/password/postgres",
       "zero_value_semantics": [
         "nil dependencies are rejected by the constructor",
@@ -10748,6 +10852,66 @@
       ],
       "package_name": "username",
       "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Profile",
+              "type": "Policy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Complete closed package policy; the reference composer materializes every default before construction."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "AuditHook",
+              "type": "AuditHook",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil AuditHook dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "AuthorizationHook",
+              "type": "AuthorizationHook",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil AuthorizationHook dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "AvailabilityService",
+              "type": "AvailabilityService",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil AvailabilityService dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Canonicalizer",
+              "type": "Canonicalizer",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Canonicalizer dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Validator",
+              "type": "Validator",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Validator dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
         {
           "concurrency": "immutable value; safe for concurrent reads",
           "fields": [
@@ -11168,6 +11332,38 @@
       "package_name": "email",
       "types": [
         {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Profile",
+              "type": "AddressPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Complete closed package policy; the reference composer materializes every default before construction."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Delivery",
+              "type": "Delivery",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Delivery dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
           "bounds": "1..4096 UTF-8 bytes",
           "concurrency": "immutable value",
           "fields": [],
@@ -11582,6 +11778,52 @@
       "package_name": "magiclink",
       "types": [
         {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Profile",
+              "type": "RequestPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Complete closed package policy; the reference composer materializes every default before construction."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "RedirectPolicy",
+              "type": "RedirectPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil RedirectPolicy dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "SessionIssuer",
+              "type": "SessionIssuer",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil SessionIssuer dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "SignupPolicy",
+              "type": "SignupPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil SignupPolicy dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
           "concurrency": "immutable value; safe for concurrent reads",
           "fields": [
             {
@@ -11975,13 +12217,18 @@
         {
           "methods": [
             {
+              "name": "Attempt",
+              "semantics": "Atomically verifies one logical submission, records an incorrect attempt exactly once by AttemptID and Fingerprint, and either returns a non-consuming checked result or creates the consuming reservation selected by Mode.",
+              "signature": "Attempt(context.Context, AttemptCommand) (AttemptResult, identity.CommitOutcome, error)"
+            },
+            {
               "name": "Issue",
               "semantics": "persist only scoped keyed digest",
               "signature": "Issue(context.Context, IssueCommand) (Challenge, identity.CommitOutcome, error)"
             },
             {
               "name": "Reserve",
-              "semantics": "generation-fenced reservation",
+              "semantics": "Replays or generation-fences takeover of the reservation already created by a committed consuming Attempt; it never compares a code or converts a non-consuming check into authority.",
               "signature": "Reserve(context.Context, ReserveCommand) (Reservation, identity.CommitOutcome, error)"
             },
             {
@@ -11993,6 +12240,11 @@
               "name": "Recover",
               "semantics": "recover unknown command outcome",
               "signature": "Recover(context.Context, RecoverCommand) (RecoveryResult, error)"
+            },
+            {
+              "name": "RecoverAttempt",
+              "semantics": "Reconciles an ambiguous attempt by exact AttemptID and Fingerprint without repeating comparison, increment, or reservation.",
+              "signature": "RecoverAttempt(context.Context, RecoverAttemptCommand) (AttemptRecoveryResult, error)"
             }
           ],
           "name": "Store"
@@ -12010,6 +12262,282 @@
       ],
       "package_name": "otp",
       "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Profile",
+              "type": "AttemptPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Complete closed package policy; the reference composer materializes every default before construction."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Delivery",
+              "type": "Delivery",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Delivery dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Generator",
+              "type": "Generator",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Generator dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "SessionIssuer",
+              "type": "SessionIssuer",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil SessionIssuer dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Store",
+              "type": "Store",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Store dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Verifier",
+              "type": "Verifier",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Verifier dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "bounds": "22 base64url characters encoding exactly 16 cryptographically random bytes",
+          "concurrency": "immutable value",
+          "fields": [],
+          "kind": "scalar",
+          "name": "AttemptID",
+          "ownership": "server-issued identity for one logical OTP code submission; stable across retries and recovery and never accepted from an untrusted client",
+          "underlying": "string",
+          "zero_value": "empty is invalid"
+        },
+        {
+          "bounds": "43 base64url characters encoding exactly 32 HMAC-SHA-256 bytes",
+          "concurrency": "immutable value",
+          "fields": [],
+          "kind": "scalar",
+          "name": "AttemptFingerprint",
+          "ownership": "server-derived domain-separated binding of tenant, challenge, purpose, authorization context, mode and exact submitted code; safe only as opaque idempotency metadata and never caller-selectable",
+          "underlying": "string",
+          "zero_value": "empty is invalid"
+        },
+        {
+          "concurrency": "immutable value",
+          "constants": [
+            "AttemptModeCheck",
+            "AttemptModeConsume"
+          ],
+          "fields": [],
+          "kind": "enum",
+          "name": "AttemptMode",
+          "ownership": "closed distinction between a separately limited non-consuming check and an authoritative consuming verification/reservation",
+          "zero_value": "invalid"
+        },
+        {
+          "concurrency": "immutable value; safe for concurrent reads",
+          "fields": [
+            {
+              "name": "AttemptID",
+              "required": true,
+              "semantics": "Identifies one logical submission and remains unchanged across retry and recovery.",
+              "type": "otp.AttemptID",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Fingerprint",
+              "required": true,
+              "semantics": "Server-derived exact-input binding; reuse of an AttemptID with a different fingerprint is rejected.",
+              "type": "otp.AttemptFingerprint",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "TenantID",
+              "required": true,
+              "semantics": "Trusted tenant scope.",
+              "type": "identity.TenantID",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "ChallengeID",
+              "required": true,
+              "semantics": "Exact purpose-bound challenge.",
+              "type": "otp.ChallengeID",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Purpose",
+              "required": true,
+              "semantics": "Exact purpose that must equal the issued challenge purpose.",
+              "type": "otp.Purpose",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Authorization",
+              "required": true,
+              "semantics": "Exact disjoint authenticated-session or pre-auth authority bound to the challenge; mismatch is denied before comparison.",
+              "type": "otp.FlowAuthorization",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Code",
+              "required": true,
+              "semantics": "Borrowed exact code for constant-work verification; it is never retained in the replay record.",
+              "type": "otp.Code",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Mode",
+              "required": true,
+              "semantics": "Check returns only a transient verified status without a Proof or Reservation and without consuming; Consume atomically creates the sole generation-fenced reservation on success.",
+              "type": "otp.AttemptMode",
+              "zero_value": "invalid"
+            },
+            {
+              "bounds": "1..18446744073709551615",
+              "name": "ExpectedVersion",
+              "required": true,
+              "semantics": "Caller-observed challenge version used for atomic conflict detection.",
+              "type": "uint64",
+              "zero_valid": false,
+              "zero_value": "0 is invalid",
+              "zero_value_detail": "invalid"
+            }
+          ],
+          "kind": "struct",
+          "name": "AttemptCommand",
+          "ownership": "atomic OTP verification, denial accounting and optional reservation command",
+          "zero_value": "invalid until every required field is set"
+        },
+        {
+          "concurrency": "immutable value",
+          "constants": [
+            "AttemptChecked",
+            "AttemptReserved",
+            "AttemptDenied",
+            "AttemptExpired",
+            "AttemptExhausted",
+            "AttemptConflict"
+          ],
+          "fields": [],
+          "kind": "enum",
+          "name": "AttemptOutcome",
+          "ownership": "closed authoritative result of one logical OTP submission",
+          "zero_value": "invalid"
+        },
+        {
+          "concurrency": "immutable value; safe for concurrent reads",
+          "fields": [
+            {
+              "name": "Outcome",
+              "required": true,
+              "semantics": "Authoritative closed attempt result.",
+              "type": "otp.AttemptOutcome",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "State",
+              "required": true,
+              "semantics": "Challenge state after the atomic attempt transaction.",
+              "type": "otp.ChallengeState",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "RemainingAttempts",
+              "required": true,
+              "semantics": "Bounded remaining attempts after an incorrect submission; replays return the stored value without another decrement.",
+              "type": "uint32",
+              "bounds": "0..100 attempts",
+              "zero_value": "0 is valid",
+              "zero_valid": true,
+              "zero_value_detail": "no attempts remain"
+            },
+            {
+              "name": "Reservation",
+              "required": false,
+              "semantics": "Present exactly for AttemptReserved; absent for non-consuming checks and every denial.",
+              "type": "otp.Reservation",
+              "zero_value": "omitted"
+            }
+          ],
+          "kind": "struct",
+          "name": "AttemptResult",
+          "ownership": "stored idempotent outcome of one logical OTP attempt",
+          "zero_value": "invalid until every required field is set"
+        },
+        {
+          "concurrency": "immutable value; safe for concurrent reads",
+          "fields": [
+            {
+              "name": "TenantID",
+              "required": true,
+              "semantics": "Trusted tenant scope.",
+              "type": "identity.TenantID",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "AttemptID",
+              "required": true,
+              "semantics": "Exact logical attempt under recovery.",
+              "type": "otp.AttemptID",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Fingerprint",
+              "required": true,
+              "semantics": "Must match the immutable fingerprint stored for AttemptID.",
+              "type": "otp.AttemptFingerprint",
+              "zero_value": "invalid"
+            }
+          ],
+          "kind": "struct",
+          "name": "RecoverAttemptCommand",
+          "ownership": "ambiguous OTP attempt recovery query",
+          "zero_value": "invalid until every required field is set"
+        },
+        {
+          "concurrency": "immutable value; safe for concurrent reads",
+          "fields": [
+            {
+              "name": "Outcome",
+              "required": true,
+              "semantics": "Commit classification; Unknown remains unknown.",
+              "type": "identity.CommitOutcome",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Attempt",
+              "required": false,
+              "semantics": "Stored attempt result when the attempt committed; absent for a proven not-committed outcome.",
+              "type": "otp.AttemptResult",
+              "zero_value": "omitted"
+            }
+          ],
+          "kind": "struct",
+          "name": "AttemptRecoveryResult",
+          "ownership": "recovered immutable attempt outcome",
+          "zero_value": "invalid until Outcome is set"
+        },
         {
           "concurrency": "immutable after construction",
           "fields": [
@@ -12046,6 +12574,48 @@
           "name": "AttemptPolicy",
           "ownership": "identity/otp owns AttemptPolicy",
           "zero_value": "invalid until every required field is set"
+        },
+        {
+          "concurrency": "immutable value",
+          "constants": [
+            "FlowAuthorizationAuthenticatedSession",
+            "FlowAuthorizationPreAuthTransaction"
+          ],
+          "fields": [],
+          "kind": "enum",
+          "name": "FlowAuthorizationKind",
+          "ownership": "closed disjoint authorization-context discriminant shared by OTP and passkey flows",
+          "zero_value": "invalid"
+        },
+        {
+          "concurrency": "immutable value; safe for concurrent reads",
+          "fields": [
+            {
+              "name": "Kind",
+              "required": true,
+              "semantics": "Selects exactly one authorization variant; nullable-field inference is forbidden.",
+              "type": "otp.FlowAuthorizationKind",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "AuthenticatedSessionID",
+              "required": false,
+              "semantics": "Required exactly for FlowAuthorizationAuthenticatedSession and forbidden for the pre-auth variant; the session is already authenticated and must be re-authorized for the exact operation.",
+              "type": "identity/session.SessionID",
+              "zero_value": "omitted"
+            },
+            {
+              "name": "PreAuthTransactionID",
+              "required": false,
+              "semantics": "Required exactly for FlowAuthorizationPreAuthTransaction and forbidden for the authenticated-session variant; it is single-use, purpose-bound and not authenticated-session authority.",
+              "type": "identity.PreAuthTransactionID",
+              "zero_value": "omitted"
+            }
+          ],
+          "kind": "struct",
+          "name": "FlowAuthorization",
+          "ownership": "tagged union preventing authenticated-session and pre-auth authority from being combined, omitted, or inferred",
+          "zero_value": "invalid until Kind and exactly its selected non-zero member are set"
         },
         {
           "concurrency": "immutable value; safe for concurrent reads",
@@ -12386,6 +12956,13 @@
               "zero_value": "invalid"
             },
             {
+              "name": "Authorization",
+              "required": true,
+              "semantics": "Carries exactly one authenticated-session or pre-auth transaction authority appropriate to the purpose; the variants are disjoint and cannot be inferred from subject or remember policy.",
+              "type": "otp.FlowAuthorization",
+              "zero_value": "invalid"
+            },
+            {
               "name": "RememberPolicy",
               "required": false,
               "semantics": "Carries the already-resolved persistent or browser-session choice unchanged through continuation.",
@@ -12563,6 +13140,20 @@
           "concurrency": "immutable value; safe for concurrent reads",
           "fields": [
             {
+              "name": "AttemptID",
+              "required": true,
+              "semantics": "Exact successful logical attempt being promoted to or replayed as a reservation.",
+              "type": "otp.AttemptID",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Fingerprint",
+              "required": true,
+              "semantics": "Must match the immutable server-derived fingerprint recorded for AttemptID.",
+              "type": "otp.AttemptFingerprint",
+              "zero_value": "invalid"
+            },
+            {
               "name": "CommandID",
               "required": true,
               "semantics": "Identifies the authoritative idempotent command and must remain unchanged across retries and recovery.",
@@ -12577,17 +13168,17 @@
               "zero_value": "invalid"
             },
             {
-              "name": "Code",
-              "required": true,
-              "semantics": "Carries the ephemeral one-time code only across generation, verification, or delivery boundaries.",
-              "type": "otp.Code",
-              "zero_value": "invalid"
-            },
-            {
               "name": "Purpose",
               "required": true,
               "semantics": "Separates authority by exact operation purpose; proof issued for one purpose cannot satisfy another.",
               "type": "otp.Purpose",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Authorization",
+              "required": true,
+              "semantics": "Exact disjoint flow authority that was bound to the issued challenge and attempt.",
+              "type": "otp.FlowAuthorization",
               "zero_value": "invalid"
             },
             {
@@ -12603,7 +13194,7 @@
           ],
           "kind": "struct",
           "name": "ReserveCommand",
-          "ownership": "atomic verification/reservation command",
+          "ownership": "generation-fenced replay or takeover of a reservation atomically created by the exact consuming AttemptID and Fingerprint; never a second verification path",
           "zero_value": "invalid until every required field is set"
         },
         {
@@ -12657,6 +13248,13 @@
               "required": true,
               "semantics": "Identifies the exact purpose-bound challenge without exposing its secret.",
               "type": "otp.ChallengeID",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Authorization",
+              "required": true,
+              "semantics": "Must be the same pre-auth transaction authority bound to the signin challenge; authenticated-session authority cannot issue a new signin session.",
+              "type": "otp.FlowAuthorization",
               "zero_value": "invalid"
             }
           ],
@@ -12746,6 +13344,11 @@
         {
           "methods": [
             {
+              "name": "Attempt",
+              "semantics": "atomically persist exact-once wrong-attempt denial or the consuming reservation selected by mode",
+              "signature": "Attempt(context.Context, identity.UnitOfWork, otp.AttemptCommand) (otp.AttemptResult, identity.CommitOutcome, error)"
+            },
+            {
               "name": "Issue",
               "semantics": "persist issued digest and policy",
               "signature": "Issue(context.Context, identity.UnitOfWork, otp.IssueCommand) (otp.Challenge, identity.CommitOutcome, error)"
@@ -12764,13 +13367,69 @@
               "name": "Recover",
               "semantics": "primary-authority reconciliation",
               "signature": "Recover(context.Context, otp.RecoverCommand) (otp.RecoveryResult, error)"
+            },
+            {
+              "name": "RecoverAttempt",
+              "semantics": "reconcile exact AttemptID and Fingerprint without repeating compare, decrement, or reservation",
+              "signature": "RecoverAttempt(context.Context, otp.RecoverAttemptCommand) (otp.AttemptRecoveryResult, error)"
             }
           ],
           "name": "Store"
         }
       ],
       "package_name": "postgres",
-      "types": [],
+      "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Schema",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Validated PostgreSQL identifier selected before any query.",
+              "bounds": "1..63 ASCII bytes"
+            },
+            {
+              "name": "MaxPageSize",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard result-page ceiling; callers cannot raise it.",
+              "bounds": "1..1000",
+              "zero_valid": false,
+              "zero_value_detail": "0 selects no usable page bound"
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Pool",
+              "type": "*pgxpool.Pool",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required bounded PostgreSQL pool; caller owns pool lifetime."
+            },
+            {
+              "name": "UnitOfWork",
+              "type": "identitypostgres.Enlister",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required transaction enlistment authority; adapter does not own it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        }
+      ],
       "unit": "identity/otp/postgres",
       "zero_value_semantics": [
         "nil dependencies are rejected by the constructor",
@@ -12896,6 +13555,38 @@
       ],
       "package_name": "phone",
       "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Profile",
+              "type": "NumberPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Complete closed package policy; the reference composer materializes every default before construction."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Clock",
+              "type": "clock.Clock",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required bounded-time clock authority; caller owns it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
         {
           "concurrency": "immutable after construction",
           "fields": [
@@ -13244,6 +13935,66 @@
       ],
       "package_name": "anonymous",
       "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Profile",
+              "type": "ExpiryPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Complete closed package policy; the reference composer materializes every default before construction."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Issuer",
+              "type": "Issuer",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Issuer dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "SessionTransition",
+              "type": "SessionTransition",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil SessionTransition dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Store",
+              "type": "Store",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Store dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "UnitOfWork",
+              "type": "UnitOfWork",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil UnitOfWork dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "UpgradePolicy",
+              "type": "UpgradePolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil UpgradePolicy dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
         {
           "concurrency": "immutable value; safe for concurrent reads",
           "fields": [
@@ -13958,6 +14709,56 @@
       "package_name": "postgres",
       "types": [
         {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Schema",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Validated PostgreSQL identifier selected before any query.",
+              "bounds": "1..63 ASCII bytes"
+            },
+            {
+              "name": "MaxPageSize",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard result-page ceiling; callers cannot raise it.",
+              "bounds": "1..1000",
+              "zero_valid": false,
+              "zero_value_detail": "0 selects no usable page bound"
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Pool",
+              "type": "*pgxpool.Pool",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required bounded PostgreSQL pool; caller owns pool lifetime."
+            },
+            {
+              "name": "UnitOfWork",
+              "type": "identitypostgres.Enlister",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required transaction enlistment authority; adapter does not own it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
           "concurrency": "immutable after construction",
           "constants": [
             "Pending",
@@ -14173,6 +14974,66 @@
       ],
       "package_name": "mfa",
       "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Factors",
+              "type": "FactorPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Closed factor enrollment and use policy."
+            },
+            {
+              "name": "TOTP",
+              "type": "TOTPProfile",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Exact TOTP algorithm, period, digits, skew, and attempt limits."
+            },
+            {
+              "name": "SecurityKeys",
+              "type": "SecurityKeyProfile",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Exact MFA WebAuthn security-key policy."
+            },
+            {
+              "name": "StepUp",
+              "type": "StepUpPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Exact freshness and independent-factor step-up policy."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Store",
+              "type": "Store",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Store dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "WebAuthnVerifier",
+              "type": "WebAuthnVerifier",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil WebAuthnVerifier dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
         {
           "concurrency": "immutable value",
           "constants": [
@@ -15308,6 +16169,56 @@
       "package_name": "postgres",
       "types": [
         {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Schema",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Validated PostgreSQL identifier selected before any query.",
+              "bounds": "1..63 ASCII bytes"
+            },
+            {
+              "name": "MaxPageSize",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard result-page ceiling; callers cannot raise it.",
+              "bounds": "1..1000",
+              "zero_valid": false,
+              "zero_value_detail": "0 selects no usable page bound"
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Pool",
+              "type": "*pgxpool.Pool",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required bounded PostgreSQL pool; caller owns pool lifetime."
+            },
+            {
+              "name": "UnitOfWork",
+              "type": "identitypostgres.Enlister",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required transaction enlistment authority; adapter does not own it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
           "concurrency": "immutable after construction",
           "constants": [
             "Pending",
@@ -15453,6 +16364,94 @@
       ],
       "package_name": "webauthn",
       "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "RelyingParty",
+              "type": "RelyingParty",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Exact RP ID, display name, and origin authority."
+            },
+            {
+              "name": "Assertion",
+              "type": "AssertionPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Closed assertion and user-verification policy."
+            },
+            {
+              "name": "Attestation",
+              "type": "AttestationPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Closed attestation conveyance, format, and trust policy."
+            },
+            {
+              "name": "Counter",
+              "type": "CounterPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Closed authenticator counter policy."
+            },
+            {
+              "name": "ChallengeTTL",
+              "type": "time.Duration",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Ceremony expiry; defaults are materialized by the reference composer.",
+              "bounds": "30 seconds..10 minutes; reference 5 minutes",
+              "zero_valid": false,
+              "zero_value_detail": "0 cannot disable ceremony expiry"
+            },
+            {
+              "name": "ChallengeBytes",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Random challenge length.",
+              "bounds": "32..64 bytes; reference 32",
+              "zero_valid": false,
+              "zero_value_detail": "0 cannot select an implicit length"
+            },
+            {
+              "name": "DevelopmentLocalhostHTTP",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false is valid: production HTTPS-only origin validation remains enabled",
+              "semantics": "Explicit development-only localhost exception; false is the production reference state.",
+              "false_valid": true
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "MetadataProvider",
+              "type": "MetadataProvider",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil MetadataProvider dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Store",
+              "type": "Store",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Store dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
         {
           "bounds": "22 base64url characters encoding exactly 16 bytes",
           "concurrency": "immutable value",
@@ -16979,6 +17978,56 @@
       "package_name": "postgres",
       "types": [
         {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Schema",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Validated PostgreSQL identifier selected before any query.",
+              "bounds": "1..63 ASCII bytes"
+            },
+            {
+              "name": "MaxPageSize",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard result-page ceiling; callers cannot raise it.",
+              "bounds": "1..1000",
+              "zero_valid": false,
+              "zero_value_detail": "0 selects no usable page bound"
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Pool",
+              "type": "*pgxpool.Pool",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required bounded PostgreSQL pool; caller owns pool lifetime."
+            },
+            {
+              "name": "UnitOfWork",
+              "type": "identitypostgres.Enlister",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required transaction enlistment authority; adapter does not own it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
           "concurrency": "immutable after construction",
           "constants": [
             "Pending",
@@ -17140,6 +18189,101 @@
       "package_name": "passkey",
       "types": [
         {
+          "concurrency": "immutable value",
+          "constants": [
+            "FlowAuthorizationAuthenticatedSession",
+            "FlowAuthorizationPreAuthTransaction"
+          ],
+          "fields": [],
+          "kind": "enum",
+          "name": "FlowAuthorizationKind",
+          "ownership": "passkey owns the closed disjoint authorization-context discriminant",
+          "zero_value": "invalid"
+        },
+        {
+          "concurrency": "immutable value; safe for concurrent reads",
+          "fields": [
+            {
+              "name": "Kind",
+              "required": true,
+              "semantics": "Selects exactly one authorization variant; nullable-field inference is forbidden.",
+              "type": "passkey.FlowAuthorizationKind",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "AuthenticatedSessionID",
+              "required": false,
+              "semantics": "Required exactly for the authenticated-session variant and forbidden for pre-auth; the exact operation must separately authorize the session.",
+              "type": "identity/session.SessionID",
+              "zero_value": "omitted"
+            },
+            {
+              "name": "PreAuthTransactionID",
+              "required": false,
+              "semantics": "Required exactly for the pre-auth variant and forbidden for authenticated-session use; it is purpose-bound and single-use.",
+              "type": "identity.PreAuthTransactionID",
+              "zero_value": "omitted"
+            }
+          ],
+          "kind": "struct",
+          "name": "FlowAuthorization",
+          "ownership": "tagged union preventing authenticated-session and pre-auth authority from being combined or inferred",
+          "zero_value": "invalid until Kind and exactly its selected non-zero member are set"
+        },
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Authenticator",
+              "type": "AuthenticatorPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Exact passkey authenticator and user-verification policy."
+            },
+            {
+              "name": "UserHandle",
+              "type": "UserHandlePolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Exact 32..64-byte RP-scoped user-handle generation policy."
+            },
+            {
+              "name": "AccountRecovery",
+              "type": "AccountRecoveryPolicy",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Closed passkey recovery and fallback policy."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "SessionIssuer",
+              "type": "SessionIssuer",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil SessionIssuer dependency; ownership remains with the caller and the package never closes it."
+            },
+            {
+              "name": "Store",
+              "type": "Store",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required non-nil Store dependency; ownership remains with the caller and the package never closes it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
           "concurrency": "immutable after construction",
           "fields": [
             {
@@ -17184,6 +18328,13 @@
               "zero_value": "invalid"
             },
             {
+              "name": "Authorization",
+              "required": true,
+              "semantics": "Carries the same pre-auth transaction authority bound into AuthenticationFlow; authenticated-session authority is rejected for signin assertion transition.",
+              "type": "passkey.FlowAuthorization",
+              "zero_value": "invalid"
+            },
+            {
               "name": "RememberPolicy",
               "required": true,
               "semantics": "Carries the already-resolved persistent or browser-session choice unchanged through continuation.",
@@ -17207,10 +18358,10 @@
               "zero_value": "invalid"
             },
             {
-              "name": "PreAuthTransactionID",
+              "name": "Authorization",
               "required": true,
-              "semantics": "signin binding",
-              "type": "identity.PreAuthTransactionID",
+              "semantics": "Must select the pre-auth transaction variant for signin; authenticated-session authority is rejected.",
+              "type": "passkey.FlowAuthorization",
               "zero_value": "invalid"
             },
             {
@@ -17390,11 +18541,11 @@
               "zero_value": "invalid"
             },
             {
-              "name": "PreAuthTransactionID",
-              "required": false,
-              "semantics": "unauthenticated registration binding",
-              "type": "identity.PreAuthTransactionID",
-              "zero_value": "omitted"
+              "name": "Authorization",
+              "required": true,
+              "semantics": "Selects exactly one authenticated-session registration authority or explicitly permitted pre-auth account-recovery/registration authority.",
+              "type": "passkey.FlowAuthorization",
+              "zero_value": "invalid"
             },
             {
               "name": "ExpiresAt",
@@ -17424,6 +18575,13 @@
               "required": true,
               "semantics": "Carries a cryptographically verified immutable WebAuthn result; raw browser input is not accepted here.",
               "type": "webauthn.VerifiedRegistration",
+              "zero_value": "invalid"
+            },
+            {
+              "name": "Authorization",
+              "required": true,
+              "semantics": "Carries exactly the authenticated-session or permitted pre-auth authority bound into RegistrationFlow; variants cannot be switched after verification.",
+              "type": "passkey.FlowAuthorization",
               "zero_value": "invalid"
             },
             {
@@ -17616,6 +18774,56 @@
       ],
       "package_name": "postgres",
       "types": [
+        {
+          "name": "Config",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Schema",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Validated PostgreSQL identifier selected before any query.",
+              "bounds": "1..63 ASCII bytes"
+            },
+            {
+              "name": "MaxPageSize",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard result-page ceiling; callers cannot raise it.",
+              "bounds": "1..1000",
+              "zero_valid": false,
+              "zero_value_detail": "0 selects no usable page bound"
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Package configuration snapshot; defaults are materialized by identity/reference and construction validates the complete snapshot.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
+        {
+          "name": "Dependencies",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Pool",
+              "type": "*pgxpool.Pool",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required bounded PostgreSQL pool; caller owns pool lifetime."
+            },
+            {
+              "name": "UnitOfWork",
+              "type": "identitypostgres.Enlister",
+              "required": true,
+              "zero_value": "invalid; construction rejects zero or nil",
+              "semantics": "Required transaction enlistment authority; adapter does not own it."
+            }
+          ],
+          "zero_value": "invalid; construction rejects the zero value before side effects",
+          "ownership": "Explicit caller-owned dependency set; every field is required and non-nil.",
+          "concurrency": "Immutable after validated construction; safe for concurrent reads."
+        },
         {
           "concurrency": "immutable value; safe for concurrent reads",
           "fields": [

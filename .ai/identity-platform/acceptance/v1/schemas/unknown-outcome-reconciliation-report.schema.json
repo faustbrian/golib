@@ -108,8 +108,8 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 6,
+      "maxItems": 6,
       "uniqueItems": true,
       "items": {
         "oneOf": [
@@ -142,16 +142,261 @@
                 "const": "success,failure,outage,concurrency,cleanup,unknown-outcome"
               },
               "preconditions": {
-                "const": "Operations: identity.reference.migration-apply, identity.session.refresh; exact inputs: operation_id, idempotency_key, reconciliation_id, commit_fault; initial state: response is lost exactly at a PostgreSQL commit or external acceptance boundary"
+                "const": "Operations: identity.delivery.cancel, identity.delivery.enqueue, identity.delivery.receipt-record, identity.delivery.reconcile, identity.delivery.status-get; exact inputs: operation_id, idempotency_key, reconciliation_id, commit_fault; initial state: response is lost exactly at a PostgreSQL commit or external acceptance boundary"
               },
               "stimulus": {
-                "const": "Run identity.reference.migration-apply then identity.session.refresh for success, failure, outage, concurrency, cleanup, unknown-outcome cases using operation_id, idempotency_key, reconciliation_id, commit_fault and capture every required artifact field"
+                "const": "Run identity.delivery.cancel then identity.delivery.enqueue then identity.delivery.receipt-record then identity.delivery.reconcile then identity.delivery.status-get for success, failure, outage, concurrency, cleanup, unknown-outcome cases using operation_id, idempotency_key, reconciliation_id, commit_fault and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest"
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest"
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior"
+              },
+              "claim_id": {
+                "const": "identity.delivery.cancel"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.unknown-outcome-reconciliation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.delivery.cancel; exact inputs: operation_id, idempotency_key, reconciliation_id, commit_fault; initial state: response is lost exactly at a PostgreSQL commit or external acceptance boundary"
+              },
+              "stimulus": {
+                "const": "Run identity.delivery.cancel for success, failure, outage, concurrency, cleanup, unknown-outcome cases using operation_id, idempotency_key, reconciliation_id, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior"
+              },
+              "claim_id": {
+                "const": "identity.delivery.enqueue"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.unknown-outcome-reconciliation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.delivery.enqueue; exact inputs: operation_id, idempotency_key, reconciliation_id, commit_fault; initial state: response is lost exactly at a PostgreSQL commit or external acceptance boundary"
+              },
+              "stimulus": {
+                "const": "Run identity.delivery.enqueue for success, failure, outage, concurrency, cleanup, unknown-outcome cases using operation_id, idempotency_key, reconciliation_id, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior"
+              },
+              "claim_id": {
+                "const": "identity.delivery.receipt-record"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.unknown-outcome-reconciliation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.delivery.receipt-record; exact inputs: operation_id, idempotency_key, reconciliation_id, commit_fault; initial state: response is lost exactly at a PostgreSQL commit or external acceptance boundary"
+              },
+              "stimulus": {
+                "const": "Run identity.delivery.receipt-record for success, failure, outage, concurrency, cleanup, unknown-outcome cases using operation_id, idempotency_key, reconciliation_id, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior"
+              },
+              "claim_id": {
+                "const": "identity.delivery.reconcile"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.unknown-outcome-reconciliation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.delivery.reconcile; exact inputs: operation_id, idempotency_key, reconciliation_id, commit_fault; initial state: response is lost exactly at a PostgreSQL commit or external acceptance boundary"
+              },
+              "stimulus": {
+                "const": "Run identity.delivery.reconcile for success, failure, outage, concurrency, cleanup, unknown-outcome cases using operation_id, idempotency_key, reconciliation_id, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior"
+              },
+              "claim_id": {
+                "const": "identity.delivery.status-get"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.unknown-outcome-reconciliation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.delivery.status-get; exact inputs: operation_id, idempotency_key, reconciliation_id, commit_fault; initial state: response is lost exactly at a PostgreSQL commit or external acceptance boundary"
+              },
+              "stimulus": {
+                "const": "Run identity.delivery.status-get for success, failure, outage, concurrency, cleanup, unknown-outcome cases using operation_id, idempotency_key, reconciliation_id, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reconciliation_id, committed_count, not_committed_count, duplicate_effect_count, reconciliation_digest, delivery_outcome_cases"
               },
               "result": {
                 "const": "pass"
@@ -226,6 +471,96 @@
     },
     {
       "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
         "artifact_hashes": {
           "contains": {
             "type": "object",
@@ -256,6 +591,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -264,16 +601,26 @@
         "committed_count",
         "not_committed_count",
         "duplicate_effect_count",
-        "reconciliation_digest"
+        "reconciliation_digest",
+        "delivery_outcome_cases"
       ],
       "properties": {
         "artifact_id": {
           "const": "unknown-outcome-reconciliation-report"
         },
+        "invariant_id": {
+          "const": "unknown-outcome-reconciliation-report.invariant"
+        },
+        "invariant": {
+          "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
+        },
         "operation_ids": {
           "const": [
-            "identity.reference.migration-apply",
-            "identity.session.refresh"
+            "identity.delivery.cancel",
+            "identity.delivery.enqueue",
+            "identity.delivery.receipt-record",
+            "identity.delivery.reconcile",
+            "identity.delivery.status-get"
           ]
         },
         "input_digest": {
@@ -395,468 +742,1207 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 6,
-          "maxItems": 6,
+          "minItems": 36,
+          "maxItems": 36,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#success",
+                  "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#failure",
+                  "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#outage",
+                  "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#concurrency",
+                  "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#cleanup",
+                  "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#unknown-outcome",
+                  "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#success",
+                  "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#failure",
+                  "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#outage",
+                  "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#concurrency",
+                  "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#cleanup",
+                  "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#unknown-outcome",
+                  "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#success",
+                  "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#failure",
+                  "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#outage",
+                  "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#concurrency",
+                  "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#cleanup",
+                  "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#unknown-outcome",
+                  "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#success",
+                  "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#failure",
+                  "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#outage",
+                  "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#concurrency",
+                  "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#cleanup",
+                  "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#unknown-outcome",
+                  "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#success",
+                  "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#failure",
+                  "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#outage",
+                  "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#concurrency",
+                  "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#cleanup",
+                  "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#unknown-outcome",
+                  "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#success",
+                  "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#failure",
+                  "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#outage",
+                  "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#concurrency",
+                  "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#cleanup",
+                  "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior",
+                  "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior",
+                  "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior",
+                  "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior",
+                  "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior",
+                  "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.persistence-recovery.v1",
+                  "identity.delivery.cancel",
+                  "identity.delivery.enqueue",
+                  "identity.delivery.receipt-record",
+                  "identity.delivery.reconcile",
+                  "identity.delivery.status-get"
+                ]
+              },
+              "invariant_id": {
+                "const": "unknown-outcome-reconciliation-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.delivery.cancel",
+                    "identity.delivery.enqueue",
+                    "identity.delivery.receipt-record",
+                    "identity.delivery.reconcile",
+                    "identity.delivery.status-get"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.delivery.cancel",
+                    "identity.delivery.enqueue",
+                    "identity.delivery.receipt-record",
+                    "identity.delivery.reconcile",
+                    "identity.delivery.status-get"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.delivery.cancel",
+                    "identity.delivery.enqueue",
+                    "identity.delivery.receipt-record",
+                    "identity.delivery.reconcile",
+                    "identity.delivery.status-get"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "reconciliation_id",
+                  "committed_count",
+                  "not_committed_count",
+                  "duplicate_effect_count",
+                  "reconciliation_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#cleanup"
+                  "reconciliation_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
+                  "committed_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
+                  "not_committed_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "cleanup"
+                  "duplicate_effect_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
+                  "reconciliation_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#success",
+              "observation_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9dd50b021d65d049b7fd4c18d9a44e93f17887f1179bea5db3c6d7023c8fd4cf",
+              "expected_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#failure",
+              "observation_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:9ff8b9fcde06310b685da5ae8a1bf2f4daca45a5014be5344eadb4d400fb581e",
+              "expected_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#outage",
+              "observation_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:a898d7242bca1dae0a883a5a2a0251920f0b9f271f4699bcec7a199cc328244a",
+              "expected_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#concurrency",
+              "observation_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:1a5c74b913302265ddbae56163a29d4028c2481d4ba13cbcadc2c9a1bf49e3b4",
+              "expected_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#cleanup",
+              "observation_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:537c1af10922820743fc1d548d0166df4768b53e2948e32a8fe13b181e0f8c45",
+              "expected_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#unknown-outcome",
+              "observation_id": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:d06475a154eec3b57c0b062a30753cb3e00673492476e07dd7c1867024cf04a7",
+              "expected_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel",
+                "identity.delivery.enqueue",
+                "identity.delivery.receipt-record",
+                "identity.delivery.reconcile",
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#success",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior",
+              "claim_id": "identity.delivery.cancel",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.delivery.cancel"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e780e59b59113646e93b2a3d617ee312bf3cbe35d3df3c6a47d4bd50dec67395",
+              "expected_operation_set": [
+                "identity.delivery.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#failure",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior",
+              "claim_id": "identity.delivery.cancel",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.delivery.cancel"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:d13dd38c1df5aa86336b4b7cea1ab014d29c4930555cd7bffe5071437f015c40",
+              "expected_operation_set": [
+                "identity.delivery.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#outage",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior",
+              "claim_id": "identity.delivery.cancel",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.delivery.cancel"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:6357ccf876179132e0bba7b753a009a902daede281cbb16e7d7ab6abe1ee84d8",
+              "expected_operation_set": [
+                "identity.delivery.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#concurrency",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior",
+              "claim_id": "identity.delivery.cancel",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.delivery.cancel"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:e28ce41494ca8040d53c4b0ce5f9d1d332cfb870b1c2772a5156af629b7d0caf",
+              "expected_operation_set": [
+                "identity.delivery.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#cleanup",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior",
+              "claim_id": "identity.delivery.cancel",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.delivery.cancel"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:be6ee5eb0791d26ca6139a4cf28a286365e11c68fec35cc319bb203a2ab2a848",
+              "expected_operation_set": [
+                "identity.delivery.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior#unknown-outcome",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior",
+              "claim_id": "identity.delivery.cancel",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.delivery.cancel"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:55f75e9852b62b4d657bd10c14a8f6e036cbed8b313a5a82c6ef4211af2e89d1",
+              "expected_operation_set": [
+                "identity.delivery.cancel"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.cancel"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#success",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior",
+              "claim_id": "identity.delivery.enqueue",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.delivery.enqueue"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:88b72819af4b959c45578d1004e2f2293c5a6de5637aa91d22764b4d541fee72",
+              "expected_operation_set": [
+                "identity.delivery.enqueue"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.enqueue"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#failure",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior",
+              "claim_id": "identity.delivery.enqueue",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.delivery.enqueue"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:be7b8181d90dfabbdf46282accc7ee47d3cf7a2da9e703ea8f9a6cc7a0585d13",
+              "expected_operation_set": [
+                "identity.delivery.enqueue"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.enqueue"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#outage",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior",
+              "claim_id": "identity.delivery.enqueue",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.delivery.enqueue"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:4b4e16bc3ad5bf482659d1d63afd54887551c967374f534eb8da6d1afcae278b",
+              "expected_operation_set": [
+                "identity.delivery.enqueue"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.enqueue"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#concurrency",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior",
+              "claim_id": "identity.delivery.enqueue",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.delivery.enqueue"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:14cb5e9f9b1b7528e60e5edb6d492542da048613dd6d532e9191afc204dd7a74",
+              "expected_operation_set": [
+                "identity.delivery.enqueue"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.enqueue"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#cleanup",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior",
+              "claim_id": "identity.delivery.enqueue",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.delivery.enqueue"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:ed42d390fc9b0ac19bfb6a48d0a4f53e8c9ed4ef949aa0b4784b92e93179cb3e",
+              "expected_operation_set": [
+                "identity.delivery.enqueue"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.enqueue"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior#unknown-outcome",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.enqueue.behavior",
+              "claim_id": "identity.delivery.enqueue",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.delivery.enqueue"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:a6cd5a27364551a8a6f158fe4716d0d546c155968c250036aba4ecf3a40e2b75",
+              "expected_operation_set": [
+                "identity.delivery.enqueue"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.enqueue"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#success",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior",
+              "claim_id": "identity.delivery.receipt-record",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.delivery.receipt-record"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9d76486375b26caa7dcdfef39259ef263c13f4bd7121e9c6de32223f0d1d112c",
+              "expected_operation_set": [
+                "identity.delivery.receipt-record"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.receipt-record"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#failure",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior",
+              "claim_id": "identity.delivery.receipt-record",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.delivery.receipt-record"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:199a77c228f0632207d1c82c7aa60fd414ba03392fef551356c3af5b24a906f6",
+              "expected_operation_set": [
+                "identity.delivery.receipt-record"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.receipt-record"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#outage",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior",
+              "claim_id": "identity.delivery.receipt-record",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.delivery.receipt-record"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:c81cdf56476686e582dbe3bbb40c7ae139701750ad6c5023ba1cf28c01f0caba",
+              "expected_operation_set": [
+                "identity.delivery.receipt-record"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.receipt-record"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#concurrency",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior",
+              "claim_id": "identity.delivery.receipt-record",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.delivery.receipt-record"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:c8a7b5af364f6d147fe7d36a059d30845f304069aa5c805b103c9ab1af638f2c",
+              "expected_operation_set": [
+                "identity.delivery.receipt-record"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.receipt-record"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#cleanup",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior",
+              "claim_id": "identity.delivery.receipt-record",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.delivery.receipt-record"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b30c817a7cd2c3a2c4cb87c2e488071736b9532280e782d4a2c94ca0dadfdd89",
+              "expected_operation_set": [
+                "identity.delivery.receipt-record"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.receipt-record"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior#unknown-outcome",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.receipt-record.behavior",
+              "claim_id": "identity.delivery.receipt-record",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.delivery.receipt-record"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:505c84497dc1622064ef50b4b9350a4e4ab5639fd5cec83de2e4684ecd6b1e13",
+              "expected_operation_set": [
+                "identity.delivery.receipt-record"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.receipt-record"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#success",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior",
+              "claim_id": "identity.delivery.reconcile",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.delivery.reconcile"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b4e5cead12d20f1aefad36981c857dcd324082f78ea7bf88ec6b14435e4f4aa7",
+              "expected_operation_set": [
+                "identity.delivery.reconcile"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.reconcile"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#failure",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior",
+              "claim_id": "identity.delivery.reconcile",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.delivery.reconcile"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:42c26c13c735b2f4e98edb767de5eac8eeaad6895c2c4c94e177eb1f48022bf7",
+              "expected_operation_set": [
+                "identity.delivery.reconcile"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.reconcile"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#outage",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior",
+              "claim_id": "identity.delivery.reconcile",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.delivery.reconcile"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:b2c40c504f113629f2d0060990236733c48a67b2fbc9204c55ec3f611221cd92",
+              "expected_operation_set": [
+                "identity.delivery.reconcile"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.reconcile"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#concurrency",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior",
+              "claim_id": "identity.delivery.reconcile",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.delivery.reconcile"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:378e0bc68acf18f5c0ec7511b5dadd83a113ecb2602061e6c7efba1d1111e4ab",
+              "expected_operation_set": [
+                "identity.delivery.reconcile"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.reconcile"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#cleanup",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior",
+              "claim_id": "identity.delivery.reconcile",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.delivery.reconcile"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:2c2768e6d47e4c3612b83a58da1f114bf96af9d3497e73a48a572e66b4589b96",
+              "expected_operation_set": [
+                "identity.delivery.reconcile"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.reconcile"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior#unknown-outcome",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.reconcile.behavior",
+              "claim_id": "identity.delivery.reconcile",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.delivery.reconcile"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:940f1229b6e7d3d53bb2ab5eb002ee96c532d5b15e0162ac2ee5a09cb19aa4e5",
+              "expected_operation_set": [
+                "identity.delivery.reconcile"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.reconcile"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#success",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior",
+              "claim_id": "identity.delivery.status-get",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6dd097a3ec1149b4126acb7dd88e143ba7df12c14004fb2e0fff4cc16edd5b13",
+              "expected_operation_set": [
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#failure",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior",
+              "claim_id": "identity.delivery.status-get",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:bc47b5e8008980244b22ff223a21bd5a06d996890a10ce0cef832f4541a3947c",
+              "expected_operation_set": [
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#outage",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior",
+              "claim_id": "identity.delivery.status-get",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:10cc2696052d9e8904a690a7365cbfcbd9f7feeffa8139d5ef3a41e2882e0ac9",
+              "expected_operation_set": [
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#concurrency",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior",
+              "claim_id": "identity.delivery.status-get",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:6fde4ce0ef557a2243a4a8a169543bb28d0bb05eb25902491678a4c94888b0a4",
+              "expected_operation_set": [
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#cleanup",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior",
+              "claim_id": "identity.delivery.status-get",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:08f81c35374e28cd1f96d30822bfa01d5489accb23b7b6755acd5e86149ccdf1",
+              "expected_operation_set": [
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.status-get"
+              ]
+            },
+            {
+              "case_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior#unknown-outcome",
+              "observation_id": "unknown-outcome-reconciliation-report.identity.delivery.status-get.behavior",
+              "claim_id": "identity.delivery.status-get",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.delivery.status-get"
+              ],
+              "input_fields": [
+                "operation_id",
+                "idempotency_key",
+                "reconciliation_id",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:3de9a25114ff83c8df59c31f51599c58e802aba4032e2d8b71dadbec9613b103",
+              "expected_operation_set": [
+                "identity.delivery.status-get"
+              ],
+              "observed_operation_set": [
+                "identity.delivery.status-get"
+              ]
+            }
+          ]
         },
         "reconciliation_id": {
           "type": "string",
@@ -880,6 +1966,156 @@
         "reconciliation_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "delivery_outcome_cases": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "resubmit_allowed",
+                  "authoritative_proof_count",
+                  "terminalization_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "provider-outcome-unknown"
+                  },
+                  "state": {
+                    "const": "outcome-unknown"
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "authoritative_proof_count": {
+                    "const": 0
+                  },
+                  "terminalization_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "resubmit_allowed",
+                  "authoritative_proof_count",
+                  "terminalization_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "provider-outcome-reconciled"
+                  },
+                  "state": {
+                    "const": "confirmed"
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "authoritative_proof_count": {
+                    "const": 1
+                  },
+                  "terminalization_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "resubmit_allowed",
+                  "authoritative_proof_count",
+                  "terminalization_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "provider-outcome-unknown"
+                  },
+                  "state": {
+                    "const": "outcome-unknown"
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "authoritative_proof_count": {
+                    "const": 0
+                  },
+                  "terminalization_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "resubmit_allowed",
+                  "authoritative_proof_count",
+                  "terminalization_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "provider-outcome-reconciled"
+                  },
+                  "state": {
+                    "const": "confirmed"
+                  },
+                  "resubmit_allowed": {
+                    "const": false
+                  },
+                  "authoritative_proof_count": {
+                    "const": 1
+                  },
+                  "terminalization_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -895,506 +2131,6 @@
           "fields": [
             "duplicate_effect_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.migration-apply",
-                      "identity.session.refresh"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "idempotency_key",
-                      "reconciliation_id",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "response is lost exactly at a PostgreSQL commit or external acceptance boundary"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "reconciliation returns committed or not_committed from durable identity and retry never duplicates the mutation or event"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reconciliation_id",
-                      "committed_count",
-                      "not_committed_count",
-                      "duplicate_effect_count",
-                      "reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

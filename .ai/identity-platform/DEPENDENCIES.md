@@ -74,6 +74,7 @@ flowchart TD
   authentication[primitive/authentication-identity-contracts]
   authorization[primitive/authorization-identity-contracts]
   capability[primitive/capability-identity-contracts]
+  capability_pg[primitive/capability-postgres-identity-contracts]
   identifier[primitive/identifier-identity-contracts]
   primitive_password[primitive/password-secret-contracts]
   session[identity/session]
@@ -143,6 +144,19 @@ flowchart TD
   capability --> oauth_server_device
   capability --> oauth_server
   capability --> webauthn
+  capability --> capability_pg
+  capability_pg --> session
+  capability_pg --> magiclink
+  capability_pg --> otp
+  capability_pg --> mfa_pg
+  capability_pg --> oauth_pg
+  capability_pg --> organization
+  capability_pg --> sso
+  capability_pg --> sso_pg
+  capability_pg --> oauth_server
+  capability_pg --> oauth_server_device
+  capability_pg --> oauth_server_pg
+  capability_pg --> reference
   identifier --> email
   identifier --> magiclink
   identifier --> otp
@@ -194,6 +208,7 @@ flowchart TD
   otp --> otp_pg
   identity_pg --> otp_pg
   otp --> phone
+  password --> phone
   identity --> phone
   delivery --> phone
   risk --> phone
@@ -202,6 +217,7 @@ flowchart TD
   risk --> anonymous
   anonymous --> anonymous_pg
   identity_pg --> anonymous_pg
+  session --> anonymous_pg
   otp --> mfa
   identity --> mfa
   session --> mfa
@@ -227,7 +243,9 @@ flowchart TD
   oauth --> oauth_providers
   oauth --> oauth_onetap
   oauth_providers --> oauth_onetap
+  session --> oauth_onetap
   oauth --> oauth_proxy
+  session --> oauth_proxy
   identity --> apikey
   organization --> apikey
   apikey --> apikey_pg
@@ -268,6 +286,7 @@ flowchart TD
   scim --> scim_org[scim/organization]
   organization --> scim_org
   identity --> scim_org
+  sso --> scim_org
   scim_org --> scim_pg
   identity --> oauth_server[oauth-server]
   session --> oauth_server
@@ -340,6 +359,12 @@ flowchart TD
   oauth_server_pg --> reference
   reference --> identitytest[identity/identitytest]
 ```
+
+The authoritative inventory currently resolves to 67 schedulable units and
+248 direct edges across nine zero-based waves. Wave populations are
+`0:6, 1:3, 2:4, 3:15, 4:20, 5:14, 6:3, 7:1, 8:1`. The 61-unit canonical
+identity-platform scope is unchanged; the sixth prerequisite unit is the
+ordered PostgreSQL capability extension.
 
 The `Requires` field in `INVENTORY.md` is authoritative. The diagram is
 explanatory and MUST change in the same commit when an edge changes.

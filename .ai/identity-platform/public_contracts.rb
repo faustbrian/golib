@@ -14,6 +14,17 @@ PARITY = File.join(ROOT, "PARITY_DISPOSITIONS.json")
 META = File.join(ROOT, "fragments/public_contracts_meta.json")
 FAMILIES = %w[core authn oauth org_scim risk_delivery].map { |name| File.join(ROOT, "fragments/public_contracts_#{name}.json") }.freeze
 NUMERIC_FIELD_TYPE = /\A(?:u?int(?:8|16|32|64)?|float(?:32|64)|time\.Duration)\z/.freeze
+PREDECLARED_GO_TYPES = Set.new(%w[
+  bool byte complex64 complex128 error float32 float64 int int8 int16 int32 int64 rune
+  string uint uint8 uint16 uint32 uint64 uintptr
+]).freeze
+STRICT_LOCAL_REFERENCE_UNITS = Set.new(%w[
+  identity/anonymous identity/anonymous/postgres identity/email identity/magiclink identity/mfa identity/mfa/postgres
+  identity/oauth identity/oauth/onetap identity/oauth/postgres identity/oauth/providers identity/oauth/proxy identity/otp
+  identity/otp/postgres identity/password identity/password/postgres identity/phone identity/username oauth-server
+  oauth-server/device oauth-server/oidc oauth-server/postgres passkey passkey/postgres sso sso/domain-verification
+  sso/oauth2 sso/oidc sso/postgres sso/saml webauthn webauthn/postgres
+]).freeze
 
 def canonical(value)
   case value
@@ -201,6 +212,76 @@ def field_inventory(fragment)
     operation.dig("errors", "variants").to_a.each { |error| fields.concat(error.fetch("fields", [])) }
   end
   fields
+end
+
+def unqualified_public_type_identifiers(expression, callable: false)
+  source = expression.to_s
+  source = source.sub(/\A[A-Z][A-Za-z0-9]*\s*(?=\()/, "") if callable
+  source.scan(/(?<![.\/])\b[A-Z][A-Za-z0-9]*\b/).uniq
+end
+
+def validate_local_public_type_references!(path, fragment)
+  return if fragment.fetch("units").none? { |unit| STRICT_LOCAL_REFERENCE_UNITS.include?(unit.fetch("unit")) }
+
+  fragment.fetch("units").each do |unit|
+    unit_name = unit.fetch("unit")
+    declarations = Set.new(PREDECLARED_GO_TYPES)
+    %w[types interfaces errors].each do |collection|
+      unit.fetch(collection).each { |definition| declarations << definition.fetch("name") }
+    end
+    fragment.fetch("operations").select { |operation| operation.fetch("owner") == unit_name }.each do |operation|
+      declarations << operation.dig("request", "name")
+      declarations << operation.dig("result", "name")
+      declarations << operation.dig("errors", "name")
+      operation.dig("errors", "variants").to_a.each { |variant| declarations << variant.fetch("type") }
+    end
+
+    expressions = []
+    unit.fetch("types").each do |type|
+      expressions << ["#{unit_name}.#{type.fetch('name')} underlying type", type["underlying"], false] if type["underlying"]
+      expressions << ["#{unit_name}.#{type.fetch('name')} type signature", type["signature"], false] if type["signature"]
+      type.fetch("fields", []).each do |field|
+        expressions << ["#{unit_name}.#{type.fetch('name')}.#{field.fetch('name')} field type", field.fetch("type"), false]
+      end
+      type.fetch("methods", []).each do |method|
+        expressions << ["#{unit_name}.#{type.fetch('name')}.#{method.fetch('name')} method signature", method.fetch("signature"), true]
+      end
+    end
+    unit.fetch("interfaces").each do |interface|
+      interface.fetch("methods").each do |method|
+        expressions << ["#{unit_name}.#{interface.fetch('name')}.#{method.fetch('name')} method signature", method.fetch("signature"), true]
+      end
+    end
+    unit.fetch("constructors").each_with_index do |constructor, index|
+      expressions << ["#{unit_name} constructor[#{index}] signature", constructor.fetch("signature"), true]
+    end
+    unit.fetch("errors").each do |error|
+      error.fetch("fields", []).each do |field|
+        expressions << ["#{unit_name}.#{error.fetch('name')}.#{field.fetch('name')} field type", field.fetch("type"), false]
+      end
+    end
+    fragment.fetch("operations").select { |operation| operation.fetch("owner") == unit_name }.each do |operation|
+      expressions << ["#{operation.fetch('id')} service interface", operation.fetch("service_interface"), false]
+      expressions << ["#{operation.fetch('id')} operation signature", operation.fetch("signature"), true]
+      %w[request result].each do |kind|
+        operation.fetch(kind).fetch("fields").each do |field|
+          expressions << ["#{operation.fetch('id')} #{kind} #{field.fetch('name')} field type", field.fetch("type"), false]
+        end
+      end
+      operation.dig("errors", "variants").to_a.each do |variant|
+        variant.fetch("fields", []).each do |field|
+          expressions << ["#{operation.fetch('id')} error #{variant.fetch('type')} #{field.fetch('name')} field type", field.fetch("type"), false]
+        end
+      end
+    end
+
+    expressions.each do |label, expression, callable|
+      unresolved = unqualified_public_type_identifiers(expression, callable: callable).reject { |identifier| declarations.include?(identifier) }
+      next if unresolved.empty?
+
+      fail_contract("#{File.basename(path)} #{label} references unresolved local public type #{unresolved.join(', ')}")
+    end
+  end
 end
 
 def validate_fragment_metadata!(path, metadata)
@@ -407,6 +488,7 @@ def validate_fragment!(path, fragment, allowed_kinds)
     validate_closed_object!("#{operation['id']} transport", operation.fetch("transport"), required: %w[exposure http_method http_path openapi_operation_id])
     fail_contract("#{operation["id"]} has duplicate error identities") unless variants.uniq.length == variants.length
   end
+  validate_local_public_type_references!(path, fragment)
   fragment.fetch("external_contracts", []).each_with_index do |contract, index|
     validate_closed_object!("#{File.basename(path)} external_contracts[#{index}]", contract, required: %w[owner package_path symbols])
   end
@@ -552,7 +634,7 @@ def validate_required_extensions!(meta, external, units, fragments)
   fail_contract("required extension authority inventory drifted: scheduled #{scheduled_authorities}, referenced #{referenced_authorities}") unless scheduled_authorities == referenced_authorities
   known_units = units.map { |unit| unit.fetch("unit") }
   extension_units = schedule.map { |row| row.fetch("extension_unit") }.uniq.sort
-  fail_contract("expected five primitive extension units") unless extension_units.length == 5
+  fail_contract("expected six primitive extension units") unless extension_units.length == 6
   fail_contract("invalid primitive extension unit") unless extension_units.all? { |unit| unit.match?(%r{\Aprimitive/[a-z0-9-]+\z}) }
 
   external_by_owner = required_external.to_h { |row| [row.fetch("owner"), row] }
@@ -586,7 +668,11 @@ def validate_required_extensions!(meta, external, units, fragments)
   end
 
   capability_extensions = schedule.select { |row| %w[capability capability/postgres].include?(row.fetch("unit")) }
-  fail_contract("capability extension authorities must share one schedulable unit") unless capability_extensions.map { |row| row.fetch("extension_unit") }.uniq == ["primitive/capability-identity-contracts"]
+  expected_capability_extension_units = [
+    "primitive/capability-identity-contracts",
+    "primitive/capability-postgres-identity-contracts"
+  ]
+  fail_contract("capability extension authorities must use distinct schedulable units") unless capability_extensions.map { |row| row.fetch("extension_unit") } == expected_capability_extension_units
   fail_contract("capability/postgres extension must follow capability") unless schedule.find { |row| row.fetch("unit") == "capability/postgres" }.fetch("depends_on") == ["capability"]
 end
 
@@ -611,7 +697,23 @@ def build
   units = expected_units.map { |unit| unit_by_name.fetch(unit) }
   fail_contract("operation count is #{operations.length}, expected #{semantics.length}") unless operations.length == semantics.length
   fail_contract("duplicate operation") unless operations.map { |operation| operation.fetch("id") }.uniq.length == operations.length
-  expected_operations = semantics.to_h { |operation| [operation.fetch("id"), operation] }
+  csrf_mode_by_api_token = {
+    "none" => "CSRFNone",
+    "internal" => "CSRFNone",
+    "CSRF" => "CSRFSessionOriginAndToken",
+    "origin" => "CSRFExactOrigin",
+    "origin or CSRF" => "CSRFConditionalPreAuthSession",
+    "CSRF or origin" => "CSRFConditionalPreAuthSession",
+    "exact bound origin" => "CSRFBoundOrigin"
+  }.freeze
+  expected_operations = semantics.to_h do |operation|
+    csrf_origin = operation.fetch("csrf_origin")
+    canonical_csrf = csrf_mode_by_api_token.fetch(csrf_origin) do
+      fail_contract("#{operation.fetch('id')} has unknown API CSRF token #{csrf_origin.inspect}")
+    end
+    canonical = operation.merge("csrf_origin" => canonical_csrf)
+    [canonical.fetch("id"), canonical]
+  end
   fail_contract("operation inventory differs from OPERATION_SEMANTICS") unless operations.map { |operation| operation.fetch("id") }.sort == expected_operations.keys.sort
 
   operations.each do |operation|
@@ -619,7 +721,9 @@ def build
     declared = [operation.fetch("owner"), *operation.fetch("collaborators")]
     fail_contract("#{operation["id"]} owner/collaborator drift") unless declared == expected.fetch("owners")
     expected_authorization = expected.slice("access", "authorization", "csrf_origin")
-    actual_authorization = {"access"=>operation.dig("authorization", "access"), "authorization"=>operation.dig("authorization", "policy"), "csrf_origin"=>operation.dig("authorization", "csrf_origin")}
+    fragment_csrf = operation.dig("authorization", "csrf_origin")
+    canonical_fragment_csrf = csrf_mode_by_api_token.fetch(fragment_csrf, fragment_csrf)
+    actual_authorization = {"access"=>operation.dig("authorization", "access"), "authorization"=>operation.dig("authorization", "policy"), "csrf_origin"=>canonical_fragment_csrf}
     fail_contract("#{operation["id"]} authorization drift") unless actual_authorization == expected_authorization
     expected_transport = expected.slice("exposure", "http_method", "http_path", "openapi_operation_id")
     fail_contract("#{operation["id"]} transport drift") unless operation.fetch("transport") == expected_transport
@@ -685,7 +789,9 @@ def build
     [["operation_request", operation.fetch("request"), request_id], ["operation_result", operation.fetch("result"), result_id], ["operation_errors", operation.fetch("errors"), error_id]].each do |category, definition, id|
       existing = types.find { |type| type.fetch("id") == id }
       if existing
-        same_contract = existing.dig("definition", "name") == definition.fetch("name") && existing.dig("definition", "fields") == definition.fetch("fields", [])
+        field_shape = ->(fields) { fields.map { |field| field.slice("name", "type", "required", "zero_value", "bounds") } }
+        same_contract = existing.dig("definition", "name") == definition.fetch("name") &&
+          field_shape.call(existing.dig("definition", "fields") || []) == field_shape.call(definition.fetch("fields", []))
         fail_contract("schema #{id} conflicts with its declared Go type") unless same_contract
       else
         types << type_entry(owner, category, definition, id)

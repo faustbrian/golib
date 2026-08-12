@@ -108,11 +108,354 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 8,
+      "maxItems": 8,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.check.behavior"
+              },
+              "claim_id": {
+                "const": "identity.otp.check"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.otp-reservation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.otp.check; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
+              },
+              "stimulus": {
+                "const": "Run identity.otp.check for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.email-change-confirm.behavior"
+              },
+              "claim_id": {
+                "const": "identity.otp.email-change-confirm"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.otp-reservation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.otp.email-change-confirm; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
+              },
+              "stimulus": {
+                "const": "Run identity.otp.email-change-confirm for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.email-change-request.behavior"
+              },
+              "claim_id": {
+                "const": "identity.otp.email-change-request"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.otp-reservation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.otp.email-change-request; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
+              },
+              "stimulus": {
+                "const": "Run identity.otp.email-change-request for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.email-verify.behavior"
+              },
+              "claim_id": {
+                "const": "identity.otp.email-verify"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.otp-reservation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.otp.email-verify; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
+              },
+              "stimulus": {
+                "const": "Run identity.otp.email-verify for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.password-reset.behavior"
+              },
+              "claim_id": {
+                "const": "identity.otp.password-reset"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.otp-reservation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.otp.password-reset; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
+              },
+              "stimulus": {
+                "const": "Run identity.otp.password-reset for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.send.behavior"
+              },
+              "claim_id": {
+                "const": "identity.otp.send"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.otp-reservation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.otp.send; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
+              },
+              "stimulus": {
+                "const": "Run identity.otp.send for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.signin.behavior"
+              },
+              "claim_id": {
+                "const": "identity.otp.signin"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.otp-reservation-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.otp.signin; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
+              },
+              "stimulus": {
+                "const": "Run identity.otp.signin for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "actual_outcome": {
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,16 +485,16 @@
                 "const": "success,failure,outage,replay,concurrency,cleanup,unknown-outcome"
               },
               "preconditions": {
-                "const": "Operations: identity.otp.send, identity.otp.check; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
+                "const": "Operations: identity.otp.check, identity.otp.email-change-confirm, identity.otp.email-change-request, identity.otp.email-verify, identity.otp.password-reset, identity.otp.send, identity.otp.signin; exact inputs: tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault; initial state: no live reservation exists for tenant, purpose, and recipient"
               },
               "stimulus": {
-                "const": "Run identity.otp.send then identity.otp.check for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
+                "const": "Run identity.otp.check then identity.otp.email-change-confirm then identity.otp.email-change-request then identity.otp.email-verify then identity.otp.password-reset then identity.otp.send then identity.otp.signin for success, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, purpose, recipient, code, idempotency_key, attempt_id, attempt_fingerprint, wrong_code, commit_fault and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest"
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
               },
               "actual_outcome": {
-                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest"
+                "const": "Invariant: concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: reservation_id, attempt_id, issued_code_count, failed_attempt_count, aborted_result_count, consumed_code_count, duplicate_delivery_count, duplicate_attempt_increment_count, exhausted, reservation_state_digest, unknown_reconciliation_digest, otp_operation_cases"
               },
               "result": {
                 "const": "pass"
@@ -216,6 +559,132 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "otp-reservation-report.identity.otp.check.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.email-change-confirm.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.email-change-request.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.email-verify.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.password-reset.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.send.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "otp-reservation-report.identity.otp.signin.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "otp-reservation-report.journey.passwordless.v1.behavior"
               }
             }
@@ -256,6 +725,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -270,16 +741,28 @@
         "duplicate_attempt_increment_count",
         "exhausted",
         "reservation_state_digest",
-        "unknown_reconciliation_digest"
+        "unknown_reconciliation_digest",
+        "otp_operation_cases"
       ],
       "properties": {
         "artifact_id": {
           "const": "otp-reservation-report"
         },
+        "invariant_id": {
+          "const": "otp-reservation-report.invariant"
+        },
+        "invariant": {
+          "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
+        },
         "operation_ids": {
           "const": [
+            "identity.otp.check",
+            "identity.otp.email-change-confirm",
+            "identity.otp.email-change-request",
+            "identity.otp.email-verify",
+            "identity.otp.password-reset",
             "identity.otp.send",
-            "identity.otp.check"
+            "identity.otp.signin"
           ]
         },
         "input_digest": {
@@ -401,621 +884,2085 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 7,
-          "maxItems": 7,
+          "minItems": 56,
+          "maxItems": 56,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "otp-reservation-report.identity.otp.check.behavior#success",
+                  "otp-reservation-report.identity.otp.check.behavior#failure",
+                  "otp-reservation-report.identity.otp.check.behavior#outage",
+                  "otp-reservation-report.identity.otp.check.behavior#replay",
+                  "otp-reservation-report.identity.otp.check.behavior#concurrency",
+                  "otp-reservation-report.identity.otp.check.behavior#cleanup",
+                  "otp-reservation-report.identity.otp.check.behavior#unknown-outcome",
+                  "otp-reservation-report.identity.otp.email-change-confirm.behavior#success",
+                  "otp-reservation-report.identity.otp.email-change-confirm.behavior#failure",
+                  "otp-reservation-report.identity.otp.email-change-confirm.behavior#outage",
+                  "otp-reservation-report.identity.otp.email-change-confirm.behavior#replay",
+                  "otp-reservation-report.identity.otp.email-change-confirm.behavior#concurrency",
+                  "otp-reservation-report.identity.otp.email-change-confirm.behavior#cleanup",
+                  "otp-reservation-report.identity.otp.email-change-confirm.behavior#unknown-outcome",
+                  "otp-reservation-report.identity.otp.email-change-request.behavior#success",
+                  "otp-reservation-report.identity.otp.email-change-request.behavior#failure",
+                  "otp-reservation-report.identity.otp.email-change-request.behavior#outage",
+                  "otp-reservation-report.identity.otp.email-change-request.behavior#replay",
+                  "otp-reservation-report.identity.otp.email-change-request.behavior#concurrency",
+                  "otp-reservation-report.identity.otp.email-change-request.behavior#cleanup",
+                  "otp-reservation-report.identity.otp.email-change-request.behavior#unknown-outcome",
+                  "otp-reservation-report.identity.otp.email-verify.behavior#success",
+                  "otp-reservation-report.identity.otp.email-verify.behavior#failure",
+                  "otp-reservation-report.identity.otp.email-verify.behavior#outage",
+                  "otp-reservation-report.identity.otp.email-verify.behavior#replay",
+                  "otp-reservation-report.identity.otp.email-verify.behavior#concurrency",
+                  "otp-reservation-report.identity.otp.email-verify.behavior#cleanup",
+                  "otp-reservation-report.identity.otp.email-verify.behavior#unknown-outcome",
+                  "otp-reservation-report.identity.otp.password-reset.behavior#success",
+                  "otp-reservation-report.identity.otp.password-reset.behavior#failure",
+                  "otp-reservation-report.identity.otp.password-reset.behavior#outage",
+                  "otp-reservation-report.identity.otp.password-reset.behavior#replay",
+                  "otp-reservation-report.identity.otp.password-reset.behavior#concurrency",
+                  "otp-reservation-report.identity.otp.password-reset.behavior#cleanup",
+                  "otp-reservation-report.identity.otp.password-reset.behavior#unknown-outcome",
+                  "otp-reservation-report.identity.otp.send.behavior#success",
+                  "otp-reservation-report.identity.otp.send.behavior#failure",
+                  "otp-reservation-report.identity.otp.send.behavior#outage",
+                  "otp-reservation-report.identity.otp.send.behavior#replay",
+                  "otp-reservation-report.identity.otp.send.behavior#concurrency",
+                  "otp-reservation-report.identity.otp.send.behavior#cleanup",
+                  "otp-reservation-report.identity.otp.send.behavior#unknown-outcome",
+                  "otp-reservation-report.identity.otp.signin.behavior#success",
+                  "otp-reservation-report.identity.otp.signin.behavior#failure",
+                  "otp-reservation-report.identity.otp.signin.behavior#outage",
+                  "otp-reservation-report.identity.otp.signin.behavior#replay",
+                  "otp-reservation-report.identity.otp.signin.behavior#concurrency",
+                  "otp-reservation-report.identity.otp.signin.behavior#cleanup",
+                  "otp-reservation-report.identity.otp.signin.behavior#unknown-outcome",
+                  "otp-reservation-report.journey.passwordless.v1.behavior#success",
+                  "otp-reservation-report.journey.passwordless.v1.behavior#failure",
+                  "otp-reservation-report.journey.passwordless.v1.behavior#outage",
+                  "otp-reservation-report.journey.passwordless.v1.behavior#replay",
+                  "otp-reservation-report.journey.passwordless.v1.behavior#concurrency",
+                  "otp-reservation-report.journey.passwordless.v1.behavior#cleanup",
+                  "otp-reservation-report.journey.passwordless.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "otp-reservation-report.identity.otp.check.behavior",
+                  "otp-reservation-report.identity.otp.email-change-confirm.behavior",
+                  "otp-reservation-report.identity.otp.email-change-request.behavior",
+                  "otp-reservation-report.identity.otp.email-verify.behavior",
+                  "otp-reservation-report.identity.otp.password-reset.behavior",
+                  "otp-reservation-report.identity.otp.send.behavior",
+                  "otp-reservation-report.identity.otp.signin.behavior",
+                  "otp-reservation-report.journey.passwordless.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.otp.check",
+                  "identity.otp.email-change-confirm",
+                  "identity.otp.email-change-request",
+                  "identity.otp.email-verify",
+                  "identity.otp.password-reset",
+                  "identity.otp.send",
+                  "identity.otp.signin",
+                  "journey.passwordless.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "otp-reservation-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage",
+                  "replay",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.otp.check",
+                    "identity.otp.email-change-confirm",
+                    "identity.otp.email-change-request",
+                    "identity.otp.email-verify",
+                    "identity.otp.password-reset",
+                    "identity.otp.send",
+                    "identity.otp.signin"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "no live reservation exists for tenant, purpose, and recipient"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable",
+                  "denied",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 11
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.otp.check",
+                    "identity.otp.email-change-confirm",
+                    "identity.otp.email-change-request",
+                    "identity.otp.email-verify",
+                    "identity.otp.password-reset",
+                    "identity.otp.send",
+                    "identity.otp.signin"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.otp.check",
+                    "identity.otp.email-change-confirm",
+                    "identity.otp.email-change-request",
+                    "identity.otp.email-verify",
+                    "identity.otp.password-reset",
+                    "identity.otp.send",
+                    "identity.otp.signin"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "reservation_id",
+                  "attempt_id",
+                  "issued_code_count",
+                  "failed_attempt_count",
+                  "aborted_result_count",
+                  "consumed_code_count",
+                  "duplicate_delivery_count",
+                  "duplicate_attempt_increment_count",
+                  "exhausted",
+                  "reservation_state_digest",
+                  "unknown_reconciliation_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#concurrency"
+                  "reservation_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
+                  "attempt_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
+                  "issued_code_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "concurrency"
+                  "failed_attempt_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
+                  "aborted_result_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
+                  "consumed_code_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
+                  "duplicate_delivery_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
+                  "duplicate_attempt_increment_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "stable_error": {
-                    "const": "conflict"
+                  "exhausted": {
+                    "type": "boolean"
                   },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
+                  "reservation_state_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "unknown_reconciliation_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "otp-reservation-report.identity.otp.check.behavior#success",
+              "observation_id": "otp-reservation-report.identity.otp.check.behavior",
+              "claim_id": "identity.otp.check",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.otp.check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d95b8dd74168c025750df16cffdd41d263d505d65d806ebb37dd39ccd12fec82",
+              "expected_operation_set": [
+                "identity.otp.check"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.check.behavior#failure",
+              "observation_id": "otp-reservation-report.identity.otp.check.behavior",
+              "claim_id": "identity.otp.check",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.otp.check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7ee48db9d927ab1c7d05654d3cffa79fe884d27570ac6cec61a8e8af01d7f156",
+              "expected_operation_set": [
+                "identity.otp.check"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.check.behavior#outage",
+              "observation_id": "otp-reservation-report.identity.otp.check.behavior",
+              "claim_id": "identity.otp.check",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.otp.check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:89feb49cdb299399cb499c94b5ada2cd146974130413b8b6c812bcf7b79a444c",
+              "expected_operation_set": [
+                "identity.otp.check"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.check.behavior#replay",
+              "observation_id": "otp-reservation-report.identity.otp.check.behavior",
+              "claim_id": "identity.otp.check",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.otp.check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:1d6780a04e89508e950efbbffc9e8ca88f69c45a5dc21c9b94fc5407b3da01d5",
+              "expected_operation_set": [
+                "identity.otp.check"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.check.behavior#concurrency",
+              "observation_id": "otp-reservation-report.identity.otp.check.behavior",
+              "claim_id": "identity.otp.check",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.otp.check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:323bfa1b72c01064919d679af3ea0d15086c73d2af92b168a7b367c8f38cb9de",
+              "expected_operation_set": [
+                "identity.otp.check"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.check.behavior#cleanup",
+              "observation_id": "otp-reservation-report.identity.otp.check.behavior",
+              "claim_id": "identity.otp.check",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.otp.check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:981a89263b31e1314ac4173e4cd9d08cc9b2d718beb44e17b9c80d1ffb8d847e",
+              "expected_operation_set": [
+                "identity.otp.check"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.check.behavior#unknown-outcome",
+              "observation_id": "otp-reservation-report.identity.otp.check.behavior",
+              "claim_id": "identity.otp.check",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.otp.check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:a3324dcc8678822ca9b73768013a47cc73bded80736fc913b6a92234533ef648",
+              "expected_operation_set": [
+                "identity.otp.check"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior#success",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior",
+              "claim_id": "identity.otp.email-change-confirm",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.otp.email-change-confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:8770e717257770a42fb309d7af20a145ed69707978902bf0c827edef967dd6c6",
+              "expected_operation_set": [
+                "identity.otp.email-change-confirm"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-confirm"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior#failure",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior",
+              "claim_id": "identity.otp.email-change-confirm",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.otp.email-change-confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:d37da5f318e5245bd0e68c327aa0ab42f1c530c09af05affbad5685db7c643bc",
+              "expected_operation_set": [
+                "identity.otp.email-change-confirm"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-confirm"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior#outage",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior",
+              "claim_id": "identity.otp.email-change-confirm",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.otp.email-change-confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:9045accd1b42eba31454dfff4f3798229bd7682fedd2e05f5e86385f9d5f21d9",
+              "expected_operation_set": [
+                "identity.otp.email-change-confirm"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-confirm"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior#replay",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior",
+              "claim_id": "identity.otp.email-change-confirm",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.otp.email-change-confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:5215d1641ac4e1f0b8bc3d80630bc01ad7dcbaf796bcd50d0a79ce769cf031b0",
+              "expected_operation_set": [
+                "identity.otp.email-change-confirm"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-confirm"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior#concurrency",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior",
+              "claim_id": "identity.otp.email-change-confirm",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.otp.email-change-confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:7c47cb246e2a90c0e469c7576515aabbbe7f27e4fe89688380607282fa7e86a1",
+              "expected_operation_set": [
+                "identity.otp.email-change-confirm"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-confirm"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior#cleanup",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior",
+              "claim_id": "identity.otp.email-change-confirm",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.otp.email-change-confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:09be879bcdb7f6a88e50c6feadc3b6fca7b05402504f4ae7d48ee92217ca2928",
+              "expected_operation_set": [
+                "identity.otp.email-change-confirm"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-confirm"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior#unknown-outcome",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-confirm.behavior",
+              "claim_id": "identity.otp.email-change-confirm",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.otp.email-change-confirm"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:e0a96dfdfcac02159ae937a3592aefafb0884b236462eed926b408efad9d6bb2",
+              "expected_operation_set": [
+                "identity.otp.email-change-confirm"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-confirm"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-request.behavior#success",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-request.behavior",
+              "claim_id": "identity.otp.email-change-request",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.otp.email-change-request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:67294cc52ee573571dc896fbc119afadeef297a59b91886cc4b25dbba00ba006",
+              "expected_operation_set": [
+                "identity.otp.email-change-request"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-request"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-request.behavior#failure",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-request.behavior",
+              "claim_id": "identity.otp.email-change-request",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.otp.email-change-request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:a38fdeef91653b85b6d7cc783b9988c213dc5997f9f48dade2609c4c25c39c1d",
+              "expected_operation_set": [
+                "identity.otp.email-change-request"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-request"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-request.behavior#outage",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-request.behavior",
+              "claim_id": "identity.otp.email-change-request",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.otp.email-change-request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:64fd01b1cc38c0527d27702588633693ee5fd57a2cd5a9eabfe5e8f489d67282",
+              "expected_operation_set": [
+                "identity.otp.email-change-request"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-request"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-request.behavior#replay",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-request.behavior",
+              "claim_id": "identity.otp.email-change-request",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.otp.email-change-request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:4ae6a570bd7cde22eb4da577b6fbad58ec97a98207cb30d2dc4a5ba2b15c11f8",
+              "expected_operation_set": [
+                "identity.otp.email-change-request"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-request"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-request.behavior#concurrency",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-request.behavior",
+              "claim_id": "identity.otp.email-change-request",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.otp.email-change-request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:b577bd48c9209b6189a7171b0966a46015e25cd3b779bb04addbf7914a4f6653",
+              "expected_operation_set": [
+                "identity.otp.email-change-request"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-request"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-request.behavior#cleanup",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-request.behavior",
+              "claim_id": "identity.otp.email-change-request",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.otp.email-change-request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:33e503f0f08659c8b73ad89796ca26fc1ef86c6d5f11f2b48c58b6a7d973c5f1",
+              "expected_operation_set": [
+                "identity.otp.email-change-request"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-request"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-change-request.behavior#unknown-outcome",
+              "observation_id": "otp-reservation-report.identity.otp.email-change-request.behavior",
+              "claim_id": "identity.otp.email-change-request",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.otp.email-change-request"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:7f2f8ed223506e53fc4b18a2171289ac8a598b069a8f1547adbf44bafbf6de10",
+              "expected_operation_set": [
+                "identity.otp.email-change-request"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-change-request"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-verify.behavior#success",
+              "observation_id": "otp-reservation-report.identity.otp.email-verify.behavior",
+              "claim_id": "identity.otp.email-verify",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.otp.email-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:f117adcac3c838e80417cddcfdb16775173846947829967da17fb6106e7245df",
+              "expected_operation_set": [
+                "identity.otp.email-verify"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-verify"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-verify.behavior#failure",
+              "observation_id": "otp-reservation-report.identity.otp.email-verify.behavior",
+              "claim_id": "identity.otp.email-verify",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.otp.email-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:07327b3a853fd9d89a2e22f8f9c09575e72940d23c1ab5340e59a1f9415724d4",
+              "expected_operation_set": [
+                "identity.otp.email-verify"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-verify"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-verify.behavior#outage",
+              "observation_id": "otp-reservation-report.identity.otp.email-verify.behavior",
+              "claim_id": "identity.otp.email-verify",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.otp.email-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:ee0c459adfee590004d083d3bf395c5c4d771b5f89c8083f9fad1ea0cdcd385b",
+              "expected_operation_set": [
+                "identity.otp.email-verify"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-verify"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-verify.behavior#replay",
+              "observation_id": "otp-reservation-report.identity.otp.email-verify.behavior",
+              "claim_id": "identity.otp.email-verify",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.otp.email-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:d29332b0322670acfad447b61912c1795f5e651ec25d6aedb1b3641623576d1d",
+              "expected_operation_set": [
+                "identity.otp.email-verify"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-verify"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-verify.behavior#concurrency",
+              "observation_id": "otp-reservation-report.identity.otp.email-verify.behavior",
+              "claim_id": "identity.otp.email-verify",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.otp.email-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:cc2f36af5a46c8e7bea0834156600a3058a76229dadd00600b307637c702457f",
+              "expected_operation_set": [
+                "identity.otp.email-verify"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-verify"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-verify.behavior#cleanup",
+              "observation_id": "otp-reservation-report.identity.otp.email-verify.behavior",
+              "claim_id": "identity.otp.email-verify",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.otp.email-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:ad6b189391f6912f29976353622a758d6b5ba3b83763e1ef92f4cbfe4ca61dfb",
+              "expected_operation_set": [
+                "identity.otp.email-verify"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-verify"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.email-verify.behavior#unknown-outcome",
+              "observation_id": "otp-reservation-report.identity.otp.email-verify.behavior",
+              "claim_id": "identity.otp.email-verify",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.otp.email-verify"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:2056f083778a20a2104106c46353d22c86c1f7825ee2f283e567aa15b7c03528",
+              "expected_operation_set": [
+                "identity.otp.email-verify"
+              ],
+              "observed_operation_set": [
+                "identity.otp.email-verify"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.password-reset.behavior#success",
+              "observation_id": "otp-reservation-report.identity.otp.password-reset.behavior",
+              "claim_id": "identity.otp.password-reset",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.otp.password-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:1473dcdd63b90e34ad8d599292fd3ecc350037f90385a40ef409e3b96078b3ac",
+              "expected_operation_set": [
+                "identity.otp.password-reset"
+              ],
+              "observed_operation_set": [
+                "identity.otp.password-reset"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.password-reset.behavior#failure",
+              "observation_id": "otp-reservation-report.identity.otp.password-reset.behavior",
+              "claim_id": "identity.otp.password-reset",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.otp.password-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:4a48a867daff7b48b853872f6a54f903111c9594146f25b17e51ec729984d25f",
+              "expected_operation_set": [
+                "identity.otp.password-reset"
+              ],
+              "observed_operation_set": [
+                "identity.otp.password-reset"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.password-reset.behavior#outage",
+              "observation_id": "otp-reservation-report.identity.otp.password-reset.behavior",
+              "claim_id": "identity.otp.password-reset",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.otp.password-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:46da0218567e5c15989664d8c8eeea73e7e23b4c6d6c2893b2eb3fdcae0c3827",
+              "expected_operation_set": [
+                "identity.otp.password-reset"
+              ],
+              "observed_operation_set": [
+                "identity.otp.password-reset"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.password-reset.behavior#replay",
+              "observation_id": "otp-reservation-report.identity.otp.password-reset.behavior",
+              "claim_id": "identity.otp.password-reset",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.otp.password-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:e8d296ed95a620a7ec668f77d98f235e9546cdbbd832ea73bb30fa054493db5f",
+              "expected_operation_set": [
+                "identity.otp.password-reset"
+              ],
+              "observed_operation_set": [
+                "identity.otp.password-reset"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.password-reset.behavior#concurrency",
+              "observation_id": "otp-reservation-report.identity.otp.password-reset.behavior",
+              "claim_id": "identity.otp.password-reset",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.otp.password-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:8ace9c2cdea72bdb0996b0f50e3eb92ab8d18450ad13cb57e497345d4b70a7fe",
+              "expected_operation_set": [
+                "identity.otp.password-reset"
+              ],
+              "observed_operation_set": [
+                "identity.otp.password-reset"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.password-reset.behavior#cleanup",
+              "observation_id": "otp-reservation-report.identity.otp.password-reset.behavior",
+              "claim_id": "identity.otp.password-reset",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.otp.password-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a355a9dd9a9d786e3eb33f5b6ec5015b0cc94b017d87ab873ac2dfd63e502065",
+              "expected_operation_set": [
+                "identity.otp.password-reset"
+              ],
+              "observed_operation_set": [
+                "identity.otp.password-reset"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.password-reset.behavior#unknown-outcome",
+              "observation_id": "otp-reservation-report.identity.otp.password-reset.behavior",
+              "claim_id": "identity.otp.password-reset",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.otp.password-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:67a8cb42b517d1b5abca090c044a0086b94f158fb42125ad7efc1440e059f535",
+              "expected_operation_set": [
+                "identity.otp.password-reset"
+              ],
+              "observed_operation_set": [
+                "identity.otp.password-reset"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.send.behavior#success",
+              "observation_id": "otp-reservation-report.identity.otp.send.behavior",
+              "claim_id": "identity.otp.send",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.otp.send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a1b9b64aa2378b6963616bf583ab4fbbe0296f0a343e68631457e0d5a33988c2",
+              "expected_operation_set": [
+                "identity.otp.send"
+              ],
+              "observed_operation_set": [
+                "identity.otp.send"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.send.behavior#failure",
+              "observation_id": "otp-reservation-report.identity.otp.send.behavior",
+              "claim_id": "identity.otp.send",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.otp.send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:8b0ab21fa2a97a105261b77774169be272a3f8d947a0e5e141ca61c8b5218384",
+              "expected_operation_set": [
+                "identity.otp.send"
+              ],
+              "observed_operation_set": [
+                "identity.otp.send"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.send.behavior#outage",
+              "observation_id": "otp-reservation-report.identity.otp.send.behavior",
+              "claim_id": "identity.otp.send",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.otp.send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:f4b57295d1bf9845fbaeb7b86484a381d0f11670811abe08dcd52a5e5954980e",
+              "expected_operation_set": [
+                "identity.otp.send"
+              ],
+              "observed_operation_set": [
+                "identity.otp.send"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.send.behavior#replay",
+              "observation_id": "otp-reservation-report.identity.otp.send.behavior",
+              "claim_id": "identity.otp.send",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.otp.send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:b106d499249abc041423332a05fd388905099e3ca4518cc533a4e41718d9ed19",
+              "expected_operation_set": [
+                "identity.otp.send"
+              ],
+              "observed_operation_set": [
+                "identity.otp.send"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.send.behavior#concurrency",
+              "observation_id": "otp-reservation-report.identity.otp.send.behavior",
+              "claim_id": "identity.otp.send",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.otp.send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:ffd8b79c09dd8a9fa1c867f1cafde8190df9e3645f8edd042ea69917f2524308",
+              "expected_operation_set": [
+                "identity.otp.send"
+              ],
+              "observed_operation_set": [
+                "identity.otp.send"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.send.behavior#cleanup",
+              "observation_id": "otp-reservation-report.identity.otp.send.behavior",
+              "claim_id": "identity.otp.send",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.otp.send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:83c64af3124b04dc990b2830d107fb8624fb9cb224dd2b6523ebd848b4e7b4d2",
+              "expected_operation_set": [
+                "identity.otp.send"
+              ],
+              "observed_operation_set": [
+                "identity.otp.send"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.send.behavior#unknown-outcome",
+              "observation_id": "otp-reservation-report.identity.otp.send.behavior",
+              "claim_id": "identity.otp.send",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.otp.send"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:fbf28b4317ce3ec9003b6623015b23bcffce2e26d0a2eee0c043dcbb6c45326d",
+              "expected_operation_set": [
+                "identity.otp.send"
+              ],
+              "observed_operation_set": [
+                "identity.otp.send"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.signin.behavior#success",
+              "observation_id": "otp-reservation-report.identity.otp.signin.behavior",
+              "claim_id": "identity.otp.signin",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6d4bd0aff0e2189cd5b4002ce46254f0f8a9c520a05a10cc0cb702fddb8f38f3",
+              "expected_operation_set": [
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.signin.behavior#failure",
+              "observation_id": "otp-reservation-report.identity.otp.signin.behavior",
+              "claim_id": "identity.otp.signin",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:c74f62ff96cd033a2f831d42094bc7ce9a0e4a54bc1949013520f75431e34264",
+              "expected_operation_set": [
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.signin.behavior#outage",
+              "observation_id": "otp-reservation-report.identity.otp.signin.behavior",
+              "claim_id": "identity.otp.signin",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:ed57acb5b7d71c1a9cdcdc7df043e7e047b8a21f00e0617bab3ebdf69009b465",
+              "expected_operation_set": [
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.signin.behavior#replay",
+              "observation_id": "otp-reservation-report.identity.otp.signin.behavior",
+              "claim_id": "identity.otp.signin",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:5e00811ed47b171773be6d3cb61cbdab91a2c97a06a8cf4ea6f77b10a288da73",
+              "expected_operation_set": [
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.signin.behavior#concurrency",
+              "observation_id": "otp-reservation-report.identity.otp.signin.behavior",
+              "claim_id": "identity.otp.signin",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:0cb2c9836b00b480fe0bb42755ecca7b48cec276e2207be21860000f1946a516",
+              "expected_operation_set": [
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.signin.behavior#cleanup",
+              "observation_id": "otp-reservation-report.identity.otp.signin.behavior",
+              "claim_id": "identity.otp.signin",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:1d78059c66eddcd060c9916c6244acf1c467c34314630b0cc2e377ae3298eae4",
+              "expected_operation_set": [
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.identity.otp.signin.behavior#unknown-outcome",
+              "observation_id": "otp-reservation-report.identity.otp.signin.behavior",
+              "claim_id": "identity.otp.signin",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:f96e5050a52e609ef38f68f98577abff163ab5b6000754a31ad910e34b723559",
+              "expected_operation_set": [
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.journey.passwordless.v1.behavior#success",
+              "observation_id": "otp-reservation-report.journey.passwordless.v1.behavior",
+              "claim_id": "journey.passwordless.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:61454edf9b1717af090d801581626fcf235d67c62fd076c5d6ace43190a5e936",
+              "expected_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.journey.passwordless.v1.behavior#failure",
+              "observation_id": "otp-reservation-report.journey.passwordless.v1.behavior",
+              "claim_id": "journey.passwordless.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:8ec2f529cf189739c3b6d0cbfc8e30264c0da36f262a5374af5834e0fe5c8513",
+              "expected_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.journey.passwordless.v1.behavior#outage",
+              "observation_id": "otp-reservation-report.journey.passwordless.v1.behavior",
+              "claim_id": "journey.passwordless.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:6ef83f4657188afba3fe5b8db0daa55551e3690784bd86e1d8c37e422fa461d4",
+              "expected_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.journey.passwordless.v1.behavior#replay",
+              "observation_id": "otp-reservation-report.journey.passwordless.v1.behavior",
+              "claim_id": "journey.passwordless.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:10399b627b70d323f3eeb168eefaad78225f4e9ee624156decf914f154c012ce",
+              "expected_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.journey.passwordless.v1.behavior#concurrency",
+              "observation_id": "otp-reservation-report.journey.passwordless.v1.behavior",
+              "claim_id": "journey.passwordless.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:4bff4190db063976c3d1a4f1d8d666b3e09c32d789e9ef5f18b66be2a663b6b7",
+              "expected_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.journey.passwordless.v1.behavior#cleanup",
+              "observation_id": "otp-reservation-report.journey.passwordless.v1.behavior",
+              "claim_id": "journey.passwordless.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:84b1bc62f78c7bcded2d5487add7664a4834ab8f8ba78c30190d6c7bae9c1b69",
+              "expected_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ]
+            },
+            {
+              "case_id": "otp-reservation-report.journey.passwordless.v1.behavior#unknown-outcome",
+              "observation_id": "otp-reservation-report.journey.passwordless.v1.behavior",
+              "claim_id": "journey.passwordless.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "purpose",
+                "recipient",
+                "code",
+                "idempotency_key",
+                "attempt_id",
+                "attempt_fingerprint",
+                "wrong_code",
+                "commit_fault"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:f4a6e602847c153b01df3f214625884239f68396ab3f1fc0006ca3f7038170e5",
+              "expected_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ],
+              "observed_operation_set": [
+                "identity.otp.check",
+                "identity.otp.email-change-confirm",
+                "identity.otp.email-change-request",
+                "identity.otp.email-verify",
+                "identity.otp.password-reset",
+                "identity.otp.send",
+                "identity.otp.signin"
+              ]
+            }
+          ]
         },
         "reservation_id": {
           "type": "string",
@@ -1065,6 +3012,140 @@
         "unknown_reconciliation_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "otp_operation_cases": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "valid",
+                  "consumed_code_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "check-non-consuming"
+                  },
+                  "operation_id": {
+                    "const": "identity.otp.check"
+                  },
+                  "valid": {
+                    "const": true
+                  },
+                  "consumed_code_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "valid",
+                  "consumed_code_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "signin-consuming"
+                  },
+                  "operation_id": {
+                    "const": "identity.otp.signin"
+                  },
+                  "valid": {
+                    "const": true
+                  },
+                  "consumed_code_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "valid",
+                  "consumed_code_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "check-non-consuming"
+                  },
+                  "operation_id": {
+                    "const": "identity.otp.check"
+                  },
+                  "valid": {
+                    "const": true
+                  },
+                  "consumed_code_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "valid",
+                  "consumed_code_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "signin-consuming"
+                  },
+                  "operation_id": {
+                    "const": "identity.otp.signin"
+                  },
+                  "valid": {
+                    "const": true
+                  },
+                  "consumed_code_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -1104,666 +3185,6 @@
           "kind": "equal",
           "left": "aborted_result_count",
           "right": "failed_attempt_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "otp-reservation-report.journey.passwordless.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.passwordless.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.otp.send",
-                      "identity.otp.check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "purpose",
-                      "recipient",
-                      "code",
-                      "idempotency_key",
-                      "attempt_id",
-                      "attempt_fingerprint",
-                      "wrong_code",
-                      "commit_fault"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "no live reservation exists for tenant, purpose, and recipient"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "concurrent send reserves one code and correct check consumes it once; each wrong-code logical submission uses a server-issued attempt identity, increments exactly once, stores one aborted command result with exhaustion when required, and ambiguous denial commit returns unknown until primary reconciliation; retry, concurrency, and replay never duplicate an attempt increment"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "reservation_id",
-                      "attempt_id",
-                      "issued_code_count",
-                      "failed_attempt_count",
-                      "aborted_result_count",
-                      "consumed_code_count",
-                      "duplicate_delivery_count",
-                      "duplicate_attempt_increment_count",
-                      "exhausted",
-                      "reservation_state_digest",
-                      "unknown_reconciliation_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

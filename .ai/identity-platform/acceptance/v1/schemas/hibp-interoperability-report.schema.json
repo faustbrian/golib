@@ -148,10 +148,10 @@
                 "const": "Run identity.risk.hibp-check then identity.password.signup then identity.password.set then identity.password.change then identity.password.reset-complete then identity.admin.user-password-set for success, failure, outage cases using range_endpoint, password_sha1_prefix, user_agent, follow_redirects, add_padding_header, padded_response, provider_outcome, password_operation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable; required artifact fields: range_endpoint, transmitted_prefix, user_agent, user_agent_secret_match_count, redirect_follow_count, add_padding_header, padding_row_count, padded_response_valid, outcome_cases, known_compromised_match_count, absent_match_count, unavailable_case_count, unknown_case_count, password_signup_denied, password_set_denied, password_change_denied, password_reset_denied, admin_password_set_denied, timeout_status, response_digest"
+                "const": "Invariant: both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable; required artifact fields: range_endpoint, transmitted_prefix, user_agent, user_agent_secret_match_count, redirect_follow_count, add_padding_header, padding_row_count, padded_response_valid, outcome_cases, known_compromised_match_count, absent_match_count, unavailable_case_count, unknown_case_count, password_signup_denied, password_set_denied, password_change_denied, password_reset_denied, admin_password_set_denied, timeout_status, response_digest, protocol_case_results, local_password_input_count, local_sha1_computation_count, password_transmission_count, full_hash_transmission_count"
               },
               "actual_outcome": {
-                "const": "Invariant: both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable; required artifact fields: range_endpoint, transmitted_prefix, user_agent, user_agent_secret_match_count, redirect_follow_count, add_padding_header, padding_row_count, padded_response_valid, outcome_cases, known_compromised_match_count, absent_match_count, unavailable_case_count, unknown_case_count, password_signup_denied, password_set_denied, password_change_denied, password_reset_denied, admin_password_set_denied, timeout_status, response_digest"
+                "const": "Invariant: both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable; required artifact fields: range_endpoint, transmitted_prefix, user_agent, user_agent_secret_match_count, redirect_follow_count, add_padding_header, padding_row_count, padded_response_valid, outcome_cases, known_compromised_match_count, absent_match_count, unavailable_case_count, unknown_case_count, password_signup_denied, password_set_denied, password_change_denied, password_reset_denied, admin_password_set_denied, timeout_status, response_digest, protocol_case_results, local_password_input_count, local_sha1_computation_count, password_transmission_count, full_hash_transmission_count"
               },
               "result": {
                 "const": "pass"
@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -279,11 +281,22 @@
         "password_reset_denied",
         "admin_password_set_denied",
         "timeout_status",
-        "response_digest"
+        "response_digest",
+        "protocol_case_results",
+        "local_password_input_count",
+        "local_sha1_computation_count",
+        "password_transmission_count",
+        "full_hash_transmission_count"
       ],
       "properties": {
         "artifact_id": {
           "const": "hibp-interoperability-report"
+        },
+        "invariant_id": {
+          "const": "hibp-interoperability-report.invariant"
+        },
+        "invariant": {
+          "const": "both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow"
         },
         "operation_ids": {
           "const": [
@@ -416,307 +429,447 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.hibp-check",
-                      "identity.password.signup",
-                      "identity.password.set",
-                      "identity.password.change",
-                      "identity.password.reset-complete",
-                      "identity.admin.user-password-set"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "password_sha1_prefix",
-                      "user_agent",
-                      "follow_redirects",
-                      "add_padding_header",
-                      "padded_response",
-                      "provider_outcome",
-                      "password_operation"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned HIBP range fixtures contain separately attributable known-compromised and absent/no-match padded responses plus malformed, redirect, unavailable, and unknown outcomes for every password credential creation, change, reset, and administrative set path"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "transmitted_prefix",
-                      "user_agent",
-                      "user_agent_secret_match_count",
-                      "redirect_follow_count",
-                      "add_padding_header",
-                      "padding_row_count",
-                      "padded_response_valid",
-                      "outcome_cases",
-                      "known_compromised_match_count",
-                      "absent_match_count",
-                      "unavailable_case_count",
-                      "unknown_case_count",
-                      "password_signup_denied",
-                      "password_set_denied",
-                      "password_change_denied",
-                      "password_reset_denied",
-                      "admin_password_set_denied",
-                      "timeout_status",
-                      "response_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "hibp-interoperability-report.journey.email-password-username.v1.behavior#success",
+                  "hibp-interoperability-report.journey.email-password-username.v1.behavior#failure",
+                  "hibp-interoperability-report.journey.email-password-username.v1.behavior#outage"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "hibp-interoperability-report.journey.email-password-username.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.email-password-username.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "hibp-interoperability-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.hibp-check",
+                    "identity.password.signup",
+                    "identity.password.set",
+                    "identity.password.change",
+                    "identity.password.reset-complete",
+                    "identity.admin.user-password-set"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.hibp-check",
-                      "identity.password.signup",
-                      "identity.password.set",
-                      "identity.password.change",
-                      "identity.password.reset-complete",
-                      "identity.admin.user-password-set"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "password_sha1_prefix",
-                      "user_agent",
-                      "follow_redirects",
-                      "add_padding_header",
-                      "padded_response",
-                      "provider_outcome",
-                      "password_operation"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned HIBP range fixtures contain separately attributable known-compromised and absent/no-match padded responses plus malformed, redirect, unavailable, and unknown outcomes for every password credential creation, change, reset, and administrative set path"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "transmitted_prefix",
-                      "user_agent",
-                      "user_agent_secret_match_count",
-                      "redirect_follow_count",
-                      "add_padding_header",
-                      "padding_row_count",
-                      "padded_response_valid",
-                      "outcome_cases",
-                      "known_compromised_match_count",
-                      "absent_match_count",
-                      "unavailable_case_count",
-                      "unknown_case_count",
-                      "password_signup_denied",
-                      "password_set_denied",
-                      "password_change_denied",
-                      "password_reset_denied",
-                      "admin_password_set_denied",
-                      "timeout_status",
-                      "response_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "pinned HIBP range fixtures contain separately attributable known-compromised and absent/no-match padded responses plus malformed, redirect, unavailable, and unknown outcomes for every password credential creation, change, reset, and administrative set path"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable"
+                ]
+              },
+              "expected_invariant": {
+                "const": "both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 23
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.hibp-check",
+                    "identity.password.signup",
+                    "identity.password.set",
+                    "identity.password.change",
+                    "identity.password.reset-complete",
+                    "identity.admin.user-password-set"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.risk.hibp-check",
+                    "identity.password.signup",
+                    "identity.password.set",
+                    "identity.password.change",
+                    "identity.password.reset-complete",
+                    "identity.admin.user-password-set"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "range_endpoint",
+                  "transmitted_prefix",
+                  "user_agent",
+                  "user_agent_secret_match_count",
+                  "redirect_follow_count",
+                  "add_padding_header",
+                  "padding_row_count",
+                  "padded_response_valid",
+                  "known_compromised_match_count",
+                  "absent_match_count",
+                  "unavailable_case_count",
+                  "unknown_case_count",
+                  "password_signup_denied",
+                  "password_set_denied",
+                  "password_change_denied",
+                  "password_reset_denied",
+                  "admin_password_set_denied",
+                  "timeout_status",
+                  "response_digest",
+                  "local_password_input_count",
+                  "local_sha1_computation_count",
+                  "password_transmission_count",
+                  "full_hash_transmission_count"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior#outage"
+                  "range_endpoint": {
+                    "const": "https://api.pwnedpasswords.com/range/{PREFIX}"
                   },
-                  "observation_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior"
+                  "transmitted_prefix": {
+                    "type": "string",
+                    "pattern": "^[0-9A-F]{5}$"
                   },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
+                  "user_agent": {
+                    "type": "string",
+                    "pattern": "^golib-identity-reference/[A-Za-z0-9._-]+ \\([+]https://[^ ]+\\)$",
+                    "minLength": 1,
+                    "maxLength": 256
                   },
-                  "scenario": {
-                    "const": "outage"
+                  "user_agent_secret_match_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "unavailable"
+                  "redirect_follow_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.hibp-check",
-                      "identity.password.signup",
-                      "identity.password.set",
-                      "identity.password.change",
-                      "identity.password.reset-complete",
-                      "identity.admin.user-password-set"
+                  "add_padding_header": {
+                    "const": "true"
+                  },
+                  "padding_row_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "padded_response_valid": {
+                    "type": "boolean"
+                  },
+                  "known_compromised_match_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "absent_match_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "unavailable_case_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "unknown_case_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "password_signup_denied": {
+                    "type": "boolean"
+                  },
+                  "password_set_denied": {
+                    "type": "boolean"
+                  },
+                  "password_change_denied": {
+                    "type": "boolean"
+                  },
+                  "password_reset_denied": {
+                    "type": "boolean"
+                  },
+                  "admin_password_set_denied": {
+                    "type": "boolean"
+                  },
+                  "timeout_status": {
+                    "type": "string",
+                    "enum": [
+                      "deny",
+                      "unavailable"
                     ]
                   },
-                  "input_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "password_sha1_prefix",
-                      "user_agent",
-                      "follow_redirects",
-                      "add_padding_header",
-                      "padded_response",
-                      "provider_outcome",
-                      "password_operation"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned HIBP range fixtures contain separately attributable known-compromised and absent/no-match padded responses plus malformed, redirect, unavailable, and unknown outcomes for every password credential creation, change, reset, and administrative set path"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow"
-                  },
-                  "observed_state_digest": {
+                  "response_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  "local_password_input_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observed_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "transmitted_prefix",
-                      "user_agent",
-                      "user_agent_secret_match_count",
-                      "redirect_follow_count",
-                      "add_padding_header",
-                      "padding_row_count",
-                      "padded_response_valid",
-                      "outcome_cases",
-                      "known_compromised_match_count",
-                      "absent_match_count",
-                      "unavailable_case_count",
-                      "unknown_case_count",
-                      "password_signup_denied",
-                      "password_set_denied",
-                      "password_change_denied",
-                      "password_reset_denied",
-                      "admin_password_set_denied",
-                      "timeout_status",
-                      "response_digest"
-                    ]
+                  "local_sha1_computation_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "password_transmission_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "full_hash_transmission_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "hibp-interoperability-report.journey.email-password-username.v1.behavior#success",
+              "observation_id": "hibp-interoperability-report.journey.email-password-username.v1.behavior",
+              "claim_id": "journey.email-password-username.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.risk.hibp-check",
+                "identity.password.signup",
+                "identity.password.set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.admin.user-password-set"
+              ],
+              "input_fields": [
+                "range_endpoint",
+                "password_sha1_prefix",
+                "user_agent",
+                "follow_redirects",
+                "add_padding_header",
+                "padded_response",
+                "provider_outcome",
+                "password_operation"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:3b2a261f4478ab50c473697941a203ed28c0abab35f41cef89b5ba5e88d7c6e2",
+              "expected_operation_set": [
+                "identity.admin.user-password-set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.password.set",
+                "identity.password.signup",
+                "identity.risk.hibp-check"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-password-set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.password.set",
+                "identity.password.signup",
+                "identity.risk.hibp-check"
+              ]
+            },
+            {
+              "case_id": "hibp-interoperability-report.journey.email-password-username.v1.behavior#failure",
+              "observation_id": "hibp-interoperability-report.journey.email-password-username.v1.behavior",
+              "claim_id": "journey.email-password-username.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.risk.hibp-check",
+                "identity.password.signup",
+                "identity.password.set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.admin.user-password-set"
+              ],
+              "input_fields": [
+                "range_endpoint",
+                "password_sha1_prefix",
+                "user_agent",
+                "follow_redirects",
+                "add_padding_header",
+                "padded_response",
+                "provider_outcome",
+                "password_operation"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:98bdbd0d29cd7072201176c6f4a8b281d4e31bd539ebe2232070d4e4976eda4c",
+              "expected_operation_set": [
+                "identity.admin.user-password-set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.password.set",
+                "identity.password.signup",
+                "identity.risk.hibp-check"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-password-set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.password.set",
+                "identity.password.signup",
+                "identity.risk.hibp-check"
+              ]
+            },
+            {
+              "case_id": "hibp-interoperability-report.journey.email-password-username.v1.behavior#outage",
+              "observation_id": "hibp-interoperability-report.journey.email-password-username.v1.behavior",
+              "claim_id": "journey.email-password-username.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.risk.hibp-check",
+                "identity.password.signup",
+                "identity.password.set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.admin.user-password-set"
+              ],
+              "input_fields": [
+                "range_endpoint",
+                "password_sha1_prefix",
+                "user_agent",
+                "follow_redirects",
+                "add_padding_header",
+                "padded_response",
+                "provider_outcome",
+                "password_operation"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:8a7d3c5a26348d20be16ee3a2933f1c99b14816e0238264157abc90d95b9a8c5",
+              "expected_operation_set": [
+                "identity.admin.user-password-set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.password.set",
+                "identity.password.signup",
+                "identity.risk.hibp-check"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-password-set",
+                "identity.password.change",
+                "identity.password.reset-complete",
+                "identity.password.set",
+                "identity.password.signup",
+                "identity.risk.hibp-check"
+              ]
+            }
+          ]
         },
         "range_endpoint": {
           "const": "https://api.pwnedpasswords.com/range/{PREFIX}"
@@ -1123,6 +1276,424 @@
         "response_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "protocol_case_results": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "hibp-interoperability-report:hibp.pwned-passwords.range-evidence"
+                  },
+                  "suite_case_id": {
+                    "const": "hibp-pwned-passwords-20260807131257:hibp.pwned-passwords.range-evidence"
+                  },
+                  "requirement_id": {
+                    "const": "hibp.pwned-passwords.range-evidence"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.risk.hibp-check"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "hibp-pwned-passwords-20260807131257"
+                  },
+                  "locator": {
+                    "const": "Pwned Passwords: searching by range, hash prefix search, padding, response suffix/count format, and user-agent requirement"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "hibp-interoperability-report:source.rfc-2119"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-2119:source.rfc-2119"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-2119"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.risk.hibp-check",
+                      "identity.password.signup",
+                      "identity.password.set",
+                      "identity.password.change",
+                      "identity.password.reset-complete",
+                      "identity.admin.user-password-set"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-2119"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "hibp-interoperability-report:source.rfc-8174"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8174:source.rfc-8174"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8174"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.risk.hibp-check",
+                      "identity.password.signup",
+                      "identity.password.set",
+                      "identity.password.change",
+                      "identity.password.reset-complete",
+                      "identity.admin.user-password-set"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8174"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "hibp-interoperability-report:source.rfc-8949"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8949:source.rfc-8949"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8949"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.risk.hibp-check",
+                      "identity.password.signup",
+                      "identity.password.set",
+                      "identity.password.change",
+                      "identity.password.reset-complete",
+                      "identity.admin.user-password-set"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8949"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "hibp-interoperability-report:hibp.pwned-passwords.range-evidence"
+                  },
+                  "suite_case_id": {
+                    "const": "hibp-pwned-passwords-20260807131257:hibp.pwned-passwords.range-evidence"
+                  },
+                  "requirement_id": {
+                    "const": "hibp.pwned-passwords.range-evidence"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.risk.hibp-check"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "hibp-pwned-passwords-20260807131257"
+                  },
+                  "locator": {
+                    "const": "Pwned Passwords: searching by range, hash prefix search, padding, response suffix/count format, and user-agent requirement"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "hibp-interoperability-report:source.rfc-2119"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-2119:source.rfc-2119"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-2119"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.risk.hibp-check",
+                      "identity.password.signup",
+                      "identity.password.set",
+                      "identity.password.change",
+                      "identity.password.reset-complete",
+                      "identity.admin.user-password-set"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-2119"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "hibp-interoperability-report:source.rfc-8174"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8174:source.rfc-8174"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8174"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.risk.hibp-check",
+                      "identity.password.signup",
+                      "identity.password.set",
+                      "identity.password.change",
+                      "identity.password.reset-complete",
+                      "identity.admin.user-password-set"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8174"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "hibp-interoperability-report:source.rfc-8949"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8949:source.rfc-8949"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8949"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.risk.hibp-check",
+                      "identity.password.signup",
+                      "identity.password.set",
+                      "identity.password.change",
+                      "identity.password.reset-complete",
+                      "identity.admin.user-password-set"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8949"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "local_password_input_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "local_sha1_computation_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "password_transmission_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "full_hash_transmission_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
         }
       },
       "x-semantic-rules": [
@@ -1132,7 +1703,9 @@
             "padding_row_count",
             "known_compromised_match_count",
             "unavailable_case_count",
-            "unknown_case_count"
+            "unknown_case_count",
+            "local_password_input_count",
+            "local_sha1_computation_count"
           ]
         },
         {
@@ -1140,7 +1713,9 @@
           "fields": [
             "user_agent_secret_match_count",
             "redirect_follow_count",
-            "absent_match_count"
+            "absent_match_count",
+            "password_transmission_count",
+            "full_hash_transmission_count"
           ]
         },
         {
@@ -1153,326 +1728,16 @@
             "password_reset_denied",
             "admin_password_set_denied"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.hibp-check",
-                      "identity.password.signup",
-                      "identity.password.set",
-                      "identity.password.change",
-                      "identity.password.reset-complete",
-                      "identity.admin.user-password-set"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "password_sha1_prefix",
-                      "user_agent",
-                      "follow_redirects",
-                      "add_padding_header",
-                      "padded_response",
-                      "provider_outcome",
-                      "password_operation"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned HIBP range fixtures contain separately attributable known-compromised and absent/no-match padded responses plus malformed, redirect, unavailable, and unknown outcomes for every password credential creation, change, reset, and administrative set path"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "transmitted_prefix",
-                      "user_agent",
-                      "user_agent_secret_match_count",
-                      "redirect_follow_count",
-                      "add_padding_header",
-                      "padding_row_count",
-                      "padded_response_valid",
-                      "outcome_cases",
-                      "known_compromised_match_count",
-                      "absent_match_count",
-                      "unavailable_case_count",
-                      "unknown_case_count",
-                      "password_signup_denied",
-                      "password_set_denied",
-                      "password_change_denied",
-                      "password_reset_denied",
-                      "admin_password_set_denied",
-                      "timeout_status",
-                      "response_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         },
         {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.hibp-check",
-                      "identity.password.signup",
-                      "identity.password.set",
-                      "identity.password.change",
-                      "identity.password.reset-complete",
-                      "identity.admin.user-password-set"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "password_sha1_prefix",
-                      "user_agent",
-                      "follow_redirects",
-                      "add_padding_header",
-                      "padded_response",
-                      "provider_outcome",
-                      "password_operation"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned HIBP range fixtures contain separately attributable known-compromised and absent/no-match padded responses plus malformed, redirect, unavailable, and unknown outcomes for every password credential creation, change, reset, and administrative set path"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "transmitted_prefix",
-                      "user_agent",
-                      "user_agent_secret_match_count",
-                      "redirect_follow_count",
-                      "add_padding_header",
-                      "padding_row_count",
-                      "padded_response_valid",
-                      "outcome_cases",
-                      "known_compromised_match_count",
-                      "absent_match_count",
-                      "unavailable_case_count",
-                      "unknown_case_count",
-                      "password_signup_denied",
-                      "password_set_denied",
-                      "password_change_denied",
-                      "password_reset_denied",
-                      "admin_password_set_denied",
-                      "timeout_status",
-                      "response_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
+          "kind": "const",
+          "field": "local_password_input_count",
+          "value": 1
         },
         {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "hibp-interoperability-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.risk.hibp-check",
-                      "identity.password.signup",
-                      "identity.password.set",
-                      "identity.password.change",
-                      "identity.password.reset-complete",
-                      "identity.admin.user-password-set"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "password_sha1_prefix",
-                      "user_agent",
-                      "follow_redirects",
-                      "add_padding_header",
-                      "padded_response",
-                      "provider_outcome",
-                      "password_operation"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned HIBP range fixtures contain separately attributable known-compromised and absent/no-match padded responses plus malformed, redirect, unavailable, and unknown outcomes for every password credential creation, change, reset, and administrative set path"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "both known-compromised and absent/no-match cases send only a five-uppercase-hex prefix to the exact HTTPS range endpoint with a nonsecret User-Agent, redirects disabled, Add-Padding true, and zero password or full-hash disclosure; the compromised case proves a positive suffix match while the absent case proves exactly zero matches; unavailable or unknown evidence makes signup, set, change, reset, and administrative set deny or return unavailable and never allow"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "range_endpoint",
-                      "transmitted_prefix",
-                      "user_agent",
-                      "user_agent_secret_match_count",
-                      "redirect_follow_count",
-                      "add_padding_header",
-                      "padding_row_count",
-                      "padded_response_valid",
-                      "outcome_cases",
-                      "known_compromised_match_count",
-                      "absent_match_count",
-                      "unavailable_case_count",
-                      "unknown_case_count",
-                      "password_signup_denied",
-                      "password_set_denied",
-                      "password_change_denied",
-                      "password_reset_denied",
-                      "admin_password_set_denied",
-                      "timeout_status",
-                      "response_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
+          "kind": "const",
+          "field": "local_sha1_computation_count",
+          "value": 1
         }
       ]
     }

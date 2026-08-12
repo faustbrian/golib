@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "export-minimization-redaction-report"
+        },
+        "invariant_id": {
+          "const": "export-minimization-redaction-report.invariant"
+        },
+        "invariant": {
+          "const": "export contains only allowed categories and replaces or omits credentials, tokens, internal risk data, and third-party secrets"
         },
         "operation_ids": {
           "const": [
@@ -397,235 +405,289 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "requested_categories"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable identity data plus secret-shaped and third-party fields"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "export contains only allowed categories and replaces or omits credentials, tokens, internal risk data, and third-party secrets"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "included_record_count",
-                      "redacted_field_count",
-                      "secret_match_count",
-                      "export_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "export-minimization-redaction-report.journey.privacy-export.v1.behavior#success",
+                  "export-minimization-redaction-report.journey.privacy-export.v1.behavior#failure",
+                  "export-minimization-redaction-report.journey.privacy-export.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "export-minimization-redaction-report.journey.privacy-export.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.privacy-export.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "export-minimization-redaction-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.request",
+                    "identity.privacy-export.download"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "requested_categories"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable identity data plus secret-shaped and third-party fields"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "export contains only allowed categories and replaces or omits credentials, tokens, internal risk data, and third-party secrets"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "included_record_count",
-                      "redacted_field_count",
-                      "secret_match_count",
-                      "export_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "subject has exportable identity data plus secret-shaped and third-party fields"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "export contains only allowed categories and replaces or omits credentials, tokens, internal risk data, and third-party secrets"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.request",
+                    "identity.privacy-export.download"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.privacy-export.request",
+                    "identity.privacy-export.download"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "export_id",
+                  "included_record_count",
+                  "redacted_field_count",
+                  "secret_match_count",
+                  "export_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#denial"
+                  "export_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior"
+                  "included_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
+                  "redacted_field_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "denial"
+                  "secret_match_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "requested_categories"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable identity data plus secret-shaped and third-party fields"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "export contains only allowed categories and replaces or omits credentials, tokens, internal risk data, and third-party secrets"
-                  },
-                  "observed_state_digest": {
+                  "export_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "included_record_count",
-                      "redacted_field_count",
-                      "secret_match_count",
-                      "export_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#success",
+              "observation_id": "export-minimization-redaction-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "requested_categories"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e1040742106993940f9fd4d3e8dda97dfb308d38625fdb0432b9e3d310b98847",
+              "expected_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.request"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.request"
+              ]
+            },
+            {
+              "case_id": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#failure",
+              "observation_id": "export-minimization-redaction-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "requested_categories"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7131af46f768b4e7570711b63358f7ac64069b0fd42679ea452291d7a1ec61e0",
+              "expected_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.request"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.request"
+              ]
+            },
+            {
+              "case_id": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#denial",
+              "observation_id": "export-minimization-redaction-report.journey.privacy-export.v1.behavior",
+              "claim_id": "journey.privacy-export.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.privacy-export.request",
+                "identity.privacy-export.download"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "subject_id",
+                "requested_categories"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:80be61e67f0d0eebc0ba59d75fb81a35a4689026ac5e84963fe0de5fa54bf239",
+              "expected_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.request"
+              ],
+              "observed_operation_set": [
+                "identity.privacy-export.download",
+                "identity.privacy-export.request"
+              ]
+            }
+          ]
         },
         "export_id": {
           "type": "string",
@@ -664,254 +726,6 @@
           "fields": [
             "secret_match_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "requested_categories"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable identity data plus secret-shaped and third-party fields"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "export contains only allowed categories and replaces or omits credentials, tokens, internal risk data, and third-party secrets"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "included_record_count",
-                      "redacted_field_count",
-                      "secret_match_count",
-                      "export_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "requested_categories"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable identity data plus secret-shaped and third-party fields"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "export contains only allowed categories and replaces or omits credentials, tokens, internal risk data, and third-party secrets"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "included_record_count",
-                      "redacted_field_count",
-                      "secret_match_count",
-                      "export_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "export-minimization-redaction-report.journey.privacy-export.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.privacy-export.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.privacy-export.request",
-                      "identity.privacy-export.download"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "subject_id",
-                      "requested_categories"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "subject has exportable identity data plus secret-shaped and third-party fields"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "export contains only allowed categories and replaces or omits credentials, tokens, internal risk data, and third-party secrets"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "export_id",
-                      "included_record_count",
-                      "redacted_field_count",
-                      "secret_match_count",
-                      "export_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

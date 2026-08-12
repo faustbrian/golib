@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/identity/otp`
 - Canonical goal after scaffolding: `pkg/identity/otp/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/otp:v1`; owned operation IDs: `contract:operation:identity.otp.check:v1`, `contract:operation:identity.otp.email-change-confirm:v1`, `contract:operation:identity.otp.email-change-request:v1`, `contract:operation:identity.otp.email-verify:v1`, `contract:operation:identity.otp.password-reset:v1`, `contract:operation:identity.otp.send:v1`, `contract:operation:identity.otp.signin:v1`
-- Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`, `primitive/authentication-identity-contracts`, `primitive/identifier-identity-contracts`, `primitive/password-secret-contracts`
+- Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`, `primitive/authentication-identity-contracts`, `primitive/capability-postgres-identity-contracts`, `primitive/identifier-identity-contracts`, `primitive/password-secret-contracts`
 - Consumes existing primitives: `capability`, `capability/postgres`, `password`, `rate-limit`, `audit`
 - Unlocks after verification: `identity/password`, `identity/email`, `identity/otp/postgres`, `identity/phone`, `identity/mfa`, `identity/http`
 
@@ -36,7 +36,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define CodeProfile, Challenge, Generator, Store, Delivery, Verifier, AttemptPolicy, SessionIssuer, and result contracts. Public errors MUST be typed, stable,
+The design MUST define CodeProfile, Challenge, Generator, Store, Delivery, Verifier, AttemptPolicy, AttemptID, AttemptFingerprint, attempt/recovery commands and results, SessionIssuer, and result contracts. The Store contract MUST make the non-consuming-check and consuming-reservation modes explicit, atomically persist each wrong-code decrement and its denial result exactly once, and recover an ambiguous attempt by the same server-issued AttemptID and server-derived fingerprint without repeating comparison or mutation. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -62,6 +62,11 @@ involved.
 - Check-without-consume, if exposed, MUST be separately rate-limited and MUST
   not make replay or brute-force easier. Verify/consume MUST be atomic under
   concurrent correct and incorrect attempts.
+- OTP and passkey continuations MUST use a closed tagged authorization union
+  whose authenticated-session and pre-auth-transaction variants are disjoint.
+  Exactly one variant MUST be present, the discriminator MUST be explicit, and
+  subject, remember-policy or nullable-field inference MUST NOT substitute for
+  authorization context.
 - Signin/verification/reset/change-email callbacks MUST invoke the owning
   workflow and issue sessions only after that workflow commits.
 - Delayed, duplicated, bounced and unknown delivery outcomes MUST have
@@ -79,10 +84,16 @@ involved.
   the durable issue/attempt/reserve/apply/finalize/release/recover protocol.
   This unit owns purpose and attempt policy; `identity/otp/postgres` owns the
   authoritative state transitions and replay record. The server MUST issue an
-  unpredictable attempt ID for each logical code submission. Wrong-code retries
-  MUST use that identity so the dedicated denial transaction increments exactly
-  once, stores the aborted command result atomically, and reconciles an
-  ambiguous commit before retry.
+  unpredictable attempt ID for each logical code submission and derive a
+  domain-separated keyed fingerprint over the exact tenant, challenge, purpose,
+  authorization context, mode and submitted-code binding. Neither value is
+  caller-selectable.
+  Wrong-code retries MUST use that identity and fingerprint so the dedicated
+  denial transaction increments exactly once, stores the denial result
+  atomically, rejects identity/fingerprint mismatch, and reconciles an
+  ambiguous commit before retry. A successful non-consuming check MUST NOT
+  produce a reservation or proof; a successful consuming attempt MUST create
+  the sole generation-fenced reservation atomically.
 - Signin challenges MUST bind and preserve the session-owned persistent or non-
   persistent remember policy through risk/MFA continuation and SessionIssuer
   input. Verification, resend or fallback MUST NOT upgrade persistence or

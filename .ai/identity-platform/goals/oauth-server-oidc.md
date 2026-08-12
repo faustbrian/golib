@@ -65,9 +65,21 @@ involved.
   identifier and a versioned secret derivation key. Enabled derivation MUST use
   the reference domain-separated HMAC-SHA-256 policy and key rotation MUST
   preserve stable subjects through an explicit overlap/migration.
-- Prompt `none`, login, consent and select-account plus `max_age` MUST produce
+- The authorization contract MUST preserve whether `prompt` and `max_age` were
+  absent on the wire. A present `prompt` MUST contain a non-empty closed set;
+  `none` MUST NOT be combined with another value. An explicit `max_age=0` MUST
+  remain distinguishable from absence and require immediate reauthentication.
+  Prompt `none`, login, consent and select-account plus `max_age` MUST produce
   specification-correct success or interaction-required errors without
   silently creating a session or consent.
+- Token requests MUST be discriminated by the closed grant type before any
+  credential processing. Authorization-code requests require code, exact
+  redirect URI and PKCE verifier and forbid refresh-token and scope fields;
+  refresh-token requests require the refresh token and permit only a
+  non-expanding optional scope; client-credentials requests forbid code,
+  redirect, verifier and refresh-token fields. Optional `scope` and `resource`
+  omission MUST preserve the selected grant/client authority and MUST NOT
+  broaden scope or audience.
 - UserInfo MUST authenticate the access token, enforce audience/scope/subject,
   return only consented claims and never expose write-only or sensitive custom
   identity fields.

@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/oauth-server/postgres`
 - Canonical goal after scaffolding: `pkg/oauth-server/postgres/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:oauth-server/postgres:v1`; owned operation IDs: none
-- Requires: `oauth-server`, `oauth-server/device`, `identity/postgres`
+- Requires: `oauth-server`, `oauth-server/device`, `identity/postgres`, `primitive/capability-postgres-identity-contracts`
 - Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 

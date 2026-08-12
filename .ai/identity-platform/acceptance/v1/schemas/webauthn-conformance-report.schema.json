@@ -148,10 +148,10 @@
                 "const": "Run identity.mfa.security-key-register-options then identity.mfa.security-key-register-verify then identity.mfa.security-key-assert-options then identity.mfa.security-key-assert-verify then identity.passkey.register-verify then identity.passkey.signin-verify for success, failure, denial, replay, cleanup cases using rp_id, origin, challenge, credential_response, user_verification, backup_eligible, backup_state, stored_sign_count, received_sign_count and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest"
+                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest"
+                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -273,11 +275,18 @@
         "passed_case_count",
         "credential_id",
         "sign_count",
-        "fixture_digest"
+        "fixture_digest",
+        "protocol_case_results"
       ],
       "properties": {
         "artifact_id": {
           "const": "webauthn-conformance-report"
+        },
+        "invariant_id": {
+          "const": "webauthn-conformance-report.invariant"
+        },
+        "invariant": {
+          "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
         },
         "operation_ids": {
           "const": [
@@ -410,480 +419,478 @@
           "type": "array",
           "minItems": 5,
           "maxItems": 5,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#success",
+                  "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#failure",
+                  "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#denial",
+                  "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#replay",
+                  "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#cleanup"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.mfa-webauthn.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "webauthn-conformance-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "replay",
+                  "cleanup"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.mfa.security-key-register-options",
+                    "identity.mfa.security-key-register-verify",
+                    "identity.mfa.security-key-assert-options",
+                    "identity.mfa.security-key-assert-verify",
+                    "identity.passkey.register-verify",
+                    "identity.passkey.signin-verify"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "conflict"
+                ]
+              },
+              "expected_invariant": {
+                "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 10
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.mfa.security-key-register-options",
+                    "identity.mfa.security-key-register-verify",
+                    "identity.mfa.security-key-assert-options",
+                    "identity.mfa.security-key-assert-verify",
+                    "identity.passkey.register-verify",
+                    "identity.passkey.signin-verify"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.mfa.security-key-register-options",
+                    "identity.mfa.security-key-register-verify",
+                    "identity.mfa.security-key-assert-options",
+                    "identity.mfa.security-key-assert-verify",
+                    "identity.passkey.register-verify",
+                    "identity.passkey.signin-verify"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "backup_state_case_count",
+                  "valid_backup_state_case_count",
+                  "rejected_backup_state_case_count",
+                  "authenticator_path_count",
+                  "counter_case_count",
+                  "conformance_case_count",
+                  "passed_case_count",
+                  "credential_id",
+                  "sign_count",
+                  "fixture_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#cleanup"
+                  "backup_state_case_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  "valid_backup_state_case_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
+                  "rejected_backup_state_case_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "cleanup"
+                  "authenticator_path_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
+                  "counter_case_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
+                  "conformance_case_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
+                  "passed_case_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  "credential_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "stable_error": {
-                    "const": "none"
+                  "sign_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
+                  "fixture_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#success",
+              "observation_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior",
+              "claim_id": "journey.mfa-webauthn.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "input_fields": [
+                "rp_id",
+                "origin",
+                "challenge",
+                "credential_response",
+                "user_verification",
+                "backup_eligible",
+                "backup_state",
+                "stored_sign_count",
+                "received_sign_count"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e6999f8d318cb6aaeaccafece4fa1865b0487c081d5826e78c8c3199b12f47dc",
+              "expected_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "observed_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ]
+            },
+            {
+              "case_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#failure",
+              "observation_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior",
+              "claim_id": "journey.mfa-webauthn.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "input_fields": [
+                "rp_id",
+                "origin",
+                "challenge",
+                "credential_response",
+                "user_verification",
+                "backup_eligible",
+                "backup_state",
+                "stored_sign_count",
+                "received_sign_count"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7707b32fe9da669083597cf788c00da6c9d28f258782a214aa2d04c54f21b479",
+              "expected_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "observed_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ]
+            },
+            {
+              "case_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#denial",
+              "observation_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior",
+              "claim_id": "journey.mfa-webauthn.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "input_fields": [
+                "rp_id",
+                "origin",
+                "challenge",
+                "credential_response",
+                "user_verification",
+                "backup_eligible",
+                "backup_state",
+                "stored_sign_count",
+                "received_sign_count"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:b5394122dd858053149ca57f1da8fdea0438762bc0d63cbab6cdd52acf13037d",
+              "expected_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "observed_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ]
+            },
+            {
+              "case_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#replay",
+              "observation_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior",
+              "claim_id": "journey.mfa-webauthn.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "input_fields": [
+                "rp_id",
+                "origin",
+                "challenge",
+                "credential_response",
+                "user_verification",
+                "backup_eligible",
+                "backup_state",
+                "stored_sign_count",
+                "received_sign_count"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:26574e3c670320e97dd9dd23fc8db2e1afb93ba6a7a5c03b027613fca1d18456",
+              "expected_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "observed_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ]
+            },
+            {
+              "case_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#cleanup",
+              "observation_id": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior",
+              "claim_id": "journey.mfa-webauthn.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "input_fields": [
+                "rp_id",
+                "origin",
+                "challenge",
+                "credential_response",
+                "user_verification",
+                "backup_eligible",
+                "backup_state",
+                "stored_sign_count",
+                "received_sign_count"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:de8c6c0565feace9fbfa824c90286889fc654c62bdd8a8bef7a26d5d7440edb0",
+              "expected_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ],
+              "observed_operation_set": [
+                "identity.mfa.security-key-assert-options",
+                "identity.mfa.security-key-assert-verify",
+                "identity.mfa.security-key-register-options",
+                "identity.mfa.security-key-register-verify",
+                "identity.passkey.register-verify",
+                "identity.passkey.signin-verify"
+              ]
+            }
+          ]
         },
         "backup_state_matrix": {
           "type": "array",
@@ -2379,6 +2386,1075 @@
         "fixture_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "protocol_case_results": {
+          "type": "array",
+          "minItems": 11,
+          "maxItems": 11,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:webauthn.assertion-counter"
+                  },
+                  "suite_case_id": {
+                    "const": "webauthn-level-3-cr-20260526:webauthn.assertion-counter"
+                  },
+                  "requirement_id": {
+                    "const": "webauthn.assertion-counter"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "webauthn-level-3-cr-20260526"
+                  },
+                  "locator": {
+                    "const": "Section 7.2, steps 20 and 21"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:webauthn.registration-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "webauthn-level-3-cr-20260526:webauthn.registration-validation"
+                  },
+                  "requirement_id": {
+                    "const": "webauthn.registration-validation"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "webauthn-level-3-cr-20260526"
+                  },
+                  "locator": {
+                    "const": "Section 7.1"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:fido.metadata-service-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "fido-metadata-service-3.1.1-20260105:fido.metadata-service-validation"
+                  },
+                  "requirement_id": {
+                    "const": "fido.metadata-service-validation"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "fido-metadata-service-3.1.1-20260105"
+                  },
+                  "locator": {
+                    "const": "Sections 3.1, 3.2, and 5"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:fido.metadata-statement-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "fido-metadata-statement-3.1.1-20260105:fido.metadata-statement-validation"
+                  },
+                  "requirement_id": {
+                    "const": "fido.metadata-statement-validation"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "fido-metadata-statement-3.1.1-20260105"
+                  },
+                  "locator": {
+                    "const": "Sections 3.1 and 3.3"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-2119"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-2119:source.rfc-2119"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-2119"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-2119"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-5280"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-5280:source.rfc-5280"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-5280"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-5280"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-8174"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8174:source.rfc-8174"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8174"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8174"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-8949"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8949:source.rfc-8949"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8949"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8949"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-9052"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9052:source.rfc-9052"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9052"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9052"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-9053"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9053:source.rfc-9053"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9053"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9053"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.public-suffix-list-e1b8015c"
+                  },
+                  "suite_case_id": {
+                    "const": "public-suffix-list-e1b8015c:source.public-suffix-list-e1b8015c"
+                  },
+                  "requirement_id": {
+                    "const": "source.public-suffix-list-e1b8015c"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "public-suffix-list-e1b8015c"
+                  },
+                  "locator": {
+                    "const": "Complete pinned ICANN and PRIVATE rule snapshot"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:webauthn.assertion-counter"
+                  },
+                  "suite_case_id": {
+                    "const": "webauthn-level-3-cr-20260526:webauthn.assertion-counter"
+                  },
+                  "requirement_id": {
+                    "const": "webauthn.assertion-counter"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "webauthn-level-3-cr-20260526"
+                  },
+                  "locator": {
+                    "const": "Section 7.2, steps 20 and 21"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:webauthn.registration-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "webauthn-level-3-cr-20260526:webauthn.registration-validation"
+                  },
+                  "requirement_id": {
+                    "const": "webauthn.registration-validation"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "webauthn-level-3-cr-20260526"
+                  },
+                  "locator": {
+                    "const": "Section 7.1"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:fido.metadata-service-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "fido-metadata-service-3.1.1-20260105:fido.metadata-service-validation"
+                  },
+                  "requirement_id": {
+                    "const": "fido.metadata-service-validation"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "fido-metadata-service-3.1.1-20260105"
+                  },
+                  "locator": {
+                    "const": "Sections 3.1, 3.2, and 5"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:fido.metadata-statement-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "fido-metadata-statement-3.1.1-20260105:fido.metadata-statement-validation"
+                  },
+                  "requirement_id": {
+                    "const": "fido.metadata-statement-validation"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "fido-metadata-statement-3.1.1-20260105"
+                  },
+                  "locator": {
+                    "const": "Sections 3.1 and 3.3"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-2119"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-2119:source.rfc-2119"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-2119"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-2119"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-5280"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-5280:source.rfc-5280"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-5280"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-5280"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-8174"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8174:source.rfc-8174"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8174"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8174"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-8949"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8949:source.rfc-8949"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8949"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8949"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-9052"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9052:source.rfc-9052"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9052"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9052"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.rfc-9053"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9053:source.rfc-9053"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9053"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9053"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:source.public-suffix-list-e1b8015c"
+                  },
+                  "suite_case_id": {
+                    "const": "public-suffix-list-e1b8015c:source.public-suffix-list-e1b8015c"
+                  },
+                  "requirement_id": {
+                    "const": "source.public-suffix-list-e1b8015c"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "public-suffix-list-e1b8015c"
+                  },
+                  "locator": {
+                    "const": "Complete pinned ICANN and PRIVATE rule snapshot"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -2424,513 +3500,6 @@
           "kind": "equal",
           "left": "passed_case_count",
           "right": "conformance_case_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.mfa-webauthn.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "rp_id",
-                      "origin",
-                      "challenge",
-                      "credential_response",
-                      "user_verification",
-                      "backup_eligible",
-                      "backup_state",
-                      "stored_sign_count",
-                      "received_sign_count"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_state_matrix",
-                      "authenticator_path_ids",
-                      "authenticator_path_results",
-                      "signature_counter_matrix",
-                      "backup_state_case_count",
-                      "valid_backup_state_case_count",
-                      "rejected_backup_state_case_count",
-                      "authenticator_path_count",
-                      "counter_case_count",
-                      "conformance_case_count",
-                      "passed_case_count",
-                      "credential_id",
-                      "sign_count",
-                      "fixture_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

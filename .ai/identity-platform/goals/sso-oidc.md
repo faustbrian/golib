@@ -40,6 +40,9 @@ The design MUST define discovery, static metadata, authorization request, state/
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+The module MUST implement `sso.ProtocolAdapter` and translate a successful,
+fully validated OIDC result into `sso.ProtocolAssertion`. It MUST NOT apply SSO
+routing, JIT, membership, role, directory-sync, token-vault, or session policy.
 
 ## Required behavior
 

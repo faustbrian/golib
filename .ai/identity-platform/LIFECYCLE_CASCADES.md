@@ -216,12 +216,17 @@ only and MUST NOT be the mechanism that establishes denial. Each cascade
 snapshot MUST record the exact finite scope keys it will reconcile; batches are
 bounded by `reconciliation.batch` and cannot claim atomic global fan-out.
 
-The owner transaction commits the authority-denying domain state and version
-bump immediately. The cascade itself then has status `pending` until every
-required consumer closes; public mutation results MUST distinguish that pending
-cleanup from terminal completion. Thus suspension/archive/compromise denial is
-effective at the requesting commit even when the aggregate's lifecycle result
-is still pending, while restore never reactivates pre-transition artifacts.
+The owner-admission transaction commits only the authority-denying domain state
+and version bump, lifecycle event/outbox record, immutable consumer-set snapshot,
+and random cascade ID at generation 1. That transaction establishes denial but
+MUST NOT claim that any asynchronous consumer mutation, acknowledgement, or
+cascade closure committed atomically with it. The admitted cascade has status
+`pending` until every required consumer closes for that exact cascade ID and
+generation; public mutation results MUST expose the ID, generation, typed
+status, and redacted external limitations and MUST distinguish pending cleanup
+from terminal completion. Thus suspension/archive/compromise denial is effective
+at the requesting commit even when the aggregate's lifecycle result is still
+pending, while restore never reactivates pre-transition artifacts.
 Deletion/anonymization keeps its explicitly named pending/held domain state
 until closure. A deadline breach leaves the cascade pending and fail-closed; it
 does not roll back the authority version or fabricate completion.
@@ -258,6 +263,15 @@ At the requesting commit, the owner MUST persist a random cascade ID, generation
 trigger event/version, deadline, and current legal-hold state. Later manifest
 changes MUST NOT silently add or remove consumers from that generation; an
 audited migration creates a new generation with an explicit delta.
+
+Consumer work and closure are generation-bound asynchronous phases, not part of
+owner admission. A consumer MUST mutate and acknowledge only against the exact
+admitted cascade ID/generation and MUST NOT use an acknowledgement from another
+generation to close the current one. After all required acknowledgements and
+any permitted waivers are durable, the owning domain reconciler MUST commit
+terminalization as a distinct owner transaction that rechecks the cascade ID,
+generation, aggregate version, hold state, and complete closure set. A stale
+reconciler or later generation MUST NOT terminalize the aggregate.
 
 Each acknowledgement MUST bind cascade ID/generation, consumer ID and contract
 version, consumed event ID/schema version, consumer checkpoint and authoritative

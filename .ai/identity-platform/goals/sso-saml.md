@@ -40,6 +40,10 @@ The design MUST define metadata import/export, AuthnRequest, Response, Assertion
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+The module MUST implement `sso.ProtocolAdapter` and translate a successful,
+fully validated SAML assertion into `sso.ProtocolAssertion`. It MUST NOT apply
+SSO routing, JIT, membership, role, directory-sync, token-vault, or session
+policy.
 
 ## Required behavior
 
@@ -71,7 +75,9 @@ involved.
   SubjectConfirmation Recipient MUST match the selected configured URL
   byte-for-byte; only SP-initiated responses require the outstanding request ID
   in `InResponseTo`. RelayState is optional wherever SAML permits it. When
-  present on an SP-initiated flow it MUST use the complete `tx.capability.*`
+  present its wire encoding MUST be at most 80 bytes and MUST contain only an
+  opaque handle to bounded internal transaction state, never raw application
+  state. On an SP-initiated flow it MUST use the complete `tx.capability.*`
   issue/validate/reserve/apply/finalize/recover protocol. IdP-initiated login
   MUST NOT require RelayState or a pre-auth transaction and MUST treat any
   received RelayState as untrusted for authority.
@@ -98,6 +104,13 @@ involved.
   LogoutResponse use the one HTTP-POST SP SLO route. A signed LogoutResponse to
   an inbound request uses HTTP-POST to the verified IdP response endpoint, and
   SP metadata MUST NOT advertise an unregistered Redirect SLO endpoint.
+- Logout message handling MUST be discriminated before subject/session
+  validation. Only a signed LogoutRequest may supply NameID and optional
+  SessionIndex as logout targets. A LogoutResponse MUST correlate through its
+  signed `InResponseTo` to the reserved outstanding request and recover the
+  provider, NameID, SessionIndex and local session exclusively from stored
+  request context; response-supplied subject/session fields MUST NOT select
+  authority.
 - Single Logout MUST implement SAML Core 2.0 §3.7 and SAML Profiles 2.0 §4.4
   under the exact directional binding table; unlisted SLO profiles and bindings
   are unsupported.

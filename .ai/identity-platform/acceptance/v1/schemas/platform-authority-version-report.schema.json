@@ -108,11 +108,893 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 19,
+      "maxItems": 19,
       "uniqueItems": true,
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.mfa-recovery-issue"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,denial,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.mfa-recovery-issue; exact inputs: tenant_id, user_id, reset_generation, approval_id, approved_recovery_channel, reason; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.mfa-recovery-issue for success, denial, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, user_id, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.mfa-reset.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.mfa-reset"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,denial,failure,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.mfa-reset; exact inputs: tenant_id, user_id, reset_generation, approval_id, reason; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.mfa-reset for success, denial, failure, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, user_id, reset_generation, approval_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.permission-check.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.permission-check"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.permission-check; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.permission-check for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.session-list.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.session-list"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.session-list; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.session-list for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.session-revoke.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.session-revoke"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.session-revoke; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.session-revoke for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.session-revoke-all.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.session-revoke-all"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.session-revoke-all; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.session-revoke-all for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-ban.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.user-ban"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.user-ban; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.user-ban for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-delete.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.user-delete"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.user-delete; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.user-delete for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-password-set.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.user-password-set"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.user-password-set; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.user-password-set for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-role-set.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.user-role-set"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.user-role-set; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.user-role-set for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-unban.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.user-unban"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.user-unban; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.user-unban for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior"
+              },
+              "claim_id": {
+                "const": "identity.platform.bootstrap-administrator"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.platform.bootstrap-administrator; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.platform.bootstrap-administrator for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.permission-statement.create.behavior"
+              },
+              "claim_id": {
+                "const": "identity.platform.permission-statement.create"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.platform.permission-statement.create; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.platform.permission-statement.create for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.permission-statement.delete.behavior"
+              },
+              "claim_id": {
+                "const": "identity.platform.permission-statement.delete"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.platform.permission-statement.delete; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.platform.permission-statement.delete for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.permission-statement.update.behavior"
+              },
+              "claim_id": {
+                "const": "identity.platform.permission-statement.update"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.platform.permission-statement.update; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.platform.permission-statement.update for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.role.create.behavior"
+              },
+              "claim_id": {
+                "const": "identity.platform.role.create"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.platform.role.create; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.platform.role.create for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.role.delete.behavior"
+              },
+              "claim_id": {
+                "const": "identity.platform.role.delete"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.platform.role.delete; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.platform.role.delete for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.role.update.behavior"
+              },
+              "claim_id": {
+                "const": "identity.platform.role.update"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.platform-authority-version-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure"
+              },
+              "preconditions": {
+                "const": "Operations: identity.platform.role.update; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+              },
+              "stimulus": {
+                "const": "Run identity.platform.role.update for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
           {
             "type": "object",
             "additionalProperties": false,
@@ -142,10 +1024,10 @@
                 "const": "success,failure"
               },
               "preconditions": {
-                "const": "Operations: identity.reference.config-validate; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
+                "const": "Operations: identity.admin.mfa-recovery-issue, identity.admin.mfa-reset, identity.admin.permission-check, identity.admin.session-list, identity.admin.session-revoke, identity.admin.session-revoke-all, identity.admin.user-ban, identity.admin.user-delete, identity.admin.user-password-set, identity.admin.user-role-set, identity.admin.user-unban, identity.platform.bootstrap-administrator, identity.platform.permission-statement.create, identity.platform.permission-statement.delete, identity.platform.permission-statement.update, identity.platform.role.create, identity.platform.role.delete, identity.platform.role.update; exact inputs: permission_catalog, role_catalog, policy_version; initial state: platform authority catalog and built-in roles are loaded"
               },
               "stimulus": {
-                "const": "Run identity.reference.config-validate for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
+                "const": "Run identity.admin.mfa-recovery-issue then identity.admin.mfa-reset then identity.admin.permission-check then identity.admin.session-list then identity.admin.session-revoke then identity.admin.session-revoke-all then identity.admin.user-ban then identity.admin.user-delete then identity.admin.user-password-set then identity.admin.user-role-set then identity.admin.user-unban then identity.platform.bootstrap-administrator then identity.platform.permission-statement.create then identity.platform.permission-statement.delete then identity.platform.permission-statement.update then identity.platform.role.create then identity.platform.role.delete then identity.platform.role.update for success, failure cases using permission_catalog, role_catalog, policy_version and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: every permission statement and role binding resolves to one immutable policy version and stale versions are rejected; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: policy_version, permission_count, role_count, stale_version_rejected, authority_digest"
@@ -216,6 +1098,330 @@
             ],
             "properties": {
               "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.mfa-reset.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.permission-check.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.session-list.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.session-revoke.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.session-revoke-all.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-ban.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-delete.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-password-set.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-role-set.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.admin.user-unban.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.permission-statement.create.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.permission-statement.delete.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.permission-statement.update.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.role.create.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.role.delete.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "platform-authority-version-report.identity.platform.role.update.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
                 "const": "platform-authority-version-report.journey.administration.v1.behavior"
               }
             }
@@ -256,6 +1462,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -270,9 +1478,32 @@
         "artifact_id": {
           "const": "platform-authority-version-report"
         },
+        "invariant_id": {
+          "const": "platform-authority-version-report.invariant"
+        },
+        "invariant": {
+          "const": "every permission statement and role binding resolves to one immutable policy version and stale versions are rejected"
+        },
         "operation_ids": {
           "const": [
-            "identity.reference.config-validate"
+            "identity.admin.mfa-recovery-issue",
+            "identity.admin.mfa-reset",
+            "identity.admin.permission-check",
+            "identity.admin.session-list",
+            "identity.admin.session-revoke",
+            "identity.admin.session-revoke-all",
+            "identity.admin.user-ban",
+            "identity.admin.user-delete",
+            "identity.admin.user-password-set",
+            "identity.admin.user-role-set",
+            "identity.admin.user-unban",
+            "identity.platform.bootstrap-administrator",
+            "identity.platform.permission-statement.create",
+            "identity.platform.permission-statement.delete",
+            "identity.platform.permission-statement.update",
+            "identity.platform.role.create",
+            "identity.platform.role.delete",
+            "identity.platform.role.update"
           ]
         },
         "input_digest": {
@@ -394,160 +1625,1619 @@
         },
         "scenario_cases": {
           "type": "array",
-          "minItems": 2,
-          "maxItems": 2,
+          "minItems": 49,
+          "maxItems": 49,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "platform-authority-version-report.journey.administration.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "platform-authority-version-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "permission_catalog",
-                      "role_catalog",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "platform authority catalog and built-in roles are loaded"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "every permission statement and role binding resolves to one immutable policy version and stale versions are rejected"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "policy_version",
-                      "permission_count",
-                      "role_count",
-                      "stale_version_rejected",
-                      "authority_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#success",
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#denial",
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#failure",
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#outage",
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#replay",
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#concurrency",
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#cleanup",
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#unknown-outcome",
+                  "platform-authority-version-report.identity.admin.mfa-reset.behavior#success",
+                  "platform-authority-version-report.identity.admin.mfa-reset.behavior#denial",
+                  "platform-authority-version-report.identity.admin.mfa-reset.behavior#failure",
+                  "platform-authority-version-report.identity.admin.mfa-reset.behavior#replay",
+                  "platform-authority-version-report.identity.admin.mfa-reset.behavior#concurrency",
+                  "platform-authority-version-report.identity.admin.mfa-reset.behavior#cleanup",
+                  "platform-authority-version-report.identity.admin.mfa-reset.behavior#unknown-outcome",
+                  "platform-authority-version-report.identity.admin.permission-check.behavior#success",
+                  "platform-authority-version-report.identity.admin.permission-check.behavior#failure",
+                  "platform-authority-version-report.identity.admin.session-list.behavior#success",
+                  "platform-authority-version-report.identity.admin.session-list.behavior#failure",
+                  "platform-authority-version-report.identity.admin.session-revoke.behavior#success",
+                  "platform-authority-version-report.identity.admin.session-revoke.behavior#failure",
+                  "platform-authority-version-report.identity.admin.session-revoke-all.behavior#success",
+                  "platform-authority-version-report.identity.admin.session-revoke-all.behavior#failure",
+                  "platform-authority-version-report.identity.admin.user-ban.behavior#success",
+                  "platform-authority-version-report.identity.admin.user-ban.behavior#failure",
+                  "platform-authority-version-report.identity.admin.user-delete.behavior#success",
+                  "platform-authority-version-report.identity.admin.user-delete.behavior#failure",
+                  "platform-authority-version-report.identity.admin.user-password-set.behavior#success",
+                  "platform-authority-version-report.identity.admin.user-password-set.behavior#failure",
+                  "platform-authority-version-report.identity.admin.user-role-set.behavior#success",
+                  "platform-authority-version-report.identity.admin.user-role-set.behavior#failure",
+                  "platform-authority-version-report.identity.admin.user-unban.behavior#success",
+                  "platform-authority-version-report.identity.admin.user-unban.behavior#failure",
+                  "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior#success",
+                  "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior#failure",
+                  "platform-authority-version-report.identity.platform.permission-statement.create.behavior#success",
+                  "platform-authority-version-report.identity.platform.permission-statement.create.behavior#failure",
+                  "platform-authority-version-report.identity.platform.permission-statement.delete.behavior#success",
+                  "platform-authority-version-report.identity.platform.permission-statement.delete.behavior#failure",
+                  "platform-authority-version-report.identity.platform.permission-statement.update.behavior#success",
+                  "platform-authority-version-report.identity.platform.permission-statement.update.behavior#failure",
+                  "platform-authority-version-report.identity.platform.role.create.behavior#success",
+                  "platform-authority-version-report.identity.platform.role.create.behavior#failure",
+                  "platform-authority-version-report.identity.platform.role.delete.behavior#success",
+                  "platform-authority-version-report.identity.platform.role.delete.behavior#failure",
+                  "platform-authority-version-report.identity.platform.role.update.behavior#success",
+                  "platform-authority-version-report.identity.platform.role.update.behavior#failure",
+                  "platform-authority-version-report.journey.administration.v1.behavior#success",
+                  "platform-authority-version-report.journey.administration.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+                  "platform-authority-version-report.identity.admin.mfa-reset.behavior",
+                  "platform-authority-version-report.identity.admin.permission-check.behavior",
+                  "platform-authority-version-report.identity.admin.session-list.behavior",
+                  "platform-authority-version-report.identity.admin.session-revoke.behavior",
+                  "platform-authority-version-report.identity.admin.session-revoke-all.behavior",
+                  "platform-authority-version-report.identity.admin.user-ban.behavior",
+                  "platform-authority-version-report.identity.admin.user-delete.behavior",
+                  "platform-authority-version-report.identity.admin.user-password-set.behavior",
+                  "platform-authority-version-report.identity.admin.user-role-set.behavior",
+                  "platform-authority-version-report.identity.admin.user-unban.behavior",
+                  "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior",
+                  "platform-authority-version-report.identity.platform.permission-statement.create.behavior",
+                  "platform-authority-version-report.identity.platform.permission-statement.delete.behavior",
+                  "platform-authority-version-report.identity.platform.permission-statement.update.behavior",
+                  "platform-authority-version-report.identity.platform.role.create.behavior",
+                  "platform-authority-version-report.identity.platform.role.delete.behavior",
+                  "platform-authority-version-report.identity.platform.role.update.behavior",
+                  "platform-authority-version-report.journey.administration.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "identity.admin.mfa-recovery-issue",
+                  "identity.admin.mfa-reset",
+                  "identity.admin.permission-check",
+                  "identity.admin.session-list",
+                  "identity.admin.session-revoke",
+                  "identity.admin.session-revoke-all",
+                  "identity.admin.user-ban",
+                  "identity.admin.user-delete",
+                  "identity.admin.user-password-set",
+                  "identity.admin.user-role-set",
+                  "identity.admin.user-unban",
+                  "identity.platform.bootstrap-administrator",
+                  "identity.platform.permission-statement.create",
+                  "identity.platform.permission-statement.delete",
+                  "identity.platform.permission-statement.update",
+                  "identity.platform.role.create",
+                  "identity.platform.role.delete",
+                  "identity.platform.role.update",
+                  "journey.administration.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "platform-authority-version-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "denial",
+                  "failure",
+                  "outage",
+                  "replay",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.admin.mfa-recovery-issue",
+                    "identity.admin.mfa-reset",
+                    "identity.admin.permission-check",
+                    "identity.admin.session-list",
+                    "identity.admin.session-revoke",
+                    "identity.admin.session-revoke-all",
+                    "identity.admin.user-ban",
+                    "identity.admin.user-delete",
+                    "identity.admin.user-password-set",
+                    "identity.admin.user-role-set",
+                    "identity.admin.user-unban",
+                    "identity.platform.bootstrap-administrator",
+                    "identity.platform.permission-statement.create",
+                    "identity.platform.permission-statement.delete",
+                    "identity.platform.permission-statement.update",
+                    "identity.platform.role.create",
+                    "identity.platform.role.delete",
+                    "identity.platform.role.update"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "platform authority catalog and built-in roles are loaded"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "denied",
+                  "failed",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "forbidden",
+                  "internal",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "every permission statement and role binding resolves to one immutable policy version and stale versions are rejected"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.admin.mfa-recovery-issue",
+                    "identity.admin.mfa-reset",
+                    "identity.admin.permission-check",
+                    "identity.admin.session-list",
+                    "identity.admin.session-revoke",
+                    "identity.admin.session-revoke-all",
+                    "identity.admin.user-ban",
+                    "identity.admin.user-delete",
+                    "identity.admin.user-password-set",
+                    "identity.admin.user-role-set",
+                    "identity.admin.user-unban",
+                    "identity.platform.bootstrap-administrator",
+                    "identity.platform.permission-statement.create",
+                    "identity.platform.permission-statement.delete",
+                    "identity.platform.permission-statement.update",
+                    "identity.platform.role.create",
+                    "identity.platform.role.delete",
+                    "identity.platform.role.update"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.admin.mfa-recovery-issue",
+                    "identity.admin.mfa-reset",
+                    "identity.admin.permission-check",
+                    "identity.admin.session-list",
+                    "identity.admin.session-revoke",
+                    "identity.admin.session-revoke-all",
+                    "identity.admin.user-ban",
+                    "identity.admin.user-delete",
+                    "identity.admin.user-password-set",
+                    "identity.admin.user-role-set",
+                    "identity.admin.user-unban",
+                    "identity.platform.bootstrap-administrator",
+                    "identity.platform.permission-statement.create",
+                    "identity.platform.permission-statement.delete",
+                    "identity.platform.permission-statement.update",
+                    "identity.platform.role.create",
+                    "identity.platform.role.delete",
+                    "identity.platform.role.update"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "policy_version",
+                  "permission_count",
+                  "role_count",
+                  "stale_version_rejected",
+                  "authority_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "platform-authority-version-report.journey.administration.v1.behavior#failure"
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
                   },
-                  "observation_id": {
-                    "const": "platform-authority-version-report.journey.administration.v1.behavior"
+                  "permission_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
+                  "role_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "failure"
+                  "stale_version_rejected": {
+                    "type": "boolean"
                   },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "permission_catalog",
-                      "role_catalog",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "platform authority catalog and built-in roles are loaded"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "every permission statement and role binding resolves to one immutable policy version and stale versions are rejected"
-                  },
-                  "observed_state_digest": {
+                  "authority_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "policy_version",
-                      "permission_count",
-                      "role_count",
-                      "stale_version_rejected",
-                      "authority_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+              "claim_id": "identity.admin.mfa-recovery-issue",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "approved_recovery_channel",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:556478462c61c17e69af52c23b99874d6c48f99b2f3932827bb0684d34fe1fd0",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#denial",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+              "claim_id": "identity.admin.mfa-recovery-issue",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "approved_recovery_channel",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:97345c70195e34489e433dd5ba0725883aba1521a53a011cbd5e03a00ed83b3d",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+              "claim_id": "identity.admin.mfa-recovery-issue",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "approved_recovery_channel",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:3d10e2b650b2128950cf830239fd8298d0fb6136e74fcca8a1163f73f336d30e",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#outage",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+              "claim_id": "identity.admin.mfa-recovery-issue",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "approved_recovery_channel",
+                "reason"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:ba66fc58bf8e721c5dac520a3293578915d99ccdf6463141f7930ac350535e37",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#replay",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+              "claim_id": "identity.admin.mfa-recovery-issue",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "approved_recovery_channel",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:54505ed947ed0e6c5b74ff80037efd95ac1d134ad689976fd91f04087867d32d",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#concurrency",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+              "claim_id": "identity.admin.mfa-recovery-issue",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "approved_recovery_channel",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:9f8f52a99d9e0fea9355464b52fed0dbd85a367e37c3911d6862659e9f9c01f2",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#cleanup",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+              "claim_id": "identity.admin.mfa-recovery-issue",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "approved_recovery_channel",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9a92fef081b135f5be5ad7e9a0e7f2b8c142ddec2918f01ad16973ff34f214aa",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior#unknown-outcome",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
+              "claim_id": "identity.admin.mfa-recovery-issue",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "approved_recovery_channel",
+                "reason"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:a12871b37c6ab446ca9256a38d2bdb37ba46f9c4dee98fe391dd1c0deed80f89",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior",
+              "claim_id": "identity.admin.mfa-reset",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.mfa-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:b0fc71a26890fdfcff9ee97430a5968f880f8f69f588a1f35b37dff7139c2406",
+              "expected_operation_set": [
+                "identity.admin.mfa-reset"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-reset"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior#denial",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior",
+              "claim_id": "identity.admin.mfa-reset",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.admin.mfa-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:50a994c8bd10012c1f224effaed3b95145ebeff47aa7b5dd882bf1718c395172",
+              "expected_operation_set": [
+                "identity.admin.mfa-reset"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-reset"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior",
+              "claim_id": "identity.admin.mfa-reset",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.mfa-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "reason"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6feee28d8bc9e38956966ab8c4e79684a46c0c7f26e8d5ed2a760aae8ccc9f7a",
+              "expected_operation_set": [
+                "identity.admin.mfa-reset"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-reset"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior#replay",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior",
+              "claim_id": "identity.admin.mfa-reset",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.admin.mfa-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "reason"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:72b448472e84973a4bc13ee2761652c071b773133dfc44604c4c5516c0b892eb",
+              "expected_operation_set": [
+                "identity.admin.mfa-reset"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-reset"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior#concurrency",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior",
+              "claim_id": "identity.admin.mfa-reset",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.admin.mfa-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:5e1f990a15e1a2f8a725f0110d230af01c6ae288e869a5f56a694deed3af3342",
+              "expected_operation_set": [
+                "identity.admin.mfa-reset"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-reset"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior#cleanup",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior",
+              "claim_id": "identity.admin.mfa-reset",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.admin.mfa-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "reason"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a4db8731a18bbe430fe7c06e8eb7be931a65e08109540e910b6edffe7aa3d6d6",
+              "expected_operation_set": [
+                "identity.admin.mfa-reset"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-reset"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior#unknown-outcome",
+              "observation_id": "platform-authority-version-report.identity.admin.mfa-reset.behavior",
+              "claim_id": "identity.admin.mfa-reset",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.admin.mfa-reset"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "reset_generation",
+                "approval_id",
+                "reason"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:373932c1a825dc9cdbc02eb45946687fb80ab50ff2974aa36fff72b426cb15ba",
+              "expected_operation_set": [
+                "identity.admin.mfa-reset"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-reset"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.permission-check.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.permission-check.behavior",
+              "claim_id": "identity.admin.permission-check",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.permission-check"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:7f3ff2e9cbe10bf89926639bf627d586959d086d16d5fa0a1d8c4aeb86c5a7a0",
+              "expected_operation_set": [
+                "identity.admin.permission-check"
+              ],
+              "observed_operation_set": [
+                "identity.admin.permission-check"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.permission-check.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.permission-check.behavior",
+              "claim_id": "identity.admin.permission-check",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.permission-check"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:0c3d8f0954e6b6c18d65459297854740b3bdd1621a1f8111d23906f00a67d3c7",
+              "expected_operation_set": [
+                "identity.admin.permission-check"
+              ],
+              "observed_operation_set": [
+                "identity.admin.permission-check"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.session-list.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.session-list.behavior",
+              "claim_id": "identity.admin.session-list",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.session-list"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:ba0e85117f36115404272051776b860e8068eceaffa63b2b54c5c82a01d288e0",
+              "expected_operation_set": [
+                "identity.admin.session-list"
+              ],
+              "observed_operation_set": [
+                "identity.admin.session-list"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.session-list.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.session-list.behavior",
+              "claim_id": "identity.admin.session-list",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.session-list"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:1ff3f9eae587d7099a8838d6bdfbc10b4cc68a6068b2296c2cda5fe1eda77579",
+              "expected_operation_set": [
+                "identity.admin.session-list"
+              ],
+              "observed_operation_set": [
+                "identity.admin.session-list"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.session-revoke.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.session-revoke.behavior",
+              "claim_id": "identity.admin.session-revoke",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.session-revoke"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:78e58f338bb440446f82ea75961b7f76e1aa070d92259a8aaa010a5f40528cbd",
+              "expected_operation_set": [
+                "identity.admin.session-revoke"
+              ],
+              "observed_operation_set": [
+                "identity.admin.session-revoke"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.session-revoke.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.session-revoke.behavior",
+              "claim_id": "identity.admin.session-revoke",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.session-revoke"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:1db9ae574d0b2f2d9fc1b172f3903db252e7c7c05bde2ab376b2af36b1310d8d",
+              "expected_operation_set": [
+                "identity.admin.session-revoke"
+              ],
+              "observed_operation_set": [
+                "identity.admin.session-revoke"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.session-revoke-all.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.session-revoke-all.behavior",
+              "claim_id": "identity.admin.session-revoke-all",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.session-revoke-all"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:a4bd6a6979d5cc1989c8cee0f8f6807076dfe118e7818b25b3b9f11a62673220",
+              "expected_operation_set": [
+                "identity.admin.session-revoke-all"
+              ],
+              "observed_operation_set": [
+                "identity.admin.session-revoke-all"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.session-revoke-all.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.session-revoke-all.behavior",
+              "claim_id": "identity.admin.session-revoke-all",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.session-revoke-all"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:ec96a0060b2eb56c439e23d49facd15ccc934b3586f76962acea833b0dcf195b",
+              "expected_operation_set": [
+                "identity.admin.session-revoke-all"
+              ],
+              "observed_operation_set": [
+                "identity.admin.session-revoke-all"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-ban.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.user-ban.behavior",
+              "claim_id": "identity.admin.user-ban",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.user-ban"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:1c01c687a8f9d4a0b69125a91dda371b3b1da22ae582b5a7c17a407270c640a8",
+              "expected_operation_set": [
+                "identity.admin.user-ban"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-ban"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-ban.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.user-ban.behavior",
+              "claim_id": "identity.admin.user-ban",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.user-ban"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:8bdaf59c06d7868cccfe453854efde7812e05736c64b70045bcfe35cc2bce2a7",
+              "expected_operation_set": [
+                "identity.admin.user-ban"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-ban"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-delete.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.user-delete.behavior",
+              "claim_id": "identity.admin.user-delete",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.user-delete"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6cc437269db32806ba6a8e1d06ae233774286d96912905895ffd38532955391d",
+              "expected_operation_set": [
+                "identity.admin.user-delete"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-delete"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-delete.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.user-delete.behavior",
+              "claim_id": "identity.admin.user-delete",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.user-delete"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:f4923d798e5ce48d29346ddae4283298f5fd1d459f94fced5a30345954a3c164",
+              "expected_operation_set": [
+                "identity.admin.user-delete"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-delete"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-password-set.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.user-password-set.behavior",
+              "claim_id": "identity.admin.user-password-set",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.user-password-set"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4d7e1dfb0ffc6794275101093ca53ac2d3e830b558a9b2d9c02fd873fb82f0d1",
+              "expected_operation_set": [
+                "identity.admin.user-password-set"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-password-set"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-password-set.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.user-password-set.behavior",
+              "claim_id": "identity.admin.user-password-set",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.user-password-set"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:96ec2e509f03920d0974c643ce244a67eb6476d5ebaeafe5a6d01ae0bc517e33",
+              "expected_operation_set": [
+                "identity.admin.user-password-set"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-password-set"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-role-set.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.user-role-set.behavior",
+              "claim_id": "identity.admin.user-role-set",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.user-role-set"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:9ee44539c163832a6abbe3cdabb24db13b617165b0b0b9201fb1255fd997d0c1",
+              "expected_operation_set": [
+                "identity.admin.user-role-set"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-role-set"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-role-set.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.user-role-set.behavior",
+              "claim_id": "identity.admin.user-role-set",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.user-role-set"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:eadd5771079b14f6cb59327dbca292e663146be1b30764f52b78adf78af54d6e",
+              "expected_operation_set": [
+                "identity.admin.user-role-set"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-role-set"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-unban.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.admin.user-unban.behavior",
+              "claim_id": "identity.admin.user-unban",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.user-unban"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:d89d6925b66fb4036483259089c1931b93f696edfd0fddfbe74432192360c7d3",
+              "expected_operation_set": [
+                "identity.admin.user-unban"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-unban"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.admin.user-unban.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.admin.user-unban.behavior",
+              "claim_id": "identity.admin.user-unban",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.user-unban"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:ed5d89c4fb1763e033e24866ad1a909a5fa87cdc11feadbcbd508475fd2b39fb",
+              "expected_operation_set": [
+                "identity.admin.user-unban"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-unban"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior",
+              "claim_id": "identity.platform.bootstrap-administrator",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.platform.bootstrap-administrator"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:3c737b39450aa977b4447335853970ad73b009a1c09f91fd932b265bad64a9a3",
+              "expected_operation_set": [
+                "identity.platform.bootstrap-administrator"
+              ],
+              "observed_operation_set": [
+                "identity.platform.bootstrap-administrator"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.platform.bootstrap-administrator.behavior",
+              "claim_id": "identity.platform.bootstrap-administrator",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.platform.bootstrap-administrator"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:518a5e9395c849a708270beb2f2c95d62dcbd743e9f02779c408e33408df0b07",
+              "expected_operation_set": [
+                "identity.platform.bootstrap-administrator"
+              ],
+              "observed_operation_set": [
+                "identity.platform.bootstrap-administrator"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.permission-statement.create.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.platform.permission-statement.create.behavior",
+              "claim_id": "identity.platform.permission-statement.create",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.platform.permission-statement.create"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:08cc917c5f02f26a054af7466bbb8c149c47dad6f37b179844620b45fc5b3d79",
+              "expected_operation_set": [
+                "identity.platform.permission-statement.create"
+              ],
+              "observed_operation_set": [
+                "identity.platform.permission-statement.create"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.permission-statement.create.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.platform.permission-statement.create.behavior",
+              "claim_id": "identity.platform.permission-statement.create",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.platform.permission-statement.create"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6a7f849237022414a6780c1ea94c58e07b431d1256561302fad5e62ff74104f7",
+              "expected_operation_set": [
+                "identity.platform.permission-statement.create"
+              ],
+              "observed_operation_set": [
+                "identity.platform.permission-statement.create"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.permission-statement.delete.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.platform.permission-statement.delete.behavior",
+              "claim_id": "identity.platform.permission-statement.delete",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.platform.permission-statement.delete"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:8a963dc4e07802cbe603f6b2ac72c621c757cc925d0eb599684948ce8864d4c0",
+              "expected_operation_set": [
+                "identity.platform.permission-statement.delete"
+              ],
+              "observed_operation_set": [
+                "identity.platform.permission-statement.delete"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.permission-statement.delete.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.platform.permission-statement.delete.behavior",
+              "claim_id": "identity.platform.permission-statement.delete",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.platform.permission-statement.delete"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:30bc7c531d6efeb81cd220bc6eca300470087fb3f70af2cc988b6567b3287582",
+              "expected_operation_set": [
+                "identity.platform.permission-statement.delete"
+              ],
+              "observed_operation_set": [
+                "identity.platform.permission-statement.delete"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.permission-statement.update.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.platform.permission-statement.update.behavior",
+              "claim_id": "identity.platform.permission-statement.update",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.platform.permission-statement.update"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:e60f940812c306dc9775b0095bd103ad6422da6ec6b88641a8a0352eb7601ac9",
+              "expected_operation_set": [
+                "identity.platform.permission-statement.update"
+              ],
+              "observed_operation_set": [
+                "identity.platform.permission-statement.update"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.permission-statement.update.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.platform.permission-statement.update.behavior",
+              "claim_id": "identity.platform.permission-statement.update",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.platform.permission-statement.update"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:ee3d03463b98bad34a390e813578a5d271b9ee4e723651a33d2f9f23eac634db",
+              "expected_operation_set": [
+                "identity.platform.permission-statement.update"
+              ],
+              "observed_operation_set": [
+                "identity.platform.permission-statement.update"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.role.create.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.platform.role.create.behavior",
+              "claim_id": "identity.platform.role.create",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.platform.role.create"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:99466725cd33d09d1cdb44575bce41a0aa96aa01ff284edba4acd5fdf79f07ef",
+              "expected_operation_set": [
+                "identity.platform.role.create"
+              ],
+              "observed_operation_set": [
+                "identity.platform.role.create"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.role.create.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.platform.role.create.behavior",
+              "claim_id": "identity.platform.role.create",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.platform.role.create"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:bd3204fa0eef6f3d80518247b1a7456e558b10c7de70f11fc1375449c42ff1c9",
+              "expected_operation_set": [
+                "identity.platform.role.create"
+              ],
+              "observed_operation_set": [
+                "identity.platform.role.create"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.role.delete.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.platform.role.delete.behavior",
+              "claim_id": "identity.platform.role.delete",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.platform.role.delete"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:584eb637140228959c0e8b9efe4825e5b60a5609c2275c1c4b51a193434d7448",
+              "expected_operation_set": [
+                "identity.platform.role.delete"
+              ],
+              "observed_operation_set": [
+                "identity.platform.role.delete"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.role.delete.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.platform.role.delete.behavior",
+              "claim_id": "identity.platform.role.delete",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.platform.role.delete"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:72e0fe103535d28de244c6c37e15eca84faa117a79981bc1209f0045e614fcba",
+              "expected_operation_set": [
+                "identity.platform.role.delete"
+              ],
+              "observed_operation_set": [
+                "identity.platform.role.delete"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.role.update.behavior#success",
+              "observation_id": "platform-authority-version-report.identity.platform.role.update.behavior",
+              "claim_id": "identity.platform.role.update",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.platform.role.update"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:81ad2c2300733df1a8866f0e375c0cd204cbdeec7f4df715c0ec7c4bbf41a189",
+              "expected_operation_set": [
+                "identity.platform.role.update"
+              ],
+              "observed_operation_set": [
+                "identity.platform.role.update"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.identity.platform.role.update.behavior#failure",
+              "observation_id": "platform-authority-version-report.identity.platform.role.update.behavior",
+              "claim_id": "identity.platform.role.update",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.platform.role.update"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:da28e3eef5d122c85b8786379b2f02785c4f524ac4ad93db9f658ee1da58fdc0",
+              "expected_operation_set": [
+                "identity.platform.role.update"
+              ],
+              "observed_operation_set": [
+                "identity.platform.role.update"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.journey.administration.v1.behavior#success",
+              "observation_id": "platform-authority-version-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue",
+                "identity.admin.mfa-reset",
+                "identity.admin.permission-check",
+                "identity.admin.session-list",
+                "identity.admin.session-revoke",
+                "identity.admin.session-revoke-all",
+                "identity.admin.user-ban",
+                "identity.admin.user-delete",
+                "identity.admin.user-password-set",
+                "identity.admin.user-role-set",
+                "identity.admin.user-unban",
+                "identity.platform.bootstrap-administrator",
+                "identity.platform.permission-statement.create",
+                "identity.platform.permission-statement.delete",
+                "identity.platform.permission-statement.update",
+                "identity.platform.role.create",
+                "identity.platform.role.delete",
+                "identity.platform.role.update"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:77e4685401a8aa0de17ea9b02883e80243ff79adc2299f170209e56b9f90f076",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue",
+                "identity.admin.mfa-reset",
+                "identity.admin.permission-check",
+                "identity.admin.session-list",
+                "identity.admin.session-revoke",
+                "identity.admin.session-revoke-all",
+                "identity.admin.user-ban",
+                "identity.admin.user-delete",
+                "identity.admin.user-password-set",
+                "identity.admin.user-role-set",
+                "identity.admin.user-unban",
+                "identity.platform.bootstrap-administrator",
+                "identity.platform.permission-statement.create",
+                "identity.platform.permission-statement.delete",
+                "identity.platform.permission-statement.update",
+                "identity.platform.role.create",
+                "identity.platform.role.delete",
+                "identity.platform.role.update"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue",
+                "identity.admin.mfa-reset",
+                "identity.admin.permission-check",
+                "identity.admin.session-list",
+                "identity.admin.session-revoke",
+                "identity.admin.session-revoke-all",
+                "identity.admin.user-ban",
+                "identity.admin.user-delete",
+                "identity.admin.user-password-set",
+                "identity.admin.user-role-set",
+                "identity.admin.user-unban",
+                "identity.platform.bootstrap-administrator",
+                "identity.platform.permission-statement.create",
+                "identity.platform.permission-statement.delete",
+                "identity.platform.permission-statement.update",
+                "identity.platform.role.create",
+                "identity.platform.role.delete",
+                "identity.platform.role.update"
+              ]
+            },
+            {
+              "case_id": "platform-authority-version-report.journey.administration.v1.behavior#failure",
+              "observation_id": "platform-authority-version-report.journey.administration.v1.behavior",
+              "claim_id": "journey.administration.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.mfa-recovery-issue",
+                "identity.admin.mfa-reset",
+                "identity.admin.permission-check",
+                "identity.admin.session-list",
+                "identity.admin.session-revoke",
+                "identity.admin.session-revoke-all",
+                "identity.admin.user-ban",
+                "identity.admin.user-delete",
+                "identity.admin.user-password-set",
+                "identity.admin.user-role-set",
+                "identity.admin.user-unban",
+                "identity.platform.bootstrap-administrator",
+                "identity.platform.permission-statement.create",
+                "identity.platform.permission-statement.delete",
+                "identity.platform.permission-statement.update",
+                "identity.platform.role.create",
+                "identity.platform.role.delete",
+                "identity.platform.role.update"
+              ],
+              "input_fields": [
+                "permission_catalog",
+                "role_catalog",
+                "policy_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:7dedf5c52d52ca39121f212e3ca344406fc9c4d6339e3bf4fcfb7a1d571dc821",
+              "expected_operation_set": [
+                "identity.admin.mfa-recovery-issue",
+                "identity.admin.mfa-reset",
+                "identity.admin.permission-check",
+                "identity.admin.session-list",
+                "identity.admin.session-revoke",
+                "identity.admin.session-revoke-all",
+                "identity.admin.user-ban",
+                "identity.admin.user-delete",
+                "identity.admin.user-password-set",
+                "identity.admin.user-role-set",
+                "identity.admin.user-unban",
+                "identity.platform.bootstrap-administrator",
+                "identity.platform.permission-statement.create",
+                "identity.platform.permission-statement.delete",
+                "identity.platform.permission-statement.update",
+                "identity.platform.role.create",
+                "identity.platform.role.delete",
+                "identity.platform.role.update"
+              ],
+              "observed_operation_set": [
+                "identity.admin.mfa-recovery-issue",
+                "identity.admin.mfa-reset",
+                "identity.admin.permission-check",
+                "identity.admin.session-list",
+                "identity.admin.session-revoke",
+                "identity.admin.session-revoke-all",
+                "identity.admin.user-ban",
+                "identity.admin.user-delete",
+                "identity.admin.user-password-set",
+                "identity.admin.user-role-set",
+                "identity.admin.user-unban",
+                "identity.platform.bootstrap-administrator",
+                "identity.platform.permission-statement.create",
+                "identity.platform.permission-statement.delete",
+                "identity.platform.permission-statement.update",
+                "identity.platform.role.create",
+                "identity.platform.role.delete",
+                "identity.platform.role.update"
+              ]
+            }
+          ]
         },
         "policy_version": {
           "type": "integer",
@@ -586,170 +3276,6 @@
           "fields": [
             "stale_version_rejected"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "platform-authority-version-report.journey.administration.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "platform-authority-version-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "permission_catalog",
-                      "role_catalog",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "platform authority catalog and built-in roles are loaded"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "every permission statement and role binding resolves to one immutable policy version and stale versions are rejected"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "policy_version",
-                      "permission_count",
-                      "role_count",
-                      "stale_version_rejected",
-                      "authority_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "platform-authority-version-report.journey.administration.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "platform-authority-version-report.journey.administration.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.administration.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.config-validate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "permission_catalog",
-                      "role_catalog",
-                      "policy_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "platform authority catalog and built-in roles are loaded"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "every permission statement and role binding resolves to one immutable policy version and stale versions are rejected"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "policy_version",
-                      "permission_count",
-                      "role_count",
-                      "stale_version_rejected",
-                      "authority_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

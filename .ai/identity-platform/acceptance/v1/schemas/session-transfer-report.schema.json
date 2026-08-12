@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "session-transfer-report"
+        },
+        "invariant_id": {
+          "const": "session-transfer-report.invariant"
+        },
+        "invariant": {
+          "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
         },
         "operation_ids": {
           "const": [
@@ -397,618 +405,439 @@
           "type": "array",
           "minItems": 8,
           "maxItems": 8,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "session-transfer-report.journey.sessions.v1.behavior#success",
+                  "session-transfer-report.journey.sessions.v1.behavior#failure",
+                  "session-transfer-report.journey.sessions.v1.behavior#denial",
+                  "session-transfer-report.journey.sessions.v1.behavior#outage",
+                  "session-transfer-report.journey.sessions.v1.behavior#replay",
+                  "session-transfer-report.journey.sessions.v1.behavior#concurrency",
+                  "session-transfer-report.journey.sessions.v1.behavior#cleanup",
+                  "session-transfer-report.journey.sessions.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "session-transfer-report.journey.sessions.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.sessions.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "session-transfer-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "outage",
+                  "replay",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.transfer-generate",
+                    "identity.session.transfer-consume"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
+              "initial_state": {
+                "const": "source session is active and target device is untrusted"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.transfer-generate",
+                    "identity.session.transfer-consume"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.transfer-generate",
+                    "identity.session.transfer-consume"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "transfer_id",
+                  "source_session_id",
+                  "target_session_id",
+                  "consumed_count",
+                  "replay_rejected"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
+                  "transfer_id": {
                     "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observed_event_digest": {
+                  "source_session_id": {
                     "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
+                  "target_session_id": {
                     "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  "consumed_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
+                  "replay_rejected": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "session-transfer-report.journey.sessions.v1.behavior#success",
+              "observation_id": "session-transfer-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.transfer-generate",
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "target_device",
+                "transfer_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:45759b2bdd7c2ce488dd370a5bdac94ee6f759a78b8dfda525d712dae91964c2",
+              "expected_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-transfer-report.journey.sessions.v1.behavior#failure",
+              "observation_id": "session-transfer-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.transfer-generate",
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "target_device",
+                "transfer_token"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b58da6b4cde4ceeca3c6d89b298793cdf2b7f4a6f3fff5cee77849698c5f4306",
+              "expected_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-transfer-report.journey.sessions.v1.behavior#denial",
+              "observation_id": "session-transfer-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.session.transfer-generate",
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "target_device",
+                "transfer_token"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:44d2bec318e14db3ccf8062370d66e6fb6498a1f8d11e49b797217b49718ad70",
+              "expected_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-transfer-report.journey.sessions.v1.behavior#outage",
+              "observation_id": "session-transfer-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.session.transfer-generate",
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "target_device",
+                "transfer_token"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:49f963681c431a1d5a685586efc40ca6e30cb30506aa5ed0e38da502bf5e5daa",
+              "expected_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-transfer-report.journey.sessions.v1.behavior#replay",
+              "observation_id": "session-transfer-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.session.transfer-generate",
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "target_device",
+                "transfer_token"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:f2ff8e0e5177e4a6b7f93e6e3b4d581eb62f5a47908f198f9468d8aab7fede62",
+              "expected_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-transfer-report.journey.sessions.v1.behavior#concurrency",
+              "observation_id": "session-transfer-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.session.transfer-generate",
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "target_device",
+                "transfer_token"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:aaaada193ad19af1741d03f40d08347bca29a0f51d4648547daaf449898bde33",
+              "expected_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-transfer-report.journey.sessions.v1.behavior#cleanup",
+              "observation_id": "session-transfer-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.session.transfer-generate",
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "target_device",
+                "transfer_token"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c9ec75062d7fb798a709a0882def991b03847fc16afbbf5252b7ff8ef065ea2e",
+              "expected_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ]
+            },
+            {
+              "case_id": "session-transfer-report.journey.sessions.v1.behavior#unknown-outcome",
+              "observation_id": "session-transfer-report.journey.sessions.v1.behavior",
+              "claim_id": "journey.sessions.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.session.transfer-generate",
+                "identity.session.transfer-consume"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "target_device",
+                "transfer_token"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:ef44abb5adf4025ced78f82666d844a1950ae593f6f7e46e27d802b044783bf1",
+              "expected_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ],
+              "observed_operation_set": [
+                "identity.session.transfer-consume",
+                "identity.session.transfer-generate"
+              ]
+            }
+          ]
         },
         "transfer_id": {
           "type": "string",
@@ -1048,672 +877,6 @@
           "kind": "const",
           "field": "consumed_count",
           "value": 1
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "session-transfer-report.journey.sessions.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.sessions.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.transfer-generate",
-                      "identity.session.transfer-consume"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "target_device",
-                      "transfer_token"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source session is active and target device is untrusted"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "one short-lived transfer token creates one policy-equivalent target session and is invalid after consume, expiry, or source revocation"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "transfer_id",
-                      "source_session_id",
-                      "target_session_id",
-                      "consumed_count",
-                      "replay_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

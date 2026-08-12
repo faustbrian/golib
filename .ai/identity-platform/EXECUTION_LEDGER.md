@@ -135,7 +135,14 @@ identity-platform input is excluded.
   repair `in-progress` row MUST retain task, branch, worktree, assignment
   commit, worker commit, integration checkpoint, gate fingerprint, and
   generation from `implemented-unverified` while restoring worker task as
-  owner. A pre-integration conflict-recovery `in-progress` row MUST retain the
+  owner. It MUST have a matching newly committed `authorized` integrated-repair
+  epoch in `PREFLIGHT_EVIDENCE.md`; that authorization commit's first parent is
+  the exact current integration baseline and the row binds the prior integrated
+  checkpoint, clean worker checkpoint, canonical goal, exact repair prompt, and
+  reserved-root union. The later repair merge MUST replace both worker commit
+  and integration checkpoint with descendants, and a separately committed
+  matching `completed` row terminates only that epoch. A pre-integration
+  conflict-recovery `in-progress` row MUST retain the
   same task, branch, worktree, assignment commit, and generation from its
   `blocked` parent; worker commit MAY be the clean coherent checkpoint while
   integration checkpoint and gate fingerprint remain `—`. Its exact authorized
@@ -169,6 +176,13 @@ identity-platform input is excluded.
   `implemented-unverified` external evidence MUST be
   `available`, `unavailable:<safe-profile-id>`, `not-needed`, or an attributable
   path. `verified` external evidence follows the stricter rule above.
+  At every current clean committed execution `HEAD`, a verified row's bound
+  evidence manifest MUST reproduce the exhaustive current manifest and gate
+  root. A mismatch makes the row stale and requires one deterministic
+  `verified -> implemented-unverified` transition for it and every verified
+  reverse dependant whose complete root changed, clearing the stale gate pair
+  before revalidation. Reachability from an ancestor gate revision is
+  insufficient.
 
 Assignment generation MUST NOT change during assignment finalization, pause,
 same-owner repair, integration, evidence recording, or verification. Every
@@ -188,6 +202,14 @@ A blocked checkpoint finalization or later recovery-conflict replacement MUST
 satisfy the exact descendant and assignment-identity rules above; a sibling,
 rewritten, detached, or different-assignment commit is forbidden.
 Every other same-status field change is forbidden.
+
+Pre-spawn assignment authorization and post-spawn runtime attestation are
+distinct. A worker commit or integration checkpoint MUST NOT be accepted unless
+the current unit/generation/task has exactly one runtime row bound to a
+non-dash immutable agent ID and the actual platform-reported
+`gpt-5.6-sol`/`medium`/`none`/`false` settings. The immutable assignment row
+retains its assignment-time goal path; later canonical-goal repairs use only
+the separately versioned integrated-repair table.
 
 Every ordinary `in-progress -> ready` or `blocked -> ready` abandonment MUST
 append an assignment disposition row using an
@@ -320,6 +342,7 @@ record's input root and artifacts before accepting `verified`.
 | `primitive/authentication-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
 | `primitive/authorization-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
 | `primitive/capability-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `primitive/capability-postgres-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
 | `primitive/identifier-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
 | `primitive/password-secret-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
 | `identity` | 0 | — | — | — | — | — | — | — | — | — | initial |

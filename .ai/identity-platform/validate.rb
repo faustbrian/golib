@@ -24,7 +24,7 @@ rescue Errno::ENOENT
 end
 EXPECTED_IDENTITY_UNITS = 61
 EXPECTED_PRIMITIVE_EXTENSION_AUTHORITIES = 6
-EXPECTED_PRIMITIVE_EXTENSION_UNITS = 5
+EXPECTED_PRIMITIVE_EXTENSION_UNITS = 6
 EXPECTED_SCHEDULABLE_UNITS = EXPECTED_IDENTITY_UNITS + EXPECTED_PRIMITIVE_EXTENSION_UNITS
 BASELINE = "b8077b74ef9a80a7757220b72834349bd8de05c0"
 NORMATIVE_KEYWORD_PATTERN = /\b(?:MUST(?: NOT)?|REQUIRED|SHALL(?: NOT)?|SHOULD(?: NOT)?|RECOMMENDED|NOT RECOMMENDED|MAY|OPTIONAL)\b/
@@ -172,9 +172,11 @@ REQUIRED_ARTIFACT_SECTIONS = {
     "Required secret and connection fields", "Validation and proof"
   ],
   "PREFLIGHT_EVIDENCE.md" => [
-    "Execution identity", "Worker assignment attestations", "Tool and environment lanes", "External evidence lanes",
+    "Execution identity", "Worker assignment authorizations", "Worker runtime attestations",
+    "Tool and environment lanes", "External evidence lanes",
     "Existing primitive contracts", "Task-owned resource registry",
-    "Acceptance evidence bindings", "Goal digest revisions", "Conflict-recovery baselines"
+    "Acceptance evidence bindings", "Goal digest revisions", "Conflict-recovery baselines",
+    "Integrated-repair authorizations"
   ]
 }.freeze
 READING_ORDER = [
@@ -966,6 +968,69 @@ def recovery_transition_errors(previous_rows, current_rows)
     errors << "recovery terminal lacks a preceding committed exact authorization" unless preceding_authorization
   end
   errors
+end
+
+def reserved_nested_roots(assigned_root, inventory_roots, modules_document, packages_document)
+  registered = inventory_roots + modules_document.fetch("modules", []).filter_map { |row| row["directory"] } +
+    packages_document.fetch("packages", []).filter_map { |row| row["module_directory"] }
+  registered.select { |root| root != assigned_root && root.start_with?("#{assigned_root}/") }.sort_by(&:b).uniq
+end
+
+def current_verified_gate_root_errors(recorded_manifest, recorded_root, current_manifest)
+  errors = []
+  errors << "recorded gate root drifted" unless recorded_root ==
+    "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(recorded_manifest)))}"
+  current_root = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(current_manifest)))}"
+  errors << "verified gate root is stale at current integration HEAD; demote the unit and its changed-fingerprint verified reverse dependants to implemented-unverified in one transition before revalidation" unless
+    recorded_manifest == current_manifest && recorded_root == current_root
+  errors
+end
+
+def worker_runtime_attestation_errors(attestation, unit:, generation:, task:)
+  errors = []
+  errors << "runtime attestation identity drifted" unless attestation.values_at(:unit, :generation, :task) == [unit, generation, task]
+  errors << "runtime attestation agent ID is not immutable" unless attestation[:agent_id].to_s.match?(/\A[a-zA-Z0-9._:\/-]+\z/) && attestation[:agent_id] != "—"
+  errors << "runtime attestation model drifted" unless attestation[:model] == "gpt-5.6-sol"
+  errors << "runtime attestation reasoning drifted" unless attestation[:reasoning] == "medium"
+  errors << "runtime attestation fork policy drifted" unless attestation[:fork_turns] == "none"
+  errors << "runtime attestation subagent policy drifted" unless attestation[:subagents] == "false"
+  errors << "runtime attestation is not platform-reported" unless attestation[:source] == "platform-spawn-result"
+  errors << "runtime attestation timestamp is invalid" unless attestation[:recorded_at].to_s.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/)
+  errors
+end
+
+reserved_root_fixture = reserved_nested_roots(
+  "pkg/identity",
+  ["pkg/identity", "pkg/identity/session"],
+  {"modules" => [{"directory" => "pkg/identity/private-module"}]},
+  {"packages" => [{"module_directory" => "pkg/identity/plugin", "directory" => "package"}]}
+)
+unless reserved_root_fixture == %w[pkg/identity/plugin pkg/identity/private-module pkg/identity/session]
+  fail_check("root-manifest reserved nested-root fixture was not enforced")
+end
+
+current_root_fixture = [{"path_or_environment_id" => "pkg/identity/file.go", "kind" => "blob", "content_identity" => "git-sha1:#{'0' * 40}", "owner" => "pkg/identity", "reason" => "behavior-affecting repository input"}]
+current_root_fingerprint = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(current_root_fixture)))}"
+unless current_verified_gate_root_errors(current_root_fixture, current_root_fingerprint, current_root_fixture).empty?
+  fail_check("current verified gate-root fixture was rejected")
+end
+stale_root_fixture = Marshal.load(Marshal.dump(current_root_fixture))
+stale_root_fixture[0]["content_identity"] = "git-sha1:#{'1' * 40}"
+if current_verified_gate_root_errors(current_root_fixture, current_root_fingerprint, stale_root_fixture).empty?
+  fail_check("stale verified gate-root negative fixture was accepted")
+end
+
+runtime_fixture = {
+  unit: "identity", generation: "1", task: "identity-worker", agent_id: "agent-immutable-1",
+  model: "gpt-5.6-sol", reasoning: "medium", fork_turns: "none", subagents: "false",
+  source: "platform-spawn-result", recorded_at: "2026-08-12T00:00:00Z"
+}
+unless worker_runtime_attestation_errors(runtime_fixture, unit: "identity", generation: "1", task: "identity-worker").empty?
+  fail_check("worker runtime-attestation fixture was rejected")
+end
+forged_runtime_fixture = runtime_fixture.merge(agent_id: "—")
+if worker_runtime_attestation_errors(forged_runtime_fixture, unit: "identity", generation: "1", task: "identity-worker").empty?
+  fail_check("worker runtime-attestation immutable-agent negative fixture was accepted")
 end
 
 def goal_revision_lifecycle_errors(history)
@@ -3121,8 +3186,8 @@ def worker_assignment_envelope_errors(attestation, expected, prompt_bytes, expec
     unit: expected.fetch(:unit), generation: expected.fetch(:generation), baseline: expected.fetch(:baseline),
     assignment: expected.fetch(:assignment), model: "gpt-5.6-sol", reasoning: "medium",
     fork_turns: "none", subagents: "false", package_scope: expected.fetch(:package_scope),
-    reserved: expected.fetch(:reserved), goal_digest: expected.fetch(:goal_digest),
-    authorized_by: "coordinator", status: "finalized"
+    reserved: expected.fetch(:reserved), goal_digest: expected.fetch(:goal_digest), goal_path: expected.fetch(:goal_path),
+    authorized_by: "coordinator", status: "authorized"
   }.each do |field, value|
     errors << "worker assignment envelope #{field} drifted" unless attestation[field] == value
   end
@@ -3132,8 +3197,8 @@ def worker_assignment_envelope_errors(attestation, expected, prompt_bytes, expec
 end
 
 worker_envelope_prompt = "rendered prompt\n"
-worker_envelope_expected = {unit: "fixture", generation: "1", baseline: "a" * 40, assignment: "b" * 40, package_scope: "pkg/fixture", reserved: ["pkg/fixture/child"], goal_digest: "sha256:#{'c' * 64}"}
-worker_envelope = worker_envelope_expected.merge(model: "gpt-5.6-sol", reasoning: "medium", fork_turns: "none", subagents: "false", authorized_by: "coordinator", status: "finalized", prompt_digest: "sha256:#{Digest::SHA256.hexdigest(worker_envelope_prompt)}")
+worker_envelope_expected = {unit: "fixture", generation: "1", baseline: "a" * 40, assignment: "b" * 40, package_scope: "pkg/fixture", reserved: ["pkg/fixture/child"], goal_digest: "sha256:#{'c' * 64}", goal_path: ".ai/identity-platform/goals/fixture.md"}
+worker_envelope = worker_envelope_expected.merge(model: "gpt-5.6-sol", reasoning: "medium", fork_turns: "none", subagents: "false", authorized_by: "coordinator", status: "authorized", prompt_digest: "sha256:#{Digest::SHA256.hexdigest(worker_envelope_prompt)}")
 fail_check("valid worker-envelope fixture was rejected") unless worker_assignment_envelope_errors(worker_envelope, worker_envelope_expected, worker_envelope_prompt, worker_envelope_prompt).empty?
 {
   "prompt" => [worker_envelope, worker_envelope_prompt.sub("rendered", "altered")],
@@ -4240,7 +4305,7 @@ def orchestration_policy_errors(orchestrator, worker)
   errors = []
   errors << "coordinator-only policy digest drifted" unless Digest::SHA256.hexdigest(coordinator_section) == "bc9277b2d53aee15339a6d53394a5197412233e9c4ce1b3a3b71ffbf0eec6140"
   errors << "dependency-revision policy digest drifted" unless Digest::SHA256.hexdigest(dependency_revision_section) == "564cb53e19c5de9ee04cde3788fae20b812d7873a656ea8b086cbfb848ddea28"
-  errors << "worker assignment policy digest drifted" unless Digest::SHA256.hexdigest(worker_assignment) == "9aaa618de16ae3e5e97801117d55a57f5a0c5190a5b54dea314fc4c94104a175"
+  errors << "worker assignment policy digest drifted" unless Digest::SHA256.hexdigest(worker_assignment) == "cd8bfc86788aab30ff101c90dce000adce31569cce5838f30b832d69caf99e6b"
   errors << "coordinator implementation prohibition drifted" unless orchestrator.gsub(/\s+/, " ").include?(required_orchestrator)
   required_worker.each do |required|
     errors << "worker ownership restriction drifted: #{required}" unless worker.gsub(/\s+/, " ").include?(required)
@@ -4675,12 +4740,14 @@ expect_phone_recovery_journey_fixture_rejection!(
   phone_recovery_journey_errors(missing_journey_session_closure)
 end
 recovery_rows_for_validation = []
+repair_rows_for_validation = []
 worktree_resource_rows = []
 task_owned_resource_rows = []
 previous_task_owned_resource_rows = []
 external_lanes = []
 external_records = {}
 worker_attestations = []
+worker_runtime_attestations = []
 acceptance_evidence_bindings = []
 local_gate_evidence_bindings = []
 goal_revision_rows = []
@@ -6100,13 +6167,14 @@ if execution_mode
   worktree_parent = plain_cell(identity_rows.fetch("Task-owned worktree parent", ""))
   recorded_at = plain_cell(identity_rows.fetch("Preflight recorded at (RFC3339)", ""))
 
-  worker_attestation_header = "| Unit | Generation | Integration baseline | Assignment commit | Rendered prompt | Prompt digest | Model | Reasoning | Fork turns | Subagents | Package scope | Reserved descendants | Goal digest | Authorized by | Status |"
-  worker_attestations = markdown_table(preflight, "Worker assignment attestations", worker_attestation_header).map do |cells|
-    fail_check("worker assignment attestation row has wrong column count") unless cells.length == 15
-    unit, generation, baseline, assignment, prompt_path, prompt_digest, model, reasoning, fork_turns, subagents, package_scope, reserved, goal_digest, authorized_by, status = cells
+  worker_attestation_header = "| Unit | Generation | Integration baseline | Assignment commit | Assignment goal path | Rendered prompt | Prompt digest | Model | Reasoning | Fork turns | Subagents | Package scope | Reserved descendants | Goal digest | Authorized by | Status |"
+  worker_attestations = markdown_table(preflight, "Worker assignment authorizations", worker_attestation_header).map do |cells|
+    fail_check("worker assignment authorization row has wrong column count") unless cells.length == 16
+    unit, generation, baseline, assignment, goal_path, prompt_path, prompt_digest, model, reasoning, fork_turns, subagents, package_scope, reserved, goal_digest, authorized_by, status = cells
     {
       unit: plain_cell(unit), generation: plain_cell(generation), baseline: plain_cell(baseline),
-      assignment: plain_cell(assignment), prompt_path: plain_cell(prompt_path), prompt_digest: plain_cell(prompt_digest),
+      assignment: plain_cell(assignment), goal_path: plain_cell(goal_path),
+      prompt_path: plain_cell(prompt_path), prompt_digest: plain_cell(prompt_digest),
       model: plain_cell(model), reasoning: plain_cell(reasoning), fork_turns: plain_cell(fork_turns),
       subagents: plain_cell(subagents), package_scope: plain_cell(package_scope),
       reserved: reserved == "none" ? [] : reserved.scan(/`([^`]+)`/).flatten,
@@ -6115,7 +6183,23 @@ if execution_mode
     }
   end
   attestation_keys = worker_attestations.map { |row| [row[:unit], row[:generation]] }
-  fail_check("worker assignment attestations contain duplicate unit/generation rows") unless attestation_keys == attestation_keys.uniq
+  fail_check("worker assignment authorizations contain duplicate unit/generation rows") unless attestation_keys == attestation_keys.uniq
+
+  runtime_header = "| Unit | Generation | Worker task | Agent ID | Model | Reasoning | Fork turns | Subagents | Platform source | Recorded at |"
+  worker_runtime_attestations = markdown_table(preflight, "Worker runtime attestations", runtime_header).map do |cells|
+    fail_check("worker runtime attestation row has wrong column count") unless cells.length == 10
+    unit, generation, task, agent_id, model, reasoning, fork_turns, subagents, source, recorded_at = cells
+    {
+      unit: plain_cell(unit), generation: plain_cell(generation), task: plain_cell(task), agent_id: plain_cell(agent_id),
+      model: plain_cell(model), reasoning: plain_cell(reasoning), fork_turns: plain_cell(fork_turns),
+      subagents: plain_cell(subagents), source: plain_cell(source), recorded_at: plain_cell(recorded_at),
+      row_line: "| #{cells.join(' | ')} |"
+    }
+  end
+  runtime_keys = worker_runtime_attestations.map { |row| [row[:unit], row[:generation]] }
+  fail_check("worker runtime attestations contain duplicate unit/generation rows") unless runtime_keys == runtime_keys.uniq
+  runtime_agent_ids = worker_runtime_attestations.map { |row| row[:agent_id] }
+  fail_check("worker runtime attestations reuse an immutable agent ID") unless runtime_agent_ids == runtime_agent_ids.uniq
 
   tool_rows = markdown_table(
     preflight,
@@ -6451,6 +6535,53 @@ if execution_mode
     end
   end
   recovery_rows_for_validation = normalized_recovery_rows
+
+  repair_header = "| Repair epoch | Unit | Generation | Integration baseline | Integration checkpoint | Worker checkpoint | Goal path | Goal digest | Rendered repair prompt | Prompt digest | Reserved descendants | Result worker commit | Result integration checkpoint | Status | Recorded at |"
+  repair_rows_for_validation = markdown_table(preflight, "Integrated-repair authorizations", repair_header).map do |cells|
+    fail_check("integrated-repair row has wrong column count") unless cells.length == 15
+    epoch, unit, generation, baseline, checkpoint, worker_checkpoint, goal_path, goal_digest, prompt_path, prompt_digest, reserved, result_worker, result_checkpoint, status, recorded_at = cells.map { |value| plain_cell(value) }
+    expected_prefix = "repair:#{unit.tr('/', '-')}:g#{generation}:e"
+    fail_check("integrated-repair row for #{unit} has invalid epoch") unless epoch.match?(/\A#{Regexp.escape(expected_prefix)}[1-9]\d*\z/)
+    fail_check("integrated-repair row has unknown unit") unless known.include?(unit)
+    fail_check("integrated-repair row for #{unit} has invalid generation") unless generation.match?(/\A\d+\z/)
+    [baseline, checkpoint, worker_checkpoint].each do |commit|
+      fail_check("integrated-repair row for #{unit} has invalid commit identity") unless commit.match?(/\A[0-9a-f]{40}\z/)
+    end
+    fail_check("integrated-repair row for #{unit} has unsafe goal path") unless goal_path.match?(%r{\A(?:\.ai/identity-platform/goals|pkg/[a-zA-Z0-9._/-]+/\.ai)/[a-zA-Z0-9._/-]+\.md\z}) && !goal_path.include?("..")
+    fail_check("integrated-repair row for #{unit} has invalid goal digest") unless goal_digest.match?(/\Asha256:[0-9a-f]{64}\z/)
+    fail_check("integrated-repair row for #{unit} has unsafe prompt path") unless repository_evidence_path?(prompt_path)
+    fail_check("integrated-repair row for #{unit} has invalid prompt digest") unless prompt_digest.match?(/\Asha256:[0-9a-f]{64}\z/)
+    reserved_roots = reserved == "none" ? [] : cells[10].scan(/`([^`]+)`/).flatten
+    fail_check("integrated-repair row for #{unit} has invalid status") unless %w[authorized superseded completed].include?(status)
+    if status == "completed"
+      fail_check("integrated-repair completed row for #{unit} has invalid result commits") unless [result_worker, result_checkpoint].all? { |commit| commit.match?(/\A[0-9a-f]{40}\z/) }
+    else
+      fail_check("integrated-repair non-completed row for #{unit} has result commits") unless result_worker == "—" && result_checkpoint == "—"
+    end
+    fail_check("integrated-repair row for #{unit} has invalid timestamp") unless rfc3339?(recorded_at)
+    {epoch: epoch, unit: unit, generation: generation, baseline: baseline, checkpoint: checkpoint,
+     worker_checkpoint: worker_checkpoint, goal_path: goal_path, goal_digest: goal_digest, prompt_path: prompt_path,
+     prompt_digest: prompt_digest, reserved: reserved_roots, result_worker: result_worker,
+     result_checkpoint: result_checkpoint, status: status, recorded_at: recorded_at,
+     row_line: "| #{cells.join(' | ')} |"}
+  end
+  repair_rows_for_validation.group_by { |row| [row[:unit], row[:generation]] }.each do |(unit, generation), history|
+    expected_epoch = 0
+    authorization = nil
+    history.each do |row|
+      epoch = row[:epoch][/:e(\d+)\z/, 1].to_i
+      if row[:status] == "authorized"
+        fail_check("integrated-repair #{unit} generation #{generation} starts a new epoch before terminating the active epoch") if authorization
+        expected_epoch += 1
+        fail_check("integrated-repair #{unit} generation #{generation} epoch sequence drifted") unless epoch == expected_epoch
+        authorization = row
+      else
+        fail_check("integrated-repair terminal lacks exact active authorization") unless authorization &&
+          row.reject { |key, _| %i[status recorded_at row_line result_worker result_checkpoint].include?(key) } == authorization.reject { |key, _| %i[status recorded_at row_line result_worker result_checkpoint].include?(key) }
+        authorization = nil
+      end
+    end
+  end
 end
 
 upstream_manifest = JSON.parse(artifacts.fetch("UPSTREAM_SURFACE.json"))
@@ -9267,14 +9398,39 @@ local_gate_binding_keys = local_gate_evidence_bindings.map { |binding| [binding[
 fail_check("local gate evidence bindings contain duplicate unit/generation/revision rows") unless local_gate_binding_keys == local_gate_binding_keys.uniq
 ledger_header = "| Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate execution revision | Gate fingerprint | External evidence | Last transition |"
 ledger_rows = parse_execution_ledger(ledger, ledger_header)
+worker_runtime_attestations.each do |runtime_attestation|
+  ledger_entry = ledger_rows.find do |entry|
+    entry[:unit] == runtime_attestation[:unit] && entry[:generation] == runtime_attestation[:generation]
+  end
+  fail_check("worker runtime attestation has no matching ledger assignment") unless ledger_entry && ledger_entry[:task] != "—"
+  worker_runtime_attestation_errors(
+    runtime_attestation, unit: runtime_attestation[:unit], generation: runtime_attestation[:generation],
+    task: ledger_entry&.fetch(:task, "—")
+  ).each { |error| fail_check("#{runtime_attestation[:unit]} #{error}") }
+  assignment_authorization = worker_attestations.find do |authorization|
+    authorization[:unit] == runtime_attestation[:unit] && authorization[:generation] == runtime_attestation[:generation]
+  end
+  runtime_commit = first_parent_commit_adding_line(runtime_attestation[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  authorization_commit = assignment_authorization && first_parent_commit_adding_line(
+    assignment_authorization[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
+  )
+  fail_check("#{runtime_attestation[:unit]} runtime attestation is not committed") unless runtime_commit
+  fail_check("#{runtime_attestation[:unit]} runtime attestation lacks exact assignment authorization ancestry") unless
+    runtime_commit && authorization_commit && git_output("rev-parse", "#{runtime_commit}^1") == authorization_commit
+  fail_check("#{runtime_attestation[:unit]} worker branch excludes runtime attestation") unless
+    runtime_commit && ledger_entry && git_ancestor?(runtime_commit, "refs/heads/#{ledger_entry[:branch]}")
+  runtime_paths = runtime_commit ? git_output("diff-tree", "--no-commit-id", "--name-only", "-r", runtime_commit).to_s.lines.map(&:strip) : []
+  fail_check("#{runtime_attestation[:unit]} runtime attestation commit changed unexpected paths") unless
+    runtime_paths == [".ai/identity-platform/PREFLIGHT_EVIDENCE.md"]
+end
 if execution_mode
   applicability_document = SharedContractApplicability.load_and_validate!(root: ROOT, units: units)
   ledger_rows.reject { |entry| entry[:task] == "—" }.each do |entry|
     row = rows.find { |candidate| candidate[:unit] == entry[:unit] }
     attestation = worker_attestations.find { |candidate| candidate[:unit] == entry[:unit] && candidate[:generation] == entry[:generation] }
-    fail_check("#{entry[:unit]} assignment lacks a finalized rendered-prompt attestation") unless attestation
+    fail_check("#{entry[:unit]} assignment lacks an authorized rendered-prompt envelope") unless attestation
     fail_check("#{entry[:unit]} assignment remains pending and MUST NOT spawn") if entry[:assignment] == "pending"
-    fail_check("#{entry[:unit]} worker attestation is not finalized") unless attestation[:status] == "finalized"
+    fail_check("#{entry[:unit]} worker assignment is not authorized") unless attestation[:status] == "authorized"
     fail_check("#{entry[:unit]} worker attestation is not coordinator-authorized") unless attestation[:authorized_by] == "coordinator"
     fail_check("#{entry[:unit]} worker attestation assignment commit drifted") unless attestation[:assignment] == entry[:assignment]
     fail_check("#{entry[:unit]} worker attestation model drifted") unless attestation[:model] == "gpt-5.6-sol"
@@ -9282,10 +9438,11 @@ if execution_mode
     fail_check("#{entry[:unit]} worker attestation fork policy drifted") unless attestation[:fork_turns] == "none"
     fail_check("#{entry[:unit]} worker attestation subagent policy drifted") unless attestation[:subagents] == "false"
     fail_check("#{entry[:unit]} worker attestation package scope drifted") unless attestation[:package_scope] == row[:module]
-    reserved = modules.select { |candidate| candidate != row[:module] && candidate.start_with?("#{row[:module]}/") }.sort
+    reserved = reserved_nested_roots(row[:module], modules, modules_manifest, packages_manifest)
     fail_check("#{entry[:unit]} worker attestation reserved descendants drifted") unless attestation[:reserved] == reserved
     manifest_goal = goal_manifest.fetch("goals").find { |candidate| candidate.fetch("unit") == entry[:unit] }
-    fail_check("#{entry[:unit]} worker attestation goal digest drifted") unless attestation[:goal_digest] == "sha256:#{manifest_goal.fetch('sha256')}"
+    assignment_goal_path = File.join(".ai/identity-platform", manifest_goal.fetch("planning_path"))
+    fail_check("#{entry[:unit]} worker assignment did not preserve its planning goal path") unless attestation[:goal_path] == assignment_goal_path
     fail_check("#{entry[:unit]} worker attestation baseline commit is missing") unless git_commit_exists?(attestation[:baseline])
     fail_check("#{entry[:unit]} worker attestation assignment is not in its baseline") unless git_ancestor?(entry[:assignment], attestation[:baseline])
     fail_check("#{entry[:unit]} worker attestation baseline is not on integration history") unless git_ancestor?(attestation[:baseline], "HEAD")
@@ -9302,11 +9459,14 @@ if execution_mode
       fail_check("#{entry[:unit]} rendered prompt is not committed with its attestation") unless prompt_status.success? && committed_prompt == prompt_bytes
       changed_paths = git_output("diff-tree", "--no-commit-id", "--name-only", "-r", attestation_commit).to_s.lines.map(&:strip)
       required_attestation_paths = [".ai/identity-platform/PREFLIGHT_EVIDENCE.md", attestation[:prompt_path]]
-      fail_check("#{entry[:unit]} prompt and attestation row were not finalized together") unless required_attestation_paths.all? { |path| changed_paths.include?(path) }
+      fail_check("#{entry[:unit]} assignment authorization envelope changed unexpected paths") unless changed_paths.sort == required_attestation_paths.sort
       fail_check("#{entry[:unit]} worker branch does not contain the attestation commit") unless git_ancestor?(attestation_commit, "refs/heads/#{entry[:branch]}")
+      committed_goal = git_blob_bytes(attestation_commit, attestation[:goal_path])
+      fail_check("#{entry[:unit]} assignment authorization lacks its goal bytes") unless committed_goal
+      fail_check("#{entry[:unit]} immutable assignment goal digest drifted") unless committed_goal && attestation[:goal_digest] == "sha256:#{Digest::SHA256.hexdigest(committed_goal)}"
     end
 
-    goal_relative = row[:goal].start_with?("goals/") ? File.join(".ai/identity-platform", row[:goal]) : row[:goal]
+    goal_relative = attestation[:goal_path]
     values = {
       "unit" => entry[:unit], "canonical-module" => row[:module],
       "absolute-worktree-path" => entry[:worktree], "worker-branch" => entry[:branch],
@@ -9322,10 +9482,72 @@ if execution_mode
     envelope_expected = {
       unit: entry[:unit], generation: entry[:generation], baseline: attestation[:baseline],
       assignment: entry[:assignment], package_scope: row[:module], reserved: reserved,
-      goal_digest: "sha256:#{manifest_goal.fetch('sha256')}"
+      goal_digest: attestation[:goal_digest], goal_path: attestation[:goal_path]
     }
     worker_assignment_envelope_errors(attestation, envelope_expected, prompt_bytes, expected_prompt).each do |error|
       fail_check("#{entry[:unit]} #{error}")
+    end
+
+    if entry[:worker_commit] != "—" || entry[:checkpoint] != "—"
+      runtime_attestation = worker_runtime_attestations.find do |candidate|
+        candidate[:unit] == entry[:unit] && candidate[:generation] == entry[:generation]
+      end
+      fail_check("#{entry[:unit]} worker return or integration lacks a platform runtime attestation") unless runtime_attestation
+      worker_runtime_attestation_errors(
+        runtime_attestation || {}, unit: entry[:unit], generation: entry[:generation], task: entry[:task]
+      ).each { |error| fail_check("#{entry[:unit]} #{error}") }
+      if runtime_attestation
+        runtime_commit = first_parent_commit_adding_line(runtime_attestation[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+        fail_check("#{entry[:unit]} runtime attestation is not committed on integration history") unless runtime_commit
+        fail_check("#{entry[:unit]} runtime attestation precedes assignment authorization") unless runtime_commit && attestation_commit && git_ancestor?(attestation_commit, runtime_commit)
+        fail_check("#{entry[:unit]} runtime attestation does not directly follow assignment authorization") unless runtime_commit && attestation_commit && git_output("rev-parse", "#{runtime_commit}^1") == attestation_commit
+        fail_check("#{entry[:unit]} worker branch excludes runtime attestation") unless runtime_commit && git_ancestor?(runtime_commit, "refs/heads/#{entry[:branch]}")
+        fail_check("#{entry[:unit]} worker commit excludes runtime attestation checkpoint") unless runtime_commit && git_ancestor?(runtime_commit, entry[:worker_commit])
+        runtime_paths = git_output("diff-tree", "--no-commit-id", "--name-only", "-r", runtime_commit).to_s.lines.map(&:strip)
+        fail_check("#{entry[:unit]} runtime attestation checkpoint changed unexpected paths") unless runtime_paths == [".ai/identity-platform/PREFLIGHT_EVIDENCE.md"]
+        repair_authorization = repair_rows_for_validation.reverse.find do |repair|
+          repair[:unit] == entry[:unit] && repair[:generation] == entry[:generation] && repair[:status] == "authorized"
+        end
+        scope_checkpoint = if repair_authorization && entry[:worker_commit] != repair_authorization[:worker_checkpoint]
+                             first_parent_commit_adding_line(
+                               repair_authorization[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
+                             )
+                           end
+        scope_checkpoint ||= runtime_commit
+        if scope_checkpoint && git_commit_exists?(entry[:worker_commit])
+          fail_check("#{entry[:unit]} worker commit excludes its current authorization checkpoint") unless git_ancestor?(scope_checkpoint, entry[:worker_commit])
+          returned_paths = git_output("diff", "--name-only", scope_checkpoint, entry[:worker_commit]).to_s.lines.map(&:strip).reject(&:empty?)
+          permitted_paths = returned_paths.all? do |path|
+            (path == row[:module] || path.start_with?("#{row[:module]}/")) &&
+              reserved.none? { |nested| path == nested || path.start_with?("#{nested}/") }
+          end
+          fail_check("#{entry[:unit]} authorization-checkpoint-to-worker-tip diff escapes assigned package scope") unless permitted_paths
+          worker_range = git_output("rev-list", "--reverse", "--ancestry-path", "#{scope_checkpoint}..#{entry[:worker_commit]}").to_s.lines.map(&:strip)
+          worker_range.each do |commit|
+            parents = git_output("rev-list", "--parents", "-n", "1", commit).to_s.split.drop(1)
+            first_parent = parents.first
+            commit_paths = first_parent ? git_output("diff", "--name-only", first_parent, commit).to_s.lines.map(&:strip).reject(&:empty?) : []
+            imports_checkpoint = parents.drop(1).include?(scope_checkpoint)
+            if imports_checkpoint
+              expected_envelope_paths = repair_authorization ? [
+                ".ai/identity-platform/INVENTORY.md", ".ai/identity-platform/EXECUTION_LEDGER.md",
+                ".ai/identity-platform/PREFLIGHT_EVIDENCE.md", repair_authorization[:prompt_path]
+              ] : [".ai/identity-platform/PREFLIGHT_EVIDENCE.md"]
+              fail_check("#{entry[:unit]} authorization checkpoint merge has unexpected parents") unless parents.length == 2 && parents[1] == scope_checkpoint
+              fail_check("#{entry[:unit]} authorization checkpoint merge contains non-envelope changes") unless commit_paths.sort == expected_envelope_paths.sort
+              next
+            end
+            parent_path_sets = parents.empty? ? [commit_paths] : parents.map do |parent|
+              git_output("diff", "--name-only", parent, commit).to_s.lines.map(&:strip).reject(&:empty?)
+            end
+            commit_in_scope = parent_path_sets.flatten.all? do |path|
+              (path == row[:module] || path.start_with?("#{row[:module]}/")) &&
+                reserved.none? { |nested| path == nested || path.start_with?("#{nested}/") }
+            end
+            fail_check("#{entry[:unit]} worker-authored commit #{commit} escapes assigned package scope") unless commit_in_scope
+          end
+        end
+      end
     end
     fail_check("#{entry[:unit]} rendered worker prompt retains an unresolved marker") if prompt_bytes.match?(/<[^>]+>/)
   end
@@ -9333,6 +9555,10 @@ if execution_mode
     ledger_rows.any? { |entry| entry[:task] != "—" && entry[:unit] == attestation[:unit] && entry[:generation] == attestation[:generation] }
   end
   fail_check("worker assignment attestation rows are orphaned") unless orphan_attestations.empty?
+  orphan_runtime_attestations = worker_runtime_attestations.reject do |attestation|
+    ledger_rows.any? { |entry| entry[:task] != "—" && entry[:unit] == attestation[:unit] && entry[:generation] == attestation[:generation] && entry[:task] == attestation[:task] }
+  end
+  fail_check("worker runtime attestation rows are orphaned") unless orphan_runtime_attestations.empty?
 end
 ledger_parser_fixture = <<~MARKDOWN
   ## Dependency revisions
@@ -9358,7 +9584,7 @@ primitive_extension_inventory_errors(
 ).each { |error| fail_check(error) }
 fail_check("execution ledger lacks status/owner mirror rule") unless ledger.include?("mirror")
 history_required = execution_mode && execution_history_required?(
-  entries: ledger_rows, recovery_rows: recovery_rows_for_validation, goal_revision_rows: goal_revision_rows,
+  entries: ledger_rows, recovery_rows: recovery_rows_for_validation + repair_rows_for_validation, goal_revision_rows: goal_revision_rows,
   dependency_revisions: dependency_revisions, dependency_dispositions: dependency_dispositions,
   local_gate_bindings: local_gate_evidence_bindings
 )
@@ -9408,6 +9634,94 @@ authorized_recoveries.each do |source_row|
   fail_check("authorized recovery #{unit} resume commit is not on current first-parent history") unless git_ancestor?(resume_commit, "HEAD")
 end
 
+active_repairs = repair_rows_for_validation.group_by { |row| row[:epoch] }.filter_map do |_epoch, history|
+  history.last if history.last[:status] == "authorized"
+end
+repair_authorizations = repair_rows_for_validation.select { |repair| repair[:status] == "authorized" }
+repair_prompt_paths = repair_authorizations.map { |repair| repair[:prompt_path] }
+fail_check("integrated-repair epochs reuse a rendered prompt path") unless repair_prompt_paths == repair_prompt_paths.uniq
+repair_authorizations.each do |repair|
+  authorization_commit = first_parent_commit_adding_line(repair[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  fail_check("integrated-repair #{repair[:epoch]} lacks its authorization commit") unless authorization_commit
+  fail_check("integrated-repair #{repair[:epoch]} pins the wrong first-parent baseline") unless authorization_commit && git_output("rev-parse", "#{authorization_commit}^1") == repair[:baseline]
+  committed_prompt = authorization_commit && git_blob_bytes(authorization_commit, repair[:prompt_path])
+  fail_check("integrated-repair #{repair[:epoch]} lacks committed prompt bytes") unless committed_prompt
+  fail_check("integrated-repair #{repair[:epoch]} committed prompt digest drifted") unless committed_prompt && repair[:prompt_digest] == "sha256:#{Digest::SHA256.hexdigest(committed_prompt)}"
+  committed_goal, _goal_error, goal_status = Open3.capture3("git", "-C", REPOSITORY_ROOT, "show", "#{authorization_commit}:#{repair[:goal_path]}") if authorization_commit
+  fail_check("integrated-repair #{repair[:epoch]} lacks committed goal bytes") unless authorization_commit && goal_status.success?
+  fail_check("integrated-repair #{repair[:epoch]} committed goal digest drifted") unless authorization_commit && goal_status.success? && repair[:goal_digest] == "sha256:#{Digest::SHA256.hexdigest(committed_goal)}"
+end
+completed_repairs = repair_rows_for_validation.group_by { |repair| repair[:epoch] }.filter_map do |_epoch, history|
+  [history.find { |repair| repair[:status] == "authorized" }, history.last] if history.last[:status] == "completed"
+end
+completed_repairs.each do |authorization, terminal|
+  authorization_commit = first_parent_commit_adding_line(authorization[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  fail_check("completed integrated repair #{terminal[:unit]} did not advance worker commit") unless terminal[:result_worker] != authorization[:worker_checkpoint]
+  fail_check("completed integrated repair #{terminal[:unit]} did not advance integration checkpoint") unless terminal[:result_checkpoint] != authorization[:checkpoint]
+  fail_check("completed integrated repair #{terminal[:unit]} worker commit excludes authorization") unless authorization_commit && git_ancestor?(authorization_commit, terminal[:result_worker])
+  fail_check("completed integrated repair #{terminal[:unit]} integration checkpoint excludes repaired worker commit") unless git_ancestor?(terminal[:result_worker], terminal[:result_checkpoint])
+  integration_parents = git_output("rev-list", "--parents", "-n", "1", terminal[:result_checkpoint]).to_s.split.drop(1)
+  fail_check("completed integrated repair #{terminal[:unit]} result is not the exact authorized non-fast-forward merge") unless integration_parents == [authorization_commit, terminal[:result_worker]]
+  terminal_commit = first_parent_commit_adding_line(terminal[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  fail_check("completed integrated repair #{terminal[:unit]} terminal commit does not directly follow its integration checkpoint") unless terminal_commit && git_output("rev-parse", "#{terminal_commit}^1") == terminal[:result_checkpoint]
+  ledger_blob, _ledger_error, ledger_status = Open3.capture3("git", "-C", REPOSITORY_ROOT, "show", "#{terminal_commit}:.ai/identity-platform/EXECUTION_LEDGER.md") if terminal_commit
+  fail_check("completed integrated repair #{terminal[:unit]} lacks a committed terminal ledger") unless terminal_commit && ledger_status.success?
+  if terminal_commit && ledger_status.success?
+    terminal_entry = parse_execution_ledger(ledger_blob, ledger_header).find { |entry| entry[:unit] == terminal[:unit] }
+    fail_check("completed integrated repair #{terminal[:unit]} terminal ledger result drifted") unless terminal_entry &&
+      terminal_entry[:generation] == terminal[:generation] && terminal_entry[:worker_commit] == terminal[:result_worker] &&
+      terminal_entry[:checkpoint] == terminal[:result_checkpoint]
+  end
+end
+active_repairs.each do |repair|
+  inventory_row = rows.find { |row| row[:unit] == repair[:unit] }
+  ledger_entry = ledger_rows.find { |row| row[:unit] == repair[:unit] }
+  fail_check("authorized integrated repair #{repair[:unit]} does not mirror in-progress state") unless inventory_row[:status] == "in-progress"
+  fail_check("authorized integrated repair #{repair[:unit]} generation drifted") unless ledger_entry[:generation] == repair[:generation]
+  fail_check("authorized integrated repair #{repair[:unit]} integration checkpoint drifted") unless ledger_entry[:checkpoint] == repair[:checkpoint]
+  fail_check("authorized integrated repair #{repair[:unit]} worker checkpoint drifted") unless ledger_entry[:worker_commit] == repair[:worker_checkpoint]
+  manifest_goal = goal_manifest.fetch("goals").find { |candidate| candidate.fetch("unit") == repair[:unit] }
+  fail_check("authorized integrated repair #{repair[:unit]} does not use canonical goal") unless repair[:goal_path] == manifest_goal.fetch("canonical_path")
+  fail_check("authorized integrated repair #{repair[:unit]} goal digest drifted") unless repair[:goal_digest] == "sha256:#{manifest_goal.fetch('sha256')}"
+  inventory_row_module = inventory_row[:module]
+  expected_reserved = reserved_nested_roots(inventory_row_module, modules, modules_manifest, packages_manifest)
+  fail_check("authorized integrated repair #{repair[:unit]} reserved roots drifted") unless repair[:reserved] == expected_reserved
+  prompt_bytes = File.binread(File.expand_path(repair[:prompt_path], REPOSITORY_ROOT)) if repository_evidence_path?(repair[:prompt_path])
+  fail_check("authorized integrated repair #{repair[:unit]} prompt digest drifted") unless prompt_bytes && repair[:prompt_digest] == "sha256:#{Digest::SHA256.hexdigest(prompt_bytes)}"
+  repair_values = {
+    "unit" => repair[:unit], "canonical-module" => inventory_row_module,
+    "absolute-worktree-path" => ledger_entry[:worktree], "worker-branch" => ledger_entry[:branch],
+    "integration-commit" => repair[:baseline], "absolute-goal-path" => File.join(ledger_entry[:worktree], repair[:goal_path]),
+    "verified-prerequisite-list" => (inventory_row[:requires].empty? ? "none" : inventory_row[:requires].map do |required|
+      prerequisite = ledger_rows.find { |candidate| candidate[:unit] == required }
+      "- `#{required}` at `#{prerequisite[:checkpoint]}`"
+    end.join("\n")),
+    "canonical-module-directory" => inventory_row_module,
+    "reserved-descendant-module-directories" => (expected_reserved.empty? ? "none" : expected_reserved.map { |path| "- `#{path}`" }.join("\n")),
+    "assignment-generation" => repair[:generation], "assignment-commit" => ledger_entry[:assignment],
+    "shared-contract-applicability" => SharedContractApplicability.render(document: applicability_document, root: ROOT, unit: repair[:unit]).rstrip
+  }
+  expected_repair_prompt = worker.dup
+  repair_values.each { |placeholder, value| expected_repair_prompt.gsub!("<#{placeholder}>", value) }
+  fail_check("authorized integrated repair #{repair[:unit]} rendered prompt drifted") unless prompt_bytes == expected_repair_prompt
+  authorization_commit = first_parent_commit_adding_line(repair[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  fail_check("authorized integrated repair #{repair[:unit]} lacks an exact authorization commit") unless authorization_commit
+  fail_check("authorized integrated repair #{repair[:unit]} pins wrong first-parent baseline") unless authorization_commit && git_output("rev-parse", "#{authorization_commit}^1") == repair[:baseline]
+  fail_check("authorized integrated repair #{repair[:unit]} baseline advanced without superseding the epoch") unless authorization_commit == git_output("rev-parse", "HEAD")
+  fail_check("authorized integrated repair #{repair[:unit]} checkpoint excludes assignment") unless git_ancestor?(ledger_entry[:assignment], repair[:worker_checkpoint])
+  fail_check("authorized integrated repair #{repair[:unit]} branch excludes authorization commit") unless authorization_commit && git_ancestor?(authorization_commit, "refs/heads/#{ledger_entry[:branch]}")
+  if authorization_commit
+    committed_prompt = git_blob_bytes(authorization_commit, repair[:prompt_path])
+    fail_check("authorized integrated repair #{repair[:unit]} prompt was not committed with its row") unless committed_prompt == prompt_bytes
+    changed_paths = git_output("diff-tree", "--no-commit-id", "--name-only", "-r", authorization_commit).to_s.lines.map(&:strip)
+    required_paths = [
+      ".ai/identity-platform/INVENTORY.md", ".ai/identity-platform/EXECUTION_LEDGER.md",
+      ".ai/identity-platform/PREFLIGHT_EVIDENCE.md", repair[:prompt_path]
+    ]
+    fail_check("authorized integrated repair #{repair[:unit]} authorization envelope changed unexpected paths") unless changed_paths.sort == required_paths.sort
+  end
+end
+
 historical_proposed_entries = ledger_rows.select do |entry|
   inventory_row = rows.find { |row| row[:unit] == entry[:unit] }
   inventory_row[:status] == "proposed" && entry[:transition] != "initial"
@@ -9431,6 +9745,14 @@ if previous_inventory_path
   end
   previous_ledger = previous_sources.fetch(".ai/identity-platform/EXECUTION_LEDGER.md")
   previous_preflight = previous_sources.fetch(".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  assignment_authorization_header = "| Unit | Generation | Integration baseline | Assignment commit | Assignment goal path | Rendered prompt | Prompt digest | Model | Reasoning | Fork turns | Subagents | Package scope | Reserved descendants | Goal digest | Authorized by | Status |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Worker assignment authorizations", assignment_authorization_header)
+    fail_check("worker assignment authorization history rows are not preserved exactly")
+  end
+  runtime_attestation_header = "| Unit | Generation | Worker task | Agent ID | Model | Reasoning | Fork turns | Subagents | Platform source | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Worker runtime attestations", runtime_attestation_header)
+    fail_check("worker runtime attestation history rows are not preserved exactly")
+  end
   goal_revision_header = "| Revision ID | Unit | Previous goal digest | Current goal digest | Status | Authorized by | Recorded at |"
   unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Goal digest revisions", goal_revision_header)
     fail_check("goal digest revision history rows are not preserved exactly")
@@ -9470,6 +9792,18 @@ if previous_inventory_path
     unless authorization_commit && git_ancestor?(authorization_commit, "HEAD")
       fail_check("recovery terminal authorization is not a preceding first-parent commit")
     end
+  end
+  repair_header = "| Repair epoch | Unit | Generation | Integration baseline | Integration checkpoint | Worker checkpoint | Goal path | Goal digest | Rendered repair prompt | Prompt digest | Reserved descendants | Result worker commit | Result integration checkpoint | Status | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Integrated-repair authorizations", repair_header)
+    fail_check("integrated-repair authorization history rows are not preserved exactly")
+  end
+  previous_repairs = markdown_table(previous_preflight, "Integrated-repair authorizations", repair_header)
+  repair_rows_for_validation.drop(previous_repairs.length).reject { |row| row[:status] == "authorized" }.each do |terminal|
+    authorization = repair_rows_for_validation.first(previous_repairs.length).find do |candidate|
+      candidate[:status] == "authorized" && candidate[:epoch] == terminal[:epoch] &&
+        candidate.reject { |key, _| %i[status recorded_at row_line result_worker result_checkpoint].include?(key) } == terminal.reject { |key, _| %i[status recorded_at row_line result_worker result_checkpoint].include?(key) }
+    end
+    fail_check("integrated-repair terminal lacks a preceding committed exact authorization") unless authorization
   end
   previous_task_owned_resource_rows = parse_dependency_resource_snapshot.call(previous_preflight)
   previous_resource_ids = previous_task_owned_resource_rows.map { |resource| resource[:id] }
@@ -9700,6 +10034,11 @@ ledger_rows.each do |entry|
       end
     else
       fail_check("#{entry[:unit]} integrated repair lacks worker commit") if entry[:worker_commit] == "—"
+      matching_repair = active_repairs.any? do |repair|
+        repair[:unit] == entry[:unit] && repair[:generation] == entry[:generation] &&
+          repair[:checkpoint] == entry[:checkpoint] && repair[:worker_checkpoint] == entry[:worker_commit]
+      end
+      fail_check("#{entry[:unit]} integrated repair lacks exact authorized repair epoch") unless matching_repair
       gate_empty = entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
       gate_complete = entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
       fail_check("#{entry[:unit]} integrated repair gate evidence is partial") unless gate_empty || gate_complete
@@ -9778,6 +10117,22 @@ ledger_rows.each do |entry|
         evidence_commit: gate_binding&.fetch(:commit)
       ).each do |error|
         fail_check("#{entry[:unit]} local gate evidence #{error}")
+      end
+      unless execution_fixture_path
+        current_revision = git_output("rev-parse", "HEAD")
+        environment_inputs = gate.fetch("input_manifest", []).select do |input|
+          input["path_or_environment_id"].to_s.start_with?("environment:")
+        end
+        current_manifest = (tracked_behavior_input_manifest(
+          current_revision, gate_module_roots_for.call(entry[:unit]), repository: REPOSITORY_ROOT
+        ) + environment_inputs).sort_by { |input| input.fetch("path_or_environment_id").b }
+        behavior_input_manifest_errors(
+          current_manifest, revision: current_revision,
+          module_roots: gate_module_roots_for.call(entry[:unit]), repository: REPOSITORY_ROOT
+        ).each { |error| fail_check("#{entry[:unit]} current verified input #{error}") }
+        current_verified_gate_root_errors(gate["input_manifest"], entry[:fingerprint], current_manifest).each do |error|
+          fail_check("#{entry[:unit]} #{error}")
+        end
       end
       fail_check("#{entry[:unit]} local gate binding differs from record bytes") unless gate_binding && gate_binding[:digest] == "sha256:#{Digest::SHA256.hexdigest(gate_source)}"
     end

@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "coverage-mutation-report"
+        },
+        "invariant_id": {
+          "const": "coverage-mutation-report.invariant"
+        },
+        "invariant": {
+          "const": "every package reports exact 100 percent statement coverage and every viable mutant is killed"
         },
         "operation_ids": {
           "const": [
@@ -396,158 +404,251 @@
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "coverage-mutation-report.cross.final-acceptance.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "coverage-mutation-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "package_set",
-                      "coverage_profiles",
-                      "mutation_profiles"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "all affected production packages and viable mutants are selected"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "every package reports exact 100 percent statement coverage and every viable mutant is killed"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "package_count",
-                      "statement_coverage_basis_points",
-                      "viable_mutant_count",
-                      "killed_mutant_count",
-                      "report_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "coverage-mutation-report.cross.final-acceptance.v1.behavior#success",
+                  "coverage-mutation-report.cross.final-acceptance.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "coverage-mutation-report.cross.final-acceptance.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.final-acceptance.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "coverage-mutation-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "all affected production packages and viable mutants are selected"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "every package reports exact 100 percent statement coverage and every viable mutant is killed"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "package_count",
+                  "statement_coverage_basis_points",
+                  "viable_mutant_count",
+                  "killed_mutant_count",
+                  "report_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "coverage-mutation-report.cross.final-acceptance.v1.behavior#failure"
+                  "package_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "coverage-mutation-report.cross.final-acceptance.v1.behavior"
+                  "statement_coverage_basis_points": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
                   },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
+                  "viable_mutant_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "failure"
+                  "killed_mutant_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "package_set",
-                      "coverage_profiles",
-                      "mutation_profiles"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "all affected production packages and viable mutants are selected"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "every package reports exact 100 percent statement coverage and every viable mutant is killed"
-                  },
-                  "observed_state_digest": {
+                  "report_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "package_count",
-                      "statement_coverage_basis_points",
-                      "viable_mutant_count",
-                      "killed_mutant_count",
-                      "report_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "coverage-mutation-report.cross.final-acceptance.v1.behavior#success",
+              "observation_id": "coverage-mutation-report.cross.final-acceptance.v1.behavior",
+              "claim_id": "cross.final-acceptance.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "package_set",
+                "coverage_profiles",
+                "mutation_profiles"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4d30ed3060880bdaf6b58518654e62deb136a839acf0f27013e18bc3097e3fb8",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            },
+            {
+              "case_id": "coverage-mutation-report.cross.final-acceptance.v1.behavior#failure",
+              "observation_id": "coverage-mutation-report.cross.final-acceptance.v1.behavior",
+              "claim_id": "cross.final-acceptance.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "package_set",
+                "coverage_profiles",
+                "mutation_profiles"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:86c265a91442d8f16e29bf1e2db221a4c62e8065e0aed60da847b3db43708cdc",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            }
+          ]
         },
         "package_count": {
           "type": "integer",
@@ -592,170 +693,6 @@
           "kind": "equal",
           "left": "killed_mutant_count",
           "right": "viable_mutant_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "coverage-mutation-report.cross.final-acceptance.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "coverage-mutation-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "package_set",
-                      "coverage_profiles",
-                      "mutation_profiles"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "all affected production packages and viable mutants are selected"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "every package reports exact 100 percent statement coverage and every viable mutant is killed"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "package_count",
-                      "statement_coverage_basis_points",
-                      "viable_mutant_count",
-                      "killed_mutant_count",
-                      "report_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "coverage-mutation-report.cross.final-acceptance.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "coverage-mutation-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "package_set",
-                      "coverage_profiles",
-                      "mutation_profiles"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "all affected production packages and viable mutants are selected"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "every package reports exact 100 percent statement coverage and every viable mutant is killed"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "package_count",
-                      "statement_coverage_basis_points",
-                      "viable_mutant_count",
-                      "killed_mutant_count",
-                      "report_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

@@ -14,7 +14,7 @@ shown here.
 - Public contracts: unit ID `contract:unit:identity/password:v1`; owned operation IDs: `contract:operation:identity.admin.user-password-set:v1`, `contract:operation:identity.password.change:v1`, `contract:operation:identity.password.reset-complete:v1`, `contract:operation:identity.password.reset-inspect:v1`, `contract:operation:identity.password.reset-request:v1`, `contract:operation:identity.password.set:v1`, `contract:operation:identity.password.signin:v1`, `contract:operation:identity.password.signup:v1`, `contract:operation:identity.password.verify:v1`
 - Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`, `identity/otp`, `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/identifier-identity-contracts`, `primitive/password-secret-contracts`
 - Consumes existing primitives: `password`, `capability`, `workflow`, `audit`, `rate-limit`
-- Unlocks after verification: `identity/password/postgres`, `identity/username`, `identity/http`
+- Unlocks after verification: `identity/password/postgres`, `identity/username`, `identity/phone`, `identity/http`
 
 ## Start gate
 

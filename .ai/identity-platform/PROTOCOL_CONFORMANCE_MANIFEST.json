@@ -30,6 +30,55 @@
   },
   "clause_pins": [
     {
+      "requirement_id": "captcha.recaptcha.siteverify-evidence",
+      "source_id": "recaptcha-siteverify-20260801153447",
+      "locator": "Server-side verification: API Request, API Response, Error code reference, and domain/package-name validation",
+      "disposition": "required",
+      "consumers": [
+        "identity/risk/captcha",
+        "identity/risk/captcha/recaptcha"
+      ]
+    },
+    {
+      "requirement_id": "captcha.turnstile.siteverify-evidence",
+      "source_id": "turnstile-siteverify-20260728114909",
+      "locator": "Siteverify API: Request format, Response fields, Idempotency, Error codes, and Token characteristics",
+      "disposition": "required",
+      "consumers": [
+        "identity/risk/captcha",
+        "identity/risk/captcha/turnstile"
+      ]
+    },
+    {
+      "requirement_id": "captcha.hcaptcha.siteverify-evidence",
+      "source_id": "hcaptcha-siteverify-20260719190355",
+      "locator": "Verify the User Response Server Side: POST parameters, response JSON, and error codes",
+      "disposition": "required",
+      "consumers": [
+        "identity/risk/captcha",
+        "identity/risk/captcha/hcaptcha"
+      ]
+    },
+    {
+      "requirement_id": "captcha.captchafox.siteverify-evidence",
+      "source_id": "captchafox-siteverify-20260517115151",
+      "locator": "Siteverify API reference: request body, case-sensitive remoteIp, response fields, and error responses",
+      "disposition": "required",
+      "consumers": [
+        "identity/risk/captcha",
+        "identity/risk/captcha/captchafox"
+      ]
+    },
+    {
+      "requirement_id": "hibp.pwned-passwords.range-evidence",
+      "source_id": "hibp-pwned-passwords-20260807131257",
+      "locator": "Pwned Passwords: searching by range, hash prefix search, padding, response suffix/count format, and user-agent requirement",
+      "disposition": "required",
+      "consumers": [
+        "identity/risk/hibp"
+      ]
+    },
+    {
       "requirement_id": "oauth.draft.security-baseline",
       "source_id": "oauth-2.1-draft-15",
       "locator": "Sections 1.7, 4.1, 7.5, 7.6, and 10",
@@ -985,6 +1034,26 @@
     }
   ],
   "source_identity": {
+    "recaptcha-siteverify-20260801153447": {
+      "title": "Verifying the user's response — reCAPTCHA",
+      "revision": "Internet Archive raw snapshot 20260801153447; content identity fixed by manifest SHA-256"
+    },
+    "turnstile-siteverify-20260728114909": {
+      "title": "Validate the token — Cloudflare Turnstile",
+      "revision": "Internet Archive raw snapshot 20260728114909; content identity fixed by manifest SHA-256"
+    },
+    "hcaptcha-siteverify-20260719190355": {
+      "title": "Developer Guide — Verify the User Response Server Side",
+      "revision": "Internet Archive raw snapshot 20260719190355; content identity fixed by manifest SHA-256"
+    },
+    "captchafox-siteverify-20260517115151": {
+      "title": "CaptchaFox Server Integration",
+      "revision": "Internet Archive raw snapshot 20260517115151; content identity fixed by manifest SHA-256"
+    },
+    "hibp-pwned-passwords-20260807131257": {
+      "title": "Have I Been Pwned API v3 — Pwned Passwords",
+      "revision": "Internet Archive raw snapshot 20260807131257; content identity fixed by manifest SHA-256"
+    },
     "oauth-2.1-draft-15": {
       "title": "The OAuth 2.1 Authorization Framework",
       "revision": "Internet-Draft draft-ietf-oauth-v2-1-15, 2 March 2026"
@@ -1215,6 +1284,55 @@
     }
   },
   "sources": [
+    {
+      "id": "recaptcha-siteverify-20260801153447",
+      "url": "https://web.archive.org/web/20260801153447id_/https://developers.google.com/recaptcha/docs/verify",
+      "sha256": "75c8e5cebc4d1002ed635aa20cc7f47a189d2e62c361d4382b5531c5f9a4c907",
+      "license": "Google Developers site terms",
+      "consumers": [
+        "identity/risk/captcha",
+        "identity/risk/captcha/recaptcha"
+      ]
+    },
+    {
+      "id": "turnstile-siteverify-20260728114909",
+      "url": "https://web.archive.org/web/20260728114909id_/https://developers.cloudflare.com/turnstile/get-started/server-side-validation/",
+      "sha256": "f9a773129cd6b16a7b79c70289386e3adb5d201522a5356d12a8dc0c8a987905",
+      "license": "Cloudflare documentation terms",
+      "consumers": [
+        "identity/risk/captcha",
+        "identity/risk/captcha/turnstile"
+      ]
+    },
+    {
+      "id": "hcaptcha-siteverify-20260719190355",
+      "url": "https://web.archive.org/web/20260719190355id_/https://docs.hcaptcha.com/",
+      "sha256": "fb21f1f49e6b6c0d30b57ce3c8c585e986cf4aee2a00bcccda4053f88f0f5f54",
+      "license": "hCaptcha documentation terms",
+      "consumers": [
+        "identity/risk/captcha",
+        "identity/risk/captcha/hcaptcha"
+      ]
+    },
+    {
+      "id": "captchafox-siteverify-20260517115151",
+      "url": "https://web.archive.org/web/20260517115151id_/https://docs.captchafox.com/en/integrations/server",
+      "sha256": "0aee0fcbe07c1905814a4e00261d1ca6dfa93233804028beea38601bc83ed028",
+      "license": "CaptchaFox documentation terms",
+      "consumers": [
+        "identity/risk/captcha",
+        "identity/risk/captcha/captchafox"
+      ]
+    },
+    {
+      "id": "hibp-pwned-passwords-20260807131257",
+      "url": "https://web.archive.org/web/20260807131257id_/https://haveibeenpwned.com/API/v3",
+      "sha256": "14fb5bb4d143acca539d42b5b19b51eaa98c6ed1b2eab75e61860ca8b97f189a",
+      "license": "Have I Been Pwned API terms",
+      "consumers": [
+        "identity/risk/hibp"
+      ]
+    },
     {
       "id": "oauth-2.1-draft-15",
       "url": "https://www.ietf.org/archive/id/draft-ietf-oauth-v2-1-15.txt",

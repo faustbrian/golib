@@ -176,7 +176,7 @@ are `verified`; a wave is not a barrier.
 Only dependency-free units begin `ready`. The coordinator changes a proposed
 unit to `ready` only after all its prerequisites are integrated and `verified`.
 Implementation on a worker branch is not verification. Program completion
-requires all 61 identity-platform units and all five primitive-extension
-prerequisite units verified (66 schedulable units total), every in-scope parity row proved, every
+requires all 61 identity-platform units and all six primitive-extension
+prerequisite units verified (67 schedulable units total), every in-scope parity row proved, every
 `END_STATE.md` journey passing without undocumented application glue, and all
 final repository gates current.

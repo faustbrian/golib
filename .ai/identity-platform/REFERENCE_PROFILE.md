@@ -385,7 +385,14 @@ protocol or security property whose selected baseline no longer proves it.
 - Enterprise domain challenge and verification are callable SSO operations.
   `sso/domain-verification` owns only bounded proof retrieval/classification,
   and `organization` remains the sole durable claim/uniqueness authority; no
-  verifier or routing cache may become a second ownership source.
+  verifier or routing cache may become a second ownership source. SSO passes
+  the exact `domainverification.VerificationRequest` to `Verifier`, translates
+  only the returned `ObservedDomainEvidence` into
+  `organization.DomainEvidenceCommand`, commits through
+  `organization.DomainEvidenceTransition`, and routes only from the current
+  `organization.DomainProofReader` result. Claim/proof version, expiry,
+  revocation, and ownership transfer invalidate routing before a new login
+  transaction starts.
 
 ## API keys, SCIM, and administration
 
@@ -458,6 +465,11 @@ protocol or security property whose selected baseline no longer proves it.
   recovery material, bearers, provider tokens/raw payloads, risk signals and
   internal audit payloads are excluded. The asynchronous states are exactly
   `queued`, `running`, `ready`, `failed`, `cancelled`, and `expired`.
+  `identity.PrivacyExportCategory` names those sections exactly as `identity`,
+  `accounts`, `identifiers`, `sessions`, `devices`, `organizations`,
+  `memberships`, and `consents`; no profile/security/audit umbrella category
+  may substitute for one of them. `queued` and `running` are distinct durable
+  `identity.PrivacyExportStatus` values rather than one pending state.
   Privacy export uses the contributor set and immutable version-vector
   watermark in `LIFECYCLE_CONSUMERS.md`. PostgreSQL contributors MUST read from
   an append-only/versioned projection at the recorded checkpoint or use an
@@ -469,7 +481,8 @@ protocol or security property whose selected baseline no longer proves it.
   exports, revokes issued or reserved download capabilities, and denies every
   later download before artifact erasure completes. An authorized download
   decrypts only into the bounded HTTPS `application/json` response stream with
-  `no-store`; legal holds and provider-held data appear only as manifest
+  `no-store`, verifies and returns the recorded plaintext SHA-256 digest, and
+  never exposes encrypted object bytes or key material; legal holds and provider-held data appear only as manifest
   limitations and never extend a download capability.
 
 ## Risk, delivery, and localization
@@ -543,7 +556,13 @@ protocol or security property whose selected baseline no longer proves it.
   contract; permanent rejection enters the dead-letter state immediately.
 - Locale precedence is explicit request, authenticated user/session, signed
   cookie, bounded `Accept-Language`, then `en`. Unsupported locales fall back to
-  `en`; machine error codes and original error identity never change.
+  `en`; machine error codes and original error identity never change. Each
+  owning package registers one `i18n.ErrorIdentity`, `MessageID`, and exact
+  safe-parameter schema before `ErrorRegistry` is sealed; resolution never
+  inspects error text or guesses an unknown message. Durable locale mutation
+  uses `PreferenceStore`, while privacy export, anonymization, and deletion use
+  `PreferenceLifecycleContributor`; session and HTTP may cache or transport a
+  resolved preference but do not become its persistence authority.
 
 ## HTTP limits and lifecycle
 

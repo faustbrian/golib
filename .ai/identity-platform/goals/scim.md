@@ -60,6 +60,19 @@ involved.
   `scim.bulk.operations`, and `bulk.maxPayloadSize` from the effective decoded
   `scim.bulk.bytes` limit, and MUST NOT advertise a configured maximum that the
   runtime cannot enforce or substitute a different byte boundary.
+  ServiceProviderConfig MUST use exactly the RFC 7643 Section 5 envelope and
+  fields: the ServiceProviderConfig schema URN, optional configured
+  `documentationUri`, the explicit supported objects for PATCH, Bulk, filter,
+  change-password, sort and ETags, Bulk/filter limits, and the bounded runtime
+  `authenticationSchemes` catalog. Every advertised Boolean, URI, limit and
+  authentication scheme MUST come from the same effective runtime snapshot
+  used by request admission; the reference profile MUST advertise change-
+  password as unsupported and MUST advertise only authentication schemes it
+  actually accepts. Each Schema resource MUST contain exactly the Schema core
+  schema URN. Each ResourceType resource MUST contain exactly the ResourceType
+  core schema URN, and each `schemaExtensions` element MUST be the exact RFC
+  object with `schema` and explicit Boolean `required`; a bare URI list is
+  forbidden.
   Schemas and ResourceTypes collection operations MUST return RFC ListResponse
   messages with the ListResponse schema URN, exact `totalResults`, `Resources`,
   `startIndex`, and `itemsPerPage`; bare arrays are forbidden.
@@ -166,8 +179,8 @@ involved.
   contract in `.ai/identity-platform/TRANSACTION_CONTRACT.md`: persist one
   parent, every ordered independently identified child, and the graph/SCC plan
   at admission; commit each acyclic child independently and each cyclic SCC
-  under its bounded atomic rule; durably mark all remaining not-started
-  children skipped only after a positive `failOnErrors` threshold reaches that
+  under its bounded atomic rule; durably mark all remaining admitted children
+  that have not entered `running` skipped only after a positive `failOnErrors` threshold reaches that
   many durable failed child results, treat zero or omission as no cutoff, block
   unknown dependencies for reconciliation, and replay processed child results
   in request order from durable checkpoints. A skipped child is unprocessed and
@@ -180,6 +193,17 @@ involved.
   `skipped` only as the persisted unprocessed child state; status projections,
   recovery and replay MUST NOT convert it into a failed child or synthesize a
   wire status.
+  Matching retry means the same connection scope and exact canonical Bulk
+  fingerprint, including operation order, `failOnErrors`, targets, bodies and
+  preconditions; it MUST recover the same durable parent and replay the same
+  processed-child semantic results. Any mismatch MUST conflict before mutation
+  and MUST NOT expose or reuse the prior result. A singleton acyclic SCC MUST
+  commit its one child in one independent transaction. A cyclic SCC MUST stage
+  all members, defer only within-SCC reference checks, and commit every member
+  in one bounded transaction or roll the complete SCC back. The persisted child
+  state machine MUST contain only admitted, running, succeeded, failed,
+  dependency-blocked and skipped; only succeeded and failed may carry a result,
+  dependency-blocked remains reconcilable, and skipped remains unprocessed.
   Every returned BulkResponse operation MUST include its method and MUST echo
   `bulkId` exactly when the request operation supplied it; POST operations MUST
   supply unique request-local bulk IDs. The request `failOnErrors` value MUST be
@@ -201,7 +225,10 @@ involved.
   `scim.idempotency_retention` even if `scim.delete_tombstone_retention` expires
   first.
 - Error responses MUST use stable SCIM status/detail with enumeration and
-  provider diagnostics redacted. `scimType` is optional and MUST be present only
+  provider diagnostics redacted. Every error body MUST contain exactly the SCIM
+  Error schema URN and MUST encode the actual HTTP status as a three-digit JSON
+  string; numeric, missing, additional-schema or mismatched values are
+  forbidden. `scimType` is optional and MUST be present only
   when the RFC registers one for that exact condition. Opaque resource versions MUST produce
   stable ETags; GET/list/write responses MUST expose the version required for
   the next mutation. Replace and PATCH MUST require and atomically evaluate

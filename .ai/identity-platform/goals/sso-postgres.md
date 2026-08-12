@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/sso/postgres`
 - Canonical goal after scaffolding: `pkg/sso/postgres/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:sso/postgres:v1`; owned operation IDs: none
-- Requires: `sso`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `identity/postgres`, `organization/postgres`, `primitive/capability-identity-contracts`
-- Consumes existing primitives: `postgres`, `migrations`, `secret-envelope`, `outbox`, `audit`
+- Requires: `sso`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `identity/postgres`, `organization/postgres`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
+- Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
 ## Start gate

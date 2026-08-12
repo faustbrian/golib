@@ -41,18 +41,41 @@ or branch-HEAD-divergent integration worktree blocks spawn, merge, gates,
 restart recovery, and final acceptance. Pre-commit proposed snapshots use
 explicit fixture paths without clean mode.
 
-## Worker assignment attestations
+## Worker assignment authorizations
 
-| Unit | Generation | Integration baseline | Assignment commit | Rendered prompt | Prompt digest | Model | Reasoning | Fork turns | Subagents | Package scope | Reserved descendants | Goal digest | Authorized by | Status |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Unit | Generation | Integration baseline | Assignment commit | Assignment goal path | Rendered prompt | Prompt digest | Model | Reasoning | Fork turns | Subagents | Package scope | Reserved descendants | Goal digest | Authorized by | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
-Each actual worker assignment MUST have exactly one durable `finalized` row
-before spawn. The coordinator MUST commit the complete rendered prompt bytes at
+Each proposed worker spawn MUST have exactly one durable `authorized` row
+before spawn. This row is pre-spawn authorization, not proof of the runtime
+that the platform actually created. The coordinator MUST commit the complete rendered prompt bytes at
 the attributable repository path and bind their exact SHA-256 digest, unit,
-generation, integration baseline, assignment commit, `gpt-5.6-sol`, `medium`,
+generation, integration baseline, assignment commit, immutable assignment-time
+goal path, `gpt-5.6-sol`, `medium`,
 `none` fork turns, `false` subagents, exact canonical package scope, complete
 reserved-descendant set, pinned goal-body digest, and `coordinator`
-authorization. Pending or missing attestation state blocks spawn.
+authorization. Pending or missing authorization blocks spawn. The first commit
+that adds the exact row and rendered prompt is the immutable assignment
+authorization checkpoint. Returned-scope validation MUST validate the baseline-
+to-assignment-authorization-to-runtime-attestation envelope separately and MUST
+validate only the runtime-attestation-checkpoint-to-tip range as worker-authored
+package work, with explicit allowance only for the mechanical merge that
+imports that exact checkpoint.
+
+## Worker runtime attestations
+
+| Unit | Generation | Worker task | Agent ID | Model | Reasoning | Fork turns | Subagents | Platform source | Recorded at |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+Immediately after spawn, the coordinator MUST append exactly one row from the
+platform spawn result. `Worker task` and `Agent ID` MUST be the immutable IDs
+returned by the platform; `Model`, `Reasoning`, `Fork turns`, and `Subagents`
+MUST be the actual platform-reported values `gpt-5.6-sol`, `medium`, `none`, and
+`false`; `Platform source` MUST be `platform-spawn-result`. The coordinator
+MUST commit this row and merge that exact runtime-attestation commit into the
+worker branch before authorizing package work. Worker self-report is not a
+substitute. A missing, duplicate, identity-drifted, or settings-drifted runtime
+row blocks worker-return acceptance and integration.
 
 ## Tool and environment lanes
 
@@ -229,3 +252,28 @@ the assignment generation: if the retained assignment later re-enters
 the next epoch and MAY authorize the new clean checkpoint only when the prior
 checkpoint is its ancestor on the exact worker branch. The table contains only
 sanitized evidence paths, not conflict contents or secrets.
+
+## Integrated-repair authorizations
+
+| Repair epoch | Unit | Generation | Integration baseline | Integration checkpoint | Worker checkpoint | Goal path | Goal digest | Rendered repair prompt | Prompt digest | Reserved descendants | Result worker commit | Result integration checkpoint | Status | Recorded at |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+Rows are append-only. A repair epoch MUST be
+`repair:<unit-with-slashes-replaced-by-hyphens>:g<generation>:e<positive-sequence>`
+and sequence independently within an assignment generation. An `authorized`
+row MUST be committed with the exact `implemented-unverified -> in-progress`
+transition, and its commit's first parent MUST equal `Integration baseline`.
+It MUST bind the already integrated checkpoint, the clean worker-branch
+checkpoint, the canonical current goal path, exact rendered repair-prompt bytes
+and digest, the exact current goal-body digest, and the complete reserved nested-root set. The worker MUST merge
+that exact authorization commit before editing. The coordinator MUST validate
+the authorization-checkpoint-to-repaired-tip package-only range, integrate the
+repair with a non-fast-forward merge, record the new integration checkpoint,
+and append a matching `completed` terminal row in a later commit. An
+authorization or `superseded` row MUST use `—` for both result fields. A
+`completed` row MUST bind the exact repaired worker commit and resulting
+non-fast-forward integration checkpoint, and the same commit MUST record those
+values in the unit ledger. A terminal row MUST otherwise have an identical
+epoch identity and MUST be preceded by its committed authorization. A changed baseline, checkpoint, goal, prompt, reservation set,
+or worker checkpoint requires `superseded` followed by the next epoch; restart
+recovery MUST reconstruct the active epoch from this table and Git ancestry.

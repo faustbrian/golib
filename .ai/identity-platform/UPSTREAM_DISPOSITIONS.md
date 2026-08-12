@@ -62,6 +62,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | concepts `typescript` | Superseded | Typed Go declarations, OpenAPI and generated-client proof replace TypeScript inference; typed additional fields remain in scope. |
 | concepts `users-accounts` | In | Profile update, email/password, verified deletion and account/provider-token operations. |
 | authentication `email-password` | In | Signup/signin/signout/verification/reset/change/remember policy. |
+| authentication Apple provider page | In backend profile facts | Apple client-secret generation maps exactly to the owner-visible direct operation `identity.oauth.provider-apple-client-secret-sign`; its team issuer, client subject, fixed Apple audience, key ID, ES256 key-handle signing, injected issued-at, pinned 15,777,000-second maximum expiry and redaction requirements are closed by `identity/oauth/providers`. The remaining Apple profile behavior is closed by the provider matrix below; framework/client snippets are excluded. |
 | authentication provider pages | In backend profile facts | Every pinned built-in profile is closed by the provider matrix below; framework/client snippets are excluded. |
 | route `account.ts` | In | `identity.account.list`, link start/token, unlink, access-token, refresh-token and provider-info. |
 | route `callback.ts` | In | `identity.oauth.callback`. |
@@ -209,6 +210,25 @@ expiry; environment/tenant/channel variants; documented incompatibilities;
 pinned official evidence; and current interoperability status. Broad
 "provider quirks" prose does not close this requirement.
 
+That matrix is `CONFIGURATION_CATALOGS.json#provider_matrix`, version
+`provider-matrix-v1`. It contains exactly the 43 stable IDs in the ordered
+`provider-catalog-v1` catalog and binds that identity with the unchanged
+catalog SHA-256. Its `configuration` members are names of required or optional
+inputs, never secret values. The `pin-required` and
+`tenant-metadata-pin-required` official-document statuses and the `not-run`
+interoperability status explicitly keep a row evidence-blocked; the pinned
+Better Auth 1.6.27 source locator proves only which upstream provider fact was
+dispositioned. No consumer may promote any of those statuses to supported or
+verified behavior.
+
+The row schema additionally closes revocation endpoints, issuer aliases,
+audience and authorized-party validation, forbidden scopes, authorization and
+token parameters, ID-token/UserInfo/introspection precedence, signup and
+implicit-link policy, refresh issuance/rotation/expiry/revocation/unlink
+behavior, classified claim mappings, and incompatibilities. Every such field
+is explicit in every row; an omitted field is schema drift, not an inherited
+default.
+
 The following rows are the minimum pinned profile decisions. The implemented
 machine-readable matrix MUST retain every exact option and endpoint from the
 pinned source even when this summary says "base contract".
@@ -216,7 +236,7 @@ pinned source even when this summary says "base contract".
 | Profile | Required pinned distinctions |
 | --- | --- |
 | provider source index | Non-capability source aggregation; every provider implementation and test leaf maps to its exact provider row. |
-| Apple | Multiple client audiences, optional app bundle identifier, `form_post`, code plus ID-token response, nonce verification including hashed nonce, first-consent user payload, private-relay email semantics, and expiring JWT client-secret operation. |
+| Apple | Multiple client audiences, optional app bundle identifier, `form_post`, code plus ID-token response, nonce verification including hashed nonce, first-consent user payload, private-relay email semantics, and the exact direct `identity.oauth.provider-apple-client-secret-sign` operation for a secret-envelope-backed P-256 key handle, team issuer, client subject, fixed Apple audience, key ID, ES256-only signing, injected issued-at, bounded expiry and redacted result/errors. |
 | Atlassian | Exact Atlassian endpoints/scopes and stable account identifier under the base contract. |
 | Amazon Cognito | Region/user-pool or explicit domain/issuer variants, client-secret/public-client behavior, discovery/JWKS and exact issuer/audience binding. |
 | Discord | Exact scopes/profile mapping and optional bot-permission authorization parameters. |

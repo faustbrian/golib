@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -270,6 +272,12 @@
       "properties": {
         "artifact_id": {
           "const": "postgres-valkey-failure-report"
+        },
+        "invariant_id": {
+          "const": "postgres-valkey-failure-report.invariant"
+        },
+        "invariant": {
+          "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
         },
         "operation_ids": {
           "const": [
@@ -398,395 +406,368 @@
           "type": "array",
           "minItems": 5,
           "maxItems": 5,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#success",
+                  "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#failure",
+                  "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#outage",
+                  "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#concurrency",
+                  "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.persistence-recovery.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "postgres-valkey-failure-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage",
+                  "concurrency",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.refresh",
+                    "identity.risk.evaluate"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
+              "initial_state": {
+                "const": "PostgreSQL is authoritative and Valkey contains a current projection"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 6
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.refresh",
+                    "identity.risk.evaluate"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.session.refresh",
+                    "identity.risk.evaluate"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
+                  "session_id",
                   "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "postgres_state_digest",
+                  "valkey_state_digest",
+                  "recovery_digest",
+                  "recovered"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
+                  "session_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
                   "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
                     "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
+                    "enum": [
+                      "none",
+                      "invalid_input",
+                      "unauthenticated",
+                      "forbidden",
+                      "freshness_required",
+                      "not_found",
+                      "conflict",
+                      "rate_limited",
+                      "unavailable",
+                      "cancelled",
+                      "deadline_exceeded",
+                      "unknown_commit",
+                      "internal"
                     ]
+                  },
+                  "postgres_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "valkey_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "recovery_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "recovered": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#success",
+              "observation_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.session.refresh",
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "cache_key",
+                "failure_point"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:33d0f773623be9f0f954e1d11b2fb79485a4a5f0dddf966aa70f56012d45a8e5",
+              "expected_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ]
+            },
+            {
+              "case_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#failure",
+              "observation_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.session.refresh",
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "cache_key",
+                "failure_point"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:da2c5e2fa55378e168b59f6de597f3b94f70b80ecd489779015381975da6a780",
+              "expected_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ]
+            },
+            {
+              "case_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#outage",
+              "observation_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.session.refresh",
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "cache_key",
+                "failure_point"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:36411e71143cd0c153516f077ef40d7fab0d5f9aad296cb674d1b494b4b3294d",
+              "expected_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ]
+            },
+            {
+              "case_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#concurrency",
+              "observation_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.session.refresh",
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "cache_key",
+                "failure_point"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:ada4151a230081e4b722f52bebae7a0736f3e49a1efa41f5a0fcf77f45314635",
+              "expected_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ]
+            },
+            {
+              "case_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#unknown-outcome",
+              "observation_id": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.session.refresh",
+                "identity.risk.evaluate"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "session_id",
+                "cache_key",
+                "failure_point"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:1d209b7f536fc73b9050f13e68da8a85d63c192161098d674bcefc4c26aad9af",
+              "expected_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ],
+              "observed_operation_set": [
+                "identity.risk.evaluate",
+                "identity.session.refresh"
+              ]
+            }
+          ]
         },
         "session_id": {
           "type": "string",
@@ -832,428 +813,6 @@
           "fields": [
             "recovered"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.session.refresh",
-                      "identity.risk.evaluate"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "session_id",
-                      "cache_key",
-                      "failure_point"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "PostgreSQL is authoritative and Valkey contains a current projection"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "stable_error",
-                      "postgres_state_digest",
-                      "valkey_state_digest",
-                      "recovery_digest",
-                      "recovered"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

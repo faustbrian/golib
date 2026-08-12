@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -267,6 +269,12 @@
       "properties": {
         "artifact_id": {
           "const": "affected-gate-report"
+        },
+        "invariant_id": {
+          "const": "affected-gate-report.invariant"
+        },
+        "invariant": {
+          "const": "all selected checks produce attributable pass records"
         },
         "operation_ids": {
           "const": [
@@ -394,152 +402,237 @@
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "affected-gate-report.cross.final-acceptance.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "affected-gate-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "module",
-                      "input_root"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "selected module gate pending"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "all selected checks produce attributable pass records"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "selected_module_count",
-                      "passed_module_count",
-                      "gate_report_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "affected-gate-report.cross.final-acceptance.v1.behavior#success",
+                  "affected-gate-report.cross.final-acceptance.v1.behavior#failure"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "affected-gate-report.cross.final-acceptance.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.final-acceptance.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "affected-gate-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
                 }
               },
-              {
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "initial_state": {
+                "const": "selected module gate pending"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal"
+                ]
+              },
+              "expected_invariant": {
+                "const": "all selected checks produce attributable pass records"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 3
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "selected_module_count",
+                  "passed_module_count",
+                  "gate_report_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "affected-gate-report.cross.final-acceptance.v1.behavior#failure"
+                  "selected_module_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "affected-gate-report.cross.final-acceptance.v1.behavior"
+                  "passed_module_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "module",
-                      "input_root"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "selected module gate pending"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "all selected checks produce attributable pass records"
-                  },
-                  "observed_state_digest": {
+                  "gate_report_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "selected_module_count",
-                      "passed_module_count",
-                      "gate_report_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "affected-gate-report.cross.final-acceptance.v1.behavior#success",
+              "observation_id": "affected-gate-report.cross.final-acceptance.v1.behavior",
+              "claim_id": "cross.final-acceptance.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "module",
+                "input_root"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:73edcf17a2a50247b35425e04eda071817d9c7a7a15a7d3bee24bb3c7377db66",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            },
+            {
+              "case_id": "affected-gate-report.cross.final-acceptance.v1.behavior#failure",
+              "observation_id": "affected-gate-report.cross.final-acceptance.v1.behavior",
+              "claim_id": "cross.final-acceptance.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "module",
+                "input_root"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:a6e2f9a0809f7be4734a1b7f50745fb3306a35c900410cf64d443ee65898db53",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            }
+          ]
         },
         "selected_module_count": {
           "type": "integer",
@@ -568,164 +661,6 @@
           "kind": "equal",
           "left": "passed_module_count",
           "right": "selected_module_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "affected-gate-report.cross.final-acceptance.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "affected-gate-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "module",
-                      "input_root"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "selected module gate pending"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "all selected checks produce attributable pass records"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "selected_module_count",
-                      "passed_module_count",
-                      "gate_report_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "affected-gate-report.cross.final-acceptance.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "affected-gate-report.cross.final-acceptance.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.final-acceptance.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "module",
-                      "input_root"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "selected module gate pending"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "all selected checks produce attributable pass records"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "selected_module_count",
-                      "passed_module_count",
-                      "gate_report_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

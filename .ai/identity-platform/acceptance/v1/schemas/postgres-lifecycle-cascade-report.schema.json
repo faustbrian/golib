@@ -148,10 +148,10 @@
                 "const": "Run identity.admin.user-delete then identity.organization.delete for success, failure, outage, concurrency, cleanup, unknown-outcome cases using tenant_id, user_id, organization_id, expected_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: aggregate_id, cascade_row_count, restricted_row_count, tombstoned_row_count, transaction_digest"
+                "const": "Invariant: delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: aggregate_id, cascade_row_count, restricted_row_count, tombstoned_row_count, transaction_digest, cascade_transitions"
               },
               "actual_outcome": {
-                "const": "Invariant: delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: aggregate_id, cascade_row_count, restricted_row_count, tombstoned_row_count, transaction_digest"
+                "const": "Invariant: delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: aggregate_id, cascade_row_count, restricted_row_count, tombstoned_row_count, transaction_digest, cascade_transitions"
               },
               "result": {
                 "const": "pass"
@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -264,11 +266,18 @@
         "cascade_row_count",
         "restricted_row_count",
         "tombstoned_row_count",
-        "transaction_digest"
+        "transaction_digest",
+        "cascade_transitions"
       ],
       "properties": {
         "artifact_id": {
           "const": "postgres-lifecycle-cascade-report"
+        },
+        "invariant_id": {
+          "const": "postgres-lifecycle-cascade-report.invariant"
+        },
+        "invariant": {
+          "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
         },
         "operation_ids": {
           "const": [
@@ -397,466 +406,382 @@
           "type": "array",
           "minItems": 6,
           "maxItems": 6,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#success",
+                  "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#failure",
+                  "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#outage",
+                  "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#concurrency",
+                  "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#cleanup",
+                  "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.identity-lifecycle.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "postgres-lifecycle-cascade-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.admin.user-delete",
+                    "identity.organization.delete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.admin.user-delete",
+                    "identity.organization.delete"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.admin.user-delete",
+                    "identity.organization.delete"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "aggregate_id",
+                  "cascade_row_count",
+                  "restricted_row_count",
+                  "tombstoned_row_count",
+                  "transaction_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#cleanup"
+                  "aggregate_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
+                  "cascade_row_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
+                  "restricted_row_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "cleanup"
+                  "tombstoned_row_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
+                  "transaction_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#success",
+              "observation_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "organization_id",
+                "expected_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:5faefe9982343aa7526bf6b42d3743981fc703fa0b85f0b426731dd129f08871",
+              "expected_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ]
+            },
+            {
+              "case_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#failure",
+              "observation_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "organization_id",
+                "expected_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6e5d48055658b38c7bd38f79307f07fc13e62e2a4bb8a77d39deade9555499f7",
+              "expected_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ]
+            },
+            {
+              "case_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#outage",
+              "observation_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "organization_id",
+                "expected_version"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:1b1c04eaf10d8c27a133fb640ce93ca1de0b282311df9bfdf747d7486bf005d0",
+              "expected_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ]
+            },
+            {
+              "case_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#concurrency",
+              "observation_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "organization_id",
+                "expected_version"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:cacb0750a4884c97cdd78814f837dc72c5adf1b011e4076a247f7c4474b58618",
+              "expected_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ]
+            },
+            {
+              "case_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#cleanup",
+              "observation_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "organization_id",
+                "expected_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:fd36f3baf369fcfded5876fba7e7cf4c9eb8e38211750a594bfa79959ace6768",
+              "expected_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ]
+            },
+            {
+              "case_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#unknown-outcome",
+              "observation_id": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior",
+              "claim_id": "journey.identity-lifecycle.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "organization_id",
+                "expected_version"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:0859b11a21f995a605888cc13546e8fbf9d5ce59c25f09282ad1944edae834f8",
+              "expected_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ],
+              "observed_operation_set": [
+                "identity.admin.user-delete",
+                "identity.organization.delete"
+              ]
+            }
+          ]
         },
         "aggregate_id": {
           "type": "string",
@@ -880,6 +805,268 @@
         "transaction_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "cascade_transitions": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "generation",
+                  "owner_commit_count",
+                  "consumer_ids",
+                  "acknowledged_consumer_ids",
+                  "consumer_mutation_count",
+                  "consumer_ack_count",
+                  "terminalization_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "owner-admission"
+                  },
+                  "generation": {
+                    "const": 1
+                  },
+                  "owner_commit_count": {
+                    "const": 1
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "api-key",
+                      "audit",
+                      "authorization-cache",
+                      "impersonation",
+                      "oauth-grants",
+                      "risk",
+                      "session"
+                    ]
+                  },
+                  "acknowledged_consumer_ids": {
+                    "const": []
+                  },
+                  "consumer_mutation_count": {
+                    "const": 0
+                  },
+                  "consumer_ack_count": {
+                    "const": 0
+                  },
+                  "terminalization_count": {
+                    "const": 0
+                  },
+                  "state": {
+                    "const": "pending"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "generation",
+                  "owner_commit_count",
+                  "consumer_ids",
+                  "acknowledged_consumer_ids",
+                  "consumer_mutation_count",
+                  "consumer_ack_count",
+                  "terminalization_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "generation-bound-closure"
+                  },
+                  "generation": {
+                    "const": 1
+                  },
+                  "owner_commit_count": {
+                    "const": 1
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "api-key",
+                      "audit",
+                      "authorization-cache",
+                      "impersonation",
+                      "oauth-grants",
+                      "risk",
+                      "session"
+                    ]
+                  },
+                  "acknowledged_consumer_ids": {
+                    "const": [
+                      "api-key",
+                      "audit",
+                      "authorization-cache",
+                      "impersonation",
+                      "oauth-grants",
+                      "risk",
+                      "session"
+                    ]
+                  },
+                  "consumer_mutation_count": {
+                    "const": 7
+                  },
+                  "consumer_ack_count": {
+                    "const": 7
+                  },
+                  "terminalization_count": {
+                    "const": 1
+                  },
+                  "state": {
+                    "const": "terminal"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "generation",
+                  "owner_commit_count",
+                  "consumer_ids",
+                  "acknowledged_consumer_ids",
+                  "consumer_mutation_count",
+                  "consumer_ack_count",
+                  "terminalization_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "owner-admission"
+                  },
+                  "generation": {
+                    "const": 1
+                  },
+                  "owner_commit_count": {
+                    "const": 1
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "api-key",
+                      "audit",
+                      "authorization-cache",
+                      "impersonation",
+                      "oauth-grants",
+                      "risk",
+                      "session"
+                    ]
+                  },
+                  "acknowledged_consumer_ids": {
+                    "const": []
+                  },
+                  "consumer_mutation_count": {
+                    "const": 0
+                  },
+                  "consumer_ack_count": {
+                    "const": 0
+                  },
+                  "terminalization_count": {
+                    "const": 0
+                  },
+                  "state": {
+                    "const": "pending"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "generation",
+                  "owner_commit_count",
+                  "consumer_ids",
+                  "acknowledged_consumer_ids",
+                  "consumer_mutation_count",
+                  "consumer_ack_count",
+                  "terminalization_count",
+                  "state",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "generation-bound-closure"
+                  },
+                  "generation": {
+                    "const": 1
+                  },
+                  "owner_commit_count": {
+                    "const": 1
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "api-key",
+                      "audit",
+                      "authorization-cache",
+                      "impersonation",
+                      "oauth-grants",
+                      "risk",
+                      "session"
+                    ]
+                  },
+                  "acknowledged_consumer_ids": {
+                    "const": [
+                      "api-key",
+                      "audit",
+                      "authorization-cache",
+                      "impersonation",
+                      "oauth-grants",
+                      "risk",
+                      "session"
+                    ]
+                  },
+                  "consumer_mutation_count": {
+                    "const": 7
+                  },
+                  "consumer_ack_count": {
+                    "const": 7
+                  },
+                  "terminalization_count": {
+                    "const": 1
+                  },
+                  "state": {
+                    "const": "terminal"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -890,506 +1077,6 @@
             "restricted_row_count",
             "tombstoned_row_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.identity-lifecycle.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.admin.user-delete",
-                      "identity.organization.delete"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "organization_id",
-                      "expected_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "identity and organization aggregates have all declared dependent PostgreSQL rows"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "aggregate_id",
-                      "cascade_row_count",
-                      "restricted_row_count",
-                      "tombstoned_row_count",
-                      "transaction_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

@@ -3193,6 +3193,111 @@
       "package_name": "captcha",
       "types": [
         {
+          "name": "FlowContextKind",
+          "kind": "enum",
+          "constants": [
+            "FlowAnonymous",
+            "FlowPreAuthTransaction",
+            "FlowAuthenticatedSession",
+            "FlowAdministratorActor"
+          ],
+          "fields": [],
+          "zero_value": "invalid",
+          "ownership": "Closed discriminator for the authority that owns the protected flow.",
+          "concurrency": "Immutable and comparable."
+        },
+        {
+          "name": "FlowContext",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Kind",
+              "type": "FlowContextKind",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Selects exactly one flow-authority variant; optional-field inference is forbidden."
+            },
+            {
+              "name": "AnonymousSubject",
+              "type": "identifier.Reference",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Required exactly for FlowAnonymous and forbidden otherwise; immutable server-issued anonymous subject scope."
+            },
+            {
+              "name": "PreAuthTransactionID",
+              "type": "identity.PreAuthTransactionID",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Required exactly for FlowPreAuthTransaction and forbidden otherwise."
+            },
+            {
+              "name": "AuthenticatedSessionID",
+              "type": "identity/session.SessionID",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Required exactly for FlowAuthenticatedSession and forbidden otherwise."
+            },
+            {
+              "name": "AdministratorActorID",
+              "type": "identity.SubjectID",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Required exactly for FlowAdministratorActor and forbidden otherwise; administrator authorization remains external and operation-specific."
+            }
+          ],
+          "zero_value": "invalid until Kind and exactly its selected member are set",
+          "ownership": "Trusted server-derived tagged union; browser input cannot select or combine authority variants.",
+          "concurrency": "Immutable."
+        },
+        {
+          "name": "ReplayFingerprint",
+          "kind": "scalar",
+          "underlying": "string",
+          "fields": [],
+          "bounds": "43 base64url characters encoding exactly 32 HMAC-SHA-256 bytes",
+          "zero_value": "empty is invalid",
+          "ownership": "identity/risk-derived domain-separated identity-captcha-replay-v1 fingerprint; never caller- or adapter-selectable",
+          "concurrency": "Immutable and comparable."
+        },
+        {
+          "name": "VerifyRequest",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "ProviderRequest",
+              "type": "ProviderRequest",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Bounded raw-token provider request carrying the trusted operation, tenant, action, purpose, subject, challenge, and logical request bindings."
+            },
+            {
+              "name": "Flow",
+              "type": "FlowContext",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact anonymous, pre-auth, authenticated-session, or administrator context authorized by the consuming operation."
+            },
+            {
+              "name": "Fingerprint",
+              "type": "ReplayFingerprint",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Authoritative fingerprint derived by identity/risk from the raw token and trusted provider/site/API-profile/configuration-version scope before durable one-use issuance."
+            },
+            {
+              "name": "RemoteAddress",
+              "type": "netip.Addr",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Optional canonical client address disclosed only when the selected immutable provider profile declares support and configuration explicitly permits disclosure; proxy-derived trust remains HTTP-owned."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "One bounded verification call; raw token and remote address are borrowed and never retained in normalized evidence.",
+          "concurrency": "Caller must not mutate borrowed values during the call."
+        },
+        {
           "name": "Outcome",
           "kind": "defined",
           "underlying": "uint8",
@@ -3365,6 +3470,114 @@
           "concurrency": "Immutable."
         },
         {
+          "name": "ProviderEvidenceKind",
+          "kind": "enum",
+          "constants": [
+            "EvidenceRecaptcha",
+            "EvidenceTurnstile",
+            "EvidenceHCaptcha",
+            "EvidenceCaptchaFox"
+          ],
+          "fields": [],
+          "zero_value": "invalid",
+          "ownership": "Closed provider-native evidence discriminator; unknown providers require a new reviewed contract variant.",
+          "concurrency": "Immutable and comparable."
+        },
+        {
+          "name": "RecaptchaEvidence",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "ErrorCodes",
+              "type": "[]string",
+              "required": true,
+              "zero_value": "nil means none",
+              "semantics": "Recognized reCAPTCHA verification error codes only.",
+              "bounds": "maximum 16 entries, each 1..64 ASCII bytes"
+            }
+          ],
+          "zero_value": "valid only when normalized common evidence is present",
+          "ownership": "Bounded reCAPTCHA-native safe evidence; raw response fields are excluded.",
+          "concurrency": "Immutable returned copy."
+        },
+        {
+          "name": "TurnstileEvidence",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "ErrorCodes",
+              "type": "[]string",
+              "required": true,
+              "zero_value": "nil means none",
+              "semantics": "Recognized Turnstile Siteverify error codes only.",
+              "bounds": "maximum 16 entries, each 1..64 ASCII bytes"
+            },
+            {
+              "name": "CData",
+              "type": "OptionalString",
+              "required": true,
+              "zero_value": "unavailable",
+              "semantics": "Bounded provider-returned customer data when supported; never treated as authorization.",
+              "bounds": "unavailable or 1..255 bytes"
+            }
+          ],
+          "zero_value": "valid only when normalized common evidence is present",
+          "ownership": "Bounded Turnstile-native safe evidence; raw response and metadata maps are excluded.",
+          "concurrency": "Immutable returned copy."
+        },
+        {
+          "name": "HCaptchaEvidence",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "ErrorCodes",
+              "type": "[]string",
+              "required": true,
+              "zero_value": "nil means none",
+              "semantics": "Recognized hCaptcha verification error codes only.",
+              "bounds": "maximum 16 entries, each 1..64 ASCII bytes"
+            },
+            {
+              "name": "CreditAvailable",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "semantics": "False means the provider profile did not return credit evidence.",
+              "bounds": "false or true",
+              "false_valid": true
+            },
+            {
+              "name": "Credit",
+              "type": "bool",
+              "required": false,
+              "zero_value": "false is valid only when CreditAvailable",
+              "semantics": "Provider-native credit fact without policy meaning.",
+              "bounds": "false or true",
+              "false_valid": true
+            }
+          ],
+          "zero_value": "valid only when normalized common evidence is present",
+          "ownership": "Bounded hCaptcha-native safe evidence; Enterprise-only objects and raw response fields are excluded.",
+          "concurrency": "Immutable returned copy."
+        },
+        {
+          "name": "CaptchaFoxEvidence",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "ErrorCodes",
+              "type": "[]string",
+              "required": true,
+              "zero_value": "nil means none",
+              "semantics": "Recognized CaptchaFox Siteverify error codes only.",
+              "bounds": "maximum 16 entries, each 1..64 ASCII bytes"
+            }
+          ],
+          "zero_value": "valid only when normalized common evidence is present",
+          "ownership": "Bounded CaptchaFox-native safe evidence; unsupported action, score, and insights cannot be fabricated.",
+          "concurrency": "Immutable returned copy."
+        },
+        {
           "name": "ProviderEvidence",
           "kind": "struct",
           "fields": [
@@ -3401,6 +3614,49 @@
               "bounds": "1..32 ASCII bytes"
             },
             {
+              "name": "SiteKey",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact trusted configured site key bound to this verification; it is public configuration, not a provider secret.",
+              "bounds": "1..512 bytes"
+            },
+            {
+              "name": "Kind",
+              "type": "ProviderEvidenceKind",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Selects exactly one provider-native bounded evidence member; provider labels and the selected kind must agree."
+            },
+            {
+              "name": "Recaptcha",
+              "type": "RecaptchaEvidence",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Present exactly for EvidenceRecaptcha and forbidden otherwise."
+            },
+            {
+              "name": "Turnstile",
+              "type": "TurnstileEvidence",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Present exactly for EvidenceTurnstile and forbidden otherwise."
+            },
+            {
+              "name": "HCaptcha",
+              "type": "HCaptchaEvidence",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Present exactly for EvidenceHCaptcha and forbidden otherwise."
+            },
+            {
+              "name": "CaptchaFox",
+              "type": "CaptchaFoxEvidence",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Present exactly for EvidenceCaptchaFox and forbidden otherwise."
+            },
+            {
               "name": "Success",
               "type": "bool",
               "required": true,
@@ -3418,12 +3674,47 @@
               "bounds": "one valid OptionalString value"
             },
             {
+              "name": "HostnameMatched",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "semantics": "True only when an available provider hostname exactly matches the trusted configured set; false is a fact, never an allow decision.",
+              "bounds": "false or true",
+              "false_valid": true
+            },
+            {
+              "name": "Origin",
+              "type": "OptionalString",
+              "required": true,
+              "zero_value": "unavailable",
+              "semantics": "Provider-returned canonical origin when the immutable profile supports it; unsupported remains unavailable.",
+              "bounds": "one valid OptionalString value"
+            },
+            {
+              "name": "OriginMatched",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "semantics": "True only when an available provider origin exactly matches the trusted configured set; unsupported remains false with Origin unavailable.",
+              "bounds": "false or true",
+              "false_valid": true
+            },
+            {
               "name": "Action",
               "type": "OptionalString",
               "required": true,
               "zero_value": "unavailable",
               "semantics": "Action is required; its zero-value interpretation is unavailable, and accepted values are limited to one valid OptionalString value.",
               "bounds": "one valid OptionalString value"
+            },
+            {
+              "name": "ActionMatched",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "semantics": "True only when an available provider action exactly matches the trusted configured action; unsupported remains false with Action unavailable.",
+              "bounds": "false or true",
+              "false_valid": true
             },
             {
               "name": "ChallengeTime",
@@ -3461,8 +3752,8 @@
               "bounds": "maximum 32 entries, each 1..64 ASCII bytes"
             }
           ],
-          "zero_value": "invalid without provider profile",
-          "ownership": "Bounded normalized facts; no raw token, secret, body, or replay fingerprint.",
+          "zero_value": "invalid without provider profile, Kind, and exactly one matching provider-native member",
+          "ownership": "Closed bounded provider-native evidence union plus normalized facts; no raw token, secret, body, replay fingerprint, arbitrary map, or unrecognized field survives.",
           "concurrency": "Immutable returned copy."
         },
         {
@@ -3478,12 +3769,76 @@
               "bounds": "1..32 lowercase ASCII bytes"
             },
             {
+              "name": "API",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact immutable provider API surface selected by the conformance source binding.",
+              "bounds": "1..64 ASCII bytes"
+            },
+            {
+              "name": "Version",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact selected provider protocol revision.",
+              "bounds": "1..32 ASCII bytes"
+            },
+            {
+              "name": "Tier",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact selected provider product tier; capabilities cannot be inferred from provider name alone.",
+              "bounds": "1..32 ASCII bytes"
+            },
+            {
+              "name": "Capabilities",
+              "type": "ProviderCapabilities",
+              "required": true,
+              "zero_value": "no optional capabilities",
+              "semantics": "Immutable declared capabilities for the exact provider/API/version/tier source identity."
+            },
+            {
               "name": "SiteKey",
               "type": "string",
               "required": true,
               "zero_value": "invalid",
               "semantics": "Site key is required; its zero-value interpretation is invalid, and accepted values are limited to 1..512 bytes.",
               "bounds": "1..512 bytes"
+            },
+            {
+              "name": "AllowedHostnames",
+              "type": "[]string",
+              "required": true,
+              "zero_value": "nil invalid when hostname evidence is supported",
+              "semantics": "Trusted canonical exact-match hostname set; caller-supplied labels cannot override it.",
+              "bounds": "maximum 32 entries, each 1..253 ASCII bytes"
+            },
+            {
+              "name": "AllowedOrigins",
+              "type": "[]string",
+              "required": true,
+              "zero_value": "nil means the selected provider profile does not return origin evidence",
+              "semantics": "Trusted canonical exact-match origin set; non-empty exactly when the selected profile supports origin evidence.",
+              "bounds": "maximum 32 entries, each 1..2048 ASCII bytes"
+            },
+            {
+              "name": "ExpectedAction",
+              "type": "OptionalString",
+              "required": true,
+              "zero_value": "unavailable",
+              "semantics": "Trusted expected action required exactly when the selected profile returns action evidence.",
+              "bounds": "unavailable or 1..64 ASCII bytes"
+            },
+            {
+              "name": "DiscloseRemoteAddress",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "semantics": "Explicit privacy decision; true is valid only when immutable provider capabilities support remote-address disclosure.",
+              "bounds": "false or true",
+              "false_valid": true
             },
             {
               "name": "ConfigurationVersion",
@@ -3585,11 +3940,57 @@
               "zero_value": "invalid",
               "semantics": "Logical request id is required; its zero-value interpretation is invalid, and accepted values are limited to one valid identity.CommandID value.",
               "bounds": "one valid identity.CommandID value"
+            },
+            {
+              "name": "RemoteAddress",
+              "type": "netip.Addr",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Canonical client address forwarded only when VerifyRequest supplied it and the exact immutable provider profile plus configuration permits disclosure."
             }
           ],
           "zero_value": "invalid",
           "ownership": "Token is borrowed for one call and never retained; no authoritative replay fingerprint field exists.",
           "concurrency": "Caller must not mutate referenced values during call."
+        },
+        {
+          "name": "VerifyResult",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Outcome",
+              "type": "Outcome",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Normalized attributable provider fact; never an allow or deny decision."
+            },
+            {
+              "name": "Evidence",
+              "type": "ProviderEvidence",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Closed bounded provider-native and normalized evidence union."
+            },
+            {
+              "name": "CaptchaEvidenceReference",
+              "type": "string",
+              "required": false,
+              "zero_value": "empty",
+              "semantics": "Returned only after the risk-derived fingerprint is durably issued for one use.",
+              "bounds": "0 or 32..512 opaque ASCII bytes"
+            },
+            {
+              "name": "ExpiresAt",
+              "type": "time.Time",
+              "required": false,
+              "zero_value": "zero time",
+              "semantics": "Durable evidence expiry when issuance committed.",
+              "bounds": "zero or valid UTC timestamp"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "Service result bound to VerifyRequest flow, fingerprint, provider profile and durable issuance command.",
+          "concurrency": "Immutable returned copy."
         },
         {
           "name": "ProviderResult",
@@ -3649,8 +4050,8 @@
       ],
       "constructors": [
         {
-          "signature": "New(Config, Verifier, risk.CaptchaEvidenceContributor) (Service, error)",
-          "semantics": "Reject missing trusted bindings, unsupported capabilities, and policy ownership in adapter config."
+          "signature": "New(Config, Verifier, identity.UnitOfWork, risk.CaptchaEvidenceContributor) (Service, error)",
+          "semantics": "Reject missing trusted bindings, unsupported capabilities, transaction coordinator or evidence contributor; durable one-use issuance executes through the injected UnitOfWork with the contributor enlisted before the first write."
         }
       ],
       "errors": [
@@ -4329,9 +4730,132 @@
           "concurrency": "Safe to share."
         },
         {
+          "name": "CheckRequest",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "OperationID",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Trusted canonical consuming operation identifier.",
+              "bounds": "1..128 canonical operation bytes"
+            },
+            {
+              "name": "TenantID",
+              "type": "identity.TenantID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Trusted tenant scope; never inferred from candidate input."
+            },
+            {
+              "name": "Action",
+              "type": "risk.Action",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact risk action under assessment."
+            },
+            {
+              "name": "Purpose",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact password create/change/reset purpose.",
+              "bounds": "1..64 lowercase ASCII bytes"
+            },
+            {
+              "name": "SubjectScope",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Canonical subject or immutable anonymous scope selected by the consuming operation.",
+              "bounds": "1..256 opaque ASCII bytes"
+            },
+            {
+              "name": "PolicyVersion",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Immutable HIBP endpoint, padding, cache, and bound version used for attribution.",
+              "bounds": "1..64 ASCII bytes"
+            },
+            {
+              "name": "ReplayID",
+              "type": "identity.CommandID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Logical consuming request identity; derived match evidence cannot be replayed under a different binding."
+            },
+            {
+              "name": "Candidate",
+              "type": "golibpassword.Secret",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Borrowed exact candidate password. The checker performs SHA-1 prefix derivation locally, transmits only the first five uppercase hexadecimal characters, compares suffixes locally, and never retains the candidate or complete digest.",
+              "bounds": "bound inherited from the owning password-input contract"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "Caller owns and destroys Candidate; HIBP borrows it only for local prefix derivation and bounded comparison.",
+          "concurrency": "Caller must not mutate or destroy Candidate until Check returns."
+        },
+        {
           "name": "CheckResult",
           "kind": "struct",
           "fields": [
+            {
+              "name": "OperationID",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact trusted operation copied from the request binding.",
+              "bounds": "1..128 canonical operation bytes"
+            },
+            {
+              "name": "TenantID",
+              "type": "identity.TenantID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact tenant copied from the request binding."
+            },
+            {
+              "name": "Action",
+              "type": "risk.Action",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact risk action copied from the request binding."
+            },
+            {
+              "name": "Purpose",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact purpose copied from the request binding.",
+              "bounds": "1..64 lowercase ASCII bytes"
+            },
+            {
+              "name": "SubjectScope",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact subject scope copied from the request binding.",
+              "bounds": "1..256 opaque ASCII bytes"
+            },
+            {
+              "name": "PolicyVersion",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact immutable provider/cache policy version used for the check.",
+              "bounds": "1..64 ASCII bytes"
+            },
+            {
+              "name": "ReplayID",
+              "type": "identity.CommandID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact logical request identity; this derived result is not reusable under another binding."
+            },
             {
               "name": "Outcome",
               "type": "Outcome",
@@ -4514,7 +5038,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -4611,7 +5135,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -4703,7 +5227,7 @@
       "authorization": {
         "access": "admin",
         "policy": "administrative policy: admin",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -4801,7 +5325,7 @@
       "authorization": {
         "access": "session or session bearer",
         "policy": "protocol credential policy: session or session bearer",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -4891,7 +5415,7 @@
       "authorization": {
         "access": "session",
         "policy": "authenticated subject policy: session",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -4987,7 +5511,7 @@
       "authorization": {
         "access": "session",
         "policy": "authenticated subject policy: session",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -5083,7 +5607,7 @@
       "authorization": {
         "access": "session",
         "policy": "authenticated subject policy: session",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -5173,7 +5697,7 @@
       "authorization": {
         "access": "session",
         "policy": "authenticated subject policy: session",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -5258,7 +5782,7 @@
       "authorization": {
         "access": "fresh",
         "policy": "authenticated subject policy: fresh",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -5362,7 +5886,7 @@
       "authorization": {
         "access": "fresh",
         "policy": "authenticated subject policy: fresh",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -5431,7 +5955,7 @@
       "authorization": {
         "access": "session or absent",
         "policy": "authenticated subject policy: session or absent",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -5539,7 +6063,7 @@
       "authorization": {
         "access": "session-set",
         "policy": "authenticated subject policy: session-set",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -5646,7 +6170,7 @@
       "authorization": {
         "access": "fresh, non-impersonated",
         "policy": "authenticated subject policy: fresh, non-impersonated",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -5749,7 +6273,7 @@
       "authorization": {
         "access": "pre-auth-bound transfer capability",
         "policy": "flow binding policy: pre-auth-bound transfer capability",
-        "csrf_origin": "origin"
+        "csrf_origin": "CSRFExactOrigin"
       },
       "transport": {
         "exposure": "both",
@@ -5817,7 +6341,7 @@
       "authorization": {
         "access": "session or privacy cookie",
         "policy": "authenticated subject policy: session or privacy cookie",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -5885,7 +6409,7 @@
       "authorization": {
         "access": "session or privacy cookie",
         "policy": "authenticated subject policy: session or privacy cookie",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "both",
@@ -5954,7 +6478,7 @@
       "authorization": {
         "access": "session or privacy cookie",
         "policy": "authenticated subject policy: session or privacy cookie",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -6038,7 +6562,7 @@
       "authorization": {
         "access": "successful configured signin",
         "policy": "flow binding policy: successful configured signin",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "middleware",
@@ -6160,7 +6684,7 @@
       "authorization": {
         "access": "fresh non-impersonated session plus `session:bearer-issue` authorization",
         "policy": "protocol credential policy: fresh non-impersonated session plus `session:bearer-issue` authorization",
-        "csrf_origin": "CSRF"
+        "csrf_origin": "CSRFSessionOriginAndToken"
       },
       "transport": {
         "exposure": "both",
@@ -6259,7 +6783,7 @@
       "authorization": {
         "access": "authorized bearer-issuance continuation",
         "policy": "protocol credential policy: authorized bearer-issuance continuation",
-        "csrf_origin": "exact bound origin"
+        "csrf_origin": "CSRFBoundOrigin"
       },
       "transport": {
         "exposure": "both",
@@ -6382,7 +6906,7 @@
       "authorization": {
         "access": "owning workflow",
         "policy": "flow binding policy: owning workflow",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -6482,7 +7006,7 @@
       "authorization": {
         "access": "owning workflow or delivery operator",
         "policy": "flow binding policy: owning workflow or delivery operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -6590,7 +7114,7 @@
       "authorization": {
         "access": "owning workflow or delivery operator",
         "policy": "flow binding policy: owning workflow or delivery operator",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -6730,7 +7254,7 @@
       "authorization": {
         "access": "authenticated provider adapter/webhook",
         "policy": "provider response binding policy: authenticated provider adapter/webhook",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -6845,7 +7369,7 @@
       "authorization": {
         "access": "bounded reconciliation worker",
         "policy": "flow binding policy: bounded reconciliation worker",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -7033,7 +7557,7 @@
       "authorization": {
         "access": "explicit actor/network facts plus trusted issuance phase and binding",
         "policy": "flow binding policy: explicit actor/network facts plus trusted issuance phase and binding",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",
@@ -7058,100 +7582,32 @@
         "name": "VerifyRequest",
         "fields": [
           {
-            "name": "OperationID",
-            "type": "string",
-            "required": true,
-            "zero_value": "empty",
-            "semantics": "Exact attached route.",
-            "bounds": "1..128 canonical operation bytes"
-          },
-          {
-            "name": "TenantID",
-            "type": "identity.TenantID",
+            "name": "ProviderRequest",
+            "type": "ProviderRequest",
             "required": true,
             "zero_value": "invalid",
-            "semantics": "Exact tenant.",
-            "bounds": "1..128 bytes"
+            "semantics": "Bounded raw-token provider request carrying the trusted operation, tenant, action, purpose, subject, challenge, and logical request bindings."
           },
           {
-            "name": "Action",
-            "type": "risk.Action",
+            "name": "Flow",
+            "type": "FlowContext",
             "required": true,
             "zero_value": "invalid",
-            "semantics": "Trusted canonical action.",
-            "bounds": "1..64 bytes"
+            "semantics": "Exact anonymous, pre-auth, authenticated-session, or administrator context authorized by the consuming operation."
           },
           {
-            "name": "Purpose",
-            "type": "string",
-            "required": true,
-            "zero_value": "empty",
-            "semantics": "Exact route purpose.",
-            "bounds": "1..64 lowercase ASCII bytes"
-          },
-          {
-            "name": "SubjectScope",
-            "type": "string",
-            "required": true,
-            "zero_value": "empty",
-            "semantics": "Subject or anonymous-flow binding.",
-            "bounds": "1..256 opaque ASCII bytes"
-          },
-          {
-            "name": "ChallengeID",
-            "type": "identity.ChallengeID",
+            "name": "Fingerprint",
+            "type": "ReplayFingerprint",
             "required": true,
             "zero_value": "invalid",
-            "semantics": "Exact challenge.",
-            "bounds": "16..128 bytes"
+            "semantics": "Authoritative fingerprint derived by identity/risk from the raw token and trusted provider/site/API-profile/configuration-version scope before durable one-use issuance."
           },
           {
-            "name": "Provider",
-            "type": "string",
-            "required": true,
-            "zero_value": "empty",
-            "semantics": "Configured provider.",
-            "bounds": "1..32 lowercase ASCII bytes"
-          },
-          {
-            "name": "SiteKey",
-            "type": "string",
-            "required": true,
-            "zero_value": "empty",
-            "semantics": "Configured site binding.",
-            "bounds": "1..512 bytes"
-          },
-          {
-            "name": "ExpectedHostname",
-            "type": "string",
-            "required": true,
-            "zero_value": "empty",
-            "semantics": "Trusted configured hostname binding.",
-            "bounds": "1..253 canonical IDNA ASCII bytes"
-          },
-          {
-            "name": "ExpectedOrigin",
-            "type": "string",
+            "name": "RemoteAddress",
+            "type": "netip.Addr",
             "required": false,
-            "zero_value": "empty",
-            "semantics": "Present only for a selected profile that returns origin evidence.",
-            "bounds": "0..2048 absolute HTTPS origin bytes"
-          },
-          {
-            "name": "Token",
-            "type": "string",
-            "required": true,
-            "zero_value": "empty",
-            "semantics": "Used for one bounded call; never returned/logged.",
-            "bounds": "1..8192 secret UTF-8 bytes"
-          },
-          {
-            "name": "ReplayID",
-            "type": "identity.CommandID",
-            "required": true,
-            "zero_value": "invalid",
-            "semantics": "Logical request only; not authoritative fingerprint.",
-            "bounds": "16..128 bytes"
+            "zero_value": "omitted",
+            "semantics": "Optional canonical client address disclosed only when the selected immutable provider profile declares support and configuration explicitly permits disclosure; proxy-derived trust remains HTTP-owned."
           }
         ]
       },
@@ -7164,23 +7620,21 @@
             "type": "Outcome",
             "required": true,
             "zero_value": "invalid",
-            "semantics": "Normalized provider fact.",
-            "bounds": "one valid Outcome value"
+            "semantics": "Normalized attributable provider fact; never an allow or deny decision."
           },
           {
             "name": "Evidence",
             "type": "ProviderEvidence",
             "required": true,
             "zero_value": "invalid",
-            "semantics": "Bounded typed evidence.",
-            "bounds": "one valid ProviderEvidence value"
+            "semantics": "Closed bounded provider-native and normalized evidence union."
           },
           {
             "name": "CaptchaEvidenceReference",
             "type": "string",
             "required": false,
             "zero_value": "empty",
-            "semantics": "Returned only after risk-derived fingerprint and durable issuance.",
+            "semantics": "Returned only after the risk-derived fingerprint is durably issued for one use.",
             "bounds": "0 or 32..512 opaque ASCII bytes"
           },
           {
@@ -7188,7 +7642,7 @@
             "type": "time.Time",
             "required": false,
             "zero_value": "zero time",
-            "semantics": "Evidence expiry when issued.",
+            "semantics": "Durable evidence expiry when issuance committed.",
             "bounds": "zero or valid UTC timestamp"
           }
         ]
@@ -7217,7 +7671,7 @@
       "authorization": {
         "access": "route challenge",
         "policy": "flow binding policy: route challenge",
-        "csrf_origin": "none"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "middleware",
@@ -7242,48 +7696,46 @@
             "name": "OperationID",
             "type": "string",
             "required": true,
-            "zero_value": "empty",
-            "semantics": "Password workflow.",
-            "bounds": "1..128 canonical bytes"
+            "zero_value": "invalid",
+            "semantics": "Trusted canonical consuming operation identifier.",
+            "bounds": "1..128 canonical operation bytes"
           },
           {
             "name": "TenantID",
             "type": "identity.TenantID",
             "required": true,
             "zero_value": "invalid",
-            "semantics": "Exact tenant.",
-            "bounds": "1..128 bytes"
+            "semantics": "Trusted tenant scope; never inferred from candidate input."
           },
           {
             "name": "Action",
             "type": "risk.Action",
             "required": true,
             "zero_value": "invalid",
-            "semantics": "Canonical action.",
-            "bounds": "1..64 bytes"
+            "semantics": "Exact risk action under assessment."
           },
           {
             "name": "Purpose",
             "type": "string",
             "required": true,
-            "zero_value": "empty",
-            "semantics": "Exact password purpose.",
+            "zero_value": "invalid",
+            "semantics": "Exact password create/change/reset purpose.",
             "bounds": "1..64 lowercase ASCII bytes"
           },
           {
             "name": "SubjectScope",
             "type": "string",
             "required": true,
-            "zero_value": "empty",
-            "semantics": "Binding only.",
-            "bounds": "1..256 opaque bytes"
+            "zero_value": "invalid",
+            "semantics": "Canonical subject or immutable anonymous scope selected by the consuming operation.",
+            "bounds": "1..256 opaque ASCII bytes"
           },
           {
             "name": "PolicyVersion",
             "type": "string",
             "required": true,
-            "zero_value": "empty",
-            "semantics": "Selected policy.",
+            "zero_value": "invalid",
+            "semantics": "Immutable HIBP endpoint, padding, cache, and bound version used for attribution.",
             "bounds": "1..64 ASCII bytes"
           },
           {
@@ -7291,16 +7743,15 @@
             "type": "identity.CommandID",
             "required": true,
             "zero_value": "invalid",
-            "semantics": "Caller binding.",
-            "bounds": "16..128 bytes"
+            "semantics": "Logical consuming request identity; derived match evidence cannot be replayed under a different binding."
           },
           {
-            "name": "Password",
-            "type": "string",
+            "name": "Candidate",
+            "type": "golibpassword.Secret",
             "required": true,
-            "zero_value": "empty",
-            "semantics": "Exact candidate bytes as supplied; no trimming/normalization; never retained.",
-            "bounds": "0..1024 UTF-8 bytes"
+            "zero_value": "invalid",
+            "semantics": "Borrowed exact candidate password. The checker performs SHA-1 prefix derivation locally, transmits only the first five uppercase hexadecimal characters, compares suffixes locally, and never retains the candidate or complete digest.",
+            "bounds": "bound inherited from the owning password-input contract"
           }
         ]
       },
@@ -7308,6 +7759,59 @@
         "schema_id": "go:identity/risk/hibp:CheckResult",
         "name": "CheckResult",
         "fields": [
+          {
+            "name": "OperationID",
+            "type": "string",
+            "required": true,
+            "zero_value": "invalid",
+            "semantics": "Exact trusted operation copied from the request binding.",
+            "bounds": "1..128 canonical operation bytes"
+          },
+          {
+            "name": "TenantID",
+            "type": "identity.TenantID",
+            "required": true,
+            "zero_value": "invalid",
+            "semantics": "Exact tenant copied from the request binding."
+          },
+          {
+            "name": "Action",
+            "type": "risk.Action",
+            "required": true,
+            "zero_value": "invalid",
+            "semantics": "Exact risk action copied from the request binding."
+          },
+          {
+            "name": "Purpose",
+            "type": "string",
+            "required": true,
+            "zero_value": "invalid",
+            "semantics": "Exact purpose copied from the request binding.",
+            "bounds": "1..64 lowercase ASCII bytes"
+          },
+          {
+            "name": "SubjectScope",
+            "type": "string",
+            "required": true,
+            "zero_value": "invalid",
+            "semantics": "Exact subject scope copied from the request binding.",
+            "bounds": "1..256 opaque ASCII bytes"
+          },
+          {
+            "name": "PolicyVersion",
+            "type": "string",
+            "required": true,
+            "zero_value": "invalid",
+            "semantics": "Exact immutable provider/cache policy version used for the check.",
+            "bounds": "1..64 ASCII bytes"
+          },
+          {
+            "name": "ReplayID",
+            "type": "identity.CommandID",
+            "required": true,
+            "zero_value": "invalid",
+            "semantics": "Exact logical request identity; this derived result is not reusable under another binding."
+          },
           {
             "name": "Outcome",
             "type": "Outcome",
@@ -7355,7 +7859,7 @@
       "authorization": {
         "access": "password workflow",
         "policy": "flow binding policy: password workflow",
-        "csrf_origin": "internal"
+        "csrf_origin": "CSRFNone"
       },
       "transport": {
         "exposure": "direct",

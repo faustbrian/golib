@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "instrumentation-report"
+        },
+        "invariant_id": {
+          "const": "instrumentation-report.invariant"
+        },
+        "invariant": {
+          "const": "one operation produces correlated metric, log, and span records with stable error class and no secret-shaped value"
         },
         "operation_ids": {
           "const": [
@@ -396,235 +404,281 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "correlation_id",
-                      "secret_shaped_inputs",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "metrics, logs, and traces are enabled with bounded exporters"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one operation produces correlated metric, log, and span records with stable error class and no secret-shaped value"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "metric_record_count",
-                      "log_record_count",
-                      "span_record_count",
-                      "redaction_match_count",
-                      "telemetry_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "instrumentation-report.cross.operability-provider-proof.v1.behavior#success",
+                  "instrumentation-report.cross.operability-provider-proof.v1.behavior#failure",
+                  "instrumentation-report.cross.operability-provider-proof.v1.behavior#outage"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "instrumentation-report.cross.operability-provider-proof.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.operability-provider-proof.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "instrumentation-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "correlation_id",
-                      "secret_shaped_inputs",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "metrics, logs, and traces are enabled with bounded exporters"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "one operation produces correlated metric, log, and span records with stable error class and no secret-shaped value"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "metric_record_count",
-                      "log_record_count",
-                      "span_record_count",
-                      "redaction_match_count",
-                      "telemetry_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "metrics, logs, and traces are enabled with bounded exporters"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable"
+                ]
+              },
+              "expected_invariant": {
+                "const": "one operation produces correlated metric, log, and span records with stable error class and no secret-shaped value"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.reference.diagnostics"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "metric_record_count",
+                  "log_record_count",
+                  "span_record_count",
+                  "redaction_match_count",
+                  "telemetry_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior#outage"
+                  "metric_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior"
+                  "log_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
+                  "span_record_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "outage"
+                  "redaction_match_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "correlation_id",
-                      "secret_shaped_inputs",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "metrics, logs, and traces are enabled with bounded exporters"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "one operation produces correlated metric, log, and span records with stable error class and no secret-shaped value"
-                  },
-                  "observed_state_digest": {
+                  "telemetry_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "metric_record_count",
-                      "log_record_count",
-                      "span_record_count",
-                      "redaction_match_count",
-                      "telemetry_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "instrumentation-report.cross.operability-provider-proof.v1.behavior#success",
+              "observation_id": "instrumentation-report.cross.operability-provider-proof.v1.behavior",
+              "claim_id": "cross.operability-provider-proof.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.diagnostics"
+              ],
+              "input_fields": [
+                "operation_id",
+                "correlation_id",
+                "secret_shaped_inputs",
+                "deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:ffe81283c75724e684c7e06d60e6bec7a128378ff45d67cbc82ed00d8b6bd1d6",
+              "expected_operation_set": [
+                "identity.reference.diagnostics"
+              ],
+              "observed_operation_set": [
+                "identity.reference.diagnostics"
+              ]
+            },
+            {
+              "case_id": "instrumentation-report.cross.operability-provider-proof.v1.behavior#failure",
+              "observation_id": "instrumentation-report.cross.operability-provider-proof.v1.behavior",
+              "claim_id": "cross.operability-provider-proof.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.diagnostics"
+              ],
+              "input_fields": [
+                "operation_id",
+                "correlation_id",
+                "secret_shaped_inputs",
+                "deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:547f08f55fc4d49a229cd9da5e7d9976c50a634b15e5ac1ae20a729fd5c745f3",
+              "expected_operation_set": [
+                "identity.reference.diagnostics"
+              ],
+              "observed_operation_set": [
+                "identity.reference.diagnostics"
+              ]
+            },
+            {
+              "case_id": "instrumentation-report.cross.operability-provider-proof.v1.behavior#outage",
+              "observation_id": "instrumentation-report.cross.operability-provider-proof.v1.behavior",
+              "claim_id": "cross.operability-provider-proof.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.reference.diagnostics"
+              ],
+              "input_fields": [
+                "operation_id",
+                "correlation_id",
+                "secret_shaped_inputs",
+                "deadline"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:fd0f0d8788006d97d7d2a465deb2dd2002d475eb396c35609c9ef64c56ef2e25",
+              "expected_operation_set": [
+                "identity.reference.diagnostics"
+              ],
+              "observed_operation_set": [
+                "identity.reference.diagnostics"
+              ]
+            }
+          ]
         },
         "metric_record_count": {
           "type": "integer",
@@ -690,254 +744,6 @@
           "kind": "equal",
           "left": "metric_record_count",
           "right": "span_record_count"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "correlation_id",
-                      "secret_shaped_inputs",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "metrics, logs, and traces are enabled with bounded exporters"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "one operation produces correlated metric, log, and span records with stable error class and no secret-shaped value"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "metric_record_count",
-                      "log_record_count",
-                      "span_record_count",
-                      "redaction_match_count",
-                      "telemetry_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "correlation_id",
-                      "secret_shaped_inputs",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "metrics, logs, and traces are enabled with bounded exporters"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "one operation produces correlated metric, log, and span records with stable error class and no secret-shaped value"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "metric_record_count",
-                      "log_record_count",
-                      "span_record_count",
-                      "redaction_match_count",
-                      "telemetry_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "instrumentation-report.cross.operability-provider-proof.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.operability-provider-proof.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.reference.diagnostics"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "operation_id",
-                      "correlation_id",
-                      "secret_shaped_inputs",
-                      "deadline"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "metrics, logs, and traces are enabled with bounded exporters"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "one operation produces correlated metric, log, and span records with stable error class and no secret-shaped value"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "metric_record_count",
-                      "log_record_count",
-                      "span_record_count",
-                      "redaction_match_count",
-                      "telemetry_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

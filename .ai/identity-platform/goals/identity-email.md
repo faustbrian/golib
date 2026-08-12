@@ -46,10 +46,15 @@ limits, and extension points MUST have explicit semantics.
 The module MUST implement the version-1 privacy-export contributor contract
 for email identifiers, verification history, and bounded redacted delivery
 metadata, and MUST participate in identity anonymization and deletion cascades.
-When the reference PostgreSQL profile is selected, `identity/postgres` MUST
-persist the email anonymization/deletion checkpoint and privacy-export fragment
-for the exact tenant, subject, snapshot ID, policy version, contributor version,
-content digest, and terminal outcome in the owning coordinator transaction.
+The public contract MUST define an injected storage-neutral
+`LifecycleCheckpointContributor` with exactly
+`ContributeLifecycle(context.Context, LifecycleCheckpointCommand) (LifecycleCheckpointResult, error)`.
+It MUST persist the email anonymization/deletion checkpoint and privacy-export
+fragment for the exact tenant, subject, snapshot ID, policy version,
+contributor version, content digest, and terminal outcome in the owning
+coordinator transaction. The core MUST NOT import or name a persistence
+adapter; reference PostgreSQL composition supplies the contributor backed by
+`identity/postgres`.
 
 The implementation and tests MUST send enumeration-safe verification; consume once; bind action and subject; race address claims; confirm old/new address policy; revoke superseded links; avoid losing the last reachable verified identifier. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and

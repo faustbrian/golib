@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "signer-jwks-profile-report"
+        },
+        "invariant_id": {
+          "const": "signer-jwks-profile-report.invariant"
+        },
+        "invariant": {
+          "const": "token uses active key and allowed algorithm; JWKS publishes verification keys; rotation preserves old-token verification until retirement"
         },
         "operation_ids": {
           "const": [
@@ -397,238 +405,294 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.oauth-oidc-provider.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth-server.jwks",
-                      "identity.oauth-server.token"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "issuer",
-                      "key_id",
-                      "signing_algorithm",
-                      "rotation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active and retiring signing keys exist for issuer"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "token uses active key and allowed algorithm; JWKS publishes verification keys; rotation preserves old-token verification until retirement"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "key_id",
-                      "signing_algorithm",
-                      "jwks_key_count",
-                      "old_token_verified",
-                      "jwks_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#success",
+                  "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#failure",
+                  "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#outage"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.oauth-oidc-provider.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "signer-jwks-profile-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth-server.jwks",
+                    "identity.oauth-server.token"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.oauth-oidc-provider.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth-server.jwks",
-                      "identity.oauth-server.token"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "issuer",
-                      "key_id",
-                      "signing_algorithm",
-                      "rotation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active and retiring signing keys exist for issuer"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "token uses active key and allowed algorithm; JWKS publishes verification keys; rotation preserves old-token verification until retirement"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "key_id",
-                      "signing_algorithm",
-                      "jwks_key_count",
-                      "old_token_verified",
-                      "jwks_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "active and retiring signing keys exist for issuer"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable"
+                ]
+              },
+              "expected_invariant": {
+                "const": "token uses active key and allowed algorithm; JWKS publishes verification keys; rotation preserves old-token verification until retirement"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth-server.jwks",
+                    "identity.oauth-server.token"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth-server.jwks",
+                    "identity.oauth-server.token"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "key_id",
+                  "signing_algorithm",
+                  "jwks_key_count",
+                  "old_token_verified",
+                  "jwks_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#outage"
+                  "key_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.oauth-oidc-provider.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth-server.jwks",
-                      "identity.oauth-server.token"
+                  "signing_algorithm": {
+                    "type": "string",
+                    "enum": [
+                      "ES256",
+                      "EdDSA",
+                      "PS256",
+                      "RS256"
                     ]
                   },
-                  "input_fields": {
-                    "const": [
-                      "issuer",
-                      "key_id",
-                      "signing_algorithm",
-                      "rotation_version"
-                    ]
+                  "jwks_key_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "initial_state": {
-                    "const": "active and retiring signing keys exist for issuer"
+                  "old_token_verified": {
+                    "type": "boolean"
                   },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "token uses active key and allowed algorithm; JWKS publishes verification keys; rotation preserves old-token verification until retirement"
-                  },
-                  "observed_state_digest": {
+                  "jwks_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "key_id",
-                      "signing_algorithm",
-                      "jwks_key_count",
-                      "old_token_verified",
-                      "jwks_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#success",
+              "observation_id": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior",
+              "claim_id": "journey.oauth-oidc-provider.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ],
+              "input_fields": [
+                "issuer",
+                "key_id",
+                "signing_algorithm",
+                "rotation_version"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:4e41b7a1fe35ae20f608f80e1eb6add75ee3c47c07d3da530fe80c70d94accdc",
+              "expected_operation_set": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ],
+              "observed_operation_set": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ]
+            },
+            {
+              "case_id": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#failure",
+              "observation_id": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior",
+              "claim_id": "journey.oauth-oidc-provider.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ],
+              "input_fields": [
+                "issuer",
+                "key_id",
+                "signing_algorithm",
+                "rotation_version"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:744d0e7efa00a8b7e8ec488ea1bc5aae7ed31ccbed40260f724e077d05fba137",
+              "expected_operation_set": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ],
+              "observed_operation_set": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ]
+            },
+            {
+              "case_id": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#outage",
+              "observation_id": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior",
+              "claim_id": "journey.oauth-oidc-provider.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ],
+              "input_fields": [
+                "issuer",
+                "key_id",
+                "signing_algorithm",
+                "rotation_version"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:054f988d1cd2b34b92f20b9239f094373a39ab3c425dd0e05eb55940d278bb4e",
+              "expected_operation_set": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ],
+              "observed_operation_set": [
+                "identity.oauth-server.jwks",
+                "identity.oauth-server.token"
+              ]
+            }
+          ]
         },
         "key_id": {
           "type": "string",
@@ -668,257 +732,6 @@
           "fields": [
             "old_token_verified"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.oauth-oidc-provider.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth-server.jwks",
-                      "identity.oauth-server.token"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "issuer",
-                      "key_id",
-                      "signing_algorithm",
-                      "rotation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active and retiring signing keys exist for issuer"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "token uses active key and allowed algorithm; JWKS publishes verification keys; rotation preserves old-token verification until retirement"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "key_id",
-                      "signing_algorithm",
-                      "jwks_key_count",
-                      "old_token_verified",
-                      "jwks_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.oauth-oidc-provider.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth-server.jwks",
-                      "identity.oauth-server.token"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "issuer",
-                      "key_id",
-                      "signing_algorithm",
-                      "rotation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active and retiring signing keys exist for issuer"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "token uses active key and allowed algorithm; JWKS publishes verification keys; rotation preserves old-token verification until retirement"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "key_id",
-                      "signing_algorithm",
-                      "jwks_key_count",
-                      "old_token_verified",
-                      "jwks_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.oauth-oidc-provider.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth-server.jwks",
-                      "identity.oauth-server.token"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "issuer",
-                      "key_id",
-                      "signing_algorithm",
-                      "rotation_version"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "active and retiring signing keys exist for issuer"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "token uses active key and allowed algorithm; JWKS publishes verification keys; rotation preserves old-token verification until retirement"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "key_id",
-                      "signing_algorithm",
-                      "jwks_key_count",
-                      "old_token_verified",
-                      "jwks_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

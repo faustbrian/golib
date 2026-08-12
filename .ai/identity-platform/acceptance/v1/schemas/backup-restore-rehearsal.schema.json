@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -272,6 +274,12 @@
       "properties": {
         "artifact_id": {
           "const": "backup-restore-rehearsal"
+        },
+        "invariant_id": {
+          "const": "backup-restore-rehearsal.invariant"
+        },
+        "invariant": {
+          "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
         },
         "operation_ids": {
           "const": [
@@ -399,490 +407,389 @@
           "type": "array",
           "minItems": 6,
           "maxItems": 6,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#success",
+                  "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#failure",
+                  "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#outage",
+                  "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#concurrency",
+                  "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#cleanup",
+                  "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#unknown-outcome"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "cross.persistence-recovery.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "backup-restore-rehearsal.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage",
+                  "concurrency",
+                  "cleanup",
+                  "unknown-outcome"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
+              "initial_state": {
+                "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable",
+                  "reconciled"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable",
+                  "conflict",
+                  "unknown_commit"
+                ]
+              },
+              "expected_invariant": {
+                "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 8
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "make check MODULES=pkg/identity/reference"
+                  ]
                 }
               },
-              {
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "backup_id",
+                  "encryption_key_id",
+                  "restored_identity_count",
+                  "restored_credential_count",
+                  "decrypted_credential_count",
+                  "replayed_checkpoint_count",
+                  "source_digest",
+                  "restore_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#cleanup"
+                  "backup_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
+                  "encryption_key_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
+                  "restored_identity_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "cleanup"
+                  "restored_credential_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "pass"
+                  "decrypted_credential_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
+                  "replayed_checkpoint_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
+                  "source_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "restore_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#success",
+              "observation_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "backup_id",
+                "source_revision",
+                "restore_target",
+                "encryption_key_id",
+                "credential_fixture_digest",
+                "replay_checkpoint"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:75c7f7b0396de9fa210f042025b1152420d73d545203c5778265dc8375795b2c",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            },
+            {
+              "case_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#failure",
+              "observation_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "backup_id",
+                "source_revision",
+                "restore_target",
+                "encryption_key_id",
+                "credential_fixture_digest",
+                "replay_checkpoint"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:6a95efefeeffc7ea4d8a064cc19971dbe00b29173e6cfa503742b47361f0a0a5",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            },
+            {
+              "case_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#outage",
+              "observation_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "backup_id",
+                "source_revision",
+                "restore_target",
+                "encryption_key_id",
+                "credential_fixture_digest",
+                "replay_checkpoint"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:1afd858c4949ddc3421bb8bee9c5efd04ae12a22331fbf763ddd61ba9bb030bd",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            },
+            {
+              "case_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#concurrency",
+              "observation_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "concurrency",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "backup_id",
+                "source_revision",
+                "restore_target",
+                "encryption_key_id",
+                "credential_fixture_digest",
+                "replay_checkpoint"
+              ],
+              "status": "pass",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:ff553cab6797344728d76ec5303a641cdf077b31c7e4c646541185b19961a7e8",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            },
+            {
+              "case_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#cleanup",
+              "observation_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "backup_id",
+                "source_revision",
+                "restore_target",
+                "encryption_key_id",
+                "credential_fixture_digest",
+                "replay_checkpoint"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:2d78fa57e3b5e521c7a0f4855c9e3b1f8a637a08d860c8ad7fc902da4b95143d",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            },
+            {
+              "case_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#unknown-outcome",
+              "observation_id": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior",
+              "claim_id": "cross.persistence-recovery.v1",
+              "scenario": "unknown-outcome",
+              "operation_ids": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "input_fields": [
+                "backup_id",
+                "source_revision",
+                "restore_target",
+                "encryption_key_id",
+                "credential_fixture_digest",
+                "replay_checkpoint"
+              ],
+              "status": "reconciled",
+              "stable_error": "unknown_commit",
+              "artifact_contract_sha256": "sha256:f331a1db41c8c9249b718debcc2d3fd226c601467f50ccbe263b0e89969d573b",
+              "expected_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ],
+              "observed_operation_set": [
+                "make check MODULES=pkg/identity/reference"
+              ]
+            }
+          ]
         },
         "backup_id": {
           "type": "string",
@@ -935,530 +842,6 @@
           "kind": "equal",
           "left": "source_digest",
           "right": "restore_digest"
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#concurrency"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "concurrency"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#cleanup"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "cleanup"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior#unknown-outcome"
-                  },
-                  "observation_id": {
-                    "const": "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "cross.persistence-recovery.v1"
-                  },
-                  "scenario": {
-                    "const": "unknown-outcome"
-                  },
-                  "status": {
-                    "const": "reconciled"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "make check MODULES=pkg/identity/reference"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "backup_id",
-                      "source_revision",
-                      "restore_target",
-                      "encryption_key_id",
-                      "credential_fixture_digest",
-                      "replay_checkpoint"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "source database contains identities, encrypted credential material, sessions, organizations, audit rows, and a persisted replay checkpoint"
-                  },
-                  "stable_error": {
-                    "const": "unknown_commit"
-                  },
-                  "expected_invariant": {
-                    "const": "the reference module gate creates a backup, restores it into an empty rehearsal database, decrypts key and credential fixtures, resumes from the exact replay checkpoint, and proves restored row and integrity digests equal the source revision"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "backup_id",
-                      "encryption_key_id",
-                      "restored_identity_count",
-                      "restored_credential_count",
-                      "decrypted_credential_count",
-                      "replayed_checkpoint_count",
-                      "source_digest",
-                      "restore_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

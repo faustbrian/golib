@@ -1572,12 +1572,12 @@
               "semantics": "Validated *pgxpool.Pool binding for identity/apikey/postgres.Store; must satisfy *pgxpool.Pool validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
             },
             {
-              "name": "Carrier",
-              "type": "identitypostgres.Carrier",
+              "name": "Enlister",
+              "type": "identitypostgres.Enlister",
               "required": true,
               "zero_value": "nil invalid",
-              "bounds": "must satisfy identitypostgres.Carrier validation",
-              "semantics": "Validated identitypostgres.Carrier binding for identity/apikey/postgres.Store; must satisfy identitypostgres.Carrier validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+              "bounds": "non-nil identitypostgres.Enlister",
+              "semantics": "Caller-owned transaction enlistment authority for identity/apikey/postgres.Store; Store never commits, rolls back, or retains a carrier after the caller transaction closes."
             }
           ],
           "zero_value": "unusable",
@@ -1639,8 +1639,13 @@
           ]
         },
         {
-          "name": "identitypostgres.Contributor",
+          "name": "Contributor",
           "methods": [
+            {
+              "name": "Descriptor",
+              "signature": "Descriptor() identitypostgres.ContributorDescriptor",
+              "semantics": "Returns the sealed identity/apikey/postgres owner and contract identity required by Carrier.Enlist."
+            },
             {
               "name": "LockKeys",
               "signature": "LockKeys(apikey.Command) identitypostgres.LockKeys",
@@ -1656,7 +1661,7 @@
       ],
       "constructors": [
         {
-          "signature": "New(*pgxpool.Pool, identitypostgres.Carrier, Options) (*Store, error)",
+          "signature": "New(*pgxpool.Pool, identitypostgres.Enlister, Options) (*Store, error)",
           "semantics": "validates schema, configuration revision resolver, digest policy, clock policy, and bounded query limits"
         }
       ],
@@ -3203,12 +3208,12 @@
               "semantics": "Validated *pgxpool.Pool binding for identity/impersonation/postgres.Store; must satisfy *pgxpool.Pool validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
             },
             {
-              "name": "Carrier",
-              "type": "identitypostgres.Carrier",
+              "name": "Enlister",
+              "type": "identitypostgres.Enlister",
               "required": true,
               "zero_value": "nil invalid",
-              "bounds": "must satisfy identitypostgres.Carrier validation",
-              "semantics": "Validated identitypostgres.Carrier binding for identity/impersonation/postgres.Store; must satisfy identitypostgres.Carrier validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+              "bounds": "non-nil identitypostgres.Enlister",
+              "semantics": "Caller-owned transaction enlistment authority for identity/impersonation/postgres.Store; Store never commits, rolls back, or retains a carrier after the caller transaction closes."
             }
           ],
           "zero_value": "unusable",
@@ -3272,8 +3277,13 @@
           ]
         },
         {
-          "name": "identitypostgres.Contributor",
+          "name": "Contributor",
           "methods": [
+            {
+              "name": "Descriptor",
+              "signature": "Descriptor() identitypostgres.ContributorDescriptor",
+              "semantics": "Returns the sealed identity/impersonation/postgres owner and contract identity required by Carrier.Enlist."
+            },
             {
               "name": "LockKeys",
               "signature": "LockKeys(impersonation.Command) identitypostgres.LockKeys",
@@ -3289,7 +3299,7 @@
       ],
       "constructors": [
         {
-          "signature": "New(*pgxpool.Pool, identitypostgres.Carrier, Options) (*Store, error)",
+          "signature": "New(*pgxpool.Pool, identitypostgres.Enlister, Options) (*Store, error)",
           "semantics": "validates migrations, retention, query bounds, lock order, and primary-authority reads"
         }
       ],
@@ -3763,6 +3773,218 @@
           "zero_value": "unverified",
           "ownership": "repository-authoritative",
           "concurrency": "safe after construction"
+        },
+        {
+          "name": "DomainProofKey",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "TenantID",
+              "type": "identity.TenantID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact tenant authority."
+            },
+            {
+              "name": "OrganizationID",
+              "type": "OrganizationID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact organization authority."
+            },
+            {
+              "name": "Domain",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "IDNA-canonical registrable domain.",
+              "bounds": "1..253 canonical ASCII bytes"
+            },
+            {
+              "name": "ClaimID",
+              "type": "DomainClaimID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact owning claim."
+            },
+            {
+              "name": "ClaimVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Current claim concurrency boundary.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "organization owns the complete proof lookup identity",
+          "concurrency": "Immutable and comparable."
+        },
+        {
+          "name": "DomainProof",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Key",
+              "type": "DomainProofKey",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact authoritative claim binding."
+            },
+            {
+              "name": "ProofVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Monotonic proof authority version used by SSO route invalidation.",
+              "bounds": "1 <= value <= 18446744073709551615",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "Method",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Closed verified DNS or HTTPS method.",
+              "bounds": "3..5 ASCII bytes; exactly dns or https"
+            },
+            {
+              "name": "ObservedAt",
+              "type": "time.Time",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "UTC observation time committed from attributable evidence."
+            },
+            {
+              "name": "ExpiresAt",
+              "type": "time.Time",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "UTC authority expiry; routing stops no later than this instant."
+            },
+            {
+              "name": "Revoked",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "semantics": "Explicit revocation state; false is a real value.",
+              "false_valid": true
+            },
+            {
+              "name": "State",
+              "type": "DomainClaimState",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Only Verified and unrevoked/unexpired grants SSO routing authority."
+            }
+          ],
+          "zero_value": "invalid and non-authoritative",
+          "ownership": "organization is the sole proof authority; SSO and verifier retain immutable copies only",
+          "concurrency": "Versioned immutable projection."
+        },
+        {
+          "name": "DomainEvidenceCommand",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Key",
+              "type": "DomainProofKey",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact tenant, organization, domain, claim, and claim version copied from the verification request."
+            },
+            {
+              "name": "ExpectedProofVersion",
+              "type": "uint64",
+              "required": true,
+              "zero_value": "0 is valid",
+              "semantics": "Optimistic proof authority boundary.",
+              "bounds": "0 <= value <= 18446744073709551615",
+              "zero_valid": true,
+              "zero_value_detail": "no prior proof"
+            },
+            {
+              "name": "Method",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact observed DNS or HTTPS method.",
+              "bounds": "3..5 ASCII bytes; exactly dns or https"
+            },
+            {
+              "name": "ObservedAt",
+              "type": "time.Time",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact verifier checked-at time."
+            },
+            {
+              "name": "EvidenceExpiresAt",
+              "type": "time.Time",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Verifier evidence expiry; organization policy may only shorten it."
+            },
+            {
+              "name": "Classification",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Stable bounded evidence classification, never raw DNS/HTTP data.",
+              "bounds": "1..64 ASCII bytes"
+            },
+            {
+              "name": "Revoked",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "semantics": "Explicit revocation transition; false is a real value.",
+              "false_valid": true
+            },
+            {
+              "name": "CommandID",
+              "type": "identity.CommandID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Stable atomic transition and unknown-outcome recovery identity."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "SSO constructs only from exact ObservedDomainEvidence; organization validates and commits",
+          "concurrency": "Immutable."
+        },
+        {
+          "name": "DomainEvidenceResult",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Proof",
+              "type": "DomainProof",
+              "required": false,
+              "zero_value": "omitted",
+              "semantics": "Present only when the organization authority proves the command committed."
+            },
+            {
+              "name": "Outcome",
+              "type": "identity.AttemptedCommitOutcome",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Explicit not-committed, committed, or unknown result for the exact CommandID."
+            },
+            {
+              "name": "CommandID",
+              "type": "identity.CommandID",
+              "required": true,
+              "zero_value": "invalid",
+              "semantics": "Exact recovery identity; committed replay returns the same proof and version."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "organization owns authoritative outcome classification and proof projection",
+          "concurrency": "Immutable."
         },
         {
           "name": "MemberID",
@@ -4477,6 +4699,116 @@
           "concurrency": "safe after construction"
         },
         {
+          "name": "CascadeID",
+          "kind": "defined",
+          "underlying": "string",
+          "zero_value": "invalid",
+          "ownership": "organization lifecycle owner",
+          "concurrency": "safe by value",
+          "bounds": "16 random bytes encoded as exactly 22 unpadded base64url characters"
+        },
+        {
+          "name": "LifecycleCascadeStatus",
+          "kind": "enum",
+          "underlying": "uint8",
+          "constants": [
+            "CascadeArchivePending",
+            "CascadeArchived",
+            "CascadeRestorePending",
+            "CascadeActive",
+            "CascadeDeletionPending",
+            "CascadeArchivedHeld",
+            "CascadeDeleted",
+            "CascadeCompletedLocalWithExternalLimitation",
+            "CascadeUnknown"
+          ],
+          "zero_value": "invalid",
+          "ownership": "organization lifecycle owner",
+          "concurrency": "safe by value"
+        },
+        {
+          "name": "CascadeExternalLimitationCode",
+          "kind": "enum",
+          "underlying": "uint8",
+          "constants": [
+            "CascadeExternalWriteDisablementPending",
+            "CascadeExternalAuthorityNotRestored",
+            "CascadeExternalDeleteUnsupported",
+            "CascadeExternalOutcomeUnknown"
+          ],
+          "zero_value": "invalid",
+          "ownership": "organization lifecycle owner",
+          "concurrency": "safe by value"
+        },
+        {
+          "name": "CascadeExternalLimitation",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "ConsumerID",
+              "type": "string",
+              "required": true,
+              "bounds": "1..128 registered ASCII bytes",
+              "zero_value": "invalid",
+              "semantics": "Registered lifecycle consumer identifier; redacted and free of provider payloads or private failure details."
+            },
+            {
+              "name": "Code",
+              "type": "CascadeExternalLimitationCode",
+              "required": true,
+              "bounds": "closed enum",
+              "zero_value": "invalid",
+              "semantics": "Typed redacted external limitation; unsupported deletion is distinct from pending or outcome-unknown work."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "immutable lifecycle projection",
+          "concurrency": "safe after construction"
+        },
+        {
+          "name": "LifecycleCascadeResult",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "CascadeID",
+              "type": "CascadeID",
+              "required": true,
+              "bounds": "22 unpadded base64url characters",
+              "zero_value": "invalid",
+              "semantics": "Random identity of the admitted organization lifecycle cascade."
+            },
+            {
+              "name": "Generation",
+              "type": "uint64",
+              "required": true,
+              "bounds": "1..max uint64",
+              "zero_value": "0 is invalid",
+              "semantics": "Exact generation to which consumer acknowledgements and terminalization are bound.",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "Status",
+              "type": "LifecycleCascadeStatus",
+              "required": true,
+              "bounds": "closed enum",
+              "zero_value": "invalid",
+              "semantics": "Distinguishes owner-admitted pending work, held deletion, and each permitted terminal organization lifecycle state."
+            },
+            {
+              "name": "ExternalLimitations",
+              "type": "[]CascadeExternalLimitation",
+              "required": true,
+              "bounds": "0..128 entries, unique by consumer ID and code",
+              "zero_value": "empty",
+              "semantics": "Typed redacted limitations that remain visible until reconciled or terminally waived; empty means no known external limitation."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "immutable organization lifecycle projection",
+          "concurrency": "safe after construction"
+        },
+        {
           "name": "DeleteResult",
           "kind": "struct",
           "fields": [
@@ -4516,9 +4848,11 @@
           "kind": "enum",
           "underlying": "uint8",
           "constants": [
+            "DeletionPending",
+            "ArchivedHeld",
             "Deleted",
+            "CompletedLocalWithExternalLimitation",
             "RestorationWindow",
-            "LegalHold",
             "LastOwner",
             "StalePlan",
             "Unknown"
@@ -6442,6 +6776,55 @@
           "concurrency": "safe after construction"
         },
         {
+          "name": "Limits",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "MaximumOrganizationsPerTenant",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard tenant organization ceiling.",
+              "bounds": "1..1000000",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "MaximumMembershipsPerSubject",
+              "type": "uint32",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard per-subject membership ceiling.",
+              "bounds": "1..1000000",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "MaximumPageSize",
+              "type": "uint16",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard list/search page ceiling.",
+              "bounds": "1..1000",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            },
+            {
+              "name": "MaximumHooks",
+              "type": "uint16",
+              "required": true,
+              "zero_value": "0 is invalid",
+              "semantics": "Hard ordered hook ceiling.",
+              "bounds": "1..64",
+              "zero_valid": false,
+              "zero_value_detail": "invalid"
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "organization copies and validates the complete bound set",
+          "concurrency": "Immutable."
+        },
+        {
           "name": "Options",
           "kind": "struct",
           "fields": [
@@ -6468,6 +6851,86 @@
               "zero_value": "invalid",
               "bounds": "non-nil implementation",
               "semantics": "Authorization owner."
+            },
+            {
+              "name": "Capabilities",
+              "type": "capability.Service",
+              "required": true,
+              "zero_value": "nil invalid",
+              "bounds": "non-nil implementation",
+              "semantics": "Caller-owned invitation capability issuer/verifier; organization never retains bearer proofs."
+            },
+            {
+              "name": "SessionSelection",
+              "type": "session.ActiveOrganizationStore",
+              "required": true,
+              "zero_value": "nil invalid",
+              "bounds": "non-nil implementation",
+              "semantics": "Caller-owned exact-session active-organization authority; organization persists no user-global selection."
+            },
+            {
+              "name": "Delivery",
+              "type": "delivery.Service",
+              "required": true,
+              "zero_value": "nil invalid",
+              "bounds": "non-nil implementation",
+              "semantics": "Caller-owned durable invitation intent/status service; organization never calls Sender directly."
+            },
+            {
+              "name": "Audit",
+              "type": "audit.Sink",
+              "required": true,
+              "zero_value": "nil invalid",
+              "bounds": "non-nil implementation",
+              "semantics": "Caller-owned immutable audit contributor enlisted before first write."
+            },
+            {
+              "name": "Outbox",
+              "type": "outbox.Contributor",
+              "required": true,
+              "zero_value": "nil invalid",
+              "bounds": "non-nil implementation",
+              "semantics": "Caller-owned durable effect contributor enlisted in the same carrier transaction."
+            },
+            {
+              "name": "Clock",
+              "type": "clock.Clock",
+              "required": true,
+              "zero_value": "nil invalid",
+              "bounds": "non-nil implementation",
+              "semantics": "Caller-owned authoritative clock used for invitation, archive, and domain-proof expiry."
+            },
+            {
+              "name": "DomainCanonicalizer",
+              "type": "DomainCanonicalizer",
+              "required": true,
+              "zero_value": "nil invalid",
+              "bounds": "non-nil implementation",
+              "semantics": "Caller-owned bounded IDNA/public-suffix canonicalizer used before repository access."
+            },
+            {
+              "name": "Schemas",
+              "type": "[]identity.AttributeSchema",
+              "required": true,
+              "zero_value": "nil invalid",
+              "bounds": "exact organization/member/invitation/team/role schema set; maximum 32 schemas",
+              "semantics": "Constructor copies, validates, and seals the complete typed-field schema set."
+            },
+            {
+              "name": "Limits",
+              "type": "Limits",
+              "required": true,
+              "zero_value": "invalid",
+              "bounds": "all positive values within reference configuration ceilings",
+              "semantics": "Complete immutable per-tenant/per-user/page/field/domain/hook bounds."
+            },
+            {
+              "name": "Hooks",
+              "type": "[]Hook",
+              "required": true,
+              "zero_value": "nil means no hooks",
+              "bounds": "maximum 64 non-nil hooks",
+              "semantics": "Constructor copies and orders hooks; nil elements are rejected and hook lifetime remains caller-owned."
             }
           ],
           "zero_value": "invalid",
@@ -6476,6 +6939,41 @@
         }
       ],
       "interfaces": [
+        {
+          "name": "DomainProofReader",
+          "methods": [
+            {
+              "name": "GetDomainProof",
+              "signature": "GetDomainProof(context.Context, DomainProofKey) (DomainProof, error)",
+              "semantics": "Returns the current organization-owned proof including proof version, expiry, revocation, and claim state; absent, stale, unauthorized, and wrong-tenant are non-enumerating."
+            }
+          ]
+        },
+        {
+          "name": "DomainEvidenceTransition",
+          "methods": [
+            {
+              "name": "ApplyDomainEvidence",
+              "signature": "ApplyDomainEvidence(context.Context, DomainEvidenceCommand) (DomainEvidenceResult, error)",
+              "semantics": "Atomically validates request/evidence identity and expected proof version, commits the sole authoritative proof, and returns explicit committed/not-committed/unknown outcome."
+            },
+            {
+              "name": "RecoverDomainEvidence",
+              "signature": "RecoverDomainEvidence(context.Context, identity.CommandID) (DomainEvidenceResult, error)",
+              "semantics": "Reads primary organization authority and returns the same proof for committed replay, proves not-committed, or preserves unknown without re-running verification."
+            }
+          ]
+        },
+        {
+          "name": "DomainCanonicalizer",
+          "methods": [
+            {
+              "name": "CanonicalizeDomain",
+              "signature": "CanonicalizeDomain(context.Context, string) (string, error)",
+              "semantics": "Returns one bounded IDNA-canonical registrable domain and rejects IP, suffix, wildcard, trailing-dot, and parent/child ambiguity."
+            }
+          ]
+        },
         {
           "name": "Service",
           "methods": [
@@ -6770,7 +7268,7 @@
       "constructors": [
         {
           "signature": "New(Options) (Service, error)",
-          "semantics": "requires repository, UoW, policy, capability, session-selection, delivery, audit/outbox, clock, identifier canonicalizer, schemas, limits and hooks"
+          "semantics": "Rejects nil repository, UoW, policy, capability, session-selection, delivery, audit, outbox, clock or domain canonicalizer; copies and validates schemas, limits and hooks; repository must also implement DomainProofReader and DomainEvidenceTransition."
         }
       ],
       "errors": [
@@ -6849,12 +7347,12 @@
               "semantics": "Validated *pgxpool.Pool binding for organization/postgres.Repository; must satisfy *pgxpool.Pool validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
             },
             {
-              "name": "Carrier",
-              "type": "identitypostgres.Carrier",
+              "name": "Enlister",
+              "type": "identitypostgres.Enlister",
               "required": true,
               "zero_value": "nil invalid",
-              "bounds": "must satisfy identitypostgres.Carrier validation",
-              "semantics": "Validated identitypostgres.Carrier binding for organization/postgres.Repository; must satisfy identitypostgres.Carrier validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+              "bounds": "non-nil identitypostgres.Enlister",
+              "semantics": "Caller-owned transaction enlistment authority for organization/postgres.Repository; Repository never commits, rolls back, or retains a carrier after the caller transaction closes."
             }
           ],
           "zero_value": "unusable",
@@ -6926,8 +7424,13 @@
           ]
         },
         {
-          "name": "identitypostgres.Contributor",
+          "name": "Contributor",
           "methods": [
+            {
+              "name": "Descriptor",
+              "signature": "Descriptor() identitypostgres.ContributorDescriptor",
+              "semantics": "Returns the sealed organization/postgres owner and contract identity required by Carrier.Enlist."
+            },
             {
               "name": "LockKeys",
               "signature": "LockKeys(organization.Command) identitypostgres.LockKeys",
@@ -6943,7 +7446,7 @@
       ],
       "constructors": [
         {
-          "signature": "New(*pgxpool.Pool, identitypostgres.Carrier, Options) (*Repository, error)",
+          "signature": "New(*pgxpool.Pool, identitypostgres.Enlister, Options) (*Repository, error)",
           "semantics": "validates migrations, collation, limits, index plans, outbox and capability contributor wiring"
         }
       ],
@@ -7350,30 +7853,36 @@
           "kind": "struct",
           "fields": [
             {
-              "name": "Status",
-              "type": "uint16",
+              "name": "Schemas",
+              "type": "[]SchemaURI",
               "required": true,
-              "zero_value": "0 is invalid",
-              "bounds": "0..65535",
-              "semantics": "Bounded numeric state for scim.SCIMError; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-              "zero_valid": false,
-              "zero_value_detail": "invalid"
+              "zero_value": "invalid empty",
+              "bounds": "exactly one entry equal to urn:ietf:params:scim:api:messages:2.0:Error",
+              "semantics": "Exact RFC 7644 Error message schema; no other schema, additional schema, or omission is accepted."
             },
             {
-              "name": "Type",
+              "name": "Status",
+              "type": "string",
+              "required": true,
+              "zero_value": "invalid empty",
+              "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+              "semantics": "RFC 7644 JSON string form of the actual HTTP response status; numeric JSON values, leading signs, whitespace, mismatched status values, and non-error codes are rejected."
+            },
+            {
+              "name": "SCIMType",
               "type": "SCIMErrorType",
               "required": false,
               "zero_value": "none",
               "bounds": "must satisfy SCIMErrorType validation",
-              "semantics": "Validated SCIMErrorType binding for scim.SCIMError; must satisfy SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+              "semantics": "Optional RFC scimType; present only for a registered SCIM error keyword that exactly matches the condition and omitted otherwise."
             },
             {
               "name": "Detail",
               "type": "ErrorDetail",
-              "required": true,
-              "zero_value": "stable redacted protocol detail",
+              "required": false,
+              "zero_value": "absent",
               "bounds": "must satisfy ErrorDetail validation",
-              "semantics": "Validated ErrorDetail binding for scim.SCIMError; must satisfy ErrorDetail validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+              "semantics": "Optional bounded enumeration-safe RFC detail; absence is distinct from an empty or synthesized message."
             }
           ],
           "zero_value": "invalid",
@@ -7477,6 +7986,14 @@
           "kind": "struct",
           "fields": [
             {
+              "name": "Schemas",
+              "type": "[]SchemaURI",
+              "required": true,
+              "zero_value": "invalid empty",
+              "bounds": "exactly one entry equal to urn:ietf:params:scim:schemas:core:2.0:Schema",
+              "semantics": "Exact RFC 7643 Schema resource envelope; no other schema, additional schema, or omission is accepted."
+            },
+            {
               "name": "ID",
               "type": "SchemaURI",
               "required": true,
@@ -7487,10 +8004,10 @@
             {
               "name": "Name",
               "type": "string",
-              "required": true,
-              "zero_value": "invalid",
-              "bounds": "1..scim.string_bytes UTF-8 bytes",
-              "semantics": "Canonical text for scim.Schema; 1..scim.string_bytes UTF-8 bytes; UTF-8 or ASCII policy is enforced before allocation/persistence, with no implicit normalization beyond the owning contract and redaction applied where sensitive."
+              "required": false,
+              "zero_value": "absent",
+              "bounds": "1..scim.string_bytes UTF-8 bytes when present",
+              "semantics": "Optional RFC Schema name; absence is distinct from a present bounded UTF-8 string."
             },
             {
               "name": "Description",
@@ -7602,12 +8119,20 @@
           "kind": "struct",
           "fields": [
             {
+              "name": "Schemas",
+              "type": "[]SchemaURI",
+              "required": true,
+              "zero_value": "invalid empty",
+              "bounds": "exactly one entry equal to urn:ietf:params:scim:schemas:core:2.0:ResourceType",
+              "semantics": "Exact RFC 7643 ResourceType resource envelope; no other schema, additional schema, or omission is accepted."
+            },
+            {
               "name": "ID",
               "type": "string",
-              "required": true,
-              "zero_value": "invalid",
-              "bounds": "1..scim.string_bytes UTF-8 bytes",
-              "semantics": "Stable identifier binding for scim.ResourceType; 1..scim.string_bytes UTF-8 bytes; copied before retention, compared with the owning type's canonical rules, and never widened across tenant or aggregate scope."
+              "required": false,
+              "zero_value": "absent",
+              "bounds": "1..scim.string_bytes UTF-8 bytes when present",
+              "semantics": "Optional RFC ResourceType identifier; absence is distinct from a present bounded identifier."
             },
             {
               "name": "Name",
@@ -7616,6 +8141,14 @@
               "zero_value": "invalid",
               "bounds": "1..scim.string_bytes UTF-8 bytes",
               "semantics": "Canonical text for scim.ResourceType; 1..scim.string_bytes UTF-8 bytes; UTF-8 or ASCII policy is enforced before allocation/persistence, with no implicit normalization beyond the owning contract and redaction applied where sensitive."
+            },
+            {
+              "name": "Description",
+              "type": "string",
+              "required": false,
+              "zero_value": "absent",
+              "bounds": "1..scim.string_bytes UTF-8 bytes when present",
+              "semantics": "Optional bounded RFC ResourceType description; absence remains distinct from an empty string."
             },
             {
               "name": "Endpoint",
@@ -7634,12 +8167,38 @@
               "semantics": "Validated SchemaURI binding for scim.ResourceType; must satisfy SchemaURI validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
             },
             {
-              "name": "Extensions",
-              "type": "[]SchemaURI",
+              "name": "SchemaExtensions",
+              "type": "[]SchemaExtension",
               "required": false,
               "zero_value": "empty",
               "bounds": "0..scim.resource_attributes entries",
-              "semantics": "Owned bounded collection for scim.ResourceType; 0..scim.resource_attributes entries; copied on ingress/egress, validated element-by-element, and processed in declared deterministic order with duplicate policy enforced by the owning schema."
+              "semantics": "Exact RFC 7643 schemaExtensions objects in deterministic order; schema URIs are unique and each object preserves its required flag."
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "immutable discovery contract",
+          "concurrency": "safe after construction"
+        },
+        {
+          "name": "SchemaExtension",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Schema",
+              "type": "SchemaURI",
+              "required": true,
+              "zero_value": "invalid",
+              "bounds": "1..scim.string_bytes UTF-8 bytes",
+              "semantics": "Exact extension schema URI advertised for the owning ResourceType."
+            },
+            {
+              "name": "Required",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "bounds": "boolean",
+              "semantics": "Exact RFC 7643 required flag; false is a real wire value and is never treated as omission.",
+              "false_valid": true
             }
           ],
           "zero_value": "invalid",
@@ -8363,38 +8922,222 @@
           "kind": "struct",
           "fields": [
             {
-              "name": "PageMax",
-              "type": "uint16",
+              "name": "Schemas",
+              "type": "[]SchemaURI",
               "required": true,
-              "bounds": "1..configured maximum",
-              "zero_value": "0 is invalid",
-              "semantics": "Bounded numeric value for scim.ServiceProviderConfig; 1..configured maximum; range and overflow checks run before allocation, arithmetic, quota or state mutation.",
-              "zero_valid": false,
-              "zero_value_detail": "zero invalid"
+              "bounds": "exactly one entry equal to urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig",
+              "zero_value": "invalid empty",
+              "semantics": "Exact RFC 7643 ServiceProviderConfig resource schema; no other schema, additional schema, or omission is accepted."
             },
             {
-              "name": "BulkOperations",
-              "type": "uint16",
-              "required": true,
-              "bounds": "0..configured maximum",
-              "zero_value": "0 is valid",
-              "semantics": "Bounded numeric value for scim.ServiceProviderConfig; 0..configured maximum; range and overflow checks run before allocation, arithmetic, quota or state mutation.",
-              "zero_valid": true,
-              "zero_value_detail": "zero disables"
+              "name": "DocumentationURI",
+              "type": "URI",
+              "required": false,
+              "bounds": "1..scim.string_bytes UTF-8 bytes when configured",
+              "zero_value": "absent",
+              "semantics": "Operator-controlled reference documentation URI copied from the effective scim.documentation_uri configuration; absent only when that optional runtime value is absent."
             },
             {
-              "name": "BulkBytes",
-              "type": "uint64",
+              "name": "Patch",
+              "type": "SupportedFeature",
               "required": true,
-              "bounds": "0..configured maximum",
-              "zero_value": "0 is valid",
-              "semantics": "Bounded numeric value for scim.ServiceProviderConfig; 0..configured maximum; range and overflow checks run before allocation, arithmetic, quota or state mutation.",
-              "zero_valid": true,
-              "zero_value_detail": "zero disables"
+              "bounds": "one exact supported object",
+              "zero_value": "supported false",
+              "semantics": "RFC patch object derived from the effective scim.patch.enabled runtime capability."
+            },
+            {
+              "name": "Bulk",
+              "type": "BulkFeature",
+              "required": true,
+              "bounds": "one exact supported/limit object",
+              "zero_value": "supported false with zero limits",
+              "semantics": "RFC bulk object derived from effective scim.bulk.enabled, scim.bulk.operations, and decoded scim.bulk.bytes runtime values."
+            },
+            {
+              "name": "Filter",
+              "type": "FilterFeature",
+              "required": true,
+              "bounds": "one exact supported/limit object",
+              "zero_value": "supported false with zero maximum",
+              "semantics": "RFC filter object derived from effective scim.filter.enabled and scim.page_max runtime values."
+            },
+            {
+              "name": "ChangePassword",
+              "type": "SupportedFeature",
+              "required": true,
+              "bounds": "one exact supported object",
+              "zero_value": "supported false",
+              "semantics": "RFC changePassword object derived from the effective scim.change_password.enabled runtime capability; the reference profile is false."
+            },
+            {
+              "name": "Sort",
+              "type": "SupportedFeature",
+              "required": true,
+              "bounds": "one exact supported object",
+              "zero_value": "supported false",
+              "semantics": "RFC sort object derived from the effective scim.sort.enabled runtime capability."
+            },
+            {
+              "name": "ETag",
+              "type": "SupportedFeature",
+              "required": true,
+              "bounds": "one exact supported object",
+              "zero_value": "supported false",
+              "semantics": "RFC etag object derived from the effective scim.etag.enabled runtime capability."
+            },
+            {
+              "name": "AuthenticationSchemes",
+              "type": "[]AuthenticationScheme",
+              "required": true,
+              "bounds": "1..8 entries, each string field 1..scim.string_bytes UTF-8 bytes",
+              "zero_value": "invalid empty",
+              "semantics": "Exact bounded runtime authentication scheme catalog from scim.authentication_schemes; entries are unique by type, at most one is primary, and advertised schemes exactly match accepted SCIM authentication."
             }
           ],
           "zero_value": "invalid",
-          "ownership": "immutable projection",
+          "ownership": "immutable exact RFC 7643 Section 5 runtime projection",
+          "concurrency": "safe after construction"
+        },
+        {
+          "name": "SupportedFeature",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Supported",
+              "type": "bool",
+              "required": true,
+              "bounds": "boolean",
+              "zero_value": "false",
+              "semantics": "Exact runtime capability state; false is a real RFC wire value and is never omitted.",
+              "false_valid": true
+            }
+          ],
+          "zero_value": "supported false",
+          "ownership": "immutable discovery feature",
+          "concurrency": "safe after construction"
+        },
+        {
+          "name": "BulkFeature",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Supported",
+              "type": "bool",
+              "required": true,
+              "bounds": "boolean",
+              "zero_value": "false",
+              "semantics": "Exact effective scim.bulk.enabled value; false is preserved on the wire.",
+              "false_valid": true
+            },
+            {
+              "name": "MaxOperations",
+              "type": "uint16",
+              "required": true,
+              "bounds": "0 when unsupported; otherwise 1..scim.bulk.operations and <=1000",
+              "zero_value": "0 is valid",
+              "semantics": "Exact effective maximum number of operations enforced before Bulk admission.",
+              "zero_valid": true,
+              "zero_value_detail": "unsupported"
+            },
+            {
+              "name": "MaxPayloadSize",
+              "type": "uint64",
+              "required": true,
+              "bounds": "0 when unsupported; otherwise 16384..effective scim.bulk.bytes and <=2097152 bytes",
+              "zero_value": "0 is valid",
+              "semantics": "Exact effective decoded BulkRequest byte limit; raw-route, per-child, and response bounds cannot be substituted.",
+              "zero_valid": true,
+              "zero_value_detail": "unsupported"
+            }
+          ],
+          "zero_value": "unsupported with zero limits",
+          "ownership": "immutable discovery feature",
+          "concurrency": "safe after construction"
+        },
+        {
+          "name": "FilterFeature",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Supported",
+              "type": "bool",
+              "required": true,
+              "bounds": "boolean",
+              "zero_value": "false",
+              "semantics": "Exact effective scim.filter.enabled value; false is preserved on the wire.",
+              "false_valid": true
+            },
+            {
+              "name": "MaxResults",
+              "type": "uint16",
+              "required": true,
+              "bounds": "0 when unsupported; otherwise 1..effective scim.page_max and <=1000",
+              "zero_value": "0 is valid",
+              "semantics": "Exact effective scim.page_max value enforced by list and search pagination.",
+              "zero_valid": true,
+              "zero_value_detail": "unsupported"
+            }
+          ],
+          "zero_value": "unsupported with zero maximum",
+          "ownership": "immutable discovery feature",
+          "concurrency": "safe after construction"
+        },
+        {
+          "name": "AuthenticationScheme",
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "Type",
+              "type": "string",
+              "required": true,
+              "bounds": "one of oauth, oauth2, oauthbearertoken, httpbasic, or httpdigest",
+              "zero_value": "invalid empty",
+              "semantics": "Exact RFC 7643 authentication scheme type token."
+            },
+            {
+              "name": "Name",
+              "type": "string",
+              "required": true,
+              "bounds": "1..scim.string_bytes UTF-8 bytes",
+              "zero_value": "invalid empty",
+              "semantics": "Human-readable scheme name from the validated runtime catalog."
+            },
+            {
+              "name": "Description",
+              "type": "string",
+              "required": true,
+              "bounds": "1..scim.string_bytes UTF-8 bytes",
+              "zero_value": "invalid empty",
+              "semantics": "Bounded non-secret authentication scheme description."
+            },
+            {
+              "name": "SpecURI",
+              "type": "URI",
+              "required": false,
+              "bounds": "1..scim.string_bytes UTF-8 bytes",
+              "zero_value": "absent",
+              "semantics": "Optional absolute specification URI from the validated runtime catalog."
+            },
+            {
+              "name": "DocumentationURI",
+              "type": "URI",
+              "required": false,
+              "bounds": "1..scim.string_bytes UTF-8 bytes",
+              "zero_value": "absent",
+              "semantics": "Optional operator documentation URI from the validated runtime catalog."
+            },
+            {
+              "name": "Primary",
+              "type": "bool",
+              "required": false,
+              "bounds": "boolean when present",
+              "zero_value": "absent",
+              "semantics": "Optional RFC primary indicator; false is a real value when present and at most one advertised scheme may be true.",
+              "false_valid": true
+            }
+          ],
+          "zero_value": "invalid",
+          "ownership": "immutable discovery authentication scheme",
           "concurrency": "safe after construction"
         },
         {
@@ -8476,7 +9219,7 @@
               "required": true,
               "zero_value": "invalid",
               "bounds": "22 base64url characters",
-              "semantics": "Stable parent identity."
+              "semantics": "Stable parent identity. A retry in the same connection scope with the same canonical Bulk fingerprint resolves this parent and replays its durable processed-child results; a changed fingerprint conflicts before mutation and cannot read or reuse the prior result."
             },
             {
               "name": "Operations",
@@ -8492,7 +9235,7 @@
               "required": true,
               "zero_value": "empty invalid",
               "bounds": "1..scim.bulk.operations entries",
-              "semantics": "Complete deterministic SCC condensation plan."
+              "semantics": "Complete deterministic SCC condensation plan persisted before mutation; singleton acyclic components execute one child in one child transaction, while cyclic components execute all members in one bounded all-or-nothing transaction."
             }
           ],
           "zero_value": "invalid",
@@ -8517,7 +9260,7 @@
               "required": true,
               "zero_value": "empty invalid",
               "bounds": "1..scim.bulk.operations entries",
-              "semantics": "Every admitted child and durable state."
+              "semantics": "Every admitted child and durable state. Matching-fingerprint replay projects only succeeded and failed results in original request order; dependency-blocked work remains pending reconciliation and skipped work remains omitted."
             },
             {
               "name": "FailedCount",
@@ -8636,7 +9379,7 @@
               "type": "identity.Command",
               "required": true,
               "bounds": "128-bit ID plus v1 fingerprint",
-              "semantics": "Stable command identity for scim.BulkCommand; retries retain the same canonical fingerprint and a mismatch conflicts before mutation.",
+              "semantics": "Stable parent command identity for scim.BulkCommand; the same connection scope and exact canonical request fingerprint replays the same durable parent and processed-child results, while any fingerprint mismatch conflicts before mutation and returns no prior result.",
               "zero_value": "invalid"
             },
             {
@@ -8651,8 +9394,8 @@
               "name": "FailOnErrors",
               "type": "uint16",
               "required": false,
-              "bounds": "0..scim.bulk.operations",
-              "semantics": "Bounded numeric value for scim.BulkCommand; 0..scim.bulk.operations; range and overflow checks run before allocation, arithmetic, quota or state mutation.",
+              "bounds": "0..effective scim.bulk.fail_on_errors and <=100",
+              "semantics": "Zero or omission disables the cutoff; a positive value counts only durable failed child results, and values above the effective configured maximum are rejected before admission.",
               "zero_value": "0 is valid",
               "zero_valid": true,
               "zero_value_detail": "absent"
@@ -9855,7 +10598,16 @@
               "required": true,
               "zero_value": "empty invalid",
               "bounds": "1..scim.bulk.operations entries",
-              "semantics": "Original child indexes sorted ascending for one atomic component."
+              "semantics": "Original child indexes sorted ascending. A singleton acyclic component commits only that child; a cyclic component stages all member effects, defers only within-component reference checks, and commits all members or rolls the entire component back."
+            },
+            {
+              "name": "Cyclic",
+              "type": "bool",
+              "required": true,
+              "zero_value": "false",
+              "bounds": "boolean",
+              "semantics": "True exactly when the component contains a dependency cycle and therefore uses one bounded all-or-nothing transaction for all members; false selects one independent child transaction.",
+              "false_valid": true
             },
             {
               "name": "Order",
@@ -9877,14 +10629,15 @@
           "kind": "enum",
           "underlying": "uint8",
           "constants": [
-            "BulkNotStarted",
-            "BulkInProgress",
+            "BulkChildStateInvalid",
+            "BulkAdmitted",
+            "BulkRunning",
             "BulkSucceeded",
             "BulkFailed",
-            "BulkBlockedUnknownDependency",
-            "BulkSkippedFailOnErrors"
+            "BulkDependencyBlocked",
+            "BulkSkipped"
           ],
-          "zero_value": "BulkNotStarted",
+          "zero_value": "invalid",
           "ownership": "durable checkpoint authority",
           "concurrency": "safe by value"
         },
@@ -9914,9 +10667,9 @@
               "name": "State",
               "type": "BulkChildState",
               "required": true,
-              "zero_value": "BulkNotStarted",
+              "zero_value": "invalid",
               "bounds": "closed six-state enum",
-              "semantics": "Durable state; skipped children never acquire wire results."
+              "semantics": "Durable admitted, running, succeeded, failed, dependency-blocked, or skipped state. Only succeeded and failed may carry Result; dependency-blocked remains reconcilable, and skipped is unprocessed and never acquires a wire result."
             },
             {
               "name": "SCCID",
@@ -9934,7 +10687,7 @@
               "required": false,
               "zero_value": "absent",
               "bounds": "encoded within response bound",
-              "semantics": "Durable succeeded or failed result only."
+              "semantics": "Durable succeeded or failed result only; absent for admitted, running, dependency-blocked, and skipped states."
             }
           ],
           "zero_value": "invalid",
@@ -10083,7 +10836,7 @@
             {
               "name": "ServiceProviderConfig",
               "signature": "ServiceProviderConfig(context.Context, ServiceProviderConfigRequest) (ServiceProviderConfigResult, error)",
-              "semantics": "Exact feature support and effective `scim.page_max`, `scim.bulk.operations`, and decoded `scim.bulk.bytes`. Idempotency=read; rate=rate.protocol."
+              "semantics": "Exact RFC 7643 Section 5 wire projection from one effective runtime snapshot: schemas, documentation URI, PATCH/Bulk/filter/change-password/sort/ETag supported objects, effective page/Bulk limits, and bounded accepted authentication schemes. Idempotency=read; rate=rate.protocol."
             },
             {
               "name": "UserCreate",
@@ -10336,12 +11089,12 @@
               "semantics": "Validated *pgxpool.Pool binding for scim/postgres.Store; must satisfy *pgxpool.Pool validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
             },
             {
-              "name": "Carrier",
-              "type": "identitypostgres.Carrier",
+              "name": "Enlister",
+              "type": "identitypostgres.Enlister",
               "required": true,
               "zero_value": "nil invalid",
-              "bounds": "must satisfy identitypostgres.Carrier validation",
-              "semantics": "Validated identitypostgres.Carrier binding for scim/postgres.Store; must satisfy identitypostgres.Carrier validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+              "bounds": "non-nil identitypostgres.Enlister",
+              "semantics": "Caller-owned transaction enlistment authority for scim/postgres.Store; Store never commits, rolls back, or retains a carrier after the caller transaction closes."
             }
           ],
           "zero_value": "unusable",
@@ -10418,8 +11171,13 @@
           ]
         },
         {
-          "name": "identitypostgres.Contributor",
+          "name": "Contributor",
           "methods": [
+            {
+              "name": "Descriptor",
+              "signature": "Descriptor() identitypostgres.ContributorDescriptor",
+              "semantics": "Returns the sealed scim/postgres owner and contract identity required by Carrier.Enlist."
+            },
             {
               "name": "LockKeys",
               "signature": "LockKeys(scim.Command) identitypostgres.LockKeys",
@@ -10435,7 +11193,7 @@
       ],
       "constructors": [
         {
-          "signature": "New(*pgxpool.Pool, identitypostgres.Carrier, Options) (*Store, error)",
+          "signature": "New(*pgxpool.Pool, identitypostgres.Enlister, Options) (*Store, error)",
           "semantics": "validates migrations, exact comparison/index plans, tombstone retention, Bulk bounds and carrier integration"
         }
       ],
@@ -13402,6 +14160,14 @@
             "bounds": "one bounded projection",
             "semantics": "Validated organization.Organization binding for identity.organization.archive result; one bounded projection; the owning contract controls canonicalization, authority, copying, redaction and lifetime across this boundary.",
             "zero_value": "invalid"
+          },
+          {
+            "name": "Cascade",
+            "type": "organization.LifecycleCascadeResult",
+            "required": true,
+            "bounds": "one typed generation-bound cascade result",
+            "semantics": "Exposes the admitted archive cascade ID/generation, archive-pending or archived status, and redacted external write-disablement limitations without claiming asynchronous consumer closure at owner admission.",
+            "zero_value": "invalid"
           }
         ]
       },
@@ -13477,7 +14243,7 @@
         "http_path": "/v1/organization/archive",
         "openapi_operation_id": "identity.organization.archive"
       },
-      "semantics": "Version/reason; atomically enters archived non-authoritative state, revokes active access and preserves the bounded restoration window."
+      "semantics": "Version/reason; atomically admits the archive, enters the authority-denying archived domain state, and returns the generation-bound cascade as archive-pending until asynchronous consumers close; terminal archived status is committed separately and external write-disablement limitations remain visible."
     },
     {
       "id": "identity.organization.create",
@@ -13718,6 +14484,14 @@
             "bounds": "closed result union",
             "semantics": "Closed state for identity.organization.delete result; only registered organization.DeleteResult values are accepted, ownership remains with the declared authority, and unknown values fail closed.",
             "zero_value": "invalid"
+          },
+          {
+            "name": "Cascade",
+            "type": "organization.LifecycleCascadeResult",
+            "required": true,
+            "bounds": "one typed generation-bound cascade result",
+            "semantics": "Exposes the admitted delete cascade ID/generation, deletion-pending, archived-held, deleted, or completed-local-with-external-limitation status and every redacted external limitation.",
+            "zero_value": "invalid"
           }
         ]
       },
@@ -13793,7 +14567,7 @@
         "http_path": "/v1/organization/delete",
         "openapi_operation_id": "identity.organization.delete"
       },
-      "semantics": "Archived organization/version, explicit cascade plan digest and reason; performs terminal deletion or returns restoration-window, hold, last-owner or stale-plan denial."
+      "semantics": "Archived organization/version, explicit cascade plan digest and reason; atomically admits authority-denying deletion as deletion-pending, then separately terminalizes as deleted, archived-held, or completed-local-with-external-limitation after generation-bound closure; restoration-window, last-owner, and stale-plan conditions deny admission."
     },
     {
       "id": "identity.organization.get",
@@ -16519,6 +17293,14 @@
             "bounds": "one bounded projection",
             "semantics": "Validated organization.Organization binding for identity.organization.restore result; one bounded projection; the owning contract controls canonicalization, authority, copying, redaction and lifetime across this boundary.",
             "zero_value": "invalid"
+          },
+          {
+            "name": "Cascade",
+            "type": "organization.LifecycleCascadeResult",
+            "required": true,
+            "bounds": "one typed generation-bound cascade result",
+            "semantics": "Exposes the admitted restore cascade ID/generation, restore-pending or active status, and redacted external authority limitations without presuming old external authority was restored.",
+            "zero_value": "invalid"
           }
         ]
       },
@@ -16594,7 +17376,7 @@
         "http_path": "/v1/organization/restore",
         "openapi_operation_id": "identity.organization.restore"
       },
-      "semantics": "Archived organization/version and reason; restores eligible organization state without resurrecting expired credentials or grants."
+      "semantics": "Archived organization/version and reason; atomically admits restore and advances local authority without resurrecting old credentials or grants, returns restore-pending until asynchronous consumers close, and terminalizes active separately while exposing external authority limitations."
     },
     {
       "id": "identity.organization.role.create",
@@ -18829,7 +19611,7 @@
             "type": "identity.Command",
             "required": true,
             "bounds": "128-bit ID plus v1 fingerprint",
-            "semantics": "Stable command identity for identity.scim.bulk request; retries retain the same canonical fingerprint and a mismatch conflicts before mutation.",
+            "semantics": "Stable parent command identity for identity.scim.bulk request; the same connection scope and exact canonical fingerprint replays the same durable parent and processed-child results, while any mismatch conflicts before mutation and exposes no prior result.",
             "zero_value": "invalid"
           },
           {
@@ -18898,33 +19680,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.bulk SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.bulk SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.bulk SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -18974,7 +19762,7 @@
         "http_path": "/scim/v2/Bulk",
         "openapi_operation_id": "identity.scim.bulk"
       },
-      "semantics": "Effective `scim.bulk.operations`, `scim.bulk.bytes`, `scim.bulk.fail_on_errors`, `scim.bulk.operation_bytes`, and `scim.bulk.response_bytes`; deterministic ordered replay from independently committed child checkpoints under server-owned request identity, with optional extension `Idempotency-Key`."
+      "semantics": "Effective `scim.bulk.operations`, `scim.bulk.bytes`, `scim.bulk.fail_on_errors`, `scim.bulk.operation_bytes`, and `scim.bulk.response_bytes`; deterministic ordered replay under server-owned request identity, with optional extension `Idempotency-Key`; each acyclic singleton commits independently after predecessor SCC success, while every cyclic SCC commits atomically as one bounded transaction and rolls back completely on member failure."
     },
     {
       "id": "identity.scim.connection-create",
@@ -19085,33 +19873,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.connection-create SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.connection-create SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.connection-create SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -19250,33 +20044,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.connection-delete SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.connection-delete SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.connection-delete SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -19405,33 +20205,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.connection-get SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.connection-get SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.connection-get SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -19556,33 +20362,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.connection-list SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.connection-list SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.connection-list SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -19725,33 +20537,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.connection-reconcile SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.connection-reconcile SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.connection-reconcile SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -19906,33 +20724,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.connection-rotate SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.connection-rotate SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.connection-rotate SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -20087,33 +20911,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.connection-token-revoke SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.connection-token-revoke SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.connection-token-revoke SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -20292,33 +21122,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.connection-update SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.connection-update SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.connection-update SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -20463,33 +21299,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.group-create SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.group-create SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.group-create SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -20636,33 +21478,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.group-delete SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.group-delete SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.group-delete SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -20807,33 +21655,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.group-get SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.group-get SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.group-get SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -20976,33 +21830,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.group-list SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.group-list SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.group-list SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -21133,33 +21993,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.group-patch SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.group-patch SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.group-patch SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -21320,33 +22186,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.group-replace SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.group-replace SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.group-replace SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -21467,33 +22339,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Stable HTTP status.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Present only for an RFC-registered exact error condition."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Stable redacted protocol detail."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -21582,33 +22460,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.resource-type-get SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.resource-type-get SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.resource-type-get SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -21689,33 +22573,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.resource-types-list SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.resource-types-list SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.resource-types-list SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -21804,33 +22694,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.schema-get SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.schema-get SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.schema-get SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -21911,33 +22807,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.schemas-list SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.schemas-list SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.schemas-list SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -22026,33 +22928,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Stable HTTP status.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Present only for an RFC-registered exact error condition."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Stable redacted protocol detail."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -22133,33 +23041,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.service-provider-config SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.service-provider-config SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.service-provider-config SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -22179,7 +23093,7 @@
         "http_path": "/scim/v2/ServiceProviderConfig",
         "openapi_operation_id": "identity.scim.service-provider-config"
       },
-      "semantics": "Exact feature support and effective `scim.page_max`, `scim.bulk.operations`, and decoded `scim.bulk.bytes`."
+      "semantics": "Exact RFC 7643 Section 5 ServiceProviderConfig envelope from one effective runtime snapshot, including documentation URI, supported flags, filter/Bulk limits, and accepted bounded authentication schemes."
     },
     {
       "id": "identity.scim.user-create",
@@ -22274,33 +23188,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.user-create SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.user-create SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.user-create SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -22455,33 +23375,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.user-delete SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.user-delete SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.user-delete SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -22624,33 +23550,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.user-get SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.user-get SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.user-get SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -22791,33 +23723,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.user-list SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.user-list SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.user-list SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",
@@ -22948,33 +23886,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.user-patch SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.user-patch SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.user-patch SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -23135,33 +24079,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Bounded numeric state for identity.scim.user-replace SCIMError error; 0..65535; overflow and out-of-range values are rejected before allocation, arithmetic, or persistence.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Validated scim.SCIMErrorType binding for identity.scim.user-replace SCIMError error; must satisfy scim.SCIMErrorType validation; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Validated scim.ErrorDetail binding for identity.scim.user-replace SCIMError error; 1..scim.error_detail_bytes UTF-8 bytes; the owning contract controls canonicalization, authority, copying, redaction, and lifecycle before this field crosses a package boundary."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Conflict",
@@ -23280,33 +24230,39 @@
             "identity": "scim.error",
             "fields": [
               {
-                "name": "Status",
-                "type": "uint16",
+                "name": "Schemas",
+                "type": "[]scim.SchemaURI",
                 "required": true,
-                "bounds": "0..65535",
-                "zero_value": "0 is invalid",
-                "semantics": "Stable HTTP status.",
-                "zero_valid": false,
-                "zero_value_detail": "invalid"
+                "bounds": "exactly urn:ietf:params:scim:api:messages:2.0:Error",
+                "zero_value": "invalid empty",
+                "semantics": "Exact SCIM Error schema URN; omission, additional values, and different schemas are rejected."
+              },
+              {
+                "name": "Status",
+                "type": "string",
+                "required": true,
+                "bounds": "exactly three ASCII decimal digits encoding the actual HTTP error status 300..599",
+                "zero_value": "invalid empty",
+                "semantics": "RFC JSON-string status equal to the actual HTTP response status; numeric, malformed, non-error, and mismatched values are rejected."
               },
               {
                 "name": "SCIMType",
                 "type": "scim.SCIMErrorType",
                 "required": false,
-                "bounds": "must satisfy scim.SCIMErrorType validation",
+                "bounds": "registered SCIM error keyword for the exact condition",
                 "zero_value": "absent",
-                "semantics": "Present only for an RFC-registered exact error condition."
+                "semantics": "Optional registered scimType for the exact condition; omitted when no registered keyword applies."
               },
               {
                 "name": "Detail",
                 "type": "scim.ErrorDetail",
-                "bounds": "1..scim.error_detail_bytes UTF-8 bytes",
-                "required": true,
-                "zero_value": "invalid",
-                "semantics": "Stable redacted protocol detail."
+                "required": false,
+                "bounds": "1..scim.error_detail_bytes enumeration-safe UTF-8 bytes when present",
+                "zero_value": "absent",
+                "semantics": "Optional bounded redacted detail; absence is distinct from an empty or synthesized message."
               }
             ],
-            "semantics": "stable redacted protocol error"
+            "semantics": "stable redacted exact RFC SCIM Error response"
           },
           {
             "type": "Unavailable",

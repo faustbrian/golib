@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "oauth-proxy-no-write-report"
+        },
+        "invariant_id": {
+          "const": "oauth-proxy-no-write-report.invariant"
+        },
+        "invariant": {
+          "const": "authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows"
         },
         "operation_ids": {
           "const": [
@@ -396,235 +404,281 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.proxy-forward"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "upstream_request",
-                      "state",
-                      "redirect_uri"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "proxy has no persistence writer and exact upstream allowlist is configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "relayed_parameter_count",
-                      "identity_row_delta",
-                      "account_row_delta",
-                      "session_row_delta",
-                      "callback_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#success",
+                  "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#failure",
+                  "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#outage"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.social-oauth.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "oauth-proxy-no-write-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "outage"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.proxy-forward"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.proxy-forward"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "upstream_request",
-                      "state",
-                      "redirect_uri"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "proxy has no persistence writer and exact upstream allowlist is configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "relayed_parameter_count",
-                      "identity_row_delta",
-                      "account_row_delta",
-                      "session_row_delta",
-                      "callback_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "proxy has no persistence writer and exact upstream allowlist is configured"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "unavailable"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "unavailable"
+                ]
+              },
+              "expected_invariant": {
+                "const": "authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.proxy-forward"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.oauth.proxy-forward"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "relayed_parameter_count",
+                  "identity_row_delta",
+                  "account_row_delta",
+                  "session_row_delta",
+                  "callback_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#outage"
+                  "relayed_parameter_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "observation_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior"
+                  "identity_row_delta": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
+                  "account_row_delta": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "scenario": {
-                    "const": "outage"
+                  "session_row_delta": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.proxy-forward"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "upstream_request",
-                      "state",
-                      "redirect_uri"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "proxy has no persistence writer and exact upstream allowlist is configured"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows"
-                  },
-                  "observed_state_digest": {
+                  "callback_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "relayed_parameter_count",
-                      "identity_row_delta",
-                      "account_row_delta",
-                      "session_row_delta",
-                      "callback_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#success",
+              "observation_id": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior",
+              "claim_id": "journey.social-oauth.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.oauth.proxy-forward"
+              ],
+              "input_fields": [
+                "provider_id",
+                "upstream_request",
+                "state",
+                "redirect_uri"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:63d04dfd268b503e45760c53eb72726601d2ead4dc9bb5bba517ef4a0f353396",
+              "expected_operation_set": [
+                "identity.oauth.proxy-forward"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.proxy-forward"
+              ]
+            },
+            {
+              "case_id": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#failure",
+              "observation_id": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior",
+              "claim_id": "journey.social-oauth.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.oauth.proxy-forward"
+              ],
+              "input_fields": [
+                "provider_id",
+                "upstream_request",
+                "state",
+                "redirect_uri"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:82ac925ec2c45725c613f4e34f5f2d9369ae4812cedc9787877f3733c7123a35",
+              "expected_operation_set": [
+                "identity.oauth.proxy-forward"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.proxy-forward"
+              ]
+            },
+            {
+              "case_id": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#outage",
+              "observation_id": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior",
+              "claim_id": "journey.social-oauth.v1",
+              "scenario": "outage",
+              "operation_ids": [
+                "identity.oauth.proxy-forward"
+              ],
+              "input_fields": [
+                "provider_id",
+                "upstream_request",
+                "state",
+                "redirect_uri"
+              ],
+              "status": "unavailable",
+              "stable_error": "unavailable",
+              "artifact_contract_sha256": "sha256:ee10f307cccfbfbe477654a050f1b25baae384da0a81ac5b8ed98d4cf41ef442",
+              "expected_operation_set": [
+                "identity.oauth.proxy-forward"
+              ],
+              "observed_operation_set": [
+                "identity.oauth.proxy-forward"
+              ]
+            }
+          ]
         },
         "relayed_parameter_count": {
           "type": "integer",
@@ -665,254 +719,6 @@
             "account_row_delta",
             "session_row_delta"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.proxy-forward"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "upstream_request",
-                      "state",
-                      "redirect_uri"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "proxy has no persistence writer and exact upstream allowlist is configured"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "relayed_parameter_count",
-                      "identity_row_delta",
-                      "account_row_delta",
-                      "session_row_delta",
-                      "callback_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.proxy-forward"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "upstream_request",
-                      "state",
-                      "redirect_uri"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "proxy has no persistence writer and exact upstream allowlist is configured"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "relayed_parameter_count",
-                      "identity_row_delta",
-                      "account_row_delta",
-                      "session_row_delta",
-                      "callback_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior#outage"
-                  },
-                  "observation_id": {
-                    "const": "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.social-oauth.v1"
-                  },
-                  "scenario": {
-                    "const": "outage"
-                  },
-                  "status": {
-                    "const": "unavailable"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.oauth.proxy-forward"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "provider_id",
-                      "upstream_request",
-                      "state",
-                      "redirect_uri"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "proxy has no persistence writer and exact upstream allowlist is configured"
-                  },
-                  "stable_error": {
-                    "const": "unavailable"
-                  },
-                  "expected_invariant": {
-                    "const": "authorize and callback relay bounded approved parameters while creating no identity, account, session, or credential rows"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "relayed_parameter_count",
-                      "identity_row_delta",
-                      "account_row_delta",
-                      "session_row_delta",
-                      "callback_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

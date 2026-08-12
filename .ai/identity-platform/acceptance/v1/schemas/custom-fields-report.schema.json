@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "custom-fields-report"
+        },
+        "invariant_id": {
+          "const": "custom-fields-report.invariant"
+        },
+        "invariant": {
+          "const": "valid fields round-trip with types while forbidden writes and sensitive reads are rejected or redacted"
         },
         "operation_ids": {
           "const": [
@@ -398,241 +406,304 @@
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.user.create",
-                      "identity.user.update-admin",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "field_schema",
-                      "input_fields",
-                      "actor_permissions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed additional fields have defaults, validation, read, write, and sensitivity declarations"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "valid fields round-trip with types while forbidden writes and sensitive reads are rejected or redacted"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_schema_digest",
-                      "round_trip_field_count",
-                      "forbidden_write_count",
-                      "redacted_field_count",
-                      "persistence_digest"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "custom-fields-report.journey.extension-access-policy.v1.behavior#success",
+                  "custom-fields-report.journey.extension-access-policy.v1.behavior#failure",
+                  "custom-fields-report.journey.extension-access-policy.v1.behavior#denial"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "custom-fields-report.journey.extension-access-policy.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.extension-access-policy.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "custom-fields-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.user.create",
+                    "identity.user.update-admin",
+                    "identity.session.get"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.user.create",
-                      "identity.user.update-admin",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "field_schema",
-                      "input_fields",
-                      "actor_permissions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed additional fields have defaults, validation, read, write, and sensitivity declarations"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "valid fields round-trip with types while forbidden writes and sensitive reads are rejected or redacted"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_schema_digest",
-                      "round_trip_field_count",
-                      "forbidden_write_count",
-                      "redacted_field_count",
-                      "persistence_digest"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
+              "initial_state": {
+                "const": "typed additional fields have defaults, validation, read, write, and sensitivity declarations"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden"
+                ]
+              },
+              "expected_invariant": {
+                "const": "valid fields round-trip with types while forbidden writes and sensitive reads are rejected or redacted"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.user.create",
+                    "identity.user.update-admin",
+                    "identity.session.get"
+                  ]
+                }
+              },
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.user.create",
+                    "identity.user.update-admin",
+                    "identity.session.get"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "field_schema_digest",
+                  "round_trip_field_count",
+                  "forbidden_write_count",
+                  "redacted_field_count",
+                  "persistence_digest"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.user.create",
-                      "identity.user.update-admin",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "field_schema",
-                      "input_fields",
-                      "actor_permissions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed additional fields have defaults, validation, read, write, and sensitivity declarations"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "valid fields round-trip with types while forbidden writes and sensitive reads are rejected or redacted"
-                  },
-                  "observed_state_digest": {
+                  "field_schema_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
-                  "observed_event_digest": {
+                  "round_trip_field_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "forbidden_write_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "redacted_field_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "persistence_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_schema_digest",
-                      "round_trip_field_count",
-                      "forbidden_write_count",
-                      "redacted_field_count",
-                      "persistence_digest"
-                    ]
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "custom-fields-report.journey.extension-access-policy.v1.behavior#success",
+              "observation_id": "custom-fields-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.user.create",
+                "identity.user.update-admin",
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "field_schema",
+                "input_fields",
+                "actor_permissions"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:93ae4a0c4e4a2e556cc2a56fd152b72554c887d03290426e4b05c06bc7be919a",
+              "expected_operation_set": [
+                "identity.session.get",
+                "identity.user.create",
+                "identity.user.update-admin"
+              ],
+              "observed_operation_set": [
+                "identity.session.get",
+                "identity.user.create",
+                "identity.user.update-admin"
+              ]
+            },
+            {
+              "case_id": "custom-fields-report.journey.extension-access-policy.v1.behavior#failure",
+              "observation_id": "custom-fields-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.user.create",
+                "identity.user.update-admin",
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "field_schema",
+                "input_fields",
+                "actor_permissions"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:c84ebaece21388dd54b3dc03e6f8b380e8d31fe49141b520cc555117baaaf1e7",
+              "expected_operation_set": [
+                "identity.session.get",
+                "identity.user.create",
+                "identity.user.update-admin"
+              ],
+              "observed_operation_set": [
+                "identity.session.get",
+                "identity.user.create",
+                "identity.user.update-admin"
+              ]
+            },
+            {
+              "case_id": "custom-fields-report.journey.extension-access-policy.v1.behavior#denial",
+              "observation_id": "custom-fields-report.journey.extension-access-policy.v1.behavior",
+              "claim_id": "journey.extension-access-policy.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.user.create",
+                "identity.user.update-admin",
+                "identity.session.get"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "field_schema",
+                "input_fields",
+                "actor_permissions"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:a7344ea18c3fb7ffea3e81857cbafe65d15555729fbd89682abb4d9be4e39d28",
+              "expected_operation_set": [
+                "identity.session.get",
+                "identity.user.create",
+                "identity.user.update-admin"
+              ],
+              "observed_operation_set": [
+                "identity.session.get",
+                "identity.user.create",
+                "identity.user.update-admin"
+              ]
+            }
+          ]
         },
         "field_schema_digest": {
           "type": "string",
@@ -666,260 +737,6 @@
             "forbidden_write_count",
             "redacted_field_count"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.user.create",
-                      "identity.user.update-admin",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "field_schema",
-                      "input_fields",
-                      "actor_permissions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed additional fields have defaults, validation, read, write, and sensitivity declarations"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "valid fields round-trip with types while forbidden writes and sensitive reads are rejected or redacted"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_schema_digest",
-                      "round_trip_field_count",
-                      "forbidden_write_count",
-                      "redacted_field_count",
-                      "persistence_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.user.create",
-                      "identity.user.update-admin",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "field_schema",
-                      "input_fields",
-                      "actor_permissions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed additional fields have defaults, validation, read, write, and sensitivity declarations"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "valid fields round-trip with types while forbidden writes and sensitive reads are rejected or redacted"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_schema_digest",
-                      "round_trip_field_count",
-                      "forbidden_write_count",
-                      "redacted_field_count",
-                      "persistence_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "custom-fields-report.journey.extension-access-policy.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.extension-access-policy.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.user.create",
-                      "identity.user.update-admin",
-                      "identity.session.get"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "field_schema",
-                      "input_fields",
-                      "actor_permissions"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "typed additional fields have defaults, validation, read, write, and sensitivity declarations"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "valid fields round-trip with types while forbidden writes and sensitive reads are rejected or redacted"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "field_schema_digest",
-                      "round_trip_field_count",
-                      "forbidden_write_count",
-                      "redacted_field_count",
-                      "persistence_digest"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

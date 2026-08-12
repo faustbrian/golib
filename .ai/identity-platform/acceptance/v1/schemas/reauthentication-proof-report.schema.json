@@ -256,6 +256,8 @@
       "additionalProperties": false,
       "required": [
         "artifact_id",
+        "invariant_id",
+        "invariant",
         "operation_ids",
         "input_digest",
         "execution",
@@ -269,6 +271,12 @@
       "properties": {
         "artifact_id": {
           "const": "reauthentication-proof-report"
+        },
+        "invariant_id": {
+          "const": "reauthentication-proof-report.invariant"
+        },
+        "invariant": {
+          "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
         },
         "operation_ids": {
           "const": [
@@ -398,322 +406,345 @@
           "type": "array",
           "minItems": 4,
           "maxItems": 4,
+          "uniqueItems": true,
           "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.verify",
-                      "identity.session.last-method-record",
-                      "identity.session.last-method-check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "password",
-                      "session_id",
-                      "required_freshness"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "authenticated session exists but has no fresh authentication proof"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "proof_id",
-                      "authentication_method",
-                      "freshness_seconds",
-                      "expired_proof_rejected"
-                    ]
-                  }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "observation_id",
+              "claim_id",
+              "invariant_id",
+              "scenario",
+              "operation_ids",
+              "input_fields",
+              "initial_state",
+              "status",
+              "stable_error",
+              "expected_invariant",
+              "observed_state_digest",
+              "observed_event_digest",
+              "transcript_sha256",
+              "artifact_contract_sha256",
+              "observed_value_count",
+              "ordered_steps",
+              "expected_operation_set",
+              "observed_operation_set",
+              "observed_values"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "enum": [
+                  "reauthentication-proof-report.journey.email-password-username.v1.behavior#success",
+                  "reauthentication-proof-report.journey.email-password-username.v1.behavior#failure",
+                  "reauthentication-proof-report.journey.email-password-username.v1.behavior#denial",
+                  "reauthentication-proof-report.journey.email-password-username.v1.behavior#replay"
+                ]
+              },
+              "observation_id": {
+                "type": "string",
+                "enum": [
+                  "reauthentication-proof-report.journey.email-password-username.v1.behavior"
+                ]
+              },
+              "claim_id": {
+                "type": "string",
+                "enum": [
+                  "journey.email-password-username.v1"
+                ]
+              },
+              "invariant_id": {
+                "const": "reauthentication-proof-report.invariant"
+              },
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure",
+                  "denial",
+                  "replay"
+                ]
+              },
+              "operation_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.password.verify",
+                    "identity.session.last-method-record",
+                    "identity.session.last-method-check"
+                  ]
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.verify",
-                      "identity.session.last-method-record",
-                      "identity.session.last-method-check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "password",
-                      "session_id",
-                      "required_freshness"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "authenticated session exists but has no fresh authentication proof"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "proof_id",
-                      "authentication_method",
-                      "freshness_seconds",
-                      "expired_proof_rejected"
-                    ]
-                  }
+              "input_fields": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.verify",
-                      "identity.session.last-method-record",
-                      "identity.session.last-method-check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "password",
-                      "session_id",
-                      "required_freshness"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "authenticated session exists but has no fresh authentication proof"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "proof_id",
-                      "authentication_method",
-                      "freshness_seconds",
-                      "expired_proof_rejected"
-                    ]
-                  }
+              "initial_state": {
+                "const": "authenticated session exists but has no fresh authentication proof"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "failed",
+                  "denied"
+                ]
+              },
+              "stable_error": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "internal",
+                  "forbidden",
+                  "conflict"
+                ]
+              },
+              "expected_invariant": {
+                "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
+              },
+              "observed_state_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_event_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "transcript_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "artifact_contract_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "observed_value_count": {
+                "const": 5
+              },
+              "ordered_steps": {
+                "const": [
+                  "precondition-established",
+                  "stimulus-executed",
+                  "outcome-observed",
+                  "transcript-bound"
+                ]
+              },
+              "expected_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.password.verify",
+                    "identity.session.last-method-record",
+                    "identity.session.last-method-check"
+                  ]
                 }
               },
-              {
+              "observed_operation_set": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "identity.password.verify",
+                    "identity.session.last-method-record",
+                    "identity.session.last-method-check"
+                  ]
+                }
+              },
+              "observed_values": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
+                  "session_id",
+                  "proof_id",
+                  "authentication_method",
+                  "freshness_seconds",
+                  "expired_proof_rejected"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior#replay"
+                  "session_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "observation_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior"
+                  "proof_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.verify",
-                      "identity.session.last-method-record",
-                      "identity.session.last-method-check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
+                  "authentication_method": {
+                    "type": "string",
+                    "enum": [
                       "password",
-                      "session_id",
-                      "required_freshness"
+                      "passkey",
+                      "otp",
+                      "oauth",
+                      "sso",
+                      "recovery_code"
                     ]
                   },
-                  "initial_state": {
-                    "const": "authenticated session exists but has no fresh authentication proof"
+                  "freshness_seconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "proof_id",
-                      "authentication_method",
-                      "freshness_seconds",
-                      "expired_proof_rejected"
-                    ]
+                  "expired_proof_rejected": {
+                    "type": "boolean"
                   }
                 }
               }
-            ]
-          }
+            }
+          },
+          "x-exact-scenario-case-fields": [
+            "case_id",
+            "observation_id",
+            "claim_id",
+            "scenario",
+            "operation_ids",
+            "input_fields",
+            "status",
+            "stable_error",
+            "artifact_contract_sha256",
+            "expected_operation_set",
+            "observed_operation_set"
+          ],
+          "x-exact-scenario-cases": [
+            {
+              "case_id": "reauthentication-proof-report.journey.email-password-username.v1.behavior#success",
+              "observation_id": "reauthentication-proof-report.journey.email-password-username.v1.behavior",
+              "claim_id": "journey.email-password-username.v1",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.password.verify",
+                "identity.session.last-method-record",
+                "identity.session.last-method-check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "password",
+                "session_id",
+                "required_freshness"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:c46451858e6b7e5e0e60073d49e52b7b20faceb5bf6b3cf3076efb092bbe08b1",
+              "expected_operation_set": [
+                "identity.password.verify",
+                "identity.session.last-method-check",
+                "identity.session.last-method-record"
+              ],
+              "observed_operation_set": [
+                "identity.password.verify",
+                "identity.session.last-method-check",
+                "identity.session.last-method-record"
+              ]
+            },
+            {
+              "case_id": "reauthentication-proof-report.journey.email-password-username.v1.behavior#failure",
+              "observation_id": "reauthentication-proof-report.journey.email-password-username.v1.behavior",
+              "claim_id": "journey.email-password-username.v1",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.password.verify",
+                "identity.session.last-method-record",
+                "identity.session.last-method-check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "password",
+                "session_id",
+                "required_freshness"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:b20f843d613a909c65a0b1055567f46cf5a81b2b8138c4ae5a3fee4ec6e886c5",
+              "expected_operation_set": [
+                "identity.password.verify",
+                "identity.session.last-method-check",
+                "identity.session.last-method-record"
+              ],
+              "observed_operation_set": [
+                "identity.password.verify",
+                "identity.session.last-method-check",
+                "identity.session.last-method-record"
+              ]
+            },
+            {
+              "case_id": "reauthentication-proof-report.journey.email-password-username.v1.behavior#denial",
+              "observation_id": "reauthentication-proof-report.journey.email-password-username.v1.behavior",
+              "claim_id": "journey.email-password-username.v1",
+              "scenario": "denial",
+              "operation_ids": [
+                "identity.password.verify",
+                "identity.session.last-method-record",
+                "identity.session.last-method-check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "password",
+                "session_id",
+                "required_freshness"
+              ],
+              "status": "denied",
+              "stable_error": "forbidden",
+              "artifact_contract_sha256": "sha256:1448d7d62de42ae1e98497753de9516a57fa87fbefd8bcd8cfae7153979e4931",
+              "expected_operation_set": [
+                "identity.password.verify",
+                "identity.session.last-method-check",
+                "identity.session.last-method-record"
+              ],
+              "observed_operation_set": [
+                "identity.password.verify",
+                "identity.session.last-method-check",
+                "identity.session.last-method-record"
+              ]
+            },
+            {
+              "case_id": "reauthentication-proof-report.journey.email-password-username.v1.behavior#replay",
+              "observation_id": "reauthentication-proof-report.journey.email-password-username.v1.behavior",
+              "claim_id": "journey.email-password-username.v1",
+              "scenario": "replay",
+              "operation_ids": [
+                "identity.password.verify",
+                "identity.session.last-method-record",
+                "identity.session.last-method-check"
+              ],
+              "input_fields": [
+                "tenant_id",
+                "user_id",
+                "password",
+                "session_id",
+                "required_freshness"
+              ],
+              "status": "denied",
+              "stable_error": "conflict",
+              "artifact_contract_sha256": "sha256:7e4ed2717d6096a1e8ec93481bd620e57d659f15a1ad5b640c1668d232c6f1a1",
+              "expected_operation_set": [
+                "identity.password.verify",
+                "identity.session.last-method-check",
+                "identity.session.last-method-record"
+              ],
+              "observed_operation_set": [
+                "identity.password.verify",
+                "identity.session.last-method-check",
+                "identity.session.last-method-record"
+              ]
+            }
+          ]
         },
         "session_id": {
           "type": "string",
@@ -755,348 +786,6 @@
           "fields": [
             "expired_proof_rejected"
           ]
-        }
-      ],
-      "allOf": [
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior#success"
-                  },
-                  "observation_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "success"
-                  },
-                  "status": {
-                    "const": "pass"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.verify",
-                      "identity.session.last-method-record",
-                      "identity.session.last-method-check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "password",
-                      "session_id",
-                      "required_freshness"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "authenticated session exists but has no fresh authentication proof"
-                  },
-                  "stable_error": {
-                    "const": "none"
-                  },
-                  "expected_invariant": {
-                    "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "proof_id",
-                      "authentication_method",
-                      "freshness_seconds",
-                      "expired_proof_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior#failure"
-                  },
-                  "observation_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "failure"
-                  },
-                  "status": {
-                    "const": "failed"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.verify",
-                      "identity.session.last-method-record",
-                      "identity.session.last-method-check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "password",
-                      "session_id",
-                      "required_freshness"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "authenticated session exists but has no fresh authentication proof"
-                  },
-                  "stable_error": {
-                    "const": "internal"
-                  },
-                  "expected_invariant": {
-                    "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "proof_id",
-                      "authentication_method",
-                      "freshness_seconds",
-                      "expired_proof_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior#denial"
-                  },
-                  "observation_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "denial"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.verify",
-                      "identity.session.last-method-record",
-                      "identity.session.last-method-check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "password",
-                      "session_id",
-                      "required_freshness"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "authenticated session exists but has no fresh authentication proof"
-                  },
-                  "stable_error": {
-                    "const": "forbidden"
-                  },
-                  "expected_invariant": {
-                    "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "proof_id",
-                      "authentication_method",
-                      "freshness_seconds",
-                      "expired_proof_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
-        },
-        {
-          "properties": {
-            "scenario_cases": {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "observation_id",
-                  "claim_id",
-                  "scenario",
-                  "operation_ids",
-                  "input_fields",
-                  "initial_state",
-                  "status",
-                  "stable_error",
-                  "expected_invariant",
-                  "observed_state_digest",
-                  "observed_event_digest",
-                  "observed_fields"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior#replay"
-                  },
-                  "observation_id": {
-                    "const": "reauthentication-proof-report.journey.email-password-username.v1.behavior"
-                  },
-                  "claim_id": {
-                    "const": "journey.email-password-username.v1"
-                  },
-                  "scenario": {
-                    "const": "replay"
-                  },
-                  "status": {
-                    "const": "denied"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.password.verify",
-                      "identity.session.last-method-record",
-                      "identity.session.last-method-check"
-                    ]
-                  },
-                  "input_fields": {
-                    "const": [
-                      "tenant_id",
-                      "user_id",
-                      "password",
-                      "session_id",
-                      "required_freshness"
-                    ]
-                  },
-                  "initial_state": {
-                    "const": "authenticated session exists but has no fresh authentication proof"
-                  },
-                  "stable_error": {
-                    "const": "conflict"
-                  },
-                  "expected_invariant": {
-                    "const": "successful verification records method and time; freshness check accepts within bound and rejects expired or different-subject proof"
-                  },
-                  "observed_state_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_event_digest": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  },
-                  "observed_fields": {
-                    "const": [
-                      "session_id",
-                      "proof_id",
-                      "authentication_method",
-                      "freshness_seconds",
-                      "expired_proof_rejected"
-                    ]
-                  }
-                }
-              },
-              "minContains": 1
-            }
-          }
         }
       ]
     }

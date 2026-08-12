@@ -88,12 +88,12 @@ public contracts needed by the identity platform: authentication,
 authorization, capability (including its PostgreSQL adapter contract),
 identifier, and password. They are not additional identity-platform product
 units: the product scope remains 61 units while the complete execution DAG has
-66 schedulable units.
+67 schedulable units.
 
 ## Program completion contract
 
-Completion requires all 61 identity-platform inventory units and all five
-primitive-extension prerequisites to be `verified` (66 schedulable units
+Completion requires all 61 identity-platform inventory units and all six
+primitive-extension prerequisites to be `verified` (67 schedulable units
 total), every in-scope
 row in `BETTER_AUTH_PARITY.md` to have executable proof, and every composed
 journey and cross-cutting property in `END_STATE.md` to pass against final

@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/oauth-server/device`
 - Canonical goal after scaffolding: `pkg/oauth-server/device/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:oauth-server/device:v1`; owned operation IDs: `contract:operation:identity.oauth-server.device-approve:v1`, `contract:operation:identity.oauth-server.device-authorize:v1`, `contract:operation:identity.oauth-server.device-deny:v1`, `contract:operation:identity.oauth-server.device-inspect:v1`, `contract:operation:identity.oauth-server.device-token:v1`
-- Requires: `oauth-server`, `primitive/capability-identity-contracts`
+- Requires: `oauth-server`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
 - Consumes existing primitives: `capability`, `capability/postgres`, `rate-limit`, `audit`
 - Unlocks after verification: `oauth-server/postgres`, `identity/http`
 
