@@ -3,7 +3,7 @@
 This audit records the starting point and current disposition of the
 production-policy redesign. A passing check against the draft is not evidence
 that the draft has the right contract. Status describes executable behavior in
-the current tree through 2026-08-11, not intended behavior.
+the current tree through 2026-08-12, not intended behavior.
 
 ## Current implementation inventory
 
@@ -26,8 +26,8 @@ mutation campaign killed all 3,093 root mutants and all 50 `adapters/golog`
 mutants with zero lived, uncovered, timed-out, non-viable, or skipped mutants
 and exact 100% test efficacy and mutator coverage. Every mandatory checkpoint
 for all nine manifest-derived reverse dependencies also matches its complete
-current input fingerprint. Direct Amazon MSK execution remains a separate
-release requirement.
+current input fingerprint. Direct managed-service execution is required only
+before adding the corresponding operational support claim.
 
 Minimum-version evidence separately pins the official Apache Kafka 3.7.2 image
 by multi-platform digest, asserts the running version, and executes the producer

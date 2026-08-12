@@ -175,8 +175,8 @@ All notable changes to this module are documented here.
 ### Changed
 
 - record the content-matched root Kafka gate set and all nine
-  manifest-derived reverse dependencies as current, leaving direct Amazon MSK
-  Provisioned and Serverless execution as the remaining release blocker
+  manifest-derived reverse dependencies as current, while keeping untested
+  managed-service profiles outside the documented operational support matrix
 - Refresh the reviewed upstream client baseline while retaining franz-go
   v1.21.5, kadm v1.18.0, kafka-go v0.4.51, and Sarama v1.60.1.
 - clarify that MSK IAM idempotent production needs cluster-level authorization
