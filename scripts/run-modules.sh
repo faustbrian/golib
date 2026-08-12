@@ -123,38 +123,61 @@ fi
 
 while IFS= read -r module; do
     [[ -n "${module}" ]] || continue
-    environment_file="$(mktemp)"
-    state_file="$(mktemp)"
-    "${root}/scripts/start-services.sh" \
-        "${module}" "${environment_file}" "${state_file}"
-    set -a
-    # shellcheck disable=SC1090 # Generated from pinned local service values.
-    source "${environment_file}"
-    set +a
-    status=0
-    for selected_gate in "${gates[@]}"; do
-        set +e
-        case "${selected_gate}" in
-            format|tidy|api-update)
-                "${root}/scripts/check-module.sh" \
-                    "${module}" "${selected_gate}"
-                ;;
-            *)
-                "${root}/scripts/run-gate-with-evidence.sh" \
-                    "${module}" "${selected_gate}"
-                ;;
-        esac
-        status=$?
+    set +e
+    (
         set -e
-        [[ "${status}" -eq 0 ]] || break
-    done
-    if [[ "${status}" -eq 0 && "${gate}" == "check" ]]; then
-        set +e
-        "${root}/scripts/audit-goals.sh" "${module}"
-        status=$?
-        set -e
-    fi
-    "${root}/scripts/stop-services.sh" "${state_file}"
-    rm -f "${environment_file}" "${state_file}"
+        environment_file="$(mktemp)"
+        state_file="$(mktemp)"
+        # shellcheck disable=SC2329 # Invoked by the EXIT trap.
+        cleanup_module() {
+            module_status=$?
+            trap - EXIT HUP INT TERM
+            set +e
+            "${root}/scripts/stop-services.sh" "${state_file}"
+            cleanup_status=$?
+            rm -f "${environment_file}" "${state_file}"
+            if [[ "${module_status}" -eq 0 && "${cleanup_status}" -ne 0 ]]; then
+                module_status="${cleanup_status}"
+            fi
+            exit "${module_status}"
+        }
+        trap cleanup_module EXIT
+        trap 'exit 129' HUP
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        "${root}/scripts/start-services.sh" \
+            "${module}" "${environment_file}" "${state_file}"
+        set -a
+        # shellcheck disable=SC1090 # Generated from pinned local service values.
+        source "${environment_file}"
+        set +a
+        status=0
+        for selected_gate in "${gates[@]}"; do
+            set +e
+            case "${selected_gate}" in
+                format|tidy|api-update)
+                    "${root}/scripts/check-module.sh" \
+                        "${module}" "${selected_gate}"
+                    ;;
+                *)
+                    "${root}/scripts/run-gate-with-evidence.sh" \
+                        "${module}" "${selected_gate}"
+                    ;;
+            esac
+            status=$?
+            set -e
+            [[ "${status}" -eq 0 ]] || break
+        done
+        if [[ "${status}" -eq 0 && "${gate}" == "check" ]]; then
+            set +e
+            "${root}/scripts/audit-goals.sh" "${module}"
+            status=$?
+            set -e
+        fi
+        exit "${status}"
+    )
+    status=$?
+    set -e
     [[ "${status}" -eq 0 ]] || exit "${status}"
 done <<<"${selection}"

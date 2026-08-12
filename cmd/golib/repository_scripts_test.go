@@ -3459,6 +3459,84 @@ func TestWSDLInteroperabilityUsesPinnedContainerRuntime(t *testing.T) {
 	}
 }
 
+func TestModuleRunnerDoesNotLeakServiceEnvironmentBetweenModules(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	bin := filepath.Join(repository, "bin")
+	for _, directory := range []string{bin, filepath.Join(repository, "scripts")} {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		mustReadFile(t, filepath.Join(root, "scripts", "run-modules.sh")),
+	)
+	writeTestFile(t, filepath.Join(repository, "scripts", "start-services.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+: >"$2"
+: >"$3"
+if [[ "$1" == "pkg/first" ]]; then
+    printf '%s\n' 'MODULE_SERVICE_VALUE=first' >"$2"
+fi
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "stop-services.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "check-module.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$1" == "pkg/first" && "${MODULE_SERVICE_VALUE:-}" != "first" ]]; then
+    printf '%s\n' 'first module did not receive its service environment' >&2
+    exit 1
+fi
+if [[ "$1" == "pkg/second" && -n "${MODULE_SERVICE_VALUE+x}" ]]; then
+    printf '%s\n' 'second module inherited the first module environment' >&2
+    exit 1
+fi
+`)
+	writeTestFile(t, filepath.Join(bin, "go"), `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' pkg/first pkg/second
+`)
+	for _, executable := range []string{
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		filepath.Join(repository, "scripts", "start-services.sh"),
+		filepath.Join(repository, "scripts", "stop-services.sh"),
+		filepath.Join(repository, "scripts", "check-module.sh"),
+		filepath.Join(bin, "go"),
+	} {
+		if err := os.Chmod(executable, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	command := exec.Command(
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		"format", "--modules", "pkg/first,pkg/second",
+	)
+	command.Dir = repository
+	command.Env = environmentWithValues(
+		os.Environ(),
+		"PATH",
+		bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
+	command.Env = environmentWithValues(
+		command.Env,
+		"GOLIB_VERIFICATION_SNAPSHOT",
+		"1",
+	)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("run sequential modules: %v\n%s", err, output)
+	}
+}
+
 func TestGateEvidenceIsCheckpointedPerResult(t *testing.T) {
 	t.Parallel()
 
