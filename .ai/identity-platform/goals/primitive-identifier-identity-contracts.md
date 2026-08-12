@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/identifier`
 - Canonical goal after scheduling: `pkg/identifier/.ai/GOAL_IDENTITY_CONTRACTS.md`
 - Requires: None
-- Exact identity-platform consumers: `identity/email`, `identity/magiclink`, `identity/otp`, `identity/password`, `identity/username`, `passkey`, `webauthn`
+- Exact identity-platform consumers: `identity/email`, `identity/magiclink`, `identity/otp`, `identity/password`, `identity/risk/captcha`, `identity/username`, `passkey`, `webauthn`
 - Unlocks after verification: `identity/email`, `identity/magiclink`, `identity/otp`, `identity/password`, `identity/username`, `passkey`, `webauthn`
 
 ## Start gate and pinned contract

@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/password`
 - Canonical goal after scheduling: `pkg/password/.ai/GOAL_IDENTITY_CONTRACTS.md`
 - Requires: None
-- Exact identity-platform consumers: `identity/otp`, `identity/password`, `identity/phone`, `identity/username`
+- Exact identity-platform consumers: `identity/otp`, `identity/password`, `identity/phone`, `identity/risk/hibp`, `identity/username`
 - Unlocks after verification: `identity/otp`, `identity/password`, `identity/phone`, `identity/username`
 
 ## Start gate and pinned contract

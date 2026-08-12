@@ -11906,7 +11906,7 @@
   "schema_version": 2,
   "source_digests": {
     "API_OPERATIONS.md": "sha256:fcca9b8daab142f8d559120e1e251642d2c62dab347d692564e4517f34f415bf",
-    "GOAL_MANIFEST.json": "sha256:90b2da242af9a9e9771709142cd0e03399c5630969db526b53e033c3029a40f3",
+    "GOAL_MANIFEST.json": "sha256:0869fd8448befd7c42fb721584fd3c5791c414502432a57ff354c1b75fc7db60",
     "OPERATION_SEMANTICS.json": "sha256:be1fbddec9fb12b1165b3e18b240a75ee4a59280bbaf7d4277a55a47d85867ea",
     "PARITY_DISPOSITIONS.json": "sha256:e212c9cea79a91a69b0c676727c970ecc305882a2425835760f5e8d6981cfbb7",
     "fragments": {
@@ -107084,7 +107084,7 @@
         "go:identity/oauth/providers:UnavailableError"
       ],
       "functions": [],
-      "goal_sha256": "7e18a8d37f14d59a0ddd74bfe6d1ba1b5f562b4178e22e18688dbba92aa290da",
+      "goal_sha256": "4bc61b4ab05d569a548e1c6c9ce24973e23a34614a00f59a8bea3437f5f9a8b5",
       "interfaces": [
         "go:identity/oauth/providers:AppleClientSecretSigner",
         "go:identity/oauth/providers:AppleSigningKeySigner",

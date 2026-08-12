@@ -11,7 +11,7 @@ shown here.
 - Unit: `identity/oauth/providers`
 - Canonical module: `pkg/identity/oauth/providers`
 - Canonical goal after scaffolding: `pkg/identity/oauth/providers/.ai/GOAL.md`
-- Public contracts: unit ID `contract:unit:identity/oauth/providers:v1`; owned operation IDs: `contract:operation:identity.oauth.provider-list:v1`, `contract:operation:identity.oauth.provider-apple-client-secret-sign:v1`
+- Public contracts: unit ID `contract:unit:identity/oauth/providers:v1`; owned operation IDs: `contract:operation:identity.oauth.provider-apple-client-secret-sign:v1`, `contract:operation:identity.oauth.provider-list:v1`
 - Requires: `identity/oauth`
 - Consumes existing primitives: `authentication/oidc`, `http-client`, `secret-envelope`, `telemetry`
 - Unlocks after verification: `identity/oauth/onetap`, `identity/http`

@@ -29,13 +29,13 @@
       "unit": "primitive/identifier-identity-contracts",
       "planning_path": "goals/primitive-identifier-identity-contracts.md",
       "canonical_path": "pkg/identifier/.ai/GOAL_IDENTITY_CONTRACTS.md",
-      "sha256": "516ab23d66de729b5c14329f7ed52d9e2cd8358b7e0311f7dad54b052b59765c"
+      "sha256": "79bde77847ae53b4a82d0cc94a2445df0c486c809f7ce6c9c2e2568fbad78069"
     },
     {
       "unit": "primitive/password-secret-contracts",
       "planning_path": "goals/primitive-password-secret-contracts.md",
       "canonical_path": "pkg/password/.ai/GOAL_IDENTITY_CONTRACTS.md",
-      "sha256": "6c2c06f5527c00613d3270b85649cf46b53d209fc3b723a24b2716e2769a2c01"
+      "sha256": "6bdebf53a2a2d44a3c6fe6f9a37fccebef398bacb165446708048faeeeba9a9a"
     },
     {
       "unit": "identity",
@@ -245,7 +245,7 @@
       "unit": "identity/oauth/providers",
       "planning_path": "goals/identity-oauth-providers.md",
       "canonical_path": "pkg/identity/oauth/providers/.ai/GOAL.md",
-      "sha256": "7e18a8d37f14d59a0ddd74bfe6d1ba1b5f562b4178e22e18688dbba92aa290da"
+      "sha256": "4bc61b4ab05d569a548e1c6c9ce24973e23a34614a00f59a8bea3437f5f9a8b5"
     },
     {
       "unit": "identity/oauth/onetap",
