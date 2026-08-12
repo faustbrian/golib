@@ -40,6 +40,11 @@ The design MUST define UserMapper, GroupMapper, AttributePolicy, MembershipPolic
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+The implementation method MUST be exactly
+`ApplyDirectoryDelta(context.Context, sso.DirectoryDeltaBatch) (sso.DirectoryApplyResult, error)`.
+It MUST consume the SSO-owned batch and construct the SSO-owned result without
+declaring local aliases or importing `sso` back into core, so the dependency
+direction remains `scim/organization` to `sso` and never forms a cycle.
 
 ## Required behavior
 

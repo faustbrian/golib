@@ -36,7 +36,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Service, RegistrationPolicy, SignInPolicy, ResetProfile, ChangeRequest, PasswordVerifier, ReauthenticationProof, SessionIssuer, Delivery, and enumeration-safe result contracts. Public errors MUST be typed, stable,
+The design MUST define Service, RegistrationPolicy, SignInPolicy, ResetProfile, ChangeRequest, SignupAddressInput, PasswordVerifier, SessionIssuer, Delivery, and enumeration-safe result contracts. `SignupAddressInput` MUST be an identity/password-owned bounded generic signup address passed to the configured identity registration workflow for address-kind interpretation, canonicalization, and uniqueness enforcement; identity/password MUST NOT expose identity/email-owned address types. `ChangeRequest` and every other freshness-sensitive operation MUST consume the sole `authentication.ReauthenticationProof` value and MUST NOT define, alias, reconstruct, or partially validate an identity/password-owned proof. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.

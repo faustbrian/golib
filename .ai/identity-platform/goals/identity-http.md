@@ -199,6 +199,14 @@ request digest; concurrent duplicates return the same committed result,
 mismatched reuse is rejected, unknown outcomes remain unknown, and expiry does
 not permit an unsafe replay. One-time credentials and protocol state MUST use
 their owning capability semantics rather than generic response caching.
+Every `keyed` operation's public request type MUST contain exactly one required
+`identity.IdempotencyKey`. Direct callers set that field. HTTP MUST accept the
+value only from exactly one `Idempotency-Key` header, map it byte-for-byte after
+the closed 1..256-byte transport grammar check, and reject duplicates or any
+body, query, form, multipart, cookie, trailer, extension, or middleware-created
+alternative. Non-keyed operations MUST reject the header and MUST NOT expose an
+idempotency-key request field. The endpoint manifest MUST record this mapping
+and construction MUST prove it for every keyed row in both directions.
 
 Client-initiated routes MUST apply the configured default or stricter
 endpoint/extension rate rule through the existing `rate-limit` primitive.
@@ -287,6 +295,16 @@ MAY be satisfied by the required composed reference evidence but MUST NOT be
 silently skipped.
 
 ## Acceptance and blockers
+
+Verification before `identity/reference` exists MUST use a clean external
+consumer fixture module that imports only `identity/http`, the public feature
+interfaces required by typed stubs, and the standard library. It MUST construct
+`TransportPolicy` and `FeatureServices`, call `NewOperationDescriptors` and
+`NewRouter`, and exercise the returned handler with `httptest`. It MUST prove
+descriptor/handler/OpenAPI bijection, collision rejection, bounded parsing,
+middleware order, readiness behavior, and `NewHTTPServer` lifecycle. Neither
+this fixture nor the `identity/http` module MAY import `identity/reference`;
+the later reference package owns a separate all-adapter integration fixture.
 
 Contract fixtures and test implementations MUST exercise every handler through
 real `httptest`/network HTTP semantics, including cookies, redirects,

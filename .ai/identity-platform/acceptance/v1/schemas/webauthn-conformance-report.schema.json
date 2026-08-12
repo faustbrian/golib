@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -148,10 +129,10 @@
                 "const": "Run identity.mfa.security-key-register-options then identity.mfa.security-key-register-verify then identity.mfa.security-key-assert-options then identity.mfa.security-key-assert-verify then identity.passkey.register-verify then identity.passkey.signin-verify for success, failure, denial, replay, cleanup cases using rp_id, origin, challenge, credential_response, user_verification, backup_eligible, backup_state, stored_sign_count, received_sign_count and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest, protocol_case_results"
+                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest, ceremony_validation_results, selected_profile_results, protocol_case_results, external_profile_ids, external_profile_results"
               },
               "actual_outcome": {
-                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest, protocol_case_results"
+                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest, ceremony_validation_results, selected_profile_results, protocol_case_results, external_profile_ids, external_profile_results"
               },
               "result": {
                 "const": "pass"
@@ -276,7 +257,11 @@
         "credential_id",
         "sign_count",
         "fixture_digest",
-        "protocol_case_results"
+        "ceremony_validation_results",
+        "selected_profile_results",
+        "protocol_case_results",
+        "external_profile_ids",
+        "external_profile_results"
       ],
       "properties": {
         "artifact_id": {
@@ -310,11 +295,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -325,6 +330,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -341,10 +347,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "webauthn-conformance-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -354,15 +386,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -403,6 +546,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -2387,10 +2534,2477 @@
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
         },
+        "ceremony_validation_results": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-valid"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "valid"
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "state_mutation_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-challenge-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "challenge"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-origin-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "origin"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-rp-id-hash-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "rp-id-hash"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-user-verification-missing"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "user-verification"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-untrusted-metadata"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "metadata"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-valid"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "valid"
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "state_mutation_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-challenge-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "challenge"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-origin-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "origin"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-rp-id-hash-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "rp-id-hash"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-user-presence-missing"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "user-presence"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-signature-invalid"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "signature"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-valid"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "valid"
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "state_mutation_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-challenge-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "challenge"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-origin-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "origin"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-rp-id-hash-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "rp-id-hash"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-user-verification-missing"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "user-verification"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "registration-untrusted-metadata"
+                  },
+                  "ceremony": {
+                    "const": "registration"
+                  },
+                  "validation": {
+                    "const": "metadata"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-valid"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "valid"
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "state_mutation_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-challenge-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "challenge"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-origin-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "origin"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-rp-id-hash-mismatch"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "rp-id-hash"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-user-presence-missing"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "user-presence"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "ceremony",
+                  "validation",
+                  "accepted",
+                  "state_mutation_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "assertion-signature-invalid"
+                  },
+                  "ceremony": {
+                    "const": "assertion"
+                  },
+                  "validation": {
+                    "const": "signature"
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "state_mutation_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "selected_profile_results": {
+          "type": "array",
+          "minItems": 17,
+          "maxItems": 17,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "algorithm"
+                  },
+                  "profile": {
+                    "const": "ES256"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "algorithm"
+                  },
+                  "profile": {
+                    "const": "EdDSA"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "algorithm"
+                  },
+                  "profile": {
+                    "const": "RS256-compatibility"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "attestation"
+                  },
+                  "profile": {
+                    "const": "none"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "attestation"
+                  },
+                  "profile": {
+                    "const": "packed-structural"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "rejected-as-untrusted-or-unselected"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "attestation"
+                  },
+                  "profile": {
+                    "const": "fido-u2f-structural"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "rejected-as-untrusted-or-unselected"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "credProps"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "credProtect"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "unknown-discarded"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "uvm-unselected"
+                  },
+                  "selected": {
+                    "const": false
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "rejected-as-untrusted-or-unselected"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "appid-unselected"
+                  },
+                  "selected": {
+                    "const": false
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "rejected-as-untrusted-or-unselected"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "resident-key"
+                  },
+                  "profile": {
+                    "const": "required"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "resident-key"
+                  },
+                  "profile": {
+                    "const": "preferred"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "resident-key"
+                  },
+                  "profile": {
+                    "const": "discouraged"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "user-verification"
+                  },
+                  "profile": {
+                    "const": "required"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "user-verification"
+                  },
+                  "profile": {
+                    "const": "preferred"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "user-verification"
+                  },
+                  "profile": {
+                    "const": "discouraged"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "algorithm"
+                  },
+                  "profile": {
+                    "const": "ES256"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "algorithm"
+                  },
+                  "profile": {
+                    "const": "EdDSA"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "algorithm"
+                  },
+                  "profile": {
+                    "const": "RS256-compatibility"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "attestation"
+                  },
+                  "profile": {
+                    "const": "none"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "attestation"
+                  },
+                  "profile": {
+                    "const": "packed-structural"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "rejected-as-untrusted-or-unselected"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "attestation"
+                  },
+                  "profile": {
+                    "const": "fido-u2f-structural"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "rejected-as-untrusted-or-unselected"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "credProps"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "credProtect"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "unknown-discarded"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "uvm-unselected"
+                  },
+                  "selected": {
+                    "const": false
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "rejected-as-untrusted-or-unselected"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "extension"
+                  },
+                  "profile": {
+                    "const": "appid-unselected"
+                  },
+                  "selected": {
+                    "const": false
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "rejected-as-untrusted-or-unselected"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "resident-key"
+                  },
+                  "profile": {
+                    "const": "required"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "resident-key"
+                  },
+                  "profile": {
+                    "const": "preferred"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "resident-key"
+                  },
+                  "profile": {
+                    "const": "discouraged"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "user-verification"
+                  },
+                  "profile": {
+                    "const": "required"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "user-verification"
+                  },
+                  "profile": {
+                    "const": "preferred"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dimension",
+                  "profile",
+                  "selected",
+                  "browser_result",
+                  "authenticator_result",
+                  "independent_verifier",
+                  "verifier_revision_sha256",
+                  "fixture_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "dimension": {
+                    "const": "user-verification"
+                  },
+                  "profile": {
+                    "const": "discouraged"
+                  },
+                  "selected": {
+                    "const": true
+                  },
+                  "browser_result": {
+                    "const": "passed"
+                  },
+                  "authenticator_result": {
+                    "const": "passed"
+                  },
+                  "independent_verifier": {
+                    "const": "web-platform-tests"
+                  },
+                  "verifier_revision_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
         "protocol_case_results": {
           "type": "array",
-          "minItems": 11,
-          "maxItems": 11,
+          "minItems": 5,
+          "maxItems": 5,
           "uniqueItems": true,
           "items": {
             "oneOf": [
@@ -2401,6 +5015,7 @@
                   "case_id",
                   "suite_case_id",
                   "requirement_id",
+                  "consumer_ids",
                   "operation_ids",
                   "outcome",
                   "source_id",
@@ -2417,8 +5032,20 @@
                   "requirement_id": {
                     "const": "webauthn.assertion-counter"
                   },
+                  "consumer_ids": {
+                    "const": [
+                      "passkey",
+                      "passkey/postgres",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
                   "operation_ids": {
                     "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
                       "identity.passkey.register-verify",
                       "identity.passkey.signin-verify"
                     ]
@@ -2445,6 +5072,7 @@
                   "case_id",
                   "suite_case_id",
                   "requirement_id",
+                  "consumer_ids",
                   "operation_ids",
                   "outcome",
                   "source_id",
@@ -2461,8 +5089,20 @@
                   "requirement_id": {
                     "const": "webauthn.registration-validation"
                   },
+                  "consumer_ids": {
+                    "const": [
+                      "passkey",
+                      "passkey/postgres",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
                   "operation_ids": {
                     "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
                       "identity.passkey.register-verify",
                       "identity.passkey.signin-verify"
                     ]
@@ -2489,6 +5129,64 @@
                   "case_id",
                   "suite_case_id",
                   "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:webauthn.authentication-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "webauthn-level-3-cr-20260526:webauthn.authentication-validation"
+                  },
+                  "requirement_id": {
+                    "const": "webauthn.authentication-validation"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "passkey",
+                      "passkey/postgres",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "webauthn-level-3-cr-20260526"
+                  },
+                  "locator": {
+                    "const": "Section 7.2 complete assertion verification algorithm, including origin, RP ID hash, flags, signature, user handle, extensions, backup state, and signature counter"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
                   "operation_ids",
                   "outcome",
                   "source_id",
@@ -2505,8 +5203,17 @@
                   "requirement_id": {
                     "const": "fido.metadata-service-validation"
                   },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
                   "operation_ids": {
                     "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
                       "identity.passkey.register-verify",
                       "identity.passkey.signin-verify"
                     ]
@@ -2533,6 +5240,7 @@
                   "case_id",
                   "suite_case_id",
                   "requirement_id",
+                  "consumer_ids",
                   "operation_ids",
                   "outcome",
                   "source_id",
@@ -2549,8 +5257,17 @@
                   "requirement_id": {
                     "const": "fido.metadata-statement-validation"
                   },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
                   "operation_ids": {
                     "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
                       "identity.passkey.register-verify",
                       "identity.passkey.signin-verify"
                     ]
@@ -2563,342 +5280,6 @@
                   },
                   "locator": {
                     "const": "Sections 3.1 and 3.3"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-2119"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-2119:source.rfc-2119"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-2119"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-2119"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-5280"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-5280:source.rfc-5280"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-5280"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-5280"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-8174"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-8174:source.rfc-8174"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-8174"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-8174"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-8949"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-8949:source.rfc-8949"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-8949"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-8949"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-9052"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-9052:source.rfc-9052"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-9052"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-9052"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-9053"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-9053:source.rfc-9053"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-9053"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-9053"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.public-suffix-list-e1b8015c"
-                  },
-                  "suite_case_id": {
-                    "const": "public-suffix-list-e1b8015c:source.public-suffix-list-e1b8015c"
-                  },
-                  "requirement_id": {
-                    "const": "source.public-suffix-list-e1b8015c"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "public-suffix-list-e1b8015c"
-                  },
-                  "locator": {
-                    "const": "Complete pinned ICANN and PRIVATE rule snapshot"
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2917,6 +5298,7 @@
                   "case_id",
                   "suite_case_id",
                   "requirement_id",
+                  "consumer_ids",
                   "operation_ids",
                   "outcome",
                   "source_id",
@@ -2933,8 +5315,20 @@
                   "requirement_id": {
                     "const": "webauthn.assertion-counter"
                   },
+                  "consumer_ids": {
+                    "const": [
+                      "passkey",
+                      "passkey/postgres",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
                   "operation_ids": {
                     "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
                       "identity.passkey.register-verify",
                       "identity.passkey.signin-verify"
                     ]
@@ -2964,6 +5358,7 @@
                   "case_id",
                   "suite_case_id",
                   "requirement_id",
+                  "consumer_ids",
                   "operation_ids",
                   "outcome",
                   "source_id",
@@ -2980,8 +5375,20 @@
                   "requirement_id": {
                     "const": "webauthn.registration-validation"
                   },
+                  "consumer_ids": {
+                    "const": [
+                      "passkey",
+                      "passkey/postgres",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
                   "operation_ids": {
                     "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
                       "identity.passkey.register-verify",
                       "identity.passkey.signin-verify"
                     ]
@@ -3011,6 +5418,67 @@
                   "case_id",
                   "suite_case_id",
                   "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report:webauthn.authentication-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "webauthn-level-3-cr-20260526:webauthn.authentication-validation"
+                  },
+                  "requirement_id": {
+                    "const": "webauthn.authentication-validation"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "passkey",
+                      "passkey/postgres",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "webauthn-level-3-cr-20260526"
+                  },
+                  "locator": {
+                    "const": "Section 7.2 complete assertion verification algorithm, including origin, RP ID hash, flags, signature, user handle, extensions, backup state, and signature counter"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
                   "operation_ids",
                   "outcome",
                   "source_id",
@@ -3027,8 +5495,17 @@
                   "requirement_id": {
                     "const": "fido.metadata-service-validation"
                   },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
                   "operation_ids": {
                     "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
                       "identity.passkey.register-verify",
                       "identity.passkey.signin-verify"
                     ]
@@ -3058,6 +5535,7 @@
                   "case_id",
                   "suite_case_id",
                   "requirement_id",
+                  "consumer_ids",
                   "operation_ids",
                   "outcome",
                   "source_id",
@@ -3074,8 +5552,17 @@
                   "requirement_id": {
                     "const": "fido.metadata-statement-validation"
                   },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
                   "operation_ids": {
                     "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
                       "identity.passkey.register-verify",
                       "identity.passkey.signin-verify"
                     ]
@@ -3096,355 +5583,98 @@
                 }
               },
               "minContains": 1
-            },
-            {
-              "contains": {
+            }
+          ]
+        },
+        "external_profile_ids": {
+          "const": [
+            "protocol-web-platform-tests"
+          ]
+        },
+        "external_profile_results": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
+                  "profile_id",
+                  "source_kind",
                   "source_id",
-                  "locator",
+                  "source_sha256",
+                  "consumer_ids",
+                  "execution_outcome",
                   "transcript_sha256"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-2119"
+                  "profile_id": {
+                    "const": "protocol-web-platform-tests"
                   },
-                  "suite_case_id": {
-                    "const": "rfc-2119:source.rfc-2119"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-2119"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
+                  "source_kind": {
+                    "const": "tool"
                   },
                   "source_id": {
-                    "const": "rfc-2119"
+                    "const": "web-platform-tests"
                   },
-                  "locator": {
-                    "const": "Complete selected normative source"
+                  "source_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "passkey",
+                      "webauthn"
+                    ]
+                  },
+                  "execution_outcome": {
+                    "const": "passed"
                   },
                   "transcript_sha256": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   }
                 }
-              },
-              "minContains": 1
-            },
+              }
+            ]
+          },
+          "allOf": [
             {
               "contains": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
+                  "profile_id",
+                  "source_kind",
                   "source_id",
-                  "locator",
+                  "source_sha256",
+                  "consumer_ids",
+                  "execution_outcome",
                   "transcript_sha256"
                 ],
                 "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-5280"
+                  "profile_id": {
+                    "const": "protocol-web-platform-tests"
                   },
-                  "suite_case_id": {
-                    "const": "rfc-5280:source.rfc-5280"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-5280"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
+                  "source_kind": {
+                    "const": "tool"
                   },
                   "source_id": {
-                    "const": "rfc-5280"
+                    "const": "web-platform-tests"
                   },
-                  "locator": {
-                    "const": "Complete selected normative source"
+                  "source_sha256": {
+                    "const": "sha256:559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a"
                   },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              "minContains": 1
-            },
-            {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-8174"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-8174:source.rfc-8174"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-8174"
-                  },
-                  "operation_ids": {
+                  "consumer_ids": {
                     "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
+                      "passkey",
+                      "webauthn"
                     ]
                   },
-                  "outcome": {
+                  "execution_outcome": {
                     "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-8174"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              "minContains": 1
-            },
-            {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-8949"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-8949:source.rfc-8949"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-8949"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-8949"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              "minContains": 1
-            },
-            {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-9052"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-9052:source.rfc-9052"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-9052"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-9052"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              "minContains": 1
-            },
-            {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.rfc-9053"
-                  },
-                  "suite_case_id": {
-                    "const": "rfc-9053:source.rfc-9053"
-                  },
-                  "requirement_id": {
-                    "const": "source.rfc-9053"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "rfc-9053"
-                  },
-                  "locator": {
-                    "const": "Complete selected normative source"
-                  },
-                  "transcript_sha256": {
-                    "type": "string",
-                    "pattern": "^sha256:[0-9a-f]{64}$"
-                  }
-                }
-              },
-              "minContains": 1
-            },
-            {
-              "contains": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "case_id",
-                  "suite_case_id",
-                  "requirement_id",
-                  "operation_ids",
-                  "outcome",
-                  "source_id",
-                  "locator",
-                  "transcript_sha256"
-                ],
-                "properties": {
-                  "case_id": {
-                    "const": "webauthn-conformance-report:source.public-suffix-list-e1b8015c"
-                  },
-                  "suite_case_id": {
-                    "const": "public-suffix-list-e1b8015c:source.public-suffix-list-e1b8015c"
-                  },
-                  "requirement_id": {
-                    "const": "source.public-suffix-list-e1b8015c"
-                  },
-                  "operation_ids": {
-                    "const": [
-                      "identity.mfa.security-key-register-options",
-                      "identity.mfa.security-key-register-verify",
-                      "identity.mfa.security-key-assert-options",
-                      "identity.mfa.security-key-assert-verify",
-                      "identity.passkey.register-verify",
-                      "identity.passkey.signin-verify"
-                    ]
-                  },
-                  "outcome": {
-                    "const": "passed"
-                  },
-                  "source_id": {
-                    "const": "public-suffix-list-e1b8015c"
-                  },
-                  "locator": {
-                    "const": "Complete pinned ICANN and PRIVATE rule snapshot"
                   },
                   "transcript_sha256": {
                     "type": "string",

@@ -80,18 +80,34 @@ module AcceptanceCatalogCheck
       when "const" then value[rule.fetch("field")] = rule.fetch("value")
       end
     end
+    if artifact.fetch("artifact_id") == "coverage-mutation-report"
+      value["affected_package_manifest_sha256"] = "sha256:#{'a' * 64}"
+      value["viable_mutant_manifest_sha256"] = "sha256:#{'b' * 64}"
+    end
     execution = value.fetch("execution")
     execution.merge!(
       "tested_revision" => "d" * 40, "input_root" => "sha256:#{'e' * 64}",
-      "tool" => "acceptance-check@1", "environment" => "local-fixture",
+      "sandbox_environment_sha256" => "sha256:#{'9' * 64}",
+      "executable_realpath" => File.realpath(RbConfig.ruby),
+      "executable_sha256" => "sha256:#{Digest::SHA256.hexdigest(File.binread(File.realpath(RbConfig.ruby)))}",
+      "verifier_executable_realpath" => File.realpath(RbConfig.ruby),
+      "verifier_executable_sha256" => "sha256:#{Digest::SHA256.hexdigest(File.binread(File.realpath(RbConfig.ruby)))}",
+      "verifier_driver_realpath" => File.join(IdentityPlatformAcceptance::REPOSITORY_ROOT, ".ai/identity-platform/acceptance/schema_validation.rb"),
+      "verifier_driver_sha256" => "sha256:#{Digest::SHA256.hexdigest(File.binread(File.join(IdentityPlatformAcceptance::REPOSITORY_ROOT, '.ai/identity-platform/acceptance/schema_validation.rb')))}",
+      "canonical_workdir" => IdentityPlatformAcceptance::REPOSITORY_ROOT,
+      "version_stdout" => RUBY_DESCRIPTION, "version_stderr" => "",
+      "verifier_version_stdout" => RUBY_DESCRIPTION, "verifier_version_stderr" => "",
+      "environment_probe_stdout" => "#{RUBY_PLATFORM}/#{RUBY_ENGINE}", "environment_probe_stderr" => "",
+      "verifier_exit_status" => 0, "verifier_stdout" => "", "verifier_stderr" => "",
+      "verifier_attestation_sha256" => "sha256:#{'f' * 64}",
       "started_at" => "2026-08-11T00:00:00Z", "completed_at" => "2026-08-11T00:00:01Z",
       "stdout" => "#{artifact.fetch('artifact_id')} gate completed with attributable evidence\n", "stderr" => ""
     )
     AcceptanceSchemaValidation.bind_execution_proof!(execution)
     value.fetch("scenario_cases").each do |scenario|
       scenario["observed_values"].keys.each { |name| scenario.fetch("observed_values")[name] = deep_copy(value.fetch(name)) }
-      scenario["transcript_sha256"] = execution.fetch("captured_output_sha256")
     end
+    AcceptanceSchemaValidation.bind_runner_transcripts!(value, execution)
     value
   end
 
@@ -104,10 +120,10 @@ module AcceptanceCatalogCheck
     observations = artifact.fetch("required_observations").map { |row| row.merge("artifact_sha256" => evidence_digest) }
     {
       "schema_version" => 2, "artifact_id" => artifact.fetch("artifact_id"),
-      "result" => {"status" => "pass", "gate" => artifact.dig("producer", "operation")},
+      "result" => {"status" => IdentityPlatformAcceptance.artifact_result_status(artifact.fetch("artifact_id")),
+        "gate" => artifact.dig("producer", "operation")},
       "tested_revision" => "d" * 40, "gate_execution_revision" => "d" * 40,
       "revalidation_revision" => nil, "input_manifest" => manifest, "input_root" => root,
-      "tool_environment" => {"tool" => "acceptance-check@1", "environment" => "local-fixture"},
       "observations" => observations,
       "artifact_hashes" => [
         {"path" => artifact.fetch("artifact_evidence_output_path"), "sha256" => evidence_digest},
@@ -144,12 +160,36 @@ module AcceptanceCatalogCheck
           errors << "artifact payload #{scenario.fetch('case_id')} success values drifted from top-level aggregate"
         end
         errors << "artifact payload #{scenario.fetch('case_id')} observed value count drifted" unless scenario.fetch("observed_value_count") == scenario.fetch("observed_values").length
-        errors << "artifact payload #{scenario.fetch('case_id')} transcript is not execution-bound" unless scenario.fetch("transcript_sha256") == execution.fetch("captured_output_sha256")
+        expected_transcript = AcceptanceSchemaValidation.runner_transcript_sha256(scenario, execution)
+        errors << "artifact payload #{scenario.fetch('case_id')} transcript is not exact-value execution-bound" unless scenario.fetch("transcript_sha256") == expected_transcript
+      end
+      evidence.each do |field, value|
+        next unless value.is_a?(Array)
+
+        value.each do |entry|
+          next unless entry.is_a?(Hash) && entry.key?("transcript_sha256")
+
+          expected_transcript = AcceptanceSchemaValidation.runner_transcript_sha256(entry, execution)
+          errors << "artifact payload #{field} row transcript is not exact-value execution-bound" unless entry.fetch("transcript_sha256") == expected_transcript
+        end
+      end
+      if artifact.fetch("artifact_id") == "coverage-mutation-report"
+        packages = evidence.fetch("affected_package_results")
+        mutants = evidence.fetch("viable_mutant_results")
+        package_ids = packages.map { |row| row.fetch("package_id") }
+        mutant_ids = mutants.map { |row| row.fetch("mutant_id") }
+        errors << "artifact payload package inventory count drifted" unless evidence.fetch("package_count") == packages.length
+        errors << "artifact payload viable mutant inventory count drifted" unless evidence.fetch("viable_mutant_count") == mutants.length
+        errors << "artifact payload killed mutant inventory count drifted" unless evidence.fetch("killed_mutant_count") == mutants.length
+        errors << "artifact payload package inventory contains duplicate IDs" unless package_ids.uniq == package_ids
+        errors << "artifact payload mutant inventory contains duplicate IDs" unless mutant_ids.uniq == mutant_ids
+        errors << "artifact payload mutant inventory names an unaffected package" unless mutants.all? { |row| package_ids.include?(row.fetch("package_id")) }
+        errors << "artifact payload package inventory contains incomplete coverage" unless packages.all? do |row|
+          row.fetch("covered_statement_count") == row.fetch("statement_count") && row.fetch("statement_coverage_basis_points") == 10_000
+        end
       end
       errors << "artifact execution revision is not record-bound" unless execution["tested_revision"] == record["tested_revision"]
       errors << "artifact execution input root is not record-bound" unless execution["input_root"] == record["input_root"]
-      errors << "artifact execution tool is not record-bound" unless execution["tool"] == record.dig("tool_environment", "tool")
-      errors << "artifact execution environment is not record-bound" unless execution["environment"] == record.dig("tool_environment", "environment")
       errors << "artifact execution output path is not record-bound" unless execution["output_artifact_path"] == artifact.fetch("artifact_evidence_output_path")
       receipt_path = IdentityPlatformAcceptance.execution_receipt_path(artifact)
       receipt_row = record.fetch("artifact_hashes").find { |entry| entry.fetch("path") == receipt_path }
@@ -171,19 +211,109 @@ module AcceptanceCatalogCheck
   end
 
   def assert_live_runner_contract!
+    runner_keywords = AcceptanceExecutionRunner.method(:run).parameters.map(&:last)
+    fail_check("coordinator runner still accepts caller-authored command/tool/environment labels") unless
+      runner_keywords.include?(:plan) && !runner_keywords.include?(:command) &&
+      !runner_keywords.include?(:tool) && !runner_keywords.include?(:environment) &&
+      runner_keywords.include?(:input_manifest) && !runner_keywords.include?(:tested_revision) &&
+      !runner_keywords.include?(:input_root)
     Dir.mktmpdir("identity-acceptance-runner-") do |directory|
-      script = 'payload = {"artifact_id" => "runner-fixture", "probe" => "live"}; File.binwrite(ENV.fetch("IDENTITY_ACCEPTANCE_OUTPUT_PATH"), JSON.pretty_generate(payload) + "\n"); STDOUT.write("runner-output")'
-      command = "#{Shellwords.escape(RbConfig.ruby)} -rjson -e #{Shellwords.escape(script)}"
+      script = 'cache = ENV.fetch("GOCACHE"); home = ENV.fetch("HOME"); raise unless File.directory?(cache) && File.directory?(home) && !ENV.fetch("PATH").include?(File.join(ENV.fetch("ORIGINAL_HOME", "/nonexistent"), ".dotfiles")); payload = {"artifact_id" => "runner-fixture", "probe" => "live", "scenario_cases" => [{"case_id" => "runner-case", "observed_values" => {"value" => 1}}]}; File.binwrite(ENV.fetch("IDENTITY_ACCEPTANCE_RAW_OUTPUT_PATH"), JSON.pretty_generate(payload) + "\n"); STDOUT.write([cache, home].join("\n"))'
+      verifier_script = 'raw = File.binread(ENV.fetch("IDENTITY_ACCEPTANCE_VERIFIER_INPUT_PATH")); digest = "sha256:#{Digest::SHA256.hexdigest(raw)}"; path = ["scenario_cases", 0, "actual_outcome"]; value = "passed"; native = {"case_id" => "runner-case", "observed_value" => value}; payload = {"artifact_id" => "runner-fixture", "raw_capture_sha256" => digest, "assignments" => [{"path" => path, "value" => value}], "case_receipts" => [{"case_id" => "runner-case", "assignment_path" => path, "assignment_value_sha256" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(value))}", "raw_capture_sha256" => digest, "tool_native_row" => native, "tool_native_result_sha256" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(native.sort.to_h))}"}]}; File.binwrite(ENV.fetch("IDENTITY_ACCEPTANCE_VERIFIER_OUTPUT_PATH"), JSON.pretty_generate(payload) + "\n")'
+      verifier_path = File.join(directory, "verifier.rb")
+      File.binwrite(verifier_path, "require \"json\"\nrequire \"digest\"\n#{verifier_script}\n")
+      plan = AcceptanceExecutionRunner.plan(
+        producer_argv: [RbConfig.ruby, "-rjson", "-e", script],
+        verifier_argv: [RbConfig.ruby, verifier_path],
+        version_argv: [RbConfig.ruby, "--version"],
+        environment_probe_argv: [RbConfig.ruby, "-e", 'STDOUT.write([RUBY_PLATFORM, RUBY_ENGINE].join("/"))']
+      )
+      fail_check("runner accepted identical producer and verifier argv") if plan.fetch("producer_argv") == plan.fetch("verifier_argv")
       receipt_path = File.join(directory, "execution-receipt.json")
       artifact_capture_path = File.join(directory, "artifact.json")
+      input_manifest = [{"path_or_environment_id" => "runner-fixture", "kind" => "fixture",
+                         "content_identity" => "sha256:#{'a' * 64}", "owner" => "acceptance-check",
+                         "reason" => "prove coordinator-derived input identity"}]
       capture = AcceptanceExecutionRunner.run(
-        command: command, chdir: IdentityPlatformAcceptance::REPOSITORY_ROOT, receipt_path: receipt_path,
+        plan: plan, chdir: IdentityPlatformAcceptance::REPOSITORY_ROOT, receipt_path: receipt_path,
         artifact_capture_path: artifact_capture_path, artifact_id: "runner-fixture",
-        tested_revision: "d" * 40, input_root: "sha256:#{'e' * 64}", tool: "acceptance-check@1",
-        environment: "local-runner-fixture", output_artifact_path: ".ai/identity-platform/evidence/artifacts/runner-fixture.json"
+        input_manifest: input_manifest,
+        output_artifact_path: ".ai/identity-platform/evidence/artifacts/runner-fixture.json"
       )
+      capture.execution.fetch("stdout").lines(chomp: true).each { |path| fail_check("coordinator runner retained disposable sandbox resource after success") if File.exist?(path) }
       fail_check("coordinator runner did not atomically persist its exact receipt") unless File.binread(receipt_path) == capture.receipt_bytes
-      fail_check("coordinator runner did not capture its fresh task-owned artifact") unless File.binread(artifact_capture_path) == capture.artifact_bytes
+      fail_check("coordinator runner did not derive and persist final evidence") unless File.binread(artifact_capture_path) == capture.artifact_bytes
+      raw_payload = AcceptanceSchemaValidation.parse_json(capture.raw_capture_bytes, canonical: true)
+      final_payload = AcceptanceSchemaValidation.parse_json(capture.artifact_bytes, canonical: true)
+      fail_check("producer raw capture authored final execution evidence") if raw_payload.key?("execution")
+      fail_check("independent verifier did not supply parsed result") unless final_payload.dig("scenario_cases", 0, "actual_outcome") == "passed"
+      fail_check("runner did not bind executable identity") unless File.realpath(RbConfig.ruby) == capture.execution.fetch("executable_realpath")
+      fail_check("runner accepted caller tool label") if capture.execution.key?("tool") || capture.execution.key?("environment")
+      expected_input_root = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical(input_manifest)))}"
+      fail_check("runner did not derive tested revision") unless capture.execution.fetch("tested_revision") == `git rev-parse HEAD`.strip
+      fail_check("runner did not derive input root") unless capture.execution.fetch("input_root") == expected_input_root
+      original_path = ENV["PATH"]
+      ENV["PATH"] = directory
+      resolved_ruby = AcceptanceExecutionRunner.send(:resolve_executable, "ruby", IdentityPlatformAcceptance::REPOSITORY_ROOT)
+      fail_check("executable identity used ambient PATH") unless resolved_ruby == File.realpath(RbConfig.ruby)
+      ENV["PATH"] = original_path
+      forged_verifier = AcceptanceSchemaValidation.parse_json(capture.verifier_bytes, canonical: true)
+      forged_receipt = forged_verifier.fetch("case_receipts").first
+      forged_receipt.fetch("tool_native_row")["assignment_path"] = ["forged"]
+      forged_receipt["tool_native_result_sha256"] = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical(forged_receipt.fetch('tool_native_row'))))}"
+      forged_verifier_bytes = JSON.pretty_generate(forged_verifier) + "\n"
+      begin
+        AcceptanceExecutionRunner.send(:parse_verifier_attestation, forged_verifier_bytes, "runner-fixture", capture.raw_capture_bytes)
+        fail_check("independent verifier accepted producer-selected assignment path")
+      rescue ArgumentError => e
+        raise unless e.message.include?("may not author assignment path")
+      end
+      forged_raw_path = File.join(directory, "producer-authored-observations.json")
+      forged_attestation_path = File.join(directory, "forged-attestation.json")
+      File.binwrite(forged_raw_path, JSON.pretty_generate({"artifact_id" => "affected-gate-report", "observation_rows" => [{"case_id" => "forged", "observed_value" => "pass"}]}) + "\n")
+      _stdout, verifier_stderr, verifier_status = Open3.capture3(
+        {"IDENTITY_ACCEPTANCE_VERIFIER_INPUT_PATH" => forged_raw_path,
+         "IDENTITY_ACCEPTANCE_VERIFIER_OUTPUT_PATH" => forged_attestation_path},
+        RbConfig.ruby, File.join(IdentityPlatformAcceptance::ROOT, "acceptance", "schema_validation.rb"),
+        "verify", "affected-gate-report"
+      )
+      fail_check("independent verifier accepted producer-authored observation rows") if verifier_status.success?
+      fail_check("independent verifier negative fixture failed for the wrong reason") unless verifier_stderr.include?("producer attempted to supply verifier observation rows")
+      forged_discovery_plan = AcceptanceExecutionRunner.plan(
+        producer_argv: plan.fetch("producer_argv"), verifier_argv: plan.fetch("verifier_argv"),
+        version_argv: plan.fetch("version_argv"), environment_probe_argv: plan.fetch("environment_probe_argv"),
+        package_discovery_argv: plan.fetch("producer_argv"), mutation_tool_argv: [RbConfig.ruby, "-e", "exit 0"]
+      )
+      begin
+        AcceptanceExecutionRunner.run(
+          plan: forged_discovery_plan, chdir: IdentityPlatformAcceptance::REPOSITORY_ROOT,
+          receipt_path: File.join(directory, "forged-discovery-receipt.json"),
+          artifact_capture_path: File.join(directory, "forged-discovery-artifact.json"), artifact_id: "coverage-mutation-report",
+          input_manifest: input_manifest, output_artifact_path: ".ai/identity-platform/evidence/artifacts/coverage-mutation-report.json"
+        )
+        fail_check("coverage runner accepted producer-controlled discovery")
+      rescue ArgumentError => e
+        raise unless e.message.include?("result producer plan")
+      end
+      forged_mutation_plan = AcceptanceExecutionRunner.plan(
+        producer_argv: plan.fetch("producer_argv"), verifier_argv: plan.fetch("verifier_argv"),
+        version_argv: plan.fetch("version_argv"), environment_probe_argv: plan.fetch("environment_probe_argv"),
+        package_discovery_argv: [RbConfig.ruby, "-e", 'STDOUT.write("{}\\n")'],
+        mutation_tool_argv: plan.fetch("producer_argv")
+      )
+      begin
+        AcceptanceExecutionRunner.run(
+          plan: forged_mutation_plan, chdir: IdentityPlatformAcceptance::REPOSITORY_ROOT,
+          receipt_path: File.join(directory, "forged-mutation-receipt.json"),
+          artifact_capture_path: File.join(directory, "forged-mutation-artifact.json"), artifact_id: "coverage-mutation-report",
+          input_manifest: input_manifest, output_artifact_path: ".ai/identity-platform/evidence/artifacts/coverage-mutation-report.json"
+        )
+        fail_check("coverage runner accepted result producer as mutation authority")
+      rescue ArgumentError => e
+        raise unless e.message.include?("result producer plan")
+      end
+      fail_check("coordinator runner did not own final execution evidence") unless final_payload.fetch("execution") == capture.execution
+      fail_check("coordinator runner did not derive per-case transcript evidence") unless final_payload.dig("scenario_cases", 0, "transcript_sha256") == AcceptanceSchemaValidation.runner_transcript_sha256(final_payload.fetch("scenario_cases").first, capture.execution)
       unless AcceptanceExecutionRunner.live_capture_errors(capture.execution, capture, artifact_bytes: capture.artifact_bytes).empty?
         fail_check("live coordinator runner capture was rejected")
       end
@@ -193,10 +323,39 @@ module AcceptanceCatalogCheck
       if AcceptanceExecutionRunner.live_capture_errors(coherent_forgery, capture, artifact_bytes: capture.artifact_bytes).empty?
         fail_check("live coordinator runner accepted coherently recomputed synthetic output")
       end
-      synthetic_artifact = JSON.pretty_generate({"artifact_id" => "runner-fixture", "probe" => "synthetic"}) + "\n"
+      synthetic_artifact = JSON.pretty_generate({"artifact_id" => "runner-fixture", "probe" => "synthetic", "execution" => capture.execution, "scenario_cases" => final_payload.fetch("scenario_cases")}) + "\n"
       if AcceptanceExecutionRunner.live_capture_errors(capture.execution, capture, artifact_bytes: synthetic_artifact).empty?
         fail_check("live coordinator runner accepted synthetic committed artifact semantics")
       end
+      %w[status actual_outcome execution_outcome verified passed result].each do |forged_key|
+        forged = JSON.pretty_generate({"artifact_id" => "runner-fixture", forged_key => (forged_key == "verified" ? true : "passed")}) + "\n"
+        begin
+          AcceptanceExecutionRunner.derive_final_artifact(forged, capture.execution, artifact_id: "runner-fixture", verifier_attestation: {})
+          fail_check("coordinator runner accepted producer-authored #{forged_key}")
+        rescue ArgumentError => e
+          raise unless e.message.include?("may not author outcome field")
+        end
+      end
+      failed_receipt = File.join(directory, "failed-receipt.json")
+      failed_artifact = File.join(directory, "failed-artifact.json")
+      failed_cache_record = File.join(directory, "failed-cache-path")
+      failed_plan = AcceptanceExecutionRunner.plan(
+        producer_argv: [RbConfig.ruby, "-e", 'File.binwrite(ARGV.fetch(0), ENV.fetch("GOCACHE")); raise unless File.directory?(ENV.fetch("GOCACHE")); exit 1', failed_cache_record], verifier_argv: plan.fetch("verifier_argv"),
+        version_argv: plan.fetch("version_argv"), environment_probe_argv: plan.fetch("environment_probe_argv")
+      )
+      begin
+        AcceptanceExecutionRunner.run(
+        plan: failed_plan, chdir: IdentityPlatformAcceptance::REPOSITORY_ROOT,
+        receipt_path: failed_receipt, artifact_capture_path: failed_artifact, artifact_id: "runner-fixture",
+        input_manifest: input_manifest,
+        output_artifact_path: ".ai/identity-platform/evidence/artifacts/runner-fixture.json"
+        )
+      rescue ArgumentError
+        # A failed producer cannot yield verifier-authorized final evidence.
+      end
+      fail_check("failed producer execution persisted final evidence") if File.exist?(failed_receipt) || File.exist?(failed_artifact)
+      failed_cache_path = File.binread(failed_cache_record)
+      fail_check("coordinator runner retained disposable GOCACHE after failure") if File.exist?(failed_cache_path)
     end
   end
 
@@ -282,9 +441,7 @@ module AcceptanceCatalogCheck
     coherent_forgery = deep_copy(evidence)
     coherent_forgery.fetch("execution")["stdout"] = "FABRICATED: command was never executed\n"
     AcceptanceSchemaValidation.bind_execution_proof!(coherent_forgery.fetch("execution"))
-    coherent_forgery.fetch("scenario_cases").each do |scenario|
-      scenario["transcript_sha256"] = coherent_forgery.dig("execution", "captured_output_sha256")
-    end
+    AcceptanceSchemaValidation.bind_runner_transcripts!(coherent_forgery, coherent_forgery.fetch("execution"))
     coherent_record, coherent_bytes = record_for_evidence(record, coherent_forgery)
     coherent_receipt_bytes = AcceptanceSchemaValidation.execution_receipt_bytes(coherent_forgery.fetch("execution"))
     coherent_receipt_digest = "sha256:#{Digest::SHA256.hexdigest(coherent_receipt_bytes)}"
@@ -344,6 +501,8 @@ module AcceptanceCatalogCheck
       assert_special_rejected.call("duplicate provider result", duplicate_provider)
       unverified_provider = deep_copy(evidence); unverified_provider.fetch("provider_results").first["verified"] = false
       assert_special_rejected.call("unverified provider result", unverified_provider)
+      leaked_remote_ip = deep_copy(evidence); leaked_remote_ip.fetch("provider_results").first["remote_ip_sent"] = true
+      assert_special_rejected.call("CAPTCHA remote IP sent without configured disclosure", leaked_remote_ip)
       unsupported_evidence = deep_copy(evidence); unsupported_evidence.fetch("provider_results").first["evidence_mode"] = "declaration"
       assert_special_rejected.call("self-declared provider result", unsupported_evidence)
       missing_target = deep_copy(evidence); missing_target["protected_target_results"].pop
@@ -357,6 +516,24 @@ module AcceptanceCatalogCheck
       assert_special_rejected.call("swapped CAPTCHA target flow contexts", swapped_context)
       zero_targets = deep_copy(evidence); zero_targets["protected_target_count"] = 0; zero_targets["middleware_attached_target_count"] = 0
       assert_special_rejected.call("zero CAPTCHA protected targets", zero_targets)
+    when "api-key-http-lifecycle-report"
+      missing_reduction = deep_copy(evidence); missing_reduction.fetch("permission_reduction_results").pop
+      assert_special_rejected.call("missing API-key permission reduction outcome", missing_reduction)
+      reapplied = deep_copy(evidence); reapplied.fetch("permission_reduction_results").find { |row| row.fetch("case_id") == "narrow-unknown-reconciled" }["reapplication_count"] = 1
+      assert_special_rejected.call("unknown API-key permission reduction reapplied", reapplied)
+      mismatched = deep_copy(evidence); mismatched.fetch("permission_reduction_results").find { |row| row.fetch("case_id") == "unknown-fingerprint-mismatch" }["cascade_outcome"] = "reconciled-committed"
+      assert_special_rejected.call("mismatched API-key fingerprint reconciled", mismatched)
+      mismatch_event = deep_copy(evidence); mismatch_event.fetch("permission_reduction_results").find { |row| row.fetch("case_id") == "unknown-fingerprint-mismatch" }["event_type"] = "api_key.permissions_changed.v1"
+      assert_special_rejected.call("mismatched API-key fingerprint emitted lifecycle event", mismatch_event)
+      forged_input = deep_copy(evidence); forged_input.fetch("permission_reduction_results").find { |row| row.fetch("case_id") == "narrow-unknown-reconciled" }["query_canonical_input_sha256"] = "sha256:#{'f' * 64}"
+      assert_special_rejected.call("API-key query fingerprint not bound to canonical input", forged_input)
+      forged_fingerprint = deep_copy(evidence); forged_fingerprint.fetch("permission_reduction_results").find { |row| row.fetch("case_id") == "narrow-committed" }["stored_fingerprint"] = "sha256:#{'f' * 64}"
+      assert_special_rejected.call("API-key stored fingerprint not canonically derived", forged_fingerprint)
+    when "api-key-postgres-valkey-race-report"
+      different_attempt = deep_copy(evidence); different_attempt.fetch("possibly_debited_results").last["journal_attempt_sha256"] = "sha256:#{'f' * 64}"
+      assert_special_rejected.call("API-key debit reconciliation used different attempt", different_attempt)
+      retried = deep_copy(evidence); retried.fetch("possibly_debited_results").first["retry_blocked"] = false
+      assert_special_rejected.call("possibly-debited API-key verification retried", retried)
     when "hibp-interoperability-report"
       direct_only = deep_copy(evidence); direct_only["operation_ids"] = ["identity.risk.hibp-check"]
       assert_special_rejected.call("direct-check-only integration", direct_only)
@@ -409,6 +586,18 @@ module AcceptanceCatalogCheck
         bypass = deep_copy(evidence); bypass[field] = false
         assert_special_rejected.call("#{field} bypass", bypass)
       end
+      missing_grant = deep_copy(evidence); missing_grant.fetch("grant_replay_results").pop
+      assert_special_rejected.call("missing OAuth grant replay profile", missing_grant)
+      unbound_replay = deep_copy(evidence); unbound_replay.fetch("grant_replay_results").first["replay_credential_sha256"] = "sha256:#{'f' * 64}"
+      assert_special_rejected.call("OAuth replay used a different credential", unbound_replay)
+    when "oauth-provider-matrix-report"
+      missing_logout = deep_copy(evidence); missing_logout.fetch("social_logout_results").pop
+      assert_special_rejected.call("missing social logout reconciliation case", missing_logout)
+    when "mfa-recovery-report"
+      missing_totp = deep_copy(evidence); missing_totp.fetch("totp_profile_results").pop
+      assert_special_rejected.call("missing selected TOTP profile evidence", missing_totp)
+      no_app = deep_copy(evidence); no_app.fetch("totp_profile_results").first["independent_authenticator_app"] = ""
+      assert_special_rejected.call("missing independent authenticator app", no_app)
     when "sso-provider-lifecycle-report"
       omitted_endpoint = deep_copy(evidence); omitted_endpoint["operation_ids"] = omitted_endpoint.fetch("operation_ids").reject { |id| id == "identity.sso.saml-slo" }
       assert_special_rejected.call("omitted SAML endpoint execution", omitted_endpoint)
@@ -460,6 +649,29 @@ module AcceptanceCatalogCheck
       assert_special_rejected.call("unsupported zero counter denied", zero_denied)
       missed_advance = deep_copy(evidence); missed_advance.fetch("signature_counter_matrix").find { |row| row.fetch("case_id") == "non-backup-positive-increase" }["persisted_count"] = 1
       assert_special_rejected.call("positive counter increase not persisted", missed_advance)
+      missing_profile = deep_copy(evidence); missing_profile.fetch("selected_profile_results").pop
+      assert_special_rejected.call("missing selected WebAuthn profile evidence", missing_profile)
+    when "browser-security-report"
+      missing_operation = deep_copy(evidence); missing_operation.fetch("operation_security_results").pop
+      assert_special_rejected.call("missing cookie or CSRF operation result", missing_operation)
+    when "secret-redaction-report"
+      missing_pair = deep_copy(evidence); missing_pair.fetch("class_surface_results").pop
+      assert_special_rejected.call("missing redaction class/surface pair", missing_pair)
+    when "risk-policy-report"
+      missing_action = deep_copy(evidence); missing_action.fetch("action_results").pop
+      assert_special_rejected.call("missing canonical risk action", missing_action)
+      alias_action = deep_copy(evidence); alias_action.fetch("action_results").first["action"] = "challenge"
+      assert_special_rejected.call("risk action alias accepted", alias_action)
+    when "sso-enforcement-break-glass-report"
+      weakened = deep_copy(evidence); weakened.fetch("safety_results").find { |row| row.fetch("case_id") == "consume-once" }["policy_weakened"] = true
+      assert_special_rejected.call("break-glass weakened enforcement", weakened)
+      different_grant = deep_copy(evidence); different_grant.fetch("safety_results").find { |row| row.fetch("case_id") == "consume-once" }["grant_id"] = "different-grant"
+      assert_special_rejected.call("break-glass consume not bound to issued grant", different_grant)
+    when "operations-runbook-index"
+      missing_action = deep_copy(evidence); missing_action.fetch("action_results").pop
+      assert_special_rejected.call("missing operational action row", missing_action)
+      reused_reference = deep_copy(evidence); rows = reused_reference.fetch("action_results"); rows[1]["procedure_ref"] = rows[0].fetch("procedure_ref")
+      assert_special_rejected.call("runbook reused another action reference", reused_reference)
     end
 
     if evidence.key?("provider_results") && %w[oauth-provider-matrix-report provider-evidence-index].include?(artifact.fetch("artifact_id"))
@@ -467,10 +679,15 @@ module AcceptanceCatalogCheck
       assert_special_rejected.call("missing canonical provider row", missing)
       duplicate = deep_copy(evidence); duplicate.fetch("provider_results")[-1] = deep_copy(duplicate.fetch("provider_results").first)
       assert_special_rejected.call("duplicate canonical provider row", duplicate)
-      unverified = deep_copy(evidence); unverified.fetch("provider_results").first["verified"] = false
-      assert_special_rejected.call("unverified canonical provider row", unverified)
-      not_run = deep_copy(evidence); not_run.fetch("provider_results").first["execution_outcome"] = "not-run"
-      assert_special_rejected.call("provider interoperability not run", not_run)
+      first = evidence.fetch("provider_results").first
+      forged_verified = deep_copy(evidence); forged_verified.fetch("provider_results").first["verified"] = !first.fetch("verified")
+      assert_special_rejected.call("provider verification differs from canonical catalog readiness", forged_verified)
+      forged_outcome = deep_copy(evidence); forged_outcome.fetch("provider_results").first["execution_outcome"] = first.fetch("execution_outcome") == "passed" ? "not-run" : "passed"
+      assert_special_rejected.call("provider execution differs from canonical catalog readiness", forged_outcome)
+      forged_pin = deep_copy(evidence); forged_pin.fetch("provider_results").first["official_docs_status"] = "verified-attributable"
+      assert_special_rejected.call("provider official pin differs from canonical catalog", forged_pin)
+      forged_blocker = deep_copy(evidence); forged_blocker.fetch("provider_results").first["catalog_blocker_count"] = first.fetch("catalog_blocker_count") + 1
+      assert_special_rejected.call("provider blocker count differs from canonical catalog", forged_blocker)
     end
     if evidence.key?("protocol_case_results")
       missing = deep_copy(evidence); missing.fetch("protocol_case_results").pop
@@ -480,7 +697,16 @@ module AcceptanceCatalogCheck
       wrong_outcome = deep_copy(evidence); wrong_outcome.fetch("protocol_case_results").first["outcome"] = "self-declared"
       assert_special_rejected.call("invalid protocol closure", wrong_outcome)
     end
-    %w[cascade_transitions delivery_outcome_cases reconciliation_cases otp_operation_cases bearer_transition_cases api_key_security_cases session_race_cases trusted_profile_cases issuer_variant_cases repeat_sync_cases redirect_link_cases authority_transition_cases wire_contract_cases].each do |field|
+    if evidence.key?("external_profile_results")
+      missing = deep_copy(evidence); missing.fetch("external_profile_results").pop
+      assert_special_rejected.call("missing exact external profile execution", missing)
+      missing_consumer = deep_copy(evidence); missing_consumer.fetch("external_profile_results").first.fetch("consumer_ids").pop
+      assert_special_rejected.call("missing external profile consumer claim", missing_consumer)
+      first = evidence.fetch("external_profile_results").first
+      forged_outcome = deep_copy(evidence); forged_outcome.fetch("external_profile_results").first["execution_outcome"] = first.fetch("execution_outcome") == "passed" ? "not-run" : "passed"
+      assert_special_rejected.call("external profile execution differs from canonical readiness", forged_outcome)
+    end
+    %w[cascade_transitions delivery_outcome_cases reconciliation_cases otp_operation_cases bearer_transition_cases api_key_security_cases session_race_cases trusted_profile_cases issuer_variant_cases repeat_sync_cases redirect_link_cases authority_transition_cases wire_contract_cases grant_replay_results social_logout_results totp_profile_results selected_profile_results operation_security_results class_surface_results safety_results action_results permission_reduction_results command_id_integrity_results audit_stage_results scim_bulk_skip_results possibly_debited_results session_authority_cache_results privacy_lifecycle_results provider_cascade_results connection_cascade_results].each do |field|
       next unless evidence.key?(field)
 
       missing = deep_copy(evidence); missing.fetch(field).pop
@@ -505,6 +731,141 @@ module AcceptanceCatalogCheck
     incomplete_coverage["statement_coverage_basis_points"] = 1
     incomplete_record, incomplete_bytes = record_for_evidence(record, incomplete_coverage)
     fail_check("coverage-mutation-report accepted less than exact statement coverage") if record_artifact_errors(incomplete_record, artifact, schema, incomplete_bytes, receipt_bytes).empty?
+    missing_package = deep_copy(evidence)
+    missing_package.fetch("affected_package_results").pop
+    missing_record, missing_bytes = record_for_evidence(record, missing_package)
+    fail_check("coverage-mutation-report accepted an incomplete affected-package inventory") if record_artifact_errors(missing_record, artifact, schema, missing_bytes, receipt_bytes).empty?
+    duplicate_mutant_id = deep_copy(evidence)
+    duplicate = deep_copy(duplicate_mutant_id.fetch("viable_mutant_results").first)
+    duplicate["source_locator"] = "different-source-locator"
+    duplicate_mutant_id.fetch("viable_mutant_results") << duplicate
+    duplicate_mutant_id["viable_mutant_count"] += 1
+    duplicate_mutant_id["killed_mutant_count"] += 1
+    duplicate_record, duplicate_bytes = record_for_evidence(record, duplicate_mutant_id)
+    fail_check("coverage-mutation-report accepted duplicate mutant identity") if record_artifact_errors(duplicate_record, artifact, schema, duplicate_bytes, receipt_bytes).empty?
+  end
+
+  def assert_runner_derivation_contract!(artifact, schema, evidence)
+    raw = deep_copy(evidence)
+    execution = raw.delete("execution")
+    raw.each_value do |value|
+      next unless value.is_a?(Array)
+
+      value.each { |row| row.delete("transcript_sha256") if row.is_a?(Hash) }
+    end
+    assignments = []
+    extract = lambda do |value, path|
+      case value
+      when Hash
+        value.keys.each do |key|
+          if AcceptanceExecutionRunner::FORBIDDEN_PRODUCER_KEY.match?(key)
+            assigned = value.delete(key)
+            if assigned.is_a?(Array)
+              assigned.each { |row| row.delete("transcript_sha256") if row.is_a?(Hash) }
+            end
+            assignments << {"path" => path + [key], "value" => assigned}
+          else
+            extract.call(value.fetch(key), path + [key])
+          end
+        end
+      when Array then value.each_with_index { |entry, index| extract.call(entry, path + [index]) }
+      end
+    end
+    extract.call(raw, [])
+    if artifact.fetch("artifact_id") == "coverage-mutation-report"
+      raw.delete("affected_package_manifest_sha256")
+      raw.delete("viable_mutant_manifest_sha256")
+      package_manifest_bytes = JSON.pretty_generate(
+        {"derivation" => "modules-and-packages-manifests-with-reverse-dependants",
+         "source_manifest_sha256s" => {"modules.json" => "sha256:#{'a' * 64}", "packages.json" => "sha256:#{'b' * 64}"},
+         "affected_module_directories" => [], "reverse_dependants" => {},
+         "package_ids" => evidence.fetch("affected_package_results").map { |row| row.fetch("package_id") }}
+      ) + "\n"
+      mutant_manifest_bytes = JSON.pretty_generate(
+        {"derivation" => "pinned-mutation-tool-output", "mutation_tool_path" => File.realpath(File.join(IdentityPlatformAcceptance::REPOSITORY_ROOT, ".ai/identity-platform/acceptance/schema_validation.rb")), "mutation_tool_sha256" => "sha256:#{Digest::SHA256.hexdigest(File.binread(File.join(IdentityPlatformAcceptance::REPOSITORY_ROOT, '.ai/identity-platform/acceptance/schema_validation.rb')))}",
+         "mutation_output_sha256" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical({"mutants" => evidence.fetch('viable_mutant_results').map { |row| row.slice('mutant_id', 'package_id', 'operator', 'source_locator', 'outcome') }})))}",
+         "mutation_output" => {"mutants" => evidence.fetch("viable_mutant_results").map { |row| row.slice("mutant_id", "package_id", "operator", "source_locator", "outcome") }},
+         "mutants" => evidence.fetch("viable_mutant_results").map { |row| row.slice("mutant_id", "package_id", "operator", "source_locator", "outcome") }}
+      ) + "\n"
+      execution["package_manifest_sha256"] = "sha256:#{Digest::SHA256.hexdigest(package_manifest_bytes)}"
+      execution["mutant_manifest_sha256"] = "sha256:#{Digest::SHA256.hexdigest(mutant_manifest_bytes)}"
+      execution["package_discovery_argv"] = ["ruby", ".ai/identity-platform/acceptance/schema_validation.rb", "discover-packages", artifact.fetch("artifact_id")]
+      execution["mutation_tool_argv"] = ["ruby", ".ai/identity-platform/acceptance/schema_validation.rb", "mutation-tool", "pkg/identity/reference"]
+      execution["mutation_tool_output_sha256"] = "sha256:#{Digest::SHA256.hexdigest(JSON.pretty_generate({"mutants" => evidence.fetch("viable_mutant_results").map { |row| row.slice("mutant_id", "package_id", "operator", "source_locator", "outcome") }}) + "\n")}"
+      AcceptanceSchemaValidation.bind_execution_proof!(execution)
+    end
+    raw_bytes = JSON.pretty_generate(raw) + "\n"
+    execution["raw_capture_sha256"] = "sha256:#{Digest::SHA256.hexdigest(raw_bytes)}"
+    AcceptanceSchemaValidation.bind_execution_proof!(execution)
+    verifier_attestation = {
+      "artifact_id" => artifact.fetch("artifact_id"), "raw_capture_sha256" => execution.fetch("raw_capture_sha256"),
+      "assignments" => assignments,
+      "case_receipts" => [{"case_id" => "artifact-verifier", "raw_capture_sha256" => execution.fetch("raw_capture_sha256"), "tool_native_result_sha256" => "sha256:#{'f' * 64}"}]
+    }
+    verifier_attestation["case_receipts"] = assignments.map.with_index do |assignment, index|
+      native = {"assignment_index" => index, "observed_value" => assignment.fetch("value")}
+      {"case_id" => "artifact-verifier-#{index}", "assignment_path" => assignment.fetch("path"),
+       "assignment_value_sha256" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical(assignment.fetch('value'))))}",
+       "raw_capture_sha256" => execution.fetch("raw_capture_sha256"), "tool_native_row" => native,
+       "tool_native_result_sha256" => "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical(native)))}"}
+    end
+    incomplete_attestation = deep_copy(verifier_attestation) if artifact.fetch("artifact_id") == "coverage-mutation-report"
+    final_bytes = AcceptanceExecutionRunner.derive_final_artifact(
+      raw_bytes, execution, artifact_id: artifact.fetch("artifact_id"),
+      verifier_attestation: verifier_attestation,
+      package_manifest_bytes: package_manifest_bytes, mutant_manifest_bytes: mutant_manifest_bytes
+    )
+    final = AcceptanceSchemaValidation.parse_json(final_bytes, canonical: true)
+    errors = schema_errors(final, schema.dig("$defs", "artifact_evidence"))
+    fail_check("#{artifact.fetch('artifact_id')} runner-derived final evidence violates schema: #{errors.first}") unless errors.empty?
+    fail_check("#{artifact.fetch('artifact_id')} runner did not exclusively own final execution evidence") unless final.fetch("execution") == execution
+    if artifact.fetch("artifact_id") == "coverage-mutation-report"
+      incomplete_raw = JSON.parse(raw_bytes)
+      incomplete_raw.fetch("affected_package_results").pop
+      begin
+        AcceptanceExecutionRunner.derive_final_artifact(
+          JSON.pretty_generate(incomplete_raw) + "\n", execution, artifact_id: artifact.fetch("artifact_id"),
+          verifier_attestation: incomplete_attestation,
+          package_manifest_bytes: package_manifest_bytes, mutant_manifest_bytes: mutant_manifest_bytes
+        )
+        fail_check("coverage runner accepted coherent omission from independently captured package manifest")
+      rescue ArgumentError => e
+        raise unless e.message.include?("independently captured package manifest")
+      end
+      surviving_manifest = deep_copy(AcceptanceSchemaValidation.parse_json(mutant_manifest_bytes, canonical: true))
+      surviving_manifest.fetch("mutants").first["outcome"] = "survived"
+      surviving_manifest.fetch("mutation_output").fetch("mutants").first["outcome"] = "survived"
+      surviving_manifest["mutation_output_sha256"] = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical(surviving_manifest.fetch('mutation_output'))))}"
+      begin
+        surviving_raw = JSON.parse(raw_bytes)
+        runner_transcript_fields = AcceptanceExecutionRunner.send(:runner_transcript_fields, artifact.fetch("artifact_id"), surviving_raw)
+        runner_transcript_fields.each { |field| surviving_raw.fetch(field, []).each { |row| row.delete("transcript_sha256") } }
+        AcceptanceExecutionRunner.derive_final_artifact(
+          JSON.pretty_generate(surviving_raw) + "\n", execution, artifact_id: artifact.fetch("artifact_id"),
+          verifier_attestation: deep_copy(verifier_attestation),
+          package_manifest_bytes: package_manifest_bytes, mutant_manifest_bytes: JSON.pretty_generate(surviving_manifest) + "\n"
+        )
+        fail_check("coverage runner accepted a viable mutant survivor from the independent tool")
+      rescue ArgumentError => e
+        raise unless e.message.include?("viable survivor")
+      end
+      %w[omission invention].each do |mutation_kind|
+        forged_manifest = deep_copy(AcceptanceSchemaValidation.parse_json(mutant_manifest_bytes, canonical: true))
+        if mutation_kind == "omission"
+          forged_manifest.fetch("mutants").pop
+        else
+          forged = deep_copy(forged_manifest.fetch("mutants").first)
+          forged["mutant_id"] = "sha256:#{'9' * 64}"
+          forged_manifest.fetch("mutants") << forged
+        end
+        begin
+          AcceptanceExecutionRunner.send(:parse_inventory_manifest, JSON.pretty_generate(forged_manifest) + "\n", "mutant")
+          fail_check("mutation wrapper accepted native-row #{mutation_kind}")
+        rescue ArgumentError => e
+          raise unless e.message.include?("native mutation output")
+        end
+      end
+    end
   end
 
   def run
@@ -513,6 +874,7 @@ module AcceptanceCatalogCheck
     goals = load_canonical(IdentityPlatformAcceptance::GOALS)
     public_contracts = load_canonical(IdentityPlatformAcceptance::PUBLIC_CONTRACTS)
     operations = load_canonical(IdentityPlatformAcceptance::OPERATIONS)
+    runbook_catalog = load_canonical(IdentityPlatformAcceptance::RUNBOOK_CATALOG)
     catalog = load_canonical(IdentityPlatformAcceptance::CATALOG)
     program_units = goals.fetch("goals").map { |goal| goal.fetch("unit") }
     product_units = public_contracts.fetch("units").map { |unit| unit.fetch("unit") }
@@ -523,6 +885,7 @@ module AcceptanceCatalogCheck
     primitive_units = IdentityPlatformAcceptance::PRIMITIVE_PREREQUISITES.map { |row| row.fetch("unit") }
     fail_check("program/product unit distinction drifted") unless (program_units - product_units).sort == primitive_units.sort && (product_units - program_units).empty?
     fail_check("operation catalog contains duplicate IDs") unless operation_rows.length == operation_by_id.length
+    fail_check("OPERATIONS_RUNBOOK_CATALOG.json drifted from its canonical generator") unless runbook_catalog == IdentityPlatformAcceptance.runbook_catalog_document
     unless IdentityPlatformAcceptance.api_operation_ids.sort_by(&:b) == operation_rows.map { |operation| operation.fetch("id") }.sort_by(&:b)
       fail_check("API operation catalog differs from canonical operation semantics")
     end
@@ -625,13 +988,13 @@ module AcceptanceCatalogCheck
       fail_check("#{id} lacks a non-zero semantic work invariant") unless semantic_rules.any? { |rule| %w[positive true].include?(rule.fetch("kind")) }
       evidence_contract_digests << Digest::SHA256.hexdigest(JSON.generate(canonical(evidence_schema)))
       evidence = representative_evidence(artifact, schema)
+      assert_runner_derivation_contract!(artifact, schema, evidence)
       preliminary_record = representative_record(artifact, "sha256:#{'0' * 64}", "sha256:#{'0' * 64}")
       execution = evidence.fetch("execution")
       execution["tested_revision"] = preliminary_record.fetch("tested_revision")
       execution["input_root"] = preliminary_record.fetch("input_root")
-      execution["tool"] = preliminary_record.dig("tool_environment", "tool")
-      execution["environment"] = preliminary_record.dig("tool_environment", "environment")
       AcceptanceSchemaValidation.bind_execution_proof!(execution)
+      AcceptanceSchemaValidation.bind_runner_transcripts!(evidence, execution)
       receipt_bytes = AcceptanceSchemaValidation.execution_receipt_bytes(execution)
       receipt_digest = "sha256:#{Digest::SHA256.hexdigest(receipt_bytes)}"
       evidence_bytes = JSON.pretty_generate(evidence) + "\n"

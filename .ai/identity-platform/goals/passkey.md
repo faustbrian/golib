@@ -84,9 +84,11 @@ involved.
   ceremony creation. Opaque user handles and credential resolution MUST bind
   tenant, RP and identity together. Resolution MUST use `(RP namespace,
   credential ID)`; credential ID is unique across that complete RP namespace
-  and tenant MUST NOT disambiguate it. Reuse in a distinct RP namespace does
-  not establish global identity. Browser-supplied RP fields MUST NOT cross the
-  authority boundary.
+  and tenant MUST NOT disambiguate it. Each identity MUST have exactly one
+  stable opaque user handle per RP namespace, that handle MUST be unique across
+  the complete RP namespace, and tenant MUST NOT disambiguate handle
+  uniqueness. Reuse in a distinct RP namespace does not establish global
+  identity. Browser-supplied RP fields MUST NOT cross the authority boundary.
 - Pre-auth signup, authenticated enrollment, assertion/session issuance and
   deletion MUST use `.ai/identity-platform/TRANSACTION_CONTRACT.md` so ceremony
   consumption, WebAuthn credential state, identity/passkey mapping and session

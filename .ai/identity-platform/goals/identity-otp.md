@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/identity/otp`
 - Canonical goal after scaffolding: `pkg/identity/otp/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/otp:v1`; owned operation IDs: `contract:operation:identity.otp.check:v1`, `contract:operation:identity.otp.email-change-confirm:v1`, `contract:operation:identity.otp.email-change-request:v1`, `contract:operation:identity.otp.email-verify:v1`, `contract:operation:identity.otp.password-reset:v1`, `contract:operation:identity.otp.send:v1`, `contract:operation:identity.otp.signin:v1`
-- Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`, `primitive/authentication-identity-contracts`, `primitive/capability-postgres-identity-contracts`, `primitive/identifier-identity-contracts`, `primitive/password-secret-contracts`
-- Consumes existing primitives: `capability`, `capability/postgres`, `password`, `rate-limit`, `audit`
+- Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`, `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/identifier-identity-contracts`, `primitive/password-secret-contracts`
+- Consumes existing primitives: `capability`, `password`, `rate-limit`, `audit`
 - Unlocks after verification: `identity/password`, `identity/email`, `identity/otp/postgres`, `identity/phone`, `identity/mfa`, `identity/http`
 
 ## Start gate
@@ -36,7 +36,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define CodeProfile, Challenge, Generator, Store, Delivery, Verifier, AttemptPolicy, AttemptID, AttemptFingerprint, attempt/recovery commands and results, SessionIssuer, and result contracts. The Store contract MUST make the non-consuming-check and consuming-reservation modes explicit, atomically persist each wrong-code decrement and its denial result exactly once, and recover an ambiguous attempt by the same server-issued AttemptID and server-derived fingerprint without repeating comparison or mutation. Public errors MUST be typed, stable,
+The design MUST define CodeProfile, Challenge, Generator, Store, Delivery, Verifier, AttemptPolicy, AttemptID, AttemptFingerprint, DestinationInput, attempt/recovery commands and results, SessionIssuer, and result contracts. `DestinationInput` MUST be an identity/otp-owned bounded raw channel destination; OTP MUST NOT expose identity/email-owned address types, and the owning workflow retains channel-specific canonicalization and uniqueness enforcement. The Store contract MUST make the non-consuming-check and consuming-reservation modes explicit, atomically persist each wrong-code decrement and its denial result exactly once, and recover an ambiguous attempt by the same server-issued AttemptID and server-derived fingerprint without repeating comparison or mutation. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.

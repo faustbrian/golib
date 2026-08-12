@@ -75,9 +75,13 @@ identity rows, credential proof, session tokens or application resource data.
 
 Verification applicability is exact for this unit: `race=required`,
 `fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
-`infrastructure=required`, and `provider_interoperability=required`; a gate
-MAY be satisfied by the required composed reference evidence but MUST NOT be
-silently skipped.
+`infrastructure=required`, and `provider_interoperability=required`. The
+provider-interoperability gate MUST use independent package-local
+`identity/postgres` and `identity/session` contributor implementations. Real
+PostgreSQL and that package-local contributor-contract evidence MUST verify
+this unit without depending on `identity/reference`, which this unit unlocks.
+`identity/reference` owns later full-stack composition acceptance after this
+unit is verified; that later evidence MUST NOT gate this unit.
 
 ## Required evidence
 
@@ -85,9 +89,10 @@ Real PostgreSQL tests MUST cover concurrent issuance and upgrade, same-target
 retry, different-target conflict, credential collision, banned target, unknown
 commit, delete-versus-upgrade, expiry-versus-upgrade, cross-tenant isolation,
 outbox consistency, populated migration, backup/restore and production-shaped
-cleanup plans. The composed reference journey MUST prove that session
-transition and application merge callbacks use only public contracts and do
-not require a second anonymous store.
+cleanup plans. A package-local composition test using independent public
+`identity/postgres` and `identity/session` contributor implementations MUST
+prove that session transition and application merge callbacks use only public
+contracts and do not require a second anonymous store.
 
 Exact coverage and mutation, race/stress, query/lock and cleanup benchmarks,
 clean-consumer, API/docs/examples/changelog, migration, security and

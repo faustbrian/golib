@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -148,10 +129,10 @@
                 "const": "Run make check MODULES=pkg/identity/reference for success, failure cases using module_set, dependency_lockfiles, artifact_digests, provenance_records and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: module_count, artifact_count, sbom_digest, provenance_digest, release_report_digest"
+                "const": "Invariant: vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: module_count, artifact_count, sbom_digest, provenance_digest, release_report_digest, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: module_count, artifact_count, sbom_digest, provenance_digest, release_report_digest"
+                "const": "Invariant: vulnerability, secret, license, SBOM, provenance, and clean-consumer gates pass and every release artifact digest is bound; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: module_count, artifact_count, sbom_digest, provenance_digest, release_report_digest, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -266,7 +247,8 @@
         "artifact_count",
         "sbom_digest",
         "provenance_digest",
-        "release_report_digest"
+        "release_report_digest",
+        "protocol_case_results"
       ],
       "properties": {
         "artifact_id": {
@@ -295,11 +277,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -310,6 +312,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -326,10 +329,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "supply-chain-release-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -339,15 +368,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -388,6 +528,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -671,6 +815,3675 @@
         "release_report_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "protocol_case_results": {
+          "type": "array",
+          "minItems": 33,
+          "maxItems": 33,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-2119"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-2119:source.rfc-2119"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-2119"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity",
+                      "identity/anonymous",
+                      "identity/anonymous/postgres",
+                      "identity/apikey",
+                      "identity/apikey/postgres",
+                      "identity/apikey/valkey",
+                      "identity/delivery",
+                      "identity/delivery/postgres",
+                      "identity/email",
+                      "identity/http",
+                      "identity/i18n",
+                      "identity/identitytest",
+                      "identity/impersonation",
+                      "identity/impersonation/postgres",
+                      "identity/magiclink",
+                      "identity/mfa",
+                      "identity/mfa/postgres",
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "identity/oauth/postgres",
+                      "identity/oauth/providers",
+                      "identity/oauth/proxy",
+                      "identity/otp",
+                      "identity/otp/postgres",
+                      "identity/password",
+                      "identity/password/postgres",
+                      "identity/phone",
+                      "identity/postgres",
+                      "identity/reference",
+                      "identity/risk",
+                      "identity/risk/captcha",
+                      "identity/risk/captcha/captchafox",
+                      "identity/risk/captcha/hcaptcha",
+                      "identity/risk/captcha/recaptcha",
+                      "identity/risk/captcha/turnstile",
+                      "identity/risk/hibp",
+                      "identity/risk/postgres",
+                      "identity/risk/valkey",
+                      "identity/session",
+                      "identity/session/postgres",
+                      "identity/session/valkey",
+                      "identity/username",
+                      "oauth-server",
+                      "oauth-server/device",
+                      "oauth-server/oidc",
+                      "oauth-server/postgres",
+                      "organization",
+                      "organization/postgres",
+                      "passkey",
+                      "passkey/postgres",
+                      "scim",
+                      "scim/organization",
+                      "scim/postgres",
+                      "sso",
+                      "sso/domain-verification",
+                      "sso/oauth2",
+                      "sso/oidc",
+                      "sso/postgres",
+                      "sso/saml",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-2119"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-4226"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-4226:source.rfc-4226"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-4226"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-4226"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-3339"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-3339:source.rfc-3339"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-3339"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/reference"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-3339"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-5280"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-5280:source.rfc-5280"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-5280"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-5280"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-5952"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-5952:source.rfc-5952"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-5952"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/http",
+                      "identity/reference",
+                      "identity/risk",
+                      "identity/risk/postgres",
+                      "identity/risk/valkey"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-5952"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6238"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6238:source.rfc-6238"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6238"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa",
+                      "identity/reference"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6238"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6585"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6585:source.rfc-6585"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6585"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "scim"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6585"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6749"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6749:source.rfc-6749"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6749"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6749"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6750"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6750:source.rfc-6750"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6750"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/http",
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6750"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6901"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6901:source.rfc-6901"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6901"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth/providers",
+                      "identity/reference"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6901"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7009"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7009:source.rfc-7009"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7009"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7009"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7239"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7239:source.rfc-7239"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7239"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/http",
+                      "identity/reference"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7239"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7515"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7515:source.rfc-7515"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7515"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7515"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7517"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7517:source.rfc-7517"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7517"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7517"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7518"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7518:source.rfc-7518"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7518"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7518"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7519"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7519:source.rfc-7519"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7519"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7519"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7636"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7636:source.rfc-7636"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7636"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7636"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7642"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7642:source.rfc-7642"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7642"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "scim"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7642"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7662"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7662:source.rfc-7662"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7662"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7662"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8174"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8174:source.rfc-8174"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8174"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity",
+                      "identity/anonymous",
+                      "identity/anonymous/postgres",
+                      "identity/apikey",
+                      "identity/apikey/postgres",
+                      "identity/apikey/valkey",
+                      "identity/delivery",
+                      "identity/delivery/postgres",
+                      "identity/email",
+                      "identity/http",
+                      "identity/i18n",
+                      "identity/identitytest",
+                      "identity/impersonation",
+                      "identity/impersonation/postgres",
+                      "identity/magiclink",
+                      "identity/mfa",
+                      "identity/mfa/postgres",
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "identity/oauth/postgres",
+                      "identity/oauth/providers",
+                      "identity/oauth/proxy",
+                      "identity/otp",
+                      "identity/otp/postgres",
+                      "identity/password",
+                      "identity/password/postgres",
+                      "identity/phone",
+                      "identity/postgres",
+                      "identity/reference",
+                      "identity/risk",
+                      "identity/risk/captcha",
+                      "identity/risk/captcha/captchafox",
+                      "identity/risk/captcha/hcaptcha",
+                      "identity/risk/captcha/recaptcha",
+                      "identity/risk/captcha/turnstile",
+                      "identity/risk/hibp",
+                      "identity/risk/postgres",
+                      "identity/risk/valkey",
+                      "identity/session",
+                      "identity/session/postgres",
+                      "identity/session/valkey",
+                      "identity/username",
+                      "oauth-server",
+                      "oauth-server/device",
+                      "oauth-server/oidc",
+                      "oauth-server/postgres",
+                      "organization",
+                      "organization/postgres",
+                      "passkey",
+                      "passkey/postgres",
+                      "scim",
+                      "scim/organization",
+                      "scim/postgres",
+                      "sso",
+                      "sso/domain-verification",
+                      "sso/oauth2",
+                      "sso/oidc",
+                      "sso/postgres",
+                      "sso/saml",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8174"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8252"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8252:source.rfc-8252"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8252"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "oauth-server"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8252"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8414"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8414:source.rfc-8414"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8414"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8414"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8628"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8628:source.rfc-8628"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8628"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "oauth-server/device"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8628"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8693"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8693:source.rfc-8693"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8693"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "oauth-server",
+                      "oauth-server/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "unsupported"
+                  },
+                  "source_id": {
+                    "const": "rfc-8693"
+                  },
+                  "locator": {
+                    "const": "RFC 8693 token exchange is not selected by the private session-JWT extension"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8707"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8707:source.rfc-8707"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8707"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "oauth-server"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8707"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8949"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8949:source.rfc-8949"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8949"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity",
+                      "identity/anonymous",
+                      "identity/anonymous/postgres",
+                      "identity/apikey",
+                      "identity/apikey/postgres",
+                      "identity/apikey/valkey",
+                      "identity/delivery",
+                      "identity/delivery/postgres",
+                      "identity/email",
+                      "identity/impersonation",
+                      "identity/impersonation/postgres",
+                      "identity/magiclink",
+                      "identity/mfa",
+                      "identity/mfa/postgres",
+                      "identity/oauth",
+                      "identity/oauth/postgres",
+                      "identity/otp",
+                      "identity/otp/postgres",
+                      "identity/password",
+                      "identity/password/postgres",
+                      "identity/phone",
+                      "identity/postgres",
+                      "identity/reference",
+                      "identity/risk",
+                      "identity/risk/captcha",
+                      "identity/risk/hibp",
+                      "identity/risk/postgres",
+                      "identity/risk/valkey",
+                      "identity/session",
+                      "identity/session/postgres",
+                      "identity/session/valkey",
+                      "oauth-server",
+                      "oauth-server/device",
+                      "oauth-server/oidc",
+                      "oauth-server/postgres",
+                      "organization",
+                      "organization/postgres",
+                      "passkey",
+                      "passkey/postgres",
+                      "scim",
+                      "scim/organization",
+                      "scim/postgres",
+                      "sso",
+                      "sso/domain-verification",
+                      "sso/oauth2",
+                      "sso/oidc",
+                      "sso/postgres",
+                      "sso/saml",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8949"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-9052"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9052:source.rfc-9052"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9052"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9052"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-9053"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9053:source.rfc-9053"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9053"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9053"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-9207"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9207:source.rfc-9207"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9207"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9207"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-9700"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9700:source.rfc-9700"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9700"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9700"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.oidc-multiple-response-types-1.0"
+                  },
+                  "suite_case_id": {
+                    "const": "oidc-multiple-response-types-1.0:source.oidc-multiple-response-types-1.0"
+                  },
+                  "requirement_id": {
+                    "const": "source.oidc-multiple-response-types-1.0"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "oidc-multiple-response-types-1.0"
+                  },
+                  "locator": {
+                    "const": "Sections 2 and 3 response_type registration and unsupported combinations"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.public-suffix-list-e1b8015c"
+                  },
+                  "suite_case_id": {
+                    "const": "public-suffix-list-e1b8015c:source.public-suffix-list-e1b8015c"
+                  },
+                  "requirement_id": {
+                    "const": "source.public-suffix-list-e1b8015c"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "sso/domain-verification",
+                      "webauthn"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "public-suffix-list-e1b8015c"
+                  },
+                  "locator": {
+                    "const": "Complete pinned ICANN and PRIVATE rule snapshot"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.google-authenticator-key-uri-8ba6e793"
+                  },
+                  "suite_case_id": {
+                    "const": "google-authenticator-key-uri-8ba6e793:source.google-authenticator-key-uri-8ba6e793"
+                  },
+                  "requirement_id": {
+                    "const": "source.google-authenticator-key-uri-8ba6e793"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "google-authenticator-key-uri-8ba6e793"
+                  },
+                  "locator": {
+                    "const": "Key URI Format sections Label, Secret, Issuer, Algorithm, Digits, Counter and Period; unknown or conflicting parameters rejected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-2119"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-2119:source.rfc-2119"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-2119"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity",
+                      "identity/anonymous",
+                      "identity/anonymous/postgres",
+                      "identity/apikey",
+                      "identity/apikey/postgres",
+                      "identity/apikey/valkey",
+                      "identity/delivery",
+                      "identity/delivery/postgres",
+                      "identity/email",
+                      "identity/http",
+                      "identity/i18n",
+                      "identity/identitytest",
+                      "identity/impersonation",
+                      "identity/impersonation/postgres",
+                      "identity/magiclink",
+                      "identity/mfa",
+                      "identity/mfa/postgres",
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "identity/oauth/postgres",
+                      "identity/oauth/providers",
+                      "identity/oauth/proxy",
+                      "identity/otp",
+                      "identity/otp/postgres",
+                      "identity/password",
+                      "identity/password/postgres",
+                      "identity/phone",
+                      "identity/postgres",
+                      "identity/reference",
+                      "identity/risk",
+                      "identity/risk/captcha",
+                      "identity/risk/captcha/captchafox",
+                      "identity/risk/captcha/hcaptcha",
+                      "identity/risk/captcha/recaptcha",
+                      "identity/risk/captcha/turnstile",
+                      "identity/risk/hibp",
+                      "identity/risk/postgres",
+                      "identity/risk/valkey",
+                      "identity/session",
+                      "identity/session/postgres",
+                      "identity/session/valkey",
+                      "identity/username",
+                      "oauth-server",
+                      "oauth-server/device",
+                      "oauth-server/oidc",
+                      "oauth-server/postgres",
+                      "organization",
+                      "organization/postgres",
+                      "passkey",
+                      "passkey/postgres",
+                      "scim",
+                      "scim/organization",
+                      "scim/postgres",
+                      "sso",
+                      "sso/domain-verification",
+                      "sso/oauth2",
+                      "sso/oidc",
+                      "sso/postgres",
+                      "sso/saml",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-2119"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-4226"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-4226:source.rfc-4226"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-4226"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-4226"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-3339"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-3339:source.rfc-3339"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-3339"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/reference"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-3339"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-5280"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-5280:source.rfc-5280"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-5280"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-5280"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-5952"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-5952:source.rfc-5952"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-5952"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/http",
+                      "identity/reference",
+                      "identity/risk",
+                      "identity/risk/postgres",
+                      "identity/risk/valkey"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-5952"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6238"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6238:source.rfc-6238"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6238"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa",
+                      "identity/reference"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6238"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6585"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6585:source.rfc-6585"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6585"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "scim"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6585"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6749"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6749:source.rfc-6749"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6749"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6749"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6750"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6750:source.rfc-6750"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6750"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/http",
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6750"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-6901"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6901:source.rfc-6901"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-6901"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth/providers",
+                      "identity/reference"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6901"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7009"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7009:source.rfc-7009"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7009"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7009"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7239"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7239:source.rfc-7239"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7239"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/http",
+                      "identity/reference"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7239"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7515"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7515:source.rfc-7515"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7515"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7515"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7517"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7517:source.rfc-7517"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7517"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7517"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7518"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7518:source.rfc-7518"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7518"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7518"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7519"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7519:source.rfc-7519"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7519"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "oauth-server",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7519"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7636"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7636:source.rfc-7636"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7636"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7636"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7642"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7642:source.rfc-7642"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7642"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "scim"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7642"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-7662"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-7662:source.rfc-7662"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-7662"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-7662"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8174"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8174:source.rfc-8174"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8174"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity",
+                      "identity/anonymous",
+                      "identity/anonymous/postgres",
+                      "identity/apikey",
+                      "identity/apikey/postgres",
+                      "identity/apikey/valkey",
+                      "identity/delivery",
+                      "identity/delivery/postgres",
+                      "identity/email",
+                      "identity/http",
+                      "identity/i18n",
+                      "identity/identitytest",
+                      "identity/impersonation",
+                      "identity/impersonation/postgres",
+                      "identity/magiclink",
+                      "identity/mfa",
+                      "identity/mfa/postgres",
+                      "identity/oauth",
+                      "identity/oauth/onetap",
+                      "identity/oauth/postgres",
+                      "identity/oauth/providers",
+                      "identity/oauth/proxy",
+                      "identity/otp",
+                      "identity/otp/postgres",
+                      "identity/password",
+                      "identity/password/postgres",
+                      "identity/phone",
+                      "identity/postgres",
+                      "identity/reference",
+                      "identity/risk",
+                      "identity/risk/captcha",
+                      "identity/risk/captcha/captchafox",
+                      "identity/risk/captcha/hcaptcha",
+                      "identity/risk/captcha/recaptcha",
+                      "identity/risk/captcha/turnstile",
+                      "identity/risk/hibp",
+                      "identity/risk/postgres",
+                      "identity/risk/valkey",
+                      "identity/session",
+                      "identity/session/postgres",
+                      "identity/session/valkey",
+                      "identity/username",
+                      "oauth-server",
+                      "oauth-server/device",
+                      "oauth-server/oidc",
+                      "oauth-server/postgres",
+                      "organization",
+                      "organization/postgres",
+                      "passkey",
+                      "passkey/postgres",
+                      "scim",
+                      "scim/organization",
+                      "scim/postgres",
+                      "sso",
+                      "sso/domain-verification",
+                      "sso/oauth2",
+                      "sso/oidc",
+                      "sso/postgres",
+                      "sso/saml",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8174"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8252"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8252:source.rfc-8252"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8252"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "oauth-server"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8252"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8414"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8414:source.rfc-8414"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8414"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8414"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8628"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8628:source.rfc-8628"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8628"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "oauth-server/device"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8628"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8693"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8693:source.rfc-8693"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8693"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "oauth-server",
+                      "oauth-server/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "unsupported"
+                  },
+                  "source_id": {
+                    "const": "rfc-8693"
+                  },
+                  "locator": {
+                    "const": "RFC 8693 token exchange is not selected by the private session-JWT extension"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8707"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8707:source.rfc-8707"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8707"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "oauth-server"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8707"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-8949"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-8949:source.rfc-8949"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-8949"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity",
+                      "identity/anonymous",
+                      "identity/anonymous/postgres",
+                      "identity/apikey",
+                      "identity/apikey/postgres",
+                      "identity/apikey/valkey",
+                      "identity/delivery",
+                      "identity/delivery/postgres",
+                      "identity/email",
+                      "identity/impersonation",
+                      "identity/impersonation/postgres",
+                      "identity/magiclink",
+                      "identity/mfa",
+                      "identity/mfa/postgres",
+                      "identity/oauth",
+                      "identity/oauth/postgres",
+                      "identity/otp",
+                      "identity/otp/postgres",
+                      "identity/password",
+                      "identity/password/postgres",
+                      "identity/phone",
+                      "identity/postgres",
+                      "identity/reference",
+                      "identity/risk",
+                      "identity/risk/captcha",
+                      "identity/risk/hibp",
+                      "identity/risk/postgres",
+                      "identity/risk/valkey",
+                      "identity/session",
+                      "identity/session/postgres",
+                      "identity/session/valkey",
+                      "oauth-server",
+                      "oauth-server/device",
+                      "oauth-server/oidc",
+                      "oauth-server/postgres",
+                      "organization",
+                      "organization/postgres",
+                      "passkey",
+                      "passkey/postgres",
+                      "scim",
+                      "scim/organization",
+                      "scim/postgres",
+                      "sso",
+                      "sso/domain-verification",
+                      "sso/oauth2",
+                      "sso/oidc",
+                      "sso/postgres",
+                      "sso/saml",
+                      "webauthn",
+                      "webauthn/postgres"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-8949"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-9052"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9052:source.rfc-9052"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9052"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9052"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-9053"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9053:source.rfc-9053"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9053"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "webauthn"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9053"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-9207"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9207:source.rfc-9207"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9207"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9207"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.rfc-9700"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-9700:source.rfc-9700"
+                  },
+                  "requirement_id": {
+                    "const": "source.rfc-9700"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server",
+                      "sso/oauth2",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-9700"
+                  },
+                  "locator": {
+                    "const": "Complete selected normative source"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.oidc-multiple-response-types-1.0"
+                  },
+                  "suite_case_id": {
+                    "const": "oidc-multiple-response-types-1.0:source.oidc-multiple-response-types-1.0"
+                  },
+                  "requirement_id": {
+                    "const": "source.oidc-multiple-response-types-1.0"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/oauth",
+                      "identity/oauth/providers",
+                      "oauth-server/oidc",
+                      "sso/oidc"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "oidc-multiple-response-types-1.0"
+                  },
+                  "locator": {
+                    "const": "Sections 2 and 3 response_type registration and unsupported combinations"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.public-suffix-list-e1b8015c"
+                  },
+                  "suite_case_id": {
+                    "const": "public-suffix-list-e1b8015c:source.public-suffix-list-e1b8015c"
+                  },
+                  "requirement_id": {
+                    "const": "source.public-suffix-list-e1b8015c"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "sso/domain-verification",
+                      "webauthn"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "public-suffix-list-e1b8015c"
+                  },
+                  "locator": {
+                    "const": "Complete pinned ICANN and PRIVATE rule snapshot"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "supply-chain-release-report:source.google-authenticator-key-uri-8ba6e793"
+                  },
+                  "suite_case_id": {
+                    "const": "google-authenticator-key-uri-8ba6e793:source.google-authenticator-key-uri-8ba6e793"
+                  },
+                  "requirement_id": {
+                    "const": "source.google-authenticator-key-uri-8ba6e793"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": []
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "google-authenticator-key-uri-8ba6e793"
+                  },
+                  "locator": {
+                    "const": "Key URI Format sections Label, Secret, Issuer, Algorithm, Digits, Counter and Period; unknown or conflicting parameters rejected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [

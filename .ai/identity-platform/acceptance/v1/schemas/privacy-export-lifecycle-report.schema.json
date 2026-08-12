@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -142,16 +123,16 @@
                 "const": "success,failure,denial,outage,concurrency,cleanup,unknown-outcome"
               },
               "preconditions": {
-                "const": "Operations: identity.privacy-export.request, identity.privacy-export.status, identity.privacy-export.cancel, identity.privacy-export.download; exact inputs: tenant_id, subject_id, export_id, idempotency_key, contributor_checkpoints, worker_interrupt_after_fragment, projection_or_staged_fragment_mode; initial state: subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
+                "const": "Operations: identity.privacy-export.request, identity.privacy-export.status, identity.privacy-export.cancel, identity.privacy-export.download; exact inputs: tenant_id, subject_id, export_id, idempotency_key, contributor_checkpoints, worker_interrupt_after_fragment, projection_or_staged_fragment_mode, locale_preference, erasure_operation_id, erasure_failure_point, legal_hold_version; initial state: subject has exportable records including an identity/i18n locale preference and no equivalent active job; each exact contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
               },
               "stimulus": {
-                "const": "Run identity.privacy-export.request then identity.privacy-export.status then identity.privacy-export.cancel then identity.privacy-export.download for success, failure, denial, outage, concurrency, cleanup, unknown-outcome cases using tenant_id, subject_id, export_id, idempotency_key, contributor_checkpoints, worker_interrupt_after_fragment, projection_or_staged_fragment_mode and capture every required artifact field"
+                "const": "Run identity.privacy-export.request then identity.privacy-export.status then identity.privacy-export.cancel then identity.privacy-export.download for success, failure, denial, outage, concurrency, cleanup, unknown-outcome cases using tenant_id, subject_id, export_id, idempotency_key, contributor_checkpoints, worker_interrupt_after_fragment, projection_or_staged_fragment_mode, locale_preference, erasure_operation_id, erasure_failure_point, legal_hold_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: export_id, job_version, exported_record_count, contributor_checkpoint_count, restart_resumed_contributor_count, worker_restart_count, long_lived_postgres_snapshot_count, mixed_cut_rejected, snapshot_version_vector_digest, restart_reconstruction_digest, temporary_artifact_count, lifecycle_event_digest"
+                "const": "Invariant: request captures the immutable exact contributor set including identity/i18n and version vector; restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot; mixed cuts are rejected; cancel immediately denies download then reports erasure-pending, erasure-outcome-unknown, erased, or retained-encrypted-under-hold; timeout never claims erasure; status and reconciliation reuse one operation generation; hold release resumes erasure; completed download is bounded and auditable; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: export_id, erasure_operation_id, job_version, erasure_generation, exported_record_count, contributor_checkpoint_count, i18n_contributor_count, restart_resumed_contributor_count, worker_restart_count, long_lived_postgres_snapshot_count, mixed_cut_rejected, download_denied_after_cancel, outcome_unknown_not_erased, hold_release_resumed_erasure, snapshot_version_vector_digest, restart_reconstruction_digest, erasure_evidence_digest, temporary_artifact_count, lifecycle_event_digest, privacy_lifecycle_results"
               },
               "actual_outcome": {
-                "const": "Invariant: request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: export_id, job_version, exported_record_count, contributor_checkpoint_count, restart_resumed_contributor_count, worker_restart_count, long_lived_postgres_snapshot_count, mixed_cut_rejected, snapshot_version_vector_digest, restart_reconstruction_digest, temporary_artifact_count, lifecycle_event_digest"
+                "const": "Invariant: request captures the immutable exact contributor set including identity/i18n and version vector; restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot; mixed cuts are rejected; cancel immediately denies download then reports erasure-pending, erasure-outcome-unknown, erased, or retained-encrypted-under-hold; timeout never claims erasure; status and reconciliation reuse one operation generation; hold release resumes erasure; completed download is bounded and auditable; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: export_id, erasure_operation_id, job_version, erasure_generation, exported_record_count, contributor_checkpoint_count, i18n_contributor_count, restart_resumed_contributor_count, worker_restart_count, long_lived_postgres_snapshot_count, mixed_cut_rejected, download_denied_after_cancel, outcome_unknown_not_erased, hold_release_resumed_erasure, snapshot_version_vector_digest, restart_reconstruction_digest, erasure_evidence_digest, temporary_artifact_count, lifecycle_event_digest, privacy_lifecycle_results"
               },
               "result": {
                 "const": "pass"
@@ -263,17 +244,25 @@
         "execution",
         "scenario_cases",
         "export_id",
+        "erasure_operation_id",
         "job_version",
+        "erasure_generation",
         "exported_record_count",
         "contributor_checkpoint_count",
+        "i18n_contributor_count",
         "restart_resumed_contributor_count",
         "worker_restart_count",
         "long_lived_postgres_snapshot_count",
         "mixed_cut_rejected",
+        "download_denied_after_cancel",
+        "outcome_unknown_not_erased",
+        "hold_release_resumed_erasure",
         "snapshot_version_vector_digest",
         "restart_reconstruction_digest",
+        "erasure_evidence_digest",
         "temporary_artifact_count",
-        "lifecycle_event_digest"
+        "lifecycle_event_digest",
+        "privacy_lifecycle_results"
       ],
       "properties": {
         "artifact_id": {
@@ -283,7 +272,7 @@
           "const": "privacy-export-lifecycle-report.invariant"
         },
         "invariant": {
-          "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
+          "const": "request captures the immutable exact contributor set including identity/i18n and version vector; restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot; mixed cuts are rejected; cancel immediately denies download then reports erasure-pending, erasure-outcome-unknown, erased, or retained-encrypted-under-hold; timeout never claims erasure; status and reconciliation reuse one operation generation; hold release resumes erasure; completed download is bounded and auditable"
         },
         "operation_ids": {
           "const": [
@@ -305,11 +294,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -320,6 +329,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -336,10 +346,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "privacy-export-lifecycle-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -349,15 +385,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -398,6 +545,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -504,7 +655,7 @@
                 }
               },
               "initial_state": {
-                "const": "subject has exportable records and no equivalent active job; each contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
+                "const": "subject has exportable records including an identity/i18n locale preference and no equivalent active job; each exact contributor can reproduce its recorded checkpoint through a versioned projection or immutable request-transaction fragment"
               },
               "status": {
                 "type": "string",
@@ -528,7 +679,7 @@
                 ]
               },
               "expected_invariant": {
-                "const": "request captures one immutable contributor set and version vector; a worker interruption releases all database snapshots, restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot, mixed cuts are rejected, status advances monotonically, cancel cleans artifacts, and completed download is bounded and auditable"
+                "const": "request captures the immutable exact contributor set including identity/i18n and version vector; restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot; mixed cuts are rejected; cancel immediately denies download then reports erasure-pending, erasure-outcome-unknown, erased, or retained-encrypted-under-hold; timeout never claims erasure; status and reconciliation reuse one operation generation; hold release resumes erasure; completed download is bounded and auditable"
               },
               "observed_state_digest": {
                 "type": "string",
@@ -547,7 +698,7 @@
                 "pattern": "^sha256:[0-9a-f]{64}$"
               },
               "observed_value_count": {
-                "const": 12
+                "const": 19
               },
               "ordered_steps": {
                 "const": [
@@ -590,15 +741,22 @@
                 "additionalProperties": false,
                 "required": [
                   "export_id",
+                  "erasure_operation_id",
                   "job_version",
+                  "erasure_generation",
                   "exported_record_count",
                   "contributor_checkpoint_count",
+                  "i18n_contributor_count",
                   "restart_resumed_contributor_count",
                   "worker_restart_count",
                   "long_lived_postgres_snapshot_count",
                   "mixed_cut_rejected",
+                  "download_denied_after_cancel",
+                  "outcome_unknown_not_erased",
+                  "hold_release_resumed_erasure",
                   "snapshot_version_vector_digest",
                   "restart_reconstruction_digest",
+                  "erasure_evidence_digest",
                   "temporary_artifact_count",
                   "lifecycle_event_digest"
                 ],
@@ -607,7 +765,16 @@
                     "type": "string",
                     "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
+                  "erasure_operation_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+                  },
                   "job_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "erasure_generation": {
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 9223372036854775807
@@ -618,6 +785,11 @@
                     "maximum": 2147483647
                   },
                   "contributor_checkpoint_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "i18n_contributor_count": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 2147483647
@@ -640,11 +812,24 @@
                   "mixed_cut_rejected": {
                     "type": "boolean"
                   },
+                  "download_denied_after_cancel": {
+                    "type": "boolean"
+                  },
+                  "outcome_unknown_not_erased": {
+                    "type": "boolean"
+                  },
+                  "hold_release_resumed_erasure": {
+                    "type": "boolean"
+                  },
                   "snapshot_version_vector_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
                   "restart_reconstruction_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "erasure_evidence_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
@@ -693,11 +878,15 @@
                 "idempotency_key",
                 "contributor_checkpoints",
                 "worker_interrupt_after_fragment",
-                "projection_or_staged_fragment_mode"
+                "projection_or_staged_fragment_mode",
+                "locale_preference",
+                "erasure_operation_id",
+                "erasure_failure_point",
+                "legal_hold_version"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:4a8e67c60b191dc1d1e6de5c6bdb8fd72a069ca2b52b4663807ad6d0f834acb9",
+              "artifact_contract_sha256": "sha256:59baa9b3064536d0114e4a6ca04a1dd0672a3879c86c973e5c8113f3ae36ec62",
               "expected_operation_set": [
                 "identity.privacy-export.cancel",
                 "identity.privacy-export.download",
@@ -729,11 +918,15 @@
                 "idempotency_key",
                 "contributor_checkpoints",
                 "worker_interrupt_after_fragment",
-                "projection_or_staged_fragment_mode"
+                "projection_or_staged_fragment_mode",
+                "locale_preference",
+                "erasure_operation_id",
+                "erasure_failure_point",
+                "legal_hold_version"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:5fa470f531ac15022b3208b126c0b38a49f53f6c6961c19f21094aa5a255f456",
+              "artifact_contract_sha256": "sha256:0a2d2f0d119d929923754c9f70e4aae8f2f96efd7abe1d7c1f1e293e9a7aa192",
               "expected_operation_set": [
                 "identity.privacy-export.cancel",
                 "identity.privacy-export.download",
@@ -765,11 +958,15 @@
                 "idempotency_key",
                 "contributor_checkpoints",
                 "worker_interrupt_after_fragment",
-                "projection_or_staged_fragment_mode"
+                "projection_or_staged_fragment_mode",
+                "locale_preference",
+                "erasure_operation_id",
+                "erasure_failure_point",
+                "legal_hold_version"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:d1181cec09472d1a699adcb0fdd8cbaf41138fa81207e2b35111322b45e4a6cf",
+              "artifact_contract_sha256": "sha256:6908bf055f595b5f10f68ac54097e9d8ff0626ee282395bf599d5fb1091ea9f5",
               "expected_operation_set": [
                 "identity.privacy-export.cancel",
                 "identity.privacy-export.download",
@@ -801,11 +998,15 @@
                 "idempotency_key",
                 "contributor_checkpoints",
                 "worker_interrupt_after_fragment",
-                "projection_or_staged_fragment_mode"
+                "projection_or_staged_fragment_mode",
+                "locale_preference",
+                "erasure_operation_id",
+                "erasure_failure_point",
+                "legal_hold_version"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:2b93b0af38b07b5d8b0db6c332be0732d7f3a0e0e2c073e1bdde393af6656a02",
+              "artifact_contract_sha256": "sha256:f5b6629afadc8d11af96f26bc58848163247b6cc5029c95d557c4b1bedb15ada",
               "expected_operation_set": [
                 "identity.privacy-export.cancel",
                 "identity.privacy-export.download",
@@ -837,11 +1038,15 @@
                 "idempotency_key",
                 "contributor_checkpoints",
                 "worker_interrupt_after_fragment",
-                "projection_or_staged_fragment_mode"
+                "projection_or_staged_fragment_mode",
+                "locale_preference",
+                "erasure_operation_id",
+                "erasure_failure_point",
+                "legal_hold_version"
               ],
               "status": "pass",
               "stable_error": "conflict",
-              "artifact_contract_sha256": "sha256:54f8edf86f5e31753918181478aa7521640f762c9325f224d779bdcf351894ce",
+              "artifact_contract_sha256": "sha256:4a250cb1d0ffc110ea1904542a25e503f46387a4e0a728cf1755f9461b4c7f40",
               "expected_operation_set": [
                 "identity.privacy-export.cancel",
                 "identity.privacy-export.download",
@@ -873,11 +1078,15 @@
                 "idempotency_key",
                 "contributor_checkpoints",
                 "worker_interrupt_after_fragment",
-                "projection_or_staged_fragment_mode"
+                "projection_or_staged_fragment_mode",
+                "locale_preference",
+                "erasure_operation_id",
+                "erasure_failure_point",
+                "legal_hold_version"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:72f3b88280dd827c4ab2c82bef884eb04c9b0267f78b42f438de03c02f75aecd",
+              "artifact_contract_sha256": "sha256:92419b888c43627199b993ff6b51629906465d7d753f24f1c76d163234a9263b",
               "expected_operation_set": [
                 "identity.privacy-export.cancel",
                 "identity.privacy-export.download",
@@ -909,11 +1118,15 @@
                 "idempotency_key",
                 "contributor_checkpoints",
                 "worker_interrupt_after_fragment",
-                "projection_or_staged_fragment_mode"
+                "projection_or_staged_fragment_mode",
+                "locale_preference",
+                "erasure_operation_id",
+                "erasure_failure_point",
+                "legal_hold_version"
               ],
               "status": "reconciled",
               "stable_error": "unknown_commit",
-              "artifact_contract_sha256": "sha256:31dd8413da95467c4735c06e90477e39e8211b0bf863bf88347b6be86e5e688d",
+              "artifact_contract_sha256": "sha256:d86bb3a56ba9ec2f727a683c49e471e158fbfd293c5439aee3c0bb3ef8ec3b90",
               "expected_operation_set": [
                 "identity.privacy-export.cancel",
                 "identity.privacy-export.download",
@@ -933,7 +1146,16 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
         },
+        "erasure_operation_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+        },
         "job_version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "erasure_generation": {
           "type": "integer",
           "minimum": 1,
           "maximum": 9223372036854775807
@@ -944,6 +1166,11 @@
           "maximum": 2147483647
         },
         "contributor_checkpoint_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "i18n_contributor_count": {
           "type": "integer",
           "minimum": 0,
           "maximum": 2147483647
@@ -966,11 +1193,24 @@
         "mixed_cut_rejected": {
           "type": "boolean"
         },
+        "download_denied_after_cancel": {
+          "type": "boolean"
+        },
+        "outcome_unknown_not_erased": {
+          "type": "boolean"
+        },
+        "hold_release_resumed_erasure": {
+          "type": "boolean"
+        },
         "snapshot_version_vector_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
         },
         "restart_reconstruction_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "erasure_evidence_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
         },
@@ -982,6 +1222,358 @@
         "lifecycle_event_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "privacy_lifecycle_results": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "i18n_catalog_applied",
+                  "destruction_evidence_bound",
+                  "reconciliation_required",
+                  "hold_manifest_present",
+                  "authority_restored",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "localized-export"
+                  },
+                  "state": {
+                    "const": "ready"
+                  },
+                  "i18n_catalog_applied": {
+                    "const": true
+                  },
+                  "destruction_evidence_bound": {
+                    "const": false
+                  },
+                  "reconciliation_required": {
+                    "const": false
+                  },
+                  "hold_manifest_present": {
+                    "const": false
+                  },
+                  "authority_restored": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "i18n_catalog_applied",
+                  "destruction_evidence_bound",
+                  "reconciliation_required",
+                  "hold_manifest_present",
+                  "authority_restored",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "destruction-pending"
+                  },
+                  "state": {
+                    "const": "erasure-pending"
+                  },
+                  "i18n_catalog_applied": {
+                    "const": true
+                  },
+                  "destruction_evidence_bound": {
+                    "const": true
+                  },
+                  "reconciliation_required": {
+                    "const": true
+                  },
+                  "hold_manifest_present": {
+                    "const": false
+                  },
+                  "authority_restored": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "i18n_catalog_applied",
+                  "destruction_evidence_bound",
+                  "reconciliation_required",
+                  "hold_manifest_present",
+                  "authority_restored",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "destruction-unknown"
+                  },
+                  "state": {
+                    "const": "erasure-outcome-unknown"
+                  },
+                  "i18n_catalog_applied": {
+                    "const": true
+                  },
+                  "destruction_evidence_bound": {
+                    "const": true
+                  },
+                  "reconciliation_required": {
+                    "const": true
+                  },
+                  "hold_manifest_present": {
+                    "const": false
+                  },
+                  "authority_restored": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "i18n_catalog_applied",
+                  "destruction_evidence_bound",
+                  "reconciliation_required",
+                  "hold_manifest_present",
+                  "authority_restored",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "legal-hold"
+                  },
+                  "state": {
+                    "const": "retained-encrypted-under-hold"
+                  },
+                  "i18n_catalog_applied": {
+                    "const": false
+                  },
+                  "destruction_evidence_bound": {
+                    "const": true
+                  },
+                  "reconciliation_required": {
+                    "const": false
+                  },
+                  "hold_manifest_present": {
+                    "const": true
+                  },
+                  "authority_restored": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "i18n_catalog_applied",
+                  "destruction_evidence_bound",
+                  "reconciliation_required",
+                  "hold_manifest_present",
+                  "authority_restored",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "localized-export"
+                  },
+                  "state": {
+                    "const": "ready"
+                  },
+                  "i18n_catalog_applied": {
+                    "const": true
+                  },
+                  "destruction_evidence_bound": {
+                    "const": false
+                  },
+                  "reconciliation_required": {
+                    "const": false
+                  },
+                  "hold_manifest_present": {
+                    "const": false
+                  },
+                  "authority_restored": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "i18n_catalog_applied",
+                  "destruction_evidence_bound",
+                  "reconciliation_required",
+                  "hold_manifest_present",
+                  "authority_restored",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "destruction-pending"
+                  },
+                  "state": {
+                    "const": "erasure-pending"
+                  },
+                  "i18n_catalog_applied": {
+                    "const": true
+                  },
+                  "destruction_evidence_bound": {
+                    "const": true
+                  },
+                  "reconciliation_required": {
+                    "const": true
+                  },
+                  "hold_manifest_present": {
+                    "const": false
+                  },
+                  "authority_restored": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "i18n_catalog_applied",
+                  "destruction_evidence_bound",
+                  "reconciliation_required",
+                  "hold_manifest_present",
+                  "authority_restored",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "destruction-unknown"
+                  },
+                  "state": {
+                    "const": "erasure-outcome-unknown"
+                  },
+                  "i18n_catalog_applied": {
+                    "const": true
+                  },
+                  "destruction_evidence_bound": {
+                    "const": true
+                  },
+                  "reconciliation_required": {
+                    "const": true
+                  },
+                  "hold_manifest_present": {
+                    "const": false
+                  },
+                  "authority_restored": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "state",
+                  "i18n_catalog_applied",
+                  "destruction_evidence_bound",
+                  "reconciliation_required",
+                  "hold_manifest_present",
+                  "authority_restored",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "legal-hold"
+                  },
+                  "state": {
+                    "const": "retained-encrypted-under-hold"
+                  },
+                  "i18n_catalog_applied": {
+                    "const": false
+                  },
+                  "destruction_evidence_bound": {
+                    "const": true
+                  },
+                  "reconciliation_required": {
+                    "const": false
+                  },
+                  "hold_manifest_present": {
+                    "const": true
+                  },
+                  "authority_restored": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -989,8 +1581,10 @@
           "kind": "positive",
           "fields": [
             "job_version",
+            "erasure_generation",
             "exported_record_count",
             "contributor_checkpoint_count",
+            "i18n_contributor_count",
             "restart_resumed_contributor_count",
             "worker_restart_count"
           ]
@@ -1005,12 +1599,20 @@
         {
           "kind": "true",
           "fields": [
-            "mixed_cut_rejected"
+            "mixed_cut_rejected",
+            "download_denied_after_cancel",
+            "outcome_unknown_not_erased",
+            "hold_release_resumed_erasure"
           ]
         },
         {
           "kind": "const",
           "field": "worker_restart_count",
+          "value": 1
+        },
+        {
+          "kind": "const",
+          "field": "i18n_contributor_count",
           "value": 1
         },
         {

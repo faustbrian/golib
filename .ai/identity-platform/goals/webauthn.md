@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/webauthn`
 - Canonical goal after scaffolding: `pkg/webauthn/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:webauthn:v1`; owned operation IDs: none
-- Requires: `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/identifier-identity-contracts`
+- Requires: `identity`, `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/identifier-identity-contracts`
 - Consumes existing primitives: `identifier`, `authentication`, `capability`, `secret-envelope`, `audit`
 - Unlocks after verification: `identity/mfa`, `webauthn/postgres`, `passkey`, `identity/http`
 

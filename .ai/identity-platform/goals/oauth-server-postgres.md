@@ -59,7 +59,7 @@ involved.
   device codes, user codes, key metadata and revocation state.
 - Subject, actor and source-session identifiers MUST remain opaque bounded
   values validated by the core before persistence. This adapter MUST use only
-  the public `identity/postgres` enlistment carrier and MUST NOT import its
+  the public `identity/postgres` coordinator/contributor boundary and MUST NOT import its
   internals, copy its SQL, create foreign-key ownership over identity/session
   records, or revalidate identity/session policy. The reference composition
   owns runtime bindings through public core contracts.

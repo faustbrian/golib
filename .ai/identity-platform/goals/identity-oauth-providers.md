@@ -11,7 +11,7 @@ shown here.
 - Unit: `identity/oauth/providers`
 - Canonical module: `pkg/identity/oauth/providers`
 - Canonical goal after scaffolding: `pkg/identity/oauth/providers/.ai/GOAL.md`
-- Public contracts: unit ID `contract:unit:identity/oauth/providers:v1`; owned operation IDs: `contract:operation:identity.oauth.provider-apple-client-secret-sign:v1`, `contract:operation:identity.oauth.provider-list:v1`
+- Public contracts: unit ID `contract:unit:identity/oauth/providers:v1`; owned operation IDs: `contract:operation:identity.oauth.provider-apple-client-secret-sign:v1`, `contract:operation:identity.oauth.provider-list:v1`; collaborator operation IDs: `contract:operation:identity.oauth.logout-complete:v1`, `contract:operation:identity.oauth.logout-start:v1` owned by `identity/oauth`
 - Requires: `identity/oauth`
 - Consumes existing primitives: `authentication/oidc`, `http-client`, `secret-envelope`, `telemetry`
 - Unlocks after verification: `identity/oauth/onetap`, `identity/http`
@@ -80,13 +80,23 @@ deliberate blocking evidence states, not successful conformance claims.
 The closed row schema is exactly `id`, `aliases`, `configuration`, `protocol`,
 `endpoints`, `validation`, `scopes`, `response`, `token_auth`, `parameters`,
 `pkce`, `nonce`, `state`, `identity_sources`, `claims`, `account_policy`,
-`token_lifecycle`, `native_token_signin`, `apple_client_secret_signing`,
+`token_lifecycle`, `oidc_logout`, `native_token_signin`, `apple_client_secret_signing`,
 `incompatibilities` and `evidence`. `endpoints` includes revocation;
 `validation` includes issuer aliases, audience and authorized party;
 `scopes` includes forbidden scopes; `parameters` separates authorization and
 token requirements; `identity_sources` closes ID-token, UserInfo,
-introspection and precedence; and `token_lifecycle` closes refresh issuance,
-rotation, expiry, revocation and unlink. `claims` MUST contain every mapping
+introspection and precedence; `token_lifecycle` closes refresh issuance,
+rotation, expiry, revocation and unlink; and `oidc_logout` closes RP-Initiated
+Logout capability. `oidc_logout` MUST match the existing catalog authority
+exactly and contain only `status`, `end_session_endpoint_source`,
+`state_correlation`, `one_time_state_recovery`, `post_logout_redirect`,
+`frontchannel_session_effect`, and `evidence_blocker`.
+`end_session_endpoint_source` contains only `kind` and `value`; the closed
+values and cross-field rules are exactly
+`CONFIGURATION_CATALOGS.json#provider_matrix.closed_semantics` and
+`REFERENCE_CONFIGURATION.md#struct:ref.oauth.provider_oidc_logout`. A goal or
+worker MUST NOT invent a second logout schema or translate `status` into a
+different discriminator. `claims` MUST contain every mapping
 named below with the exact classification fields enforced by the catalog
 validator. Endpoint values are HTTPS/template values or the closed sentinels
 `unsupported`, `unknown`, `discovery` and `tenant-metadata-pin-required`;
@@ -109,6 +119,25 @@ before code exchange and cross-proof subject validation. Every other
 provider defaults to `query`; a provider may not inherit, advertise, or accept
 `form_post` unless a later named profile adds an exact clause pin, configuration
 catalog decision, and interoperability evidence.
+
+Apple's `code id_token` response is the sole selected hybrid exception. The
+generic unsupported-hybrid decision applies to every other provider and MUST
+NOT cause Apple to be downgraded to code-only or accepted without the bound
+front-channel ID-token and `c_hash` proof. Conversely, Apple's exception MUST
+NOT enable any other hybrid response type or response mode.
+
+Every provider row MUST carry `oidc_logout`; absence MUST NOT mean unsupported.
+For a social OIDC profile that advertises RP-Initiated Logout, the matrix MUST
+pin the exact end-session endpoint, issuer aliases, ID-token-hint requirements,
+post-logout redirect rules and provider-specific error behavior. This catalog
+MUST NOT orchestrate logout or invalidate sessions. `identity/oauth` owns the
+public logout start/complete operations and MUST recover the expected provider,
+issuer, client and session only from its bound single-use state before it uses
+any response issuer or provider parameter; a caller-selected provider or
+unbound issuer MUST NOT select this catalog's profile or validation keys.
+Those operations are exactly `identity.oauth.logout-start` and
+`identity.oauth.logout-complete`; this package is a catalog collaborator and
+MUST NOT claim either operation as its owner.
 
 The package MUST expose the owner-visible direct operation
 `identity.oauth.provider-apple-client-secret-sign`. Its typed request contains
@@ -201,6 +230,18 @@ replace `not-run` only with an attributable provider-specific fixture,
 sandbox, or live result. The pinned Better Auth 1.6.27 source locator records
 the upstream configuration fact being dispositioned; it is not a substitute
 for official protocol evidence or interoperability.
+The coordinator MUST NOT mark this unit verified while any required row remains
+`pin-required`, `tenant-metadata-pin-required`, or `not-run`, while provider
+access needed for an advertised claim is unavailable, or when the evidence is
+only a declaration or a fixture produced solely by the implementation under
+test. Such states are blockers, not waivable or non-applicable passes.
+The checked-in pre-implementation catalog intentionally has 43 blocking rows;
+an acceptance artifact MUST NOT report any such row verified. Final 43/43
+verification is valid only after a later catalog revision replaces every
+`pin-required`, `tenant-metadata-pin-required`, `not-run`, and non-empty
+`oidc_logout.evidence_blocker` state with attributable official and
+provider-specific interoperability evidence. Until then the expected verified
+count is lower than 43 and the unit remains unverified.
 
 Profile decisions and fixtures MUST track
 [`PROTOCOL_BASELINES.md`](../PROTOCOL_BASELINES.md), while deployer-supplied

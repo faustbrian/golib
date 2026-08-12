@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/capability`
 - Canonical goal after scheduling: `pkg/capability/.ai/GOAL_IDENTITY_CONTRACTS.md`
 - Requires: None
-- Exact identity-platform consumers: `identity`, `identity/email`, `identity/magiclink`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/postgres`, `identity/oauth/proxy`, `identity/password`, `identity/session`, `oauth-server`, `oauth-server/device`, `oauth-server/oidc`, `organization`, `sso/domain-verification`, `sso/postgres`, `sso/saml`, `webauthn`
-- Unlocks after verification: `identity`, `identity/email`, `identity/magiclink`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/postgres`, `identity/oauth/proxy`, `identity/password`, `identity/session`, `oauth-server`, `oauth-server/device`, `oauth-server/oidc`, `organization`, `primitive/capability-postgres-identity-contracts`, `sso/domain-verification`, `sso/postgres`, `sso/saml`, `webauthn`
+- Exact identity-platform consumers: `identity`, `identity/email`, `identity/magiclink`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/postgres`, `identity/oauth/proxy`, `identity/otp`, `identity/password`, `identity/phone`, `identity/session`, `oauth-server`, `oauth-server/device`, `oauth-server/oidc`, `organization`, `sso`, `sso/postgres`, `sso/saml`, `webauthn`
+- Unlocks after verification: `identity`, `identity/email`, `identity/magiclink`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/postgres`, `identity/oauth/proxy`, `identity/otp`, `identity/password`, `identity/phone`, `identity/session`, `oauth-server`, `oauth-server/device`, `oauth-server/oidc`, `organization`, `primitive/capability-postgres-identity-contracts`, `sso`, `sso/postgres`, `sso/saml`, `webauthn`
 
 ## Start gate and pinned contract
 

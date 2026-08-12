@@ -80,6 +80,13 @@ involved.
 - TOTP MUST expose a standards-compliant provisioning URI with issuer/account
   label policy, encrypted secret storage, supported algorithm/digits/period,
   bounded skew and per-step replay prevention using pinned RFC vectors.
+  URI disclosure MUST use `identity.mfa.totp-uri` as a CSRF-protected POST with
+  a stable single-use reveal command. The pending-enrollment reveal and its
+  consumed marker MUST commit atomically; only the first committed consumption
+  returns the URI. Conflict, replay, in-progress, unknown, cancellation and
+  transport failure MUST return no URI, MUST NOT mint a successor reveal, and
+  every HTTP response MUST send `Cache-Control: no-store` and
+  `Pragma: no-cache`.
 - OTP second factor MUST use the OTP purpose contract, distinct send/verify
   limits and no fallback that silently reduces a required TOTP/security-key
   policy.

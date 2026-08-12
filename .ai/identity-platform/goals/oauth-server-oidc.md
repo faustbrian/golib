@@ -40,6 +40,20 @@ The design MUST define SubjectPolicy, PairwiseSubject, ClaimSource, IDTokenProfi
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+This module MUST implement core's consumer-owned `OIDCExtension`. It alone owns
+the `openid`, `profile`, `email`, `address`, `phone`, and `offline_access`
+scope meanings, their claim projections, OIDC authorization validation, and
+OIDC discovery contribution. Composition MUST reject duplicate/colliding scope
+or claim ownership; core remains ignorant of OIDC claim semantics and MUST NOT
+import this module.
+Its service MUST implement the seam with exactly
+`Scopes() oauthserver.ScopeCatalog`,
+`ValidateAuthorization(context.Context, oauthserver.OIDCAuthorizationInput) (oauthserver.OIDCAuthorizationProjection, error)`,
+`Claims(context.Context, oauthserver.OIDCClaimsInput) (oauthserver.OIDCClaimsProjection, error)`, and
+`OIDCDiscovery(context.Context) (oauthserver.OIDCDiscoveryProjection, error)`.
+Construction MUST consume the public `oauthserver.Service` interface and its
+oauth-server-owned projections directly. This child MUST NOT declare an opaque
+`CoreAuthority` value that no external composition root can construct.
 
 ## Required behavior
 
@@ -72,14 +86,13 @@ involved.
   Prompt `none`, login, consent and select-account plus `max_age` MUST produce
   specification-correct success or interaction-required errors without
   silently creating a session or consent.
-- Token requests MUST be discriminated by the closed grant type before any
-  credential processing. Authorization-code requests require code, exact
-  redirect URI and PKCE verifier and forbid refresh-token and scope fields;
-  refresh-token requests require the refresh token and permit only a
-  non-expanding optional scope; client-credentials requests forbid code,
-  redirect, verifier and refresh-token fields. Optional `scope` and `resource`
-  omission MUST preserve the selected grant/client authority and MUST NOT
-  broaden scope or audience.
+- `oauth-server` core alone MUST parse token requests, discriminate the closed
+  grant type before credential processing, reject fields outside that grant,
+  and preserve existing authority when optional `scope` or `resource` is
+  absent. This module MUST accept only the core's typed, authenticated grant
+  result. It MUST NOT expose a token-request parser, process client credentials,
+  select a grant, or duplicate authorization-code, refresh-token, or
+  client-credentials field validation.
 - UserInfo MUST authenticate the access token, enforce audience/scope/subject,
   return only consented claims and never expose write-only or sensitive custom
   identity fields.

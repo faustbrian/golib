@@ -33,8 +33,12 @@ public keys/counters, choose authenticator policy or issue sessions.
 
 ## Required behavior and evidence
 
-- Credential IDs and opaque user handles MUST be stored losslessly with
-  tenant/RP/user uniqueness; no internal database ID may be exposed as a user
+- Credential IDs and opaque user handles MUST be stored losslessly. A
+  credential ID is unique across the complete RP namespace. Each identity has
+  exactly one stable opaque user handle per RP namespace, that handle is unique
+  across the complete RP namespace, and neither constraint includes tenant as
+  a disambiguating key. Tenant remains a mandatory authorization/partition
+  binding and cross-tenant matches deny without disclosure. No internal database ID may be exposed as a user
   handle by default.
 - Registration MUST compose the verified WebAuthn credential transaction with
   identity user-handle/reference and safe passkey metadata so concurrent

@@ -36,7 +36,12 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Grant, Actor, Target, Reason, Policy, Approval, SessionIssuer, Lineage, Revoker, Observer, and presentation-marker contracts. Public errors MUST be typed, stable,
+The design MUST define Grant, Actor, Target, Reason, Policy, Approval, Status,
+SessionIssuer, Lineage, Revoker, Observer, and presentation-marker contracts.
+`Status` MUST be the closed enum `StatusUnspecified`, `StatusRequested`,
+`StatusPendingApproval`, `StatusApproved`, `StatusActive`, `StatusStopped`,
+`StatusExpired`, `StatusDenied`, and `StatusRevoked`; unspecified and unknown
+values MUST fail closed. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -81,9 +86,10 @@ involved.
 - Stop, expiry, actor disable, target disable, grant revoke and global session
   revoke MUST terminate access with documented propagation. Stop MUST restore
   only the original still-valid actor session, never mint a stronger one.
-- Grants MUST have one explicit state machine covering requested,
-  pending-approval, approved, active, stopped, expired, denied and revoked
-  states. Allowed actors, guards, idempotency and single-winner behavior MUST
+- Grants MUST store and return the exact closed `Status` value and have one
+  explicit state machine covering requested, pending-approval, approved,
+  active, stopped, expired, denied and revoked states. Allowed actors, guards,
+  idempotency and single-winner behavior MUST
   be defined for every transition; denied, expired, stopped or revoked grants
   MUST never return to an authority-bearing state.
 - Impersonation sessions MUST NOT use the stateless-session compatibility

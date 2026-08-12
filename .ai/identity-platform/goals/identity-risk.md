@@ -56,6 +56,14 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+`Decision.Action` is the exact closed enum `allow`, `deny`, `throttle`, and
+`step_up`; API/acceptance text may render `step_up` as a challenge but MUST NOT
+introduce `challenge` as a fifth internal value. `revoke` is not a risk action.
+When policy requires session revocation after a `deny`, a separately authorized
+response coordinator invokes `identity.session.revoke-all` and records that
+effect alongside the unchanged `deny` decision; risk evaluation itself neither
+owns nor reports `revoke`.
+
 ## Package-specific acceptance checklist
 
 - The action catalog MUST equal the closed `risk.operation_matrix` in

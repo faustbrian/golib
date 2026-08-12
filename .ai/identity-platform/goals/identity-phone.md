@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/identity/phone`
 - Canonical goal after scaffolding: `pkg/identity/phone/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/phone:v1`; owned operation IDs: `contract:operation:identity.phone.password-reset-complete:v1`, `contract:operation:identity.phone.password-reset-request:v1`, `contract:operation:identity.phone.password-signin:v1`, `contract:operation:identity.phone.remove:v1`, `contract:operation:identity.phone.send-verification:v1`, `contract:operation:identity.phone.signin:v1`, `contract:operation:identity.phone.update:v1`, `contract:operation:identity.phone.verify:v1`
-- Requires: `identity`, `identity/password`, `identity/otp`, `identity/delivery`, `identity/risk`, `primitive/authentication-identity-contracts`, `primitive/password-secret-contracts`
+- Requires: `identity`, `identity/password`, `identity/otp`, `identity/delivery`, `identity/risk`, `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/password-secret-contracts`
 - Consumes existing primitives: `identifier`, `audit`, `workflow`
 - Unlocks after verification: `identity/http`
 

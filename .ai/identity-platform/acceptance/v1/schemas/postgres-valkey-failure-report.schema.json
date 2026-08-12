@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -148,10 +129,10 @@
                 "const": "Run identity.session.refresh then identity.risk.evaluate for success, failure, outage, concurrency, unknown-outcome cases using tenant_id, session_id, cache_key, failure_point and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: session_id, stable_error, postgres_state_digest, valkey_state_digest, recovery_digest, recovered"
+                "const": "Invariant: each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: session_id, stable_error, postgres_state_digest, valkey_state_digest, recovery_digest, recovered, session_authority_cache_results"
               },
               "actual_outcome": {
-                "const": "Invariant: each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: session_id, stable_error, postgres_state_digest, valkey_state_digest, recovery_digest, recovered"
+                "const": "Invariant: each injected PostgreSQL or Valkey outage follows declared fail policy and recovery rebuilds projection without accepting stale authority; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: session_id, stable_error, postgres_state_digest, valkey_state_digest, recovery_digest, recovered, session_authority_cache_results"
               },
               "result": {
                 "const": "pass"
@@ -267,7 +248,8 @@
         "postgres_state_digest",
         "valkey_state_digest",
         "recovery_digest",
-        "recovered"
+        "recovered",
+        "session_authority_cache_results"
       ],
       "properties": {
         "artifact_id": {
@@ -297,11 +279,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -312,6 +314,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -328,10 +331,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "postgres-valkey-failure-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -341,15 +370,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -390,6 +530,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -805,6 +949,208 @@
         },
         "recovered": {
           "type": "boolean"
+        },
+        "session_authority_cache_results": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "authority_snapshot_fields",
+                  "valkey_projection_stale",
+                  "outcome",
+                  "authoritative_snapshot_digest",
+                  "projection_snapshot_digest",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "authoritative-load"
+                  },
+                  "authority_snapshot_fields": {
+                    "const": [
+                      "tenant_version",
+                      "user_version",
+                      "credential_version",
+                      "session_family_version",
+                      "session_version",
+                      "authorization_version"
+                    ]
+                  },
+                  "valkey_projection_stale": {
+                    "const": false
+                  },
+                  "outcome": {
+                    "const": "accepted"
+                  },
+                  "authoritative_snapshot_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "projection_snapshot_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "authority_snapshot_fields",
+                  "valkey_projection_stale",
+                  "outcome",
+                  "authoritative_snapshot_digest",
+                  "projection_snapshot_digest",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "stale-valkey-fill"
+                  },
+                  "authority_snapshot_fields": {
+                    "const": [
+                      "tenant_version",
+                      "user_version",
+                      "credential_version",
+                      "session_family_version",
+                      "session_version",
+                      "authorization_version"
+                    ]
+                  },
+                  "valkey_projection_stale": {
+                    "const": true
+                  },
+                  "outcome": {
+                    "const": "rejected-and-rebuilt"
+                  },
+                  "authoritative_snapshot_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "projection_snapshot_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "authority_snapshot_fields",
+                  "valkey_projection_stale",
+                  "outcome",
+                  "authoritative_snapshot_digest",
+                  "projection_snapshot_digest",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "authoritative-load"
+                  },
+                  "authority_snapshot_fields": {
+                    "const": [
+                      "tenant_version",
+                      "user_version",
+                      "credential_version",
+                      "session_family_version",
+                      "session_version",
+                      "authorization_version"
+                    ]
+                  },
+                  "valkey_projection_stale": {
+                    "const": false
+                  },
+                  "outcome": {
+                    "const": "accepted"
+                  },
+                  "authoritative_snapshot_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "projection_snapshot_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "authority_snapshot_fields",
+                  "valkey_projection_stale",
+                  "outcome",
+                  "authoritative_snapshot_digest",
+                  "projection_snapshot_digest",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "stale-valkey-fill"
+                  },
+                  "authority_snapshot_fields": {
+                    "const": [
+                      "tenant_version",
+                      "user_version",
+                      "credential_version",
+                      "session_family_version",
+                      "session_version",
+                      "authorization_version"
+                    ]
+                  },
+                  "valkey_projection_stale": {
+                    "const": true
+                  },
+                  "outcome": {
+                    "const": "rejected-and-rebuilt"
+                  },
+                  "authoritative_snapshot_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "projection_snapshot_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [

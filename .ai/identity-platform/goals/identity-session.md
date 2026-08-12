@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/identity/session`
 - Canonical goal after scaffolding: `pkg/identity/session/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/session:v1`; owned operation IDs: `contract:operation:identity.admin.session-list:v1`, `contract:operation:identity.admin.session-revoke:v1`, `contract:operation:identity.admin.session-revoke-all:v1`, `contract:operation:identity.session.bearer-authorize:v1`, `contract:operation:identity.session.bearer-issue:v1`, `contract:operation:identity.session.get:v1`, `contract:operation:identity.session.last-method-check:v1`, `contract:operation:identity.session.last-method-clear:v1`, `contract:operation:identity.session.last-method-get:v1`, `contract:operation:identity.session.last-method-record:v1`, `contract:operation:identity.session.list:v1`, `contract:operation:identity.session.refresh:v1`, `contract:operation:identity.session.revoke-all:v1`, `contract:operation:identity.session.revoke-one:v1`, `contract:operation:identity.session.revoke-other:v1`, `contract:operation:identity.session.select-active:v1`, `contract:operation:identity.session.signout:v1`, `contract:operation:identity.session.transfer-consume:v1`, `contract:operation:identity.session.transfer-generate:v1`, `contract:operation:identity.session.update:v1`
-- Requires: `identity`, `primitive/authorization-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
-- Consumes existing primitives: `authentication`, `authorization`, `identifier`, `capability`, `capability/postgres`, `audit`, `secret-envelope`
+- Requires: `identity`, `primitive/authorization-identity-contracts`, `primitive/capability-identity-contracts`
+- Consumes existing primitives: `authentication`, `authorization`, `identifier`, `capability`, `audit`, `secret-envelope`
 - Unlocks after verification: `identity/session/postgres`, `identity/session/valkey`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/anonymous`, `identity/anonymous/postgres`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/impersonation`, `organization`, `sso`, `oauth-server`, `identity/http`
 
 ## Start gate
@@ -68,10 +68,30 @@ switch and use.
 `SessionIssuer` MUST support a caller-supplied command identity and a
 transaction-aware issuance operation so a continuation owner can finalize its
 one-time proof and persist the resulting session in one authoritative commit.
-It MUST return `NotCommitted`, `Committed`, `Unknown`, `Conflict`, or
-`InProgress` consistently with `TRANSACTION_CONTRACT.md`; after `Unknown`, the
+It MUST return `identity.CommitOutcomeNotCommitted`, `identity.CommitOutcomeCommitted`,
+`identity.CommitOutcomeUnknown`, `identity.CommitOutcomeConflict`, or
+`identity.CommitOutcomeInProgress` consistently with `TRANSACTION_CONTRACT.md`; after
+`identity.CommitOutcomeUnknown`, the
 caller MUST be able to recover the safe issuance result by command identity
 without minting a second session or changing `RememberPolicy`.
+
+All core mutation contracts are storage-neutral. No public core constructor,
+method, command, result, callback, or field may mention
+`identitypostgres.Work`, `identitypostgres.Contributor`,
+`identitypostgres.Coordinator`, `pgx.Tx`, a carrier, or an enlister. Core
+commands carry the stable command identity and complete transition input;
+PostgreSQL adapters map them to an open versioned contributor at the
+composition boundary. The sole `identity/postgres` coordinator owns the
+transaction and same-commit composition with capability, identity,
+organization, audit and outbox contributors.
+
+`AuthoritySnapshot` is the one complete session authority vector. It MUST bind
+positive versions and exact scope keys for global, tenant, user, identifier,
+credential, session-family, session and authorization authority, plus explicit
+present/absent organization, factor and passkey bindings. `Session`, issue and
+rotation commands, durable records and every positive cache snapshot MUST
+carry this exact value; enrichment and cache adapters MUST NOT define a partial
+or competing authority vector.
 
 The public contract MUST define typed bearer-authorization input/result and
 bearer-issuance continuation/result values matching

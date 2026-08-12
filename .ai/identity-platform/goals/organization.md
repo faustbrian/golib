@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/organization`
 - Canonical goal after scaffolding: `pkg/organization/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:organization:v1`; owned operation IDs: `contract:operation:identity.organization.active-get:v1`, `contract:operation:identity.organization.active-set:v1`, `contract:operation:identity.organization.archive:v1`, `contract:operation:identity.organization.create:v1`, `contract:operation:identity.organization.delete:v1`, `contract:operation:identity.organization.get:v1`, `contract:operation:identity.organization.invitation-send:v1`, `contract:operation:identity.organization.invitation.accept:v1`, `contract:operation:identity.organization.invitation.cancel:v1`, `contract:operation:identity.organization.invitation.expire:v1`, `contract:operation:identity.organization.invitation.get:v1`, `contract:operation:identity.organization.invitation.list:v1`, `contract:operation:identity.organization.invitation.list-mine:v1`, `contract:operation:identity.organization.invitation.reject:v1`, `contract:operation:identity.organization.invitation.resend:v1`, `contract:operation:identity.organization.list:v1`, `contract:operation:identity.organization.member.active-get:v1`, `contract:operation:identity.organization.member.active-role-get:v1`, `contract:operation:identity.organization.member.add:v1`, `contract:operation:identity.organization.member.leave:v1`, `contract:operation:identity.organization.member.list:v1`, `contract:operation:identity.organization.member.remove:v1`, `contract:operation:identity.organization.member.update:v1`, `contract:operation:identity.organization.owner-transfer:v1`, `contract:operation:identity.organization.permission-check:v1`, `contract:operation:identity.organization.restore:v1`, `contract:operation:identity.organization.role.create:v1`, `contract:operation:identity.organization.role.delete:v1`, `contract:operation:identity.organization.role.get:v1`, `contract:operation:identity.organization.role.list:v1`, `contract:operation:identity.organization.role.update:v1`, `contract:operation:identity.organization.slug-available:v1`, `contract:operation:identity.organization.team.active-set:v1`, `contract:operation:identity.organization.team.create:v1`, `contract:operation:identity.organization.team.delete:v1`, `contract:operation:identity.organization.team.list:v1`, `contract:operation:identity.organization.team.list-mine:v1`, `contract:operation:identity.organization.team.member-add:v1`, `contract:operation:identity.organization.team.member-list:v1`, `contract:operation:identity.organization.team.member-remove:v1`, `contract:operation:identity.organization.team.update:v1`, `contract:operation:identity.organization.update:v1`
-- Requires: `identity`, `identity/session`, `identity/delivery`, `primitive/authorization-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
-- Consumes existing primitives: `tenancy`, `authorization`, `identifier`, `audit`, `capability`, `capability/postgres`
+- Requires: `identity`, `identity/session`, `identity/delivery`, `primitive/authorization-identity-contracts`, `primitive/capability-identity-contracts`
+- Consumes existing primitives: `tenancy`, `authorization`, `identifier`, `audit`, `capability`
 - Unlocks after verification: `identity/apikey`, `organization/postgres`, `sso`, `sso/domain-verification`, `scim`, `scim/organization`, `identity/http`
 
 ## Start gate
@@ -47,11 +47,25 @@ limits, and extension points MUST have explicit semantics.
 `organization` is the sole domain-proof authority. `DomainProofReader` MUST
 expose exactly `GetDomainProof(context.Context, DomainProofKey) (DomainProof, error)`;
 `DomainEvidenceTransition` MUST expose exactly
-`ApplyDomainEvidence(context.Context, DomainEvidenceCommand) (DomainProof, error)`.
+`ApplyDomainEvidence(context.Context, DomainEvidenceCommand) (DomainEvidenceResult, error)`
+and `RecoverDomainEvidence(context.Context, identity.CommandID) (DomainEvidenceResult, error)`.
+Both methods MUST classify the exact command as not committed, committed, or
+unknown; a committed apply or recovery MUST return the same authoritative
+`DomainProof`, while an unknown result MUST NOT cause SSO to repeat external
+observation or infer routing authority.
 The key and command MUST bind tenant, organization, canonical domain, claim ID,
 claim version, proof version, method, observed-at time, evidence expiry, and
 revocation state. No SSO or verifier package may define or persist a competing
 proof type or authority version.
+
+`UnitOfWork` is a storage-neutral consumer contract. It MUST expose exactly
+`Execute(context.Context, Command) (StoreResult, error)` and
+`Recover(context.Context, identity.CommandID) (StoreResult, error)`. The core
+module MUST NOT import `identity/postgres`, mention
+`identitypostgres.Contributor` or `identitypostgres.Work`, accept a concrete
+database transaction, or decide contributor registration. A persistence
+adapter maps these core commands and results to its coordinator contributor at
+the composition boundary.
 
 ## Required behavior
 

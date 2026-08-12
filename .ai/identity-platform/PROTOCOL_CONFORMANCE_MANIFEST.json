@@ -197,9 +197,28 @@
       ]
     },
     {
+      "requirement_id": "oidc.social-logout-state-issuer-recovery",
+      "source_id": "oidc-rp-initiated-logout-1.0",
+      "locator": "Sections 2 and 3 state and post_logout_redirect_uri processing; local profile recovers the expected OP and issuer from bound one-use state before response validation",
+      "disposition": "profile-decision",
+      "consumers": [
+        "identity/oauth"
+      ]
+    },
+    {
+      "requirement_id": "oidc.social-logout-public-operations",
+      "source_id": "oidc-rp-initiated-logout-1.0",
+      "locator": "Sections 2 and 3 implemented by exact identity.oauth.logout-start and identity.oauth.logout-complete operations; identity/oauth/providers is a catalog collaborator only",
+      "disposition": "profile-decision",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers"
+      ]
+    },
+    {
       "requirement_id": "saml.binding-selection",
       "source_id": "saml-bindings-2.0-os",
-      "locator": "Sections 3.4 and 3.5",
+      "locator": "Sections 3.4.1, 3.4.3 through 3.4.5.2, 3.4.6, 3.4.7, 3.5.1, 3.5.3 through 3.5.5.2, 3.5.6, and 3.5.7 for the closed directional HTTP-Redirect and HTTP-POST profile",
       "disposition": "profile-decision",
       "consumers": [
         "sso/saml"
@@ -226,7 +245,7 @@
     {
       "requirement_id": "saml.web-sso-validation",
       "source_id": "saml-profiles-2.0-os",
-      "locator": "Sections 4.1.4.2, 4.1.4.3, and 4.1.5",
+      "locator": "Sections 4.1.4.2, 4.1.4.3, 4.1.4.5, and 4.1.5",
       "disposition": "required",
       "consumers": [
         "sso/saml"
@@ -235,7 +254,7 @@
     {
       "requirement_id": "saml.destination-and-correlation",
       "source_id": "saml-core-2.0-os",
-      "locator": "Sections 2.4.1.2, 3.2.1, and 3.4.1",
+      "locator": "Sections 2.4.1 through 2.4.1.2, 3.2.1, 3.2.2 through 3.2.2.2, 3.3.3, 3.3.4, 3.4.1, 3.4.1.1, and 3.4.1.4",
       "disposition": "required",
       "consumers": [
         "sso/saml"
@@ -246,6 +265,33 @@
       "source_id": "saml-security-2.0-os",
       "locator": "Sections 5.4.2, 6.4.3, and 6.5.1",
       "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.assertion-and-condition-validation",
+      "source_id": "saml-core-2.0-os",
+      "locator": "Sections 2.2.2, 2.2.3, 2.2.5, 2.3.3, 2.4.1 through 2.4.1.2, 2.5.1 through 2.5.1.2, 2.5.1.4, 2.7.2, 2.7.2.2, and 2.7.3 through 2.7.3.1.1",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.metadata-role-and-endpoint-selection",
+      "source_id": "saml-metadata-2.0-os",
+      "locator": "Sections 2.2.1 through 2.2.3, 2.3.2, 2.4.1 through 2.4.4, and 3.1 through 3.1.2 entity, role, key, IDPSSODescriptor, SPSSODescriptor, endpoint, and signature processing",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.redirect-rsa-pss-sha256",
+      "source_id": "rfc-6931",
+      "locator": "Section 2.3.10 fixed-parameter RSASSA-PSS URI sha256-rsa-MGF1: SHA-256, MGF1 with SHA-256, 32-byte salt, trailer field 0xBC; local constant SignatureAlgorithmRSAPSSSHA256=http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1",
+      "disposition": "profile-decision",
       "consumers": [
         "sso/saml"
       ]
@@ -301,6 +347,36 @@
         "passkey/postgres",
         "webauthn",
         "webauthn/postgres"
+      ]
+    },
+    {
+      "requirement_id": "webauthn.authentication-validation",
+      "source_id": "webauthn-level-3-cr-20260526",
+      "locator": "Section 7.2 complete assertion verification algorithm, including origin, RP ID hash, flags, signature, user handle, extensions, backup state, and signature counter",
+      "disposition": "required",
+      "consumers": [
+        "passkey",
+        "passkey/postgres",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "requirement_id": "mfa.hotp-validation",
+      "source_id": "rfc-4226",
+      "locator": "Sections 5.3, 6, 7.2, 7.3, and Appendix D test values",
+      "disposition": "required",
+      "consumers": [
+        "identity/mfa"
+      ]
+    },
+    {
+      "requirement_id": "mfa.totp-validation",
+      "source_id": "rfc-6238",
+      "locator": "Sections 4, 5.2, and 6 plus Appendix B SHA-1, SHA-256, and SHA-512 test vectors; only configured advertised profiles are selected",
+      "disposition": "required",
+      "consumers": [
+        "identity/mfa"
       ]
     },
     {
@@ -531,6 +607,15 @@
       ]
     },
     {
+      "requirement_id": "source.rfc-6931",
+      "source_id": "rfc-6931",
+      "locator": "Sections 2.3.9 and 2.3.10; only the fixed-parameter sha256-rsa-MGF1 URI is selected",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
       "requirement_id": "source.rfc-7009",
       "source_id": "rfc-7009",
       "locator": "Complete selected normative source",
@@ -723,7 +808,9 @@
       "disposition": "required",
       "consumers": [
         "identity/oauth/providers",
-        "oauth-server"
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
       ]
     },
     {
@@ -871,7 +958,7 @@
     {
       "requirement_id": "source.saml-metadata-2.0-os",
       "source_id": "saml-metadata-2.0-os",
-      "locator": "Sections 2.4 and 2.5 metadata role and endpoint processing",
+      "locator": "Sections 2.2.1 through 2.2.3, 2.3.2, 2.4.1 through 2.4.4, and 3.1 through 3.1.2 entity, role, key, endpoint, and signature processing",
       "disposition": "required",
       "consumers": [
         "sso/saml"
@@ -930,7 +1017,7 @@
     {
       "requirement_id": "oidc.hybrid-unsupported",
       "source_id": "oidc-core-1.0-errata-2",
-      "locator": "Sections 3.3 and 15.1 hybrid flow",
+      "locator": "Sections 3.3 and 15.1 hybrid flow; unsupported except the separately pinned Apple code id_token response",
       "disposition": "unsupported",
       "consumers": [
         "identity/oauth",
@@ -938,6 +1025,16 @@
         "identity/oauth/providers",
         "oauth-server/oidc",
         "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oauth.apple-code-id-token-hybrid-exception",
+      "source_id": "oidc-core-1.0-errata-2",
+      "locator": "Sections 3.3.2.1, 3.3.2.5, 3.3.2.11, and 3.3.3.8 for Apple's fixed code id_token response with nonce, c_hash, and cross-proof subject validation",
+      "disposition": "profile-decision",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers"
       ]
     },
     {
@@ -1097,6 +1194,10 @@
     "rfc-6901": {
       "title": "JavaScript Object Notation (JSON) Pointer",
       "revision": "RFC 6901"
+    },
+    "rfc-6931": {
+      "title": "Additional XML Security Uniform Resource Identifiers (URIs)",
+      "revision": "RFC 6931"
     },
     "rfc-7009": {
       "title": "OAuth 2.0 Token Revocation",
@@ -1513,6 +1614,15 @@
       ]
     },
     {
+      "id": "rfc-6931",
+      "url": "https://www.rfc-editor.org/rfc/rfc6931.txt",
+      "sha256": "65d2eb41a34abc0b08f70040bc9d63622a1fa7fc0c63a7e2aa284fbe9d44cb55",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
       "id": "rfc-7009",
       "url": "https://www.rfc-editor.org/rfc/rfc7009.txt",
       "sha256": "b2f346d5a87ba9d7f09047901257a65f7ac0b26352095969c25821afab447829",
@@ -1743,7 +1853,9 @@
       "license": "IETF Trust Legal Provisions",
       "consumers": [
         "identity/oauth/providers",
-        "oauth-server"
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
       ]
     },
     {

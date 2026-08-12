@@ -31,6 +31,9 @@ module SharedContractApplicability
     "recaptcha" => "identity/risk/captcha/recaptcha",
     "turnstile" => "identity/risk/captcha/turnstile"
   }.freeze
+  EXPECTED_CAPTCHA_PROFILE_CONSUMERS = EXPECTED_CAPTCHA_OWNERS.to_h do |id, unit|
+    [id, {"unit" => unit, "artifact_id" => "captcha-four-provider-report"}]
+  end.freeze
   EXPECTED_NATIVE_TOKEN_MODES = {
     "apple" => ["id_token"], "facebook" => ["opaque_access_token"],
     "google" => %w[id_token opaque_access_token], "line" => %w[id_token opaque_access_token]
@@ -45,6 +48,7 @@ module SharedContractApplicability
     "ref.saml.relay_state" => %w[sso/saml],
     "ref.saml.replay_set" => %w[sso/saml],
     "ref.struct:ref.frontchannel_post_cookie" => %w[identity/oauth sso/saml],
+    "ref.struct:ref.api_key.permission_reduction" => %w[identity/apikey identity/apikey/postgres organization identity/http identity/reference],
     "ref.struct:ref.oauth_server.client_class" => %w[oauth-server],
     "ref.struct:ref.oidc.logout_outcome" => %w[sso/oidc],
     "ref.struct:ref.saml.replay_set" => %w[sso/saml]
@@ -139,12 +143,24 @@ module SharedContractApplicability
     fail_contract("missing CONFIGURATION_CATALOGS.json") unless File.file?(path)
     document = JSON.parse(File.read(path))
     fail_contract("CONFIGURATION_CATALOGS.json is not canonical JSON") unless File.read(path) == JSON.pretty_generate(document) + "\n"
-    expected_keys = %w[schema_version providers provider_matrix captcha native_token_modes provider_response_modes jwt_profile_ownership]
+    expected_keys = %w[schema_version providers provider_matrix captcha native_token_modes provider_response_modes jwt_profile_ownership api_key_permission_reduction]
     fail_contract("configuration catalog top-level keys drifted") unless document.keys == expected_keys
     fail_contract("configuration catalog schema version drifted") unless document.fetch("schema_version") == 1
+    permission_reduction = document.fetch("api_key_permission_reduction")
+    fail_contract("API-key permission-reduction catalog keys drifted") unless permission_reduction.keys == %w[version reference_default allowed selector caller_override unknown_outcome events]
+    fail_contract("API-key permission-reduction catalog version drifted") unless permission_reduction.fetch("version") == "api-key-permission-reduction-v1"
+    fail_contract("API-key permission-reduction default drifted") unless permission_reduction.fetch("reference_default") == "narrow"
+    fail_contract("API-key permission-reduction choices drifted") unless permission_reduction.fetch("allowed") == %w[narrow revoke]
+    fail_contract("API-key permission-reduction selector drifted") unless permission_reduction.fetch("selector") == "immutable_configuration_revision"
+    fail_contract("API-key permission-reduction caller override drifted") unless permission_reduction.fetch("caller_override") == false
+    fail_contract("API-key permission-reduction unknown-outcome policy drifted") unless permission_reduction.fetch("unknown_outcome") == "deny_and_reconcile_original_command"
+    fail_contract("API-key permission-reduction events drifted") unless permission_reduction.fetch("events") == {
+      "narrow" => "api_key.permissions_changed.v1",
+      "revoke" => "api_key.revoked.v1"
+    }
     {"providers" => "provider-catalog-v1", "captcha" => "captcha-catalog-v1"}.each do |name, version|
       catalog = document.fetch(name)
-      expected_catalog_keys = name == "captcha" ? %w[version ids sha256 owners] : %w[version ids sha256]
+      expected_catalog_keys = name == "captcha" ? %w[version ids sha256 owners profile_consumers] : %w[version ids sha256]
       fail_contract("#{name} catalog keys drifted") unless catalog.keys == expected_catalog_keys
       ids = catalog.fetch("ids")
       fail_contract("#{name} catalog version drifted") unless catalog.fetch("version") == version
@@ -156,6 +172,9 @@ module SharedContractApplicability
     fail_contract("providers catalog is not the exact native provider set") unless document.dig("providers", "ids") == EXPECTED_PROVIDER_IDS
     validate_provider_matrix!(document)
     fail_contract("CAPTCHA catalog is not the exact four-provider set") unless document.dig("captcha", "owners") == EXPECTED_CAPTCHA_OWNERS
+    unless document.dig("captcha", "profile_consumers") == EXPECTED_CAPTCHA_PROFILE_CONSUMERS
+      fail_contract("CAPTCHA profile-consumer bindings are not the exact four-provider set")
+    end
     native = document.fetch("native_token_modes")
     fail_contract("native-token catalog keys drifted") unless native.keys == %w[version catalog default providers closed_semantics]
     fail_contract("native-token catalog version drifted") unless native.fetch("version") == "native-token-modes-v1"
@@ -193,7 +212,14 @@ module SharedContractApplicability
     expected_semantics = %w[
       required unsupported conditional supported unknown official_docs_pin_required
       tenant_metadata_pin_required interoperability_not_run discovery_endpoint
-      tenant_metadata_endpoint unlisted_scope_forbidden
+      tenant_metadata_endpoint unlisted_scope_forbidden oidc_logout_closed_object
+      oidc_logout_status_supported oidc_logout_status_unsupported oidc_logout_status_unknown
+      oidc_logout_endpoint_fixed oidc_logout_endpoint_discovery oidc_logout_endpoint_unsupported
+      oidc_logout_state_authority oidc_logout_local_revocation oidc_logout_evidence_blockers
+      oidc_logout_status_values oidc_logout_endpoint_source_closed_object
+      oidc_logout_state_correlation_values oidc_logout_one_time_state_recovery_values
+      oidc_logout_post_logout_redirect_values oidc_logout_frontchannel_session_effect_values
+      oidc_logout_evidence_blocker_ids
     ]
     fail_contract("provider matrix semantic vocabulary drifted") unless semantics.keys == expected_semantics
     fail_contract("provider matrix semantics must be non-empty text") unless semantics.values.all? { |value| value.is_a?(String) && !value.empty? }
@@ -204,7 +230,7 @@ module SharedContractApplicability
     row_keys = %w[
       id aliases configuration protocol endpoints validation scopes response token_auth parameters
       pkce nonce state identity_sources claims account_policy token_lifecycle native_token_signin
-      apple_client_secret_signing incompatibilities evidence
+      apple_client_secret_signing incompatibilities evidence oidc_logout
     ]
     statuses = %w[required unsupported conditional supported unknown]
     protocols = %w[oauth2 oauth2-nonstandard oauth2-with-limited-login-oidc oidc oidc-hybrid-exception]
@@ -288,6 +314,33 @@ module SharedContractApplicability
       end
       apple_status = row.dig("apple_client_secret_signing", "status")
       fail_contract("Apple client-secret signing ownership drifted for #{id}") unless apple_status == (id == "apple" ? "required" : "unsupported")
+
+      logout = row.fetch("oidc_logout")
+      logout_keys = %w[status end_session_endpoint_source state_correlation one_time_state_recovery post_logout_redirect frontchannel_session_effect evidence_blocker]
+      fail_contract("provider OIDC logout keys drifted for #{id}") unless logout.keys == logout_keys
+      fail_contract("provider OIDC logout status is invalid for #{id}") unless %w[supported unsupported unknown].include?(logout.fetch("status"))
+      endpoint = logout.fetch("end_session_endpoint_source")
+      fail_contract("provider OIDC logout endpoint source keys drifted for #{id}") unless endpoint.is_a?(Hash) && endpoint.keys == %w[kind value]
+      fail_contract("provider OIDC logout endpoint source kind is invalid for #{id}") unless %w[fixed discovery unsupported].include?(endpoint.fetch("kind"))
+      endpoint_value = endpoint.fetch("value")
+      valid_endpoint = endpoint.fetch("kind") == "unsupported" ? endpoint_value == "unsupported" :
+        endpoint_value.is_a?(String) && (endpoint_value.start_with?("https://") || endpoint_value.match?(%r!\A\{(?:issuer|authority|domain)(?:\|https://[^}]+)?\}!))
+      fail_contract("provider OIDC logout endpoint source value is invalid for #{id}") unless valid_endpoint
+      fail_contract("provider OIDC logout state correlation is invalid for #{id}") unless %w[required-single-use-exact not-applicable-local-only].include?(logout.fetch("state_correlation"))
+      fail_contract("provider OIDC logout recovery is invalid for #{id}") unless %w[provider-and-session-derived-exclusively-from-bound-state not-applicable-local-only].include?(logout.fetch("one_time_state_recovery"))
+      fail_contract("provider OIDC logout redirect policy is invalid for #{id}") unless %w[allowlisted-local-redirect-after-provider-outcome allowlisted-local-redirect-after-local-revocation].include?(logout.fetch("post_logout_redirect"))
+      fail_contract("provider OIDC logout session effect is invalid for #{id}") unless %w[provider-logout-attempt local-only unknown].include?(logout.fetch("frontchannel_session_effect"))
+      blockers = logout.fetch("evidence_blocker")
+      allowed_blockers = %w[official-provider-logout-documentation-pin-required provider-logout-interoperability-not-run selected-provider-profile-has-no-oidc-end-session-contract tenant-provider-metadata-pin-required]
+      fail_contract("provider OIDC logout blocker IDs are invalid for #{id}") unless blockers.is_a?(Array) && blockers == blockers.sort.uniq && !blockers.empty? && (blockers - allowed_blockers).empty?
+      if logout.fetch("status") == "unsupported"
+        expected = ["unsupported", "not-applicable-local-only", "not-applicable-local-only", "allowlisted-local-redirect-after-local-revocation", "local-only"]
+        actual = [endpoint.fetch("kind"), logout.fetch("state_correlation"), logout.fetch("one_time_state_recovery"), logout.fetch("post_logout_redirect"), logout.fetch("frontchannel_session_effect")]
+        fail_contract("unsupported provider OIDC logout profile is incoherent for #{id}") unless actual == expected && blockers == ["selected-provider-profile-has-no-oidc-end-session-contract"]
+      else
+        fail_contract("unverified provider OIDC logout was marked supported for #{id}") unless logout.fetch("status") == "unknown"
+        fail_contract("unknown provider OIDC logout lacks evidence blockers for #{id}") unless blockers.any? { |value| value.end_with?("pin-required") } && blockers.include?("provider-logout-interoperability-not-run")
+      end
 
       sources = row.fetch("identity_sources")
       fail_contract("provider identity-source keys drifted for #{id}") unless sources.keys == %w[id_token userinfo introspection precedence]

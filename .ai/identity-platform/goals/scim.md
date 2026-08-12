@@ -31,15 +31,38 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns SCIM 2.0 protocol server, ServiceProviderConfig, schemas, resource types, Users and Groups, filtering, sorting, pagination, PATCH, bulk policy, ETags, and error semantics. It does not own organization-specific resource mapping, persistence, SSO, vendor connections, and admin UI. Those exclusions MUST remain
+This module owns the SCIM 2.0 protocol server and the public lifecycle for
+organization/provider-owned SCIM connections: ServiceProviderConfig, schemas,
+resource types, Users and Groups, filtering, sorting, pagination, PATCH, bulk
+policy, ETags, errors, connection bearer issuance/rotation/revocation, and
+connection metadata. It does not own organization-specific resource mapping,
+persistence adapters, SSO, personal or unowned SCIM connections, outbound
+vendor-directory connectors, or admin UI. `scim/organization` owns the
+organization mapping adapter, while this module's `ConnectionService` and
+`identity.scim.connection-*` operations remain the sole public connection
+lifecycle. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define HTTP-independent request/response model, Resource, Schema, Attribute, Filter AST, Patch, ListResponse, Bulk policy, Version, Authenticator, Authorizer, Mapper, and Store contracts. Public errors MUST be typed, stable,
+The design MUST define HTTP-independent request/response model, Resource,
+Schema, Attribute, Filter AST, Patch, ListResponse, Bulk policy,
+`BulkChildStatus`, `BulkSkipReason`, Version, Authenticator, Authorizer, Mapper,
+and Store contracts plus `ConnectionService`, `Connection`, and typed
+organization/provider connection commands/results. `BulkChildStatus` MUST be the closed enum invalid, admitted,
+running, succeeded, failed, dependency-blocked, and skipped. `BulkSkipReason`
+MUST be the closed enum none and fail-on-errors; the stored field MUST
+equal none for every non-skipped child and fail-on-errors for every
+skipped child. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+`ConnectionService` MUST be the closed lifecycle interface with exactly
+`ConnectionCreate`, `ConnectionDelete`, `ConnectionGet`, `ConnectionList`,
+`ConnectionReconcile`, `ConnectionRotate`, `ConnectionTokenRevoke`, and
+`ConnectionUpdate`, each accepting its same-named typed request and returning
+its same-named typed result plus `error`. No generic mutation or adapter-owned
+connection lifecycle method may extend or substitute this interface.
 
 ## Required behavior
 
@@ -47,6 +70,13 @@ The implementation and tests MUST parse bounded filters and paths; apply PATCH a
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
+
+Connection delete MUST atomically disable all local bearer and provisioning
+authority and return the exact `lifecycle.cascade.scim_connection_delete` ID,
+generation, status and redacted limitations. It remains pending or
+outcome-unknown while Bulk/reconciliation or provider cleanup is unresolved;
+it MUST NOT claim terminal deletion or delete local users, memberships or
+groups unless separately admitted lifecycle child commands close.
 
 ## Package-specific acceptance checklist
 
@@ -180,7 +210,8 @@ involved.
   parent, every ordered independently identified child, and the graph/SCC plan
   at admission; commit each acyclic child independently and each cyclic SCC
   under its bounded atomic rule; durably mark all remaining admitted children
-  that have not entered `running` skipped only after a positive `failOnErrors` threshold reaches that
+  that have not entered `running` with `Status=skipped` and
+  `SkipReason=fail-on-errors` only after a positive `failOnErrors` threshold reaches that
   many durable failed child results, treat zero or omission as no cutoff, block
   unknown dependencies for reconciliation, and replay processed child results
   in request order from durable checkpoints. A skipped child is unprocessed and
@@ -190,7 +221,8 @@ involved.
   extension `identity.scim.fail_on_errors_cutoff` is reserved exclusively for
   that audit event and MUST NOT appear as an unregistered SCIM `scimType`.
   The implementation MUST consume `struct:ref.scim.bulk_execution` and expose
-  `skipped` only as the persisted unprocessed child state; status projections,
+  `skipped` only as the persisted unprocessed child status and
+  `fail-on-errors` only as its separate closed skip reason; status projections,
   recovery and replay MUST NOT convert it into a failed child or synthesize a
   wire status.
   Matching retry means the same connection scope and exact canonical Bulk
@@ -201,9 +233,11 @@ involved.
   commit its one child in one independent transaction. A cyclic SCC MUST stage
   all members, defer only within-SCC reference checks, and commit every member
   in one bounded transaction or roll the complete SCC back. The persisted child
-  state machine MUST contain only admitted, running, succeeded, failed,
-  dependency-blocked and skipped; only succeeded and failed may carry a result,
-  dependency-blocked remains reconcilable, and skipped remains unprocessed.
+  status machine MUST contain only admitted, running, succeeded, failed,
+  dependency-blocked and skipped. Skip reason MUST equal none for every
+  status except skipped and MUST equal fail-on-errors for skipped; only succeeded and
+  failed may carry a result, dependency-blocked remains reconcilable, and
+  skipped remains unprocessed.
   Every returned BulkResponse operation MUST include its method and MUST echo
   `bulkId` exactly when the request operation supplied it; POST operations MUST
   supply unique request-local bulk IDs. The request `failOnErrors` value MUST be

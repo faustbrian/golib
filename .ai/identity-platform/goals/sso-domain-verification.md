@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/sso/domain-verification`
 - Canonical goal after scaffolding: `pkg/sso/domain-verification/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:sso/domain-verification:v1`; owned operation IDs: none
-- Requires: `sso`, `organization`, `primitive/capability-identity-contracts`
-- Consumes existing primitives: `http-client`, `capability`, `audit`, `rate-limit`, `telemetry`
+- Requires: `sso`, `organization`
+- Consumes existing primitives: `http-client`, `audit`, `rate-limit`, `telemetry`
 - Unlocks after verification: `identity/http`, `identity/reference`
 
 ## Start gate and objective
@@ -22,48 +22,53 @@ The worker MUST read and satisfy
 `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin until the
 coordinator has marked `sso/domain-verification` `in-progress`, recorded this
 worker, and verified both prerequisites. Build the concrete DNS TXT and HTTPS
-well-known proof engine that produces bounded classified evidence for SSO
-orchestration. Only `organization` may move a domain claim to verified state.
+well-known implementation of the consumer-owned `sso.DomainProofEngine`
+interface. It produces bounded classified observations for SSO orchestration;
+only `organization` may move a domain claim to verified state.
 
 ## Ownership boundary
 
-This module owns domain canonicalization for proof lookup, cryptographic
-challenge generation, DNS/HTTPS proof retrieval, bounded validation, evidence
-classification, re-verification and expiry signals. `organization` owns the
-claim lifecycle and uniqueness; `sso` owns routing and enforcement. This module
-MUST implement the proof-engine collaborator for `identity.sso.domain-challenge`
-and `identity.sso.domain-verify`, while `sso` remains their sole callable API,
-HTTP and OpenAPI owner. It MUST NOT own organizations, provider registration,
-DNS records, certificates, generic web crawling, HTTP handlers or persistence
-schemas or publish competing operation definitions.
+This module owns DNS/HTTPS proof retrieval, network-safe canonicalization,
+bounded validation, evidence classification, and observation-expiry signals.
+`organization` owns the claim lifecycle and uniqueness. `sso` owns the
+challenge, capability binding, consumer request/result types, orchestration,
+routing, enforcement, and the callable `identity.sso.domain-challenge` and
+`identity.sso.domain-verify` HTTP/OpenAPI operations. This module imports `sso`
+and implements its narrow consumer-owned interface; `sso` MUST NOT import this
+implementation module. It MUST NOT own organizations, challenge/bearer formats,
+provider registration, DNS records, certificates, generic web crawling, HTTP
+handlers, persistence schemas, or competing operation definitions.
 
 ## Required public contract
 
-The public API MUST define immutable `Profile`, `VerificationRequest`,
-`ProofMethod`, `DNSResolver`, bounded HTTPS fetcher, `ObservedDomainEvidence`,
-`Verifier`, `Clock` and typed
-result/failure contracts. It MUST define supported DNS record name/value and
-HTTPS path/media/body formats exactly, along with challenge entropy, expiry,
+The `sso` package MUST first define immutable `DomainProofRequest`,
+`DomainProofObservation`, `DomainProofMethod`, and the consumer-owned interface
+`DomainProofEngine` with exactly
+`Observe(context.Context, DomainProofRequest) (DomainProofObservation, error)`.
+Those values bind tenant, organization, canonical domain, claim ID/version,
+method, purpose, challenge digest, expiry, and observation time/classification;
+they contain no writable organization proof or routing decision. This module's
+public API MUST define only concrete immutable `Profile`, `DNSResolver`, bounded
+HTTPS fetcher, `Engine`, `Clock`, construction, and typed implementation
+failures. A compile-time assertion MUST prove `*Engine` implements
+`sso.DomainProofEngine`; no adapter or callback registration is permitted.
+
+The profile MUST define supported DNS record name/value and
+HTTPS path/media/body formats exactly, along with accepted challenge-digest
+shape, observation expiry,
 retry, cache, quorum and clock behavior. Construction MUST reject an empty
 method set, unsafe timeout/size limits, insecure HTTPS policy and ambiguous
 domain configuration.
-`Verifier` MUST expose exactly
-`Verify(context.Context, VerificationRequest) (ObservedDomainEvidence, error)`.
-`VerificationRequest` MUST bind tenant, organization, canonical domain, claim
-ID/version, method, purpose, challenge digest, and expiry.
-`ObservedDomainEvidence` is non-authoritative observed evidence only and MUST
-bind that request identity, method, checked-at time, evidence expiry, and
-stable classification without containing a writable organization proof or
-route. Only `organization.DomainEvidenceTransition` may translate it into the
-authoritative `organization.DomainProof`.
+`Engine` MUST expose no additional behavior-bearing verification method. Its
+`sso.DomainProofObservation` is non-authoritative observed evidence only. SSO
+MUST pass it to `organization.DomainEvidenceTransition`, which alone may
+translate it into authoritative `organization.DomainProof`.
 
 ## Required behavior and security
 
-- A challenge MUST contain at least 32 random bytes, bind tenant,
-  organization, canonical registrable domain, claim/version, method, purpose
-  and expiry, and expose only the exact proof value needed by the administrator.
-  Signing, time checks, rotation and revocation MUST use `capability` rather
-  than a module-specific bearer-token format.
+- The engine MUST accept only an `sso.DomainProofRequest` whose challenge has
+  already been issued and bound by SSO. It MUST compare the proof value but MUST
+  NOT generate, sign, rotate, revoke, persist, or expose challenge authority.
 - Domain input MUST be length-bounded, IDNA-canonicalized and rejected for IP
   literals, public suffixes, invalid labels, wildcard ambiguity, trailing-dot
   confusion or a parent/child scope the selected policy does not allow.

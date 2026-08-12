@@ -14,7 +14,7 @@ shown here.
 - Public contracts: unit ID `contract:unit:sso/oauth2:v1`; owned operation IDs: `contract:operation:identity.sso.oauth-callback:v1`
 - Requires: `sso`
 - Consumes existing primitives: `http-client`, `capability`, `secret-envelope`, `audit`
-- Unlocks after verification: `sso/postgres`, `identity/http`
+- Unlocks after verification: `identity/http`
 
 ## Start gate
 

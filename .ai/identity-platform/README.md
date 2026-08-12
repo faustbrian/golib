@@ -6,6 +6,29 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
 shown here.
 
+## Pinned Better Auth source prerequisite
+
+The parity baseline requires actual Git objects, not only the checked-in
+surface and leaf manifests. Before starting the orchestrator, the user MUST
+obtain the repository once while online in a user-owned location, then keep it
+available locally through terminal validation:
+
+```sh
+git clone --filter=blob:none https://github.com/better-auth/better-auth.git /absolute/path/to/better-auth
+git -C /absolute/path/to/better-auth fetch origin b8077b74ef9a80a7757220b72834349bd8de05c0
+export BETTER_AUTH_REPOSITORY=/absolute/path/to/better-auth
+ruby .ai/identity-platform/generate_upstream_leaves.rb --check "$BETTER_AUTH_REPOSITORY"
+```
+
+This checkout is a persistent user-owned prerequisite, not a task-owned
+disposable resource; the orchestrator MUST NOT create it, add it to the
+task-owned resource registry, or delete it. The orchestrator MUST preserve this
+environment variable through final gate capture and terminal validation. The
+validator rejects a missing repository, noncanonical `origin`,
+missing pinned commit, wrong object format, or mismatched source object. The
+check reads only the local object database and therefore remains usable
+offline after the one-time fetch.
+
 ## Give one goal to one orchestrator
 
 Give exactly one coordinator agent exactly this prompt:
@@ -28,13 +51,24 @@ canonical package locations so unchanged lifecycle moves remain executable.
 
 ## Authority and ownership
 
-The coordinator alone owns `INVENTORY.md`, `EXECUTION_LEDGER.md`,
-`DEPENDENCIES.md`, files directly
-under this directory, planning-goal moves, root manifests, integration, and
-final end-state proof. A worker owns only its assigned canonical package
-directory and package-local code, tests, fixtures, migrations, docs, examples,
-module files, and changelog. The coordinator MUST reject cross-package worker
-edits instead of resolving semantic ownership during a merge.
+The coordinator has write custody of `INVENTORY.md`, `EXECUTION_LEDGER.md`,
+`DEPENDENCIES.md`, files directly under this directory, every goal file before
+and after its move, root manifests, integration, and final end-state proof.
+Custody is not product authority: the coordinator MUST NOT approve a change to
+scope, behavior semantics, public API, parity disposition, protocol profile,
+acceptance claims, acceptance artifacts, or a goal body. Such a change requires
+the explicit user-authorization record defined by `PROGRAM.md` before its first
+semantic byte changes. A worker owns only its assigned canonical package
+directory minus coordinator-custody paths and reserved descendant roots, plus
+package-local code, tests, fixtures, migrations, docs, examples, module files,
+and changelog. The coordinator MUST reject cross-package or coordinator-custody
+worker edits instead of resolving semantic ownership during a merge.
+
+Execution also requires a platform trust document already pinned on the
+recorded `main` base. Committed exact-byte captures record user authorization and
+worker spawn/readiness/release/return sequence; repository-authored rows cannot
+prove either actor. If that platform evidence is unavailable, affected work
+remains blocked while independent read-only/preflight lanes continue.
 
 The coordinator's complete read order, matching `ORCHESTRATOR_GOAL.md`
 exactly, is:
@@ -90,17 +124,18 @@ are `verified`; a wave is not a barrier.
 ### Wave 1
 
 - `identity`
-- `webauthn`
 
 ### Wave 2
 
 - `identity/postgres`
 - `identity/session`
 - `identity/risk`
+- `webauthn`
 - `identity/i18n`
 
 ### Wave 3
 
+- `primitive/capability-postgres-identity-contracts`
 - `identity/session/postgres`
 - `identity/session/valkey`
 - `identity/delivery/postgres`
@@ -126,7 +161,6 @@ are `verified`; a wave is not a barrier.
 - `identity/password`
 - `identity/email`
 - `identity/otp/postgres`
-- `identity/phone`
 - `identity/anonymous/postgres`
 - `identity/mfa`
 - `passkey/postgres`
@@ -146,6 +180,7 @@ are `verified`; a wave is not a barrier.
 - `identity/password/postgres`
 - `identity/username`
 - `identity/magiclink`
+- `identity/phone`
 - `identity/mfa/postgres`
 - `identity/oauth/onetap`
 - `identity/apikey/postgres`
@@ -154,12 +189,12 @@ are `verified`; a wave is not a barrier.
 - `sso/oidc`
 - `sso/oauth2`
 - `sso/saml`
+- `sso/postgres`
 - `scim/organization`
 - `oauth-server/postgres`
 
 ### Wave 6
 
-- `sso/postgres`
 - `scim/postgres`
 - `identity/http`
 
@@ -175,8 +210,8 @@ are `verified`; a wave is not a barrier.
 
 Only dependency-free units begin `ready`. The coordinator changes a proposed
 unit to `ready` only after all its prerequisites are integrated and `verified`.
-Implementation on a worker branch is not verification. Program completion
-requires all 61 identity-platform units and all six primitive-extension
-prerequisite units verified (67 schedulable units total), every in-scope parity row proved, every
-`END_STATE.md` journey passing without undocumented application glue, and all
-final repository gates current.
+Implementation on a worker branch is not verification. Program success is only
+the single exhaustive completion predicate in `PROGRAM.md`; partial summaries
+or a green structural validator do not weaken it. A non-success stop is
+permitted only by the blocked predicate in `ORCHESTRATOR_GOAL.md` after every
+independent progress lane is exhausted.

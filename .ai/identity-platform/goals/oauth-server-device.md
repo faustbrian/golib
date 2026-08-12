@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/oauth-server/device`
 - Canonical goal after scaffolding: `pkg/oauth-server/device/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:oauth-server/device:v1`; owned operation IDs: `contract:operation:identity.oauth-server.device-approve:v1`, `contract:operation:identity.oauth-server.device-authorize:v1`, `contract:operation:identity.oauth-server.device-deny:v1`, `contract:operation:identity.oauth-server.device-inspect:v1`, `contract:operation:identity.oauth-server.device-token:v1`
-- Requires: `oauth-server`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
-- Consumes existing primitives: `capability`, `capability/postgres`, `rate-limit`, `audit`
+- Requires: `oauth-server`, `primitive/capability-identity-contracts`
+- Consumes existing primitives: `capability`, `rate-limit`, `audit`
 - Unlocks after verification: `oauth-server/postgres`, `identity/http`
 
 ## Start gate
@@ -46,6 +46,9 @@ authenticated approval/denial and device polling. Each operation MUST expose
 the actor and authorization required by
 [`API_OPERATIONS.md`](../API_OPERATIONS.md), and MUST return typed protocol
 outcomes without revealing whether an arbitrary user code exists.
+Construction MUST consume the public `oauthserver.Service` interface and its
+oauth-server-owned projections directly. This child MUST NOT declare an opaque
+`CoreAuthority` value that no external composition root can construct.
 
 ## Required behavior
 

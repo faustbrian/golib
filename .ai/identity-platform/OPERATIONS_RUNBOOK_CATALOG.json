@@ -1,0 +1,328 @@
+{
+  "schema_version": 1,
+  "authority": ".ai/identity-platform/OPERATION_SEMANTICS.json",
+  "operation_semantics_sha256": "sha256:7c09dcbb8cc4beea43481c1a94ff1b8beebb43b1ceacb91c71bf02f42e607f62",
+  "operation_count": 329,
+  "actions": [
+    {
+      "action_id": "startup",
+      "owner": "identity/reference",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/trigger/content",
+          "content": "configuration has been validated and required dependencies are reachable",
+          "content_sha256": "sha256:ca90cb427a263aaad4f5e7eabf266b92a4f17c863bdbc1d1f04873a1d272cdc6"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/procedure/content",
+          "content": "start the composed identity service and enable traffic only after readiness passes",
+          "content_sha256": "sha256:fce7cea1845b3aabd65c96e91a542946b2768bba36f30ddccd9733ef4de69c86"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/verification/content",
+          "content": "verify health, readiness, operation registration, and dependency probes",
+          "content_sha256": "sha256:a0895d59cdb3846f570701d8d7502df66bab6f0ed6d0d9b0a69c28aae2e2a1d2"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/rollback/content",
+          "content": "stop the service and withdraw readiness without accepting new work",
+          "content_sha256": "sha256:d91cdf46d471908e6cd86dc9b8b58fcd4d7c49fe866579abdc101d1500ba7972"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/escalation/content",
+          "content": "escalate when readiness cannot be established or startup changes durable state",
+          "content_sha256": "sha256:d8b08e8e5073c623a2452c0b795982ac467bd913464e1dcdcb3835ab09db3cef"
+        }
+      }
+    },
+    {
+      "action_id": "shutdown",
+      "owner": "identity/reference",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/trigger/content",
+          "content": "planned termination or loss of readiness has been requested",
+          "content_sha256": "sha256:da2208ebace6fc12b5ebc425c7a971f027c1f453c247ae71e851266dd59fe66e"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/procedure/content",
+          "content": "withdraw readiness, drain admitted work, stop workers, then close dependencies",
+          "content_sha256": "sha256:e700b3803d877f5f560478550daa1005a8209d2281112f19446f319d1cfa972d"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/verification/content",
+          "content": "verify no new admission, bounded drain completion, and no leaked workers or leases",
+          "content_sha256": "sha256:2a7b89dbd8eae3abe599a37b27c3fad6ed5b2f0149b70d791c7f3bcf448226c5"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/rollback/content",
+          "content": "restart only from a clean stopped state after shutdown failure is reconciled",
+          "content_sha256": "sha256:4c4299f6cb013df2f0e263d08ad1d4076c16675935e9a878f446689a31c94e94"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/escalation/content",
+          "content": "escalate when admitted work or durable outcomes remain unknown",
+          "content_sha256": "sha256:9546cefe84e27bdf5868211f140cf6e044df0555a58ef567ae16faaab6fbea29"
+        }
+      }
+    },
+    {
+      "action_id": "backup",
+      "owner": "identity/reference",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/trigger/content",
+          "content": "the scheduled backup window or an authorized manual backup has started",
+          "content_sha256": "sha256:734c6a6892b96fb3286ed008b1814b48686d2aa02e12606ddf13cb7497e558dc"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/procedure/content",
+          "content": "capture an encrypted consistent PostgreSQL backup and the configuration needed for restoration",
+          "content_sha256": "sha256:4be0b25a2a23e92c34ff107130154a6ef8e68c88ee66e4d54c01a91c554b397a"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/verification/content",
+          "content": "verify completion, checksum, encryption metadata, retention, and restore eligibility",
+          "content_sha256": "sha256:5c65d45c6a7f9f7d8d8f97ee37f1dd71f6cab9365502108564dd7693e77713a2"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/rollback/content",
+          "content": "discard an incomplete backup record and retain the last verified recoverable backup",
+          "content_sha256": "sha256:791ffc64de241210b65ad721e0c35553a4866c5728a81ff2aa9177d1031b1545"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/escalation/content",
+          "content": "escalate when no backup satisfies the recovery-point objective",
+          "content_sha256": "sha256:52ac65359378982d84b5af197f5bf1774d0006c1431f6a9267b4795d664d1449"
+        }
+      }
+    },
+    {
+      "action_id": "restore",
+      "owner": "identity/reference",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/trigger/content",
+          "content": "an authorized recovery declares the primary state unavailable or a rehearsal begins",
+          "content_sha256": "sha256:938e91a62e099f313d06e7a42657ff330b01c5797b9fe5ef326726e0469af46c"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/procedure/content",
+          "content": "restore the selected verified backup into an isolated target before controlled cutover",
+          "content_sha256": "sha256:fac7fee6df3d8c7bad34c202108e86eb83b6b02aebe3d1dcea3c54ee324ed3eb"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/verification/content",
+          "content": "verify schema compatibility, integrity, identity invariants, and recovery objectives",
+          "content_sha256": "sha256:5e202388582ae765bc58e8766f4ed15aa1e0a02d47f54f74626d838c1c066d4a"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/rollback/content",
+          "content": "abort cutover and return traffic to the prior authority when it remains trustworthy",
+          "content_sha256": "sha256:d06c3ca15f33881689d484f05610696d1beb907c8a5ddba08ad87bf201688de6"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/escalation/content",
+          "content": "escalate on integrity failure, ambiguous authority, or missed recovery objectives",
+          "content_sha256": "sha256:5c8ea596a85089eab8985d32d38457ae6cfbd21e1e7cb0bdf63d4699c7f54e25"
+        }
+      }
+    },
+    {
+      "action_id": "credential-rotation",
+      "owner": "identity/reference",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/trigger/content",
+          "content": "a credential reaches policy age, is suspected exposed, or rotation is requested",
+          "content_sha256": "sha256:79d42dd0360899065094f91e72f2c98eadbab310c416848debe66baea9353fe7"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/procedure/content",
+          "content": "issue the successor credential, deploy overlap where permitted, verify adoption, then revoke the predecessor",
+          "content_sha256": "sha256:907f3e17d3df3f33d98f099dd1f879bb98f3764da82d3da5598d96da87617d06"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/verification/content",
+          "content": "verify successor use, predecessor rejection, audit events, and absence of secret disclosure",
+          "content_sha256": "sha256:f89f496f9446a8c990ad67688f02a096f21230f06da7100d62efc0543c7c8ef6"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/rollback/content",
+          "content": "revoke the successor and retain the predecessor only while policy permits safe overlap",
+          "content_sha256": "sha256:76b57ff1d1ae0d06c7cca709ed60972d844cb4d616b98e27beaaee6a4e81e7ee"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/escalation/content",
+          "content": "escalate on suspected compromise, orphaned consumers, or ambiguous revocation",
+          "content_sha256": "sha256:e23afc7dbbe27abf31af267d602d5969cfd4bc3700c206de23c142f68e3bdff5"
+        }
+      }
+    },
+    {
+      "action_id": "signing-key-rotation",
+      "owner": "oauth-server",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/trigger/content",
+          "content": "a signing key reaches policy age, is compromised, or an emergency rotation is authorized",
+          "content_sha256": "sha256:f05250fa02673b0313c63cb7535ee0f9f4548875c1d78a389ee2317b9e71d270"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/procedure/content",
+          "content": "publish the successor public key before signing with it, observe overlap, then retire the predecessor",
+          "content_sha256": "sha256:79fa914711cc1b78b7fcf7e36ed87048500d0a253cdc27290e0de8088634bf40"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/verification/content",
+          "content": "verify JWKS propagation, successor signatures, predecessor retirement, and token validation",
+          "content_sha256": "sha256:d9d84b0d770998a360ab5f22cd57f67fc1d44c832304dc65665f94ffb234873d"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/rollback/content",
+          "content": "resume predecessor signing only when it is uncompromised and still within policy",
+          "content_sha256": "sha256:599a08b7e7ec80a24b3ad83c4266dba1993235efd5f0cfb4a2e3047d90bb0f81"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/escalation/content",
+          "content": "escalate on compromise, propagation failure, or unverifiable issued tokens",
+          "content_sha256": "sha256:8686bfc80d07de1be93f52b4f8e3a1063dcc746e53de82ac76d597e1f93da94f"
+        }
+      }
+    },
+    {
+      "action_id": "postgres-outage",
+      "owner": "identity/postgres",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/trigger/content",
+          "content": "PostgreSQL is unavailable, timing out, or returns an ambiguous commit outcome",
+          "content_sha256": "sha256:b45308db731b2029c84dd704c2d98aec1aa4fc8afce0aefb010f2b51ea736722"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/procedure/content",
+          "content": "fail closed for authority-changing work and reconcile command outcomes before any retry",
+          "content_sha256": "sha256:b64a035b4ce0ba3634b826edbcc2f21b31fc8f8b6368e1e92c07894b47eebe6d"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/verification/content",
+          "content": "verify readiness degradation, bounded errors, command-ledger reconciliation, and recovery",
+          "content_sha256": "sha256:d2a3e8fe0458b55c13fbd8b06b4edef18515075eaff9c71317a9475cd6c64ebb"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/rollback/content",
+          "content": "keep mutation traffic disabled until the authoritative outcome is known",
+          "content_sha256": "sha256:7d396273f0a558e228b85fd9fad4399e0f8addb24fd60f17e737e5f4930fe7d6"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/escalation/content",
+          "content": "escalate on possible data loss, split authority, or unreconciled outcomes",
+          "content_sha256": "sha256:919656acaa831830de2550867223e004ab63e7669f338c61bd132236ea79d6e7"
+        }
+      }
+    },
+    {
+      "action_id": "valkey-outage",
+      "owner": "identity/session/valkey",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/trigger/content",
+          "content": "Valkey is unavailable, stale, or inconsistent with PostgreSQL authority",
+          "content_sha256": "sha256:462115ccecb73cf04dee23717eeb42612c39a2e392887972e84bda9d600cb091"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/procedure/content",
+          "content": "treat PostgreSQL as authority, bypass or invalidate unsafe cache state, and bound degraded operation",
+          "content_sha256": "sha256:67baa1751ce9c87b4889d5fb25358811e319fd0552bf6cf20d98bc115f86d491"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/verification/content",
+          "content": "verify stale sessions cannot authorize and cache state converges after recovery",
+          "content_sha256": "sha256:f88cd129c050cf4279719a6b2b6e76325f0470fe679582f4fb55e4b2c9d38bde"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/rollback/content",
+          "content": "disable the cache path and continue only for operations whose authoritative fallback is safe",
+          "content_sha256": "sha256:9f8d8365c6a7f392afd255204783a25067d763640af148aabe8a04af04d70ce3"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/escalation/content",
+          "content": "escalate on authorization divergence, replay exposure, or unbounded degradation",
+          "content_sha256": "sha256:be1a1d99f53c71b79bdf0ef92dfc5b03129a611dcaf18d0cebc0142993f638d0"
+        }
+      }
+    },
+    {
+      "action_id": "provider-outage",
+      "owner": "identity/oauth/providers",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/trigger/content",
+          "content": "an external identity, delivery, CAPTCHA, HIBP, or federation provider is unavailable",
+          "content_sha256": "sha256:113628d26a5d3f02e0d380349d2741b0ef304d4daedabfa82c7417b57db5bcad"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/procedure/content",
+          "content": "apply the operation-specific fail-closed or retry policy without fabricating provider success",
+          "content_sha256": "sha256:86b5c259405e533999c37aa66e48e80d18388c017f7de85727a407ef4b5f5cd8"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/verification/content",
+          "content": "verify attributable outage classification, bounded retries, redaction, and recovery behavior",
+          "content_sha256": "sha256:e49b1794b6b7ff576569ee7b38692d83581ee16c84f3ca30ac0e9a5bdf5e9357"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/rollback/content",
+          "content": "disable the affected provider route or return the documented stable unavailable outcome",
+          "content_sha256": "sha256:8bb1eb39ed934f55cdb2ba58e11f55d7a30e86bfdb2188f4d14654c7c0996fe3"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/escalation/content",
+          "content": "escalate on widespread lockout, security-policy bypass, or unknown provider state",
+          "content_sha256": "sha256:8ce680c6276e1686a633451a6ab0ae804ae6f09246ddc9eb6df5d4c9e018f957"
+        }
+      }
+    },
+    {
+      "action_id": "unknown-outcome-recovery",
+      "owner": "identity/reference",
+      "version": 1,
+      "components": {
+        "trigger": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/trigger/content",
+          "content": "a durable operation reports timeout, disconnect, or another possibly committed outcome",
+          "content_sha256": "sha256:6aa516308001cde4c4fc052592ae96d435dd7f80283b01c232a684cd384f15dd"
+        },
+        "procedure": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/procedure/content",
+          "content": "query the authoritative command journal using the original command identity and canonical fingerprint",
+          "content_sha256": "sha256:a6bf736ddbe0cb2075f5f966c9c8b9a0ded5f86fba77420e699c31c0dfb75ad5"
+        },
+        "verification": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/verification/content",
+          "content": "verify the exact recorded terminal result is returned and side effects are not reapplied",
+          "content_sha256": "sha256:ec7705d3863a8ad594a2dbbfdfc0d723f51f8bf74c342a94132e8627a42b21b1"
+        },
+        "rollback": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/rollback/content",
+          "content": "block a new attempt until reconciliation establishes a safe terminal outcome",
+          "content_sha256": "sha256:7f3e57b2912982f415d8f079d68740d1c556fa6a9995a5de8893b90fff22ad2b"
+        },
+        "escalation": {
+          "locator": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/escalation/content",
+          "content": "escalate when the journal is unavailable, mismatched, or cannot establish authority",
+          "content_sha256": "sha256:ae326190b46246a0df477f0c998dd12c61a6d1152c971f304722633c6f3bb59f"
+        }
+      }
+    }
+  ]
+}

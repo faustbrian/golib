@@ -17,16 +17,33 @@ encrypted bearer delivery, and provider-effect record semantics. Selecting any
 
 This specification is the sole transaction contract for identity-platform
 PostgreSQL adapters and one-time workflows. `identity` owns the storage-neutral
-command/result vocabulary. `identity/postgres` owns the PostgreSQL unit-of-work,
-command ledger, reservation/reconciliation worker, and public enlistment
-carrier. `outbox/postgres` and `capability/postgres` MUST support that carrier;
-standalone transactions are not conforming substitutes.
+command/result vocabulary. `identity/postgres` owns the one public PostgreSQL
+`Coordinator`, immutable contributor registry and plan vocabulary, command
+ledger, transaction lifecycle, and reservation/reconciliation worker.
+`outbox/postgres`, `capability/postgres`, and every other durable participant
+MUST implement that coordinator's open, versioned `Contributor` contract; a
+package-specific coordinator or independently committable participant
+transaction is not a conforming substitute.
 
-An adapter that needs the carrier MUST declare `identity/postgres` as a verified
-prerequisite. `capability/postgres` enlistment is a prerequisite for every
-one-time workflow. If either public API is absent, the dependant is blocked; a
-worker MUST NOT copy SQL, open a second transaction, or invent a split-commit
-saga.
+An adapter that participates in a coordinated command MUST declare
+`identity/postgres` as a verified prerequisite. `capability/postgres` must be a
+registered contributor before a composed PostgreSQL profile that executes a
+capability-bearing one-time workflow can be verified. These are adapter and
+composition execution prerequisites, not dependencies of the storage-neutral
+`identity`, `sso`, `organization`, `webauthn`, `passkey`, or other core modules.
+Each core module MUST define only the narrow, consumer-owned command and
+repository abstractions needed by its policy and MUST express them using its
+own storage-neutral types. No core public or private interface, constructor,
+method, command, result, or callback MAY mention `identitypostgres.Coordinator`,
+`Contributor`, `ContributorDescriptor`, `CommandPlan`, `Reservation`, `Work`,
+or any other concrete `identity/postgres` type. The corresponding PostgreSQL
+adapter MUST bridge those core abstractions to its registered `Contributor`
+and accept `Work` only in adapter-owned apply paths. A core module MUST NOT
+import `identity/postgres`, select this transaction protocol, or expose an
+adapter-shaped transaction seam. If a required
+adapter contract is absent, the composed profile is blocked; a worker MUST NOT
+copy SQL, open a second transaction, bypass `Coordinator`, or invent a
+split-commit saga.
 
 ## Command identity and fingerprint
 
@@ -95,10 +112,13 @@ complete bounded dependency graph, reject unknown/cross-request references,
 compute SCCs, and persist the graph plus its deterministic execution plan before
 the first mutation. The SCC condensation graph executes in topological order;
 ties use the lowest original operation index. Forward references therefore wait
-for the referenced predecessor SCC rather than being rejected. Child states are
-exactly `not-started`, `in-progress`, `succeeded`, `failed`,
-`blocked-unknown-dependency`, and `skipped-fail-on-errors`. An acyclic singleton
-enters `in-progress` only after every predecessor SCC conclusively succeeds. A
+for the referenced predecessor SCC rather than being rejected. Child `Status`
+values are exactly `admitted`, `running`, `succeeded`, `failed`,
+`dependency-blocked`, and `skipped`. A skipped child MUST store exactly
+`Status=skipped` and `SkipReason=fail-on-errors`; a compound status such as
+`skipped-fail-on-errors` is forbidden, and every non-skipped child MUST store
+`SkipReason=none`. An acyclic singleton
+enters `running` only after every predecessor SCC conclusively succeeds. A
 cyclic SCC MUST preallocate final resource IDs for all of its create members,
 validate and substitute every within-SCC reference against those IDs, and apply
 the complete bounded SCC in one transaction with deferred within-SCC referential
@@ -110,28 +130,30 @@ SCIM dependency failure, while an unknown predecessor durably blocks the
 dependent SCC until reconciliation proves its outcome. An omitted or zero `failOnErrors` disables
 the cutoff and executes every otherwise-admissible child. A positive value N
 triggers the cutoff only after the Nth child durably reaches `failed`; operation
-failures and dependency failures use that state, while `blocked-unknown-dependency`
-and `skipped-fail-on-errors` do not increment the count. At that checkpoint,
-every remaining `not-started` child atomically becomes
-`skipped-fail-on-errors`; skipped children are unprocessed and therefore have
+failures and dependency failures use that state, while `dependency-blocked`
+and `Status=skipped` do not increment the count. At that checkpoint,
+every remaining `Status=admitted` child atomically becomes
+`Status=skipped` with `SkipReason=fail-on-errors`; skipped children are
+unprocessed and therefore have
 no BulkResponse `Operations` member, `status`, `location`, `version`, or SCIM
 Error body;
 already completed or blocked children are not rewritten. The parent checkpoint
 persists the failed count and `cutoff_active=true`. A
-`blocked-unknown-dependency` child remains incomplete until reconciliation
+`dependency-blocked` child remains incomplete until reconciliation
 proves its dependency: a failed dependency transitions the child to durable
-`failed` with the SCIM dependency response, while a successful dependency
-transitions it to `skipped-fail-on-errors` when the cutoff is already active,
-again without a wire operation result.
-Such a child MUST NOT enter `in-progress` after the cutoff. The public parent
+`Status=failed` with the SCIM dependency response, while a successful dependency
+transitions it to `Status=skipped` with `SkipReason=fail-on-errors` when the
+cutoff is already active, again without a wire operation result.
+Such a child MUST NOT enter `running` after the cutoff. The public parent
 result remains `InProgress`/`Unknown` and cannot emit a terminal Bulk response
 while any child is blocked. There is no later child admission. Each acyclic
 singleton commits independently through the unit of work; each cyclic SCC
 commits through the bounded atomic SCC rule above. The terminal parent
 result is a deterministic replay, in original request order, of exactly the
-children that reached `succeeded` or `failed`. It MUST omit every
-`skipped-fail-on-errors` child as unprocessed, and it cannot be terminal while a
-child is `not-started`, `in-progress`, or `blocked-unknown-dependency`. The
+children that reached `Status=succeeded` or `Status=failed`. It MUST omit every
+`Status=skipped` child as unprocessed, and it cannot be terminal while a
+child has `Status=admitted`, `Status=running`, or
+`Status=dependency-blocked`. The
 durable parent checkpoint still retains every declared child and its final
 state. Savepoints MUST NOT be used to claim
 durability or survive a root rollback. Delete results and unresolved mappings
@@ -161,12 +183,38 @@ mutation is forbidden.
 
 ## Durable command ledger and reservation state machine
 
-The ledger key is `(tenant_id, purpose, command_id)`. It MUST store command and
-fingerprint versions, keyed fingerprint and key version, actor/target safe
-identifiers, authorization-policy version, state, owner generation, lease and
+The ledger primary key is `(tenant_id, purpose, command_id)`. PostgreSQL MUST
+also maintain an `identity_command_id_claims` row whose primary key is the
+globally unique `command_id`. A live claim stores the exact tenant, purpose,
+fingerprint, fingerprint-key version, and canonical safe collision-check
+fields; the scoped ledger row MUST reference that claim. In the same privileged
+primary-authority reservation transaction, the coordinator MUST first attempt
+to insert the claim with `ON CONFLICT (command_id) DO NOTHING`, then select that
+exact claim `FOR UPDATE` before it reads or inserts a scoped ledger row. The
+unique constraint serializes concurrent claimants. An existing claim with any
+tenant, purpose, fingerprint recomputed under the claim's stored key version,
+or canonical-safe-field mismatch MUST return `Conflict` without changing the
+claim or any ledger row. Rotation to a newer fingerprint key is not itself a
+conflict: an existing claim MUST select its retained key version before
+recomputing the submitted canonical command. An exact match MUST recover only
+the referenced scoped ledger row and apply the state machine below; it MUST NOT
+allocate a second row. A missing referenced ledger row is an integrity failure
+that MUST fail closed rather than recreate authority. After terminal result
+retention, cleanup MAY atomically replace the live claim with a binding-free
+retired tombstone, but the `command_id` primary-key row MUST have no time-based
+deletion and every later submission of a retired ID MUST return the stable
+non-enumerating `Conflict` result without a new mutation. Tenant authorization
+and all public lookup behavior remain
+scoped and non-enumerating despite this coordinator-only global collision
+check.
+
+The ledger MUST store command and fingerprint versions, keyed fingerprint and
+key version, actor/target safe identifiers, authorization-policy version,
+state, owner generation, lease and
 heartbeat timestamps, attempt number, authoritative creation/update time,
 redacted terminal classification, safe result, aggregate versions, lifecycle
-and outbox IDs, capability reservation ID, and external-effect IDs.
+and outbox IDs, audit event IDs/bindings, capability reservation ID, and
+external-effect IDs.
 
 `unknown` is a caller observation, never a stored state. Stored states are
 `pending`, `committed`, and `aborted`; `committed` MAY carry
@@ -178,12 +226,12 @@ autocommit transaction against the primary PostgreSQL authority:
 
 | Row ID | Existing row | Required result and transition |
 | --- | --- | --- |
-| `tx.command.first` | none | insert `pending`, generation 1, attempt 1, lease deadline, and heartbeat; return ownership |
+| `tx.command.first` | newly inserted global claim and no scoped ledger row | insert `pending`, generation 1, attempt 1, lease deadline, and heartbeat; return ownership |
 | `tx.command.committed` | matching `committed` | return the same redacted `Committed` result; perform no work |
 | `tx.command.aborted` | matching `aborted` | return the same redacted `NotCommitted` result; perform no work |
 | `tx.command.live` | matching live `pending` | return `InProgress` with a bounded retry-after; perform no work |
 | `tx.command.expired` | matching expired `pending` | atomically increment generation and attempt, replace lease owner/deadline, and return takeover ownership |
-| `tx.command.conflict` | any fingerprint/scope mismatch | return `Conflict`; never disclose whether another tenant or purpose owns the ID |
+| `tx.command.conflict` | any global-claim scope, fingerprint, or canonical-safe-field mismatch | return `Conflict`; never disclose whether another tenant or purpose owns the ID |
 
 An error, cancellation, or disconnect during `ReserveCommand` is ambiguous.
 The caller MUST query the same scoped command ID on the primary and MUST NOT
@@ -207,23 +255,75 @@ and fail closed, not guess rollback.
 
 ## PostgreSQL unit of work
 
-`identity/postgres` owns the sole transaction-enlistment vocabulary. Its
-canonical `Enlister` accepts a caller-owned `pgx.Tx` and returns a bounded
-`Carrier` for that exact transaction. The carrier registers the complete typed
-contributor set before the first write, exposes no commit or rollback method,
-and becomes unusable when the caller transaction closes. Nil, closed, foreign,
-duplicate, undeclared, or late enlistment fails before mutation. Every
-identity-platform PostgreSQL consumer MUST depend on
-`identitypostgres.Enlister`; `identity.PostgresCarrier`, constructor-supplied
-`identitypostgres.Carrier`, and package-local carrier facades are forbidden.
+`identity/postgres` owns the sole PostgreSQL transaction-coordination
+vocabulary. Its
+contributor contract MUST be implementable by independently releasable modules
+without private symbols or sealing; registration is closed at composition time,
+while implementations remain open. A
+composition root constructs one `identitypostgres.Coordinator` from the primary
+database and an immutable `ContributorRegistry`. Durable adapter constructors
+MUST NOT accept transaction ownership or a transaction-scoped execution
+handle. Instead, each adapter supplies one versioned
+`identitypostgres.Contributor` value to the composition root. The
+coordinator is the only object allowed to invoke contributor reserve, rebind,
+finalize, release, status, or recovery methods and the only object allowed to
+commit or roll back its transactions. `capability/postgres` MUST implement that
+same contributor contract and MUST NOT publish package-specific registration,
+a parallel coordinator, or an independently committable transaction API.
 
-1. **`tx.uow.enlist`:** `Carrier.Enlist(contributor)` MUST validate the
-   contributor's sealed `ContributorDescriptor` and register every
-   compile-time typed command, RiskEvidence, CaptchaEvidence, capability, OTP,
-   domain, session,
-   outbox, and effect contributor before the reservation transaction's first
-   write. Duplicate, undeclared, or late contributors fail.
-2. **`tx.uow.reserve`:** `ReserveCommand(ctx, scope, command, contributors)` MUST
+Before execution the caller supplies an immutable `CommandPlan` containing the
+command descriptor plus the complete ordered set of registered contributor IDs
+and typed participant inputs. When `SECURITY_EVENTS.md` requires an audit event,
+the plan MUST include the registered `audit/postgres` contributor and a typed
+`AuditPlan` that fixes the permitted event type and schema, deterministic event
+index, actor/effective-subject/target bindings, retention-policy version,
+required record count, and per-record and aggregate byte bounds. Each staged
+record retains the opaque random ID assigned by `audit.Builder.Build` under
+`SECURITY_EVENTS.md`; `AuditPlan` MUST NOT derive or replace that ID.
+`Coordinator.ReserveCommand` validates the plan
+against the registry before opening its transaction. On success,
+`Coordinator.Begin` returns a generation-bound `Work` handle; adapter apply
+methods MAY accept that handle as an operation argument, but constructors MUST
+NOT retain it. `Work` exposes only transaction-scoped query/execute, command
+scope, database time, bounded outbox/effect writers, and the typed bounded
+`StageAudit(index, audit.Record)` path. `StageAudit` MUST reject an undeclared
+index, event ID/type/schema or binding mismatch, a duplicate index, a record
+that has not passed the selected audit redaction/canonicalization policy, or a
+record/count/aggregate size beyond `AuditPlan`. It exposes no raw
+transaction, begin, commit, rollback, registration, or recovery authority and
+becomes unusable as soon as the coordinator closes the transaction. The sole
+public command lifecycle is `ReserveCommand`, `Begin`, adapter `Apply` through
+that `Work`, `Commit` or `Abort`, and `QueryCommand`/`RecoverCommand`; no phase
+may be skipped or independently implemented.
+
+The `audit/postgres` contributor MUST persist each staged canonical record and
+an internal binding keyed by `(tenant_id, command_id, event_index)` in the same
+coordinator transaction. That binding stores the opaque audit event ID and
+canonical-record fingerprint and has unique constraints on both its composite
+key and event ID. An exact same-command/same-index/same-fingerprint replay is
+idempotent; reuse of an index or event ID with different canonical bytes is an
+integrity conflict. The binding is contributor recovery evidence and is not a
+second audit schema or caller-visible event attribute.
+
+The "caller" in this section is the PostgreSQL composition adapter that maps a
+storage-neutral core command to a registered `CommandPlan`; it is not the core
+service or an HTTP handler. This mapping is exhaustive and compile-time typed.
+Core repositories remain narrow, consumer-owned, and storage-neutral. Their
+PostgreSQL implementations bridge those contracts to coordinated apply through
+`Work` entirely inside the adapter boundary. This bridge MUST NOT require the
+core to return, accept, embed, alias, or generic-parameterize any
+`identitypostgres` type; no core-to-adapter dependency or coordinator-facing
+core interface is permitted.
+
+1. **`tx.uow.enlist`:** Coordinator construction MUST validate every versioned
+   `ContributorDescriptor` and reject nil, duplicate-ID, conflicting-version,
+   foreign-registry, or unsupported contributor combinations. For each command,
+   `CommandPlan` MUST declare every compile-time typed command, RiskEvidence,
+   CaptchaEvidence, capability, OTP, domain, session, required audit, outbox,
+   and effect contributor before reservation. An unregistered, undeclared,
+   duplicate, or late participant fails before mutation; the registry is
+   immutable after the coordinator becomes ready.
+2. **`tx.uow.reserve`:** `Coordinator.ReserveCommand(ctx, scope, command, plan)` MUST
    open one short primary-authority transaction and atomically complete the
    command reservation plus every declared RiskEvidence, CaptchaEvidence,
    capability, and OTP
@@ -239,28 +339,39 @@ identity-platform PostgreSQL consumer MUST depend on
    terminal, different-command, different-fingerprint, or non-prior-generation
    participant rolls back the entire takeover; the stale generation retains no
    apply/finalize authority.
-3. **`tx.uow.begin`:** `Begin(ctx, reservation)` MUST open one bounded domain transaction, lock the
+3. **`tx.uow.begin`:** `Coordinator.Begin(ctx, reservation)` MUST open one bounded domain transaction, lock the
    reserved command row first, verify generation/lease/fingerprint, and use the
    primary database UTC clock.
-4. **`tx.uow.contributor`:** Contributors MUST receive only transaction-scoped query/execute, command
-   scope, database time, and outbox/effect writers. They MUST NOT commit,
-   rollback, change isolation, open nested/private transactions, perform network
-   I/O, or invoke unbounded or caller-controlled callbacks.
+4. **`tx.uow.contributor`:** Contributors and adapter apply methods MUST receive
+   only the generation-bound `Work` capabilities declared above. They MUST NOT
+   commit, rollback, change isolation, retain the handle, open nested/private
+   transactions, perform network I/O, or invoke unbounded or caller-controlled
+   callbacks. A contributor's reserve/finalize/release/recover hooks are invoked
+   only by the coordinator and receive the minimum transaction-scoped surface
+   for that phase.
 5. **`tx.uow.locks`:** Before the first mutation, contributors MUST publish all lock keys. The unit
    of work MUST reacquire locks in this order: command row; tenant; reserved
-   RiskEvidence, CaptchaEvidence, capability, then OTP rows; primary aggregate type/ID; secondary
-   aggregate type/ID; credential/session/grant ID; outbox sequence. Keys within
+   RiskEvidence, CaptchaEvidence, capability, then OTP rows; primary aggregate
+   type/ID; secondary aggregate type/ID; credential/session/grant ID; audit
+   event/sequence; outbox sequence. Keys within
    a class sort lexicographically.
-6. **`tx.uow.commit`:** `Commit(result)` MUST atomically write domain mutations, authority-version
-   bumps, lifecycle events, audit/outbox/effect records, enlisted RiskEvidence,
-   CaptchaEvidence, and capability finalization, and `pending` to `committed`, guarded by owner
-   generation, before the single PostgreSQL commit.
+6. **`tx.uow.commit`:** `Coordinator.Commit(work, result)` MUST atomically write
+   domain mutations, authority-version bumps, lifecycle events, required
+   `audit/postgres` records, outbox/effect records, enlisted RiskEvidence,
+   CaptchaEvidence, and capability finalization, and `pending` to `committed`,
+   guarded by owner generation, before the single PostgreSQL commit. Before
+   issuing commit, the coordinator MUST prove that every required `AuditPlan`
+   index was staged exactly once and MUST invoke the declared audit contributor
+   through the same generation-bound `Work`; missing, duplicate, invalid, or
+   failed audit staging aborts the domain mutation. No direct audit-store call,
+   post-commit audit insert, or outbox-only substitute satisfies a security
+   event that the plan marks as same-transaction required.
    Once commit begins, any error, cancellation, or disconnect returns `Unknown`,
    performs no local rollback, retry, or reveal-once material issuance, and
    enters primary-authority query/reconciliation. Only a proved successful
    commit returns `Committed`; a client context cancellation is not rollback
    proof.
-7. **`tx.uow.rollback`:** `Rollback(cause)` MUST roll back the domain transaction.
+7. **`tx.uow.rollback`:** `Coordinator.Abort(work, cause)` MUST roll back the domain transaction.
    A proven rollback for a classified retryable deadlock/serialization attempt
    MUST leave the command `pending`; a separate short autocommit transaction
    guarded by owner generation MUST increment attempt, renew the lease, and
@@ -268,16 +379,29 @@ identity-platform PostgreSQL consumer MUST depend on
    that bookkeeping is ambiguous, recovery takes ownership and no local retry
    occurs. A non-retryable failure or
    exhausted retry budget MUST finalize `pending` to `aborted` in a separate
-   short transaction guarded by generation. That same terminalization MUST
+   short transaction guarded by generation. When the command's `AuditPlan`
+   requires a denial or failure event, the caller MUST stage the matching
+   record before `Abort`; the coordinator MUST verify its required indices and
+   persist it through the audit contributor in that same guarded
+   terminalization transaction. That same terminalization MUST
    transition or reconcile every enlisted one-time RiskEvidence,
    CaptchaEvidence, capability, and OTP reservation to its legal non-commit
    terminal state; it MUST NOT leave a known-aborted command holding reusable or
    unresolved authority. Failure or ambiguity during
    rollback or terminalization MUST return `Unknown` and enter reconciliation.
-8. **`tx.uow.query`:** `QueryCommand(ctx, tenant, purpose, commandID, caller)` MUST use the primary
+8. **`tx.uow.query`:** `Coordinator.QueryCommand(ctx, tenant, purpose, commandID, caller)` MUST use the primary
    authority, authorize the caller for that scope, and return only the redacted
    safe result. Public not-found, wrong-scope, and unauthorized behavior MUST be
    constant-work and indistinguishable.
+9. **`tx.uow.recover`:** `Coordinator.RecoverCommand(ctx, tenant, purpose,
+   commandID)` MUST acquire recovery ownership on the primary, invoke status and
+   recovery only for the contributor IDs and typed inputs frozen in the stored
+   command plan, and decide `committed` or `aborted` only from authoritative
+   evidence. The coordinator owns generation takeover and the final ledger
+   transition; contributors own only their participant evidence and legal
+   participant transition. Missing, conflicting, or outcome-unknown contributor
+   evidence leaves the command `pending`. A contributor MUST NOT terminalize the
+   command ledger or recover another contributor.
 
 The default isolation level is `READ COMMITTED` with explicit row/advisory locks
 and uniqueness constraints. `SERIALIZABLE` MAY be selected only with a package
@@ -710,19 +834,26 @@ validation fails before lookup and no unresolved authority references the key.
    delivery protocol above.
 2. **`tx.capability.validate`: Validate:** perform read-only cryptographic and policy validation and return
    a bounded immutable `CapabilityProof`; this grants no authority.
-3. **`tx.capability.reserve`: Reserve:** through enlisted `capability/postgres`, atomically lock the
+3. **`tx.capability.reserve`: Reserve:** through the registered
+   `capability/postgres` contributor invoked by `Coordinator.ReserveCommand`, atomically lock the
    existing key `(tenant, purpose, keyed_capability_digest)`, bind command ID,
    proof fingerprint, generation, and target versions. The
    `tx.capability.reserve` transition is `issued` to `reserved`; reserve MUST NOT
    insert a missing capability record or reserve from any terminal state.
-4. **`tx.capability.apply`: Apply:** inside the domain transaction, recheck expiry using PostgreSQL UTC,
+4. **`tx.capability.apply`: Apply:** through the same contributor and
+   generation-bound `Work` inside the domain transaction, recheck expiry using PostgreSQL UTC,
    versions, status, audience, origin, and immutable risk evidence.
-5. **`tx.capability.finalize`: Finalize:** transition `reserved` to `finalized` in the same domain commit
+5. **`tx.capability.finalize`: Finalize:** the coordinator invokes the same
+   contributor to transition `reserved` to `finalized` in the same domain commit
    as the mutation, invalidations, lifecycle/outbox records, and command result.
-6. **`tx.capability.recover`: Recover:** `QueryCapability(ctx, tenant, purpose, digest, caller)` MUST use
-   the primary authority and the same authorization, redaction, constant-work,
-   and non-enumeration rules as `QueryCommand`. A finalized record returns the
-   same safe result and never runs a second transition.
+6. **`tx.capability.recover`: Recover:** only
+   `Coordinator.RecoverCommand` may invoke the contributor's capability
+   status/recovery hook. It MUST query the primary using the frozen tenant,
+   purpose, digest, command, fingerprint, and generation binding and apply the
+   same authorization, redaction, constant-work, and non-enumeration rules as
+   `QueryCommand`. The contributor returns authoritative participant evidence;
+   it does not decide or write the command result. A finalized record recovers
+   the same safe command result and never runs a second domain transition.
 
 Capability states are `issued`, `reserved`, `finalized`, `released`, `expired`,
 and `revoked`. Legal transitions are only `absent` to `issued`, `issued` to

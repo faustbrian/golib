@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 9,
@@ -142,16 +123,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-create; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-create; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-create for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-create for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -191,16 +172,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-delete; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-delete; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-delete for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-delete for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -240,16 +221,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-get; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-get; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-get for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-get for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -289,16 +270,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-list; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-list; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-list for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-list for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -338,16 +319,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-reconcile; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-reconcile; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-reconcile for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-reconcile for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -387,16 +368,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-rotate; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-rotate; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-rotate for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-rotate for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -436,16 +417,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-token-revoke; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-token-revoke; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-token-revoke for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-token-revoke for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -485,16 +466,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-update; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-update; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-update for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-update for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -534,16 +515,16 @@
                 "const": "success,failure,denial,outage,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.scim.connection-create, identity.scim.connection-delete, identity.scim.connection-get, identity.scim.connection-list, identity.scim.connection-reconcile, identity.scim.connection-rotate, identity.scim.connection-token-revoke, identity.scim.connection-update; exact inputs: tenant_id, base_url, bearer_token, mapping_version; initial state: tenant has no SCIM connection for base_url"
+                "const": "Operations: identity.scim.connection-create, identity.scim.connection-delete, identity.scim.connection-get, identity.scim.connection-list, identity.scim.connection-reconcile, identity.scim.connection-rotate, identity.scim.connection-token-revoke, identity.scim.connection-update; exact inputs: tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation; initial state: tenant has no SCIM connection for base_url"
               },
               "stimulus": {
-                "const": "Run identity.scim.connection-create then identity.scim.connection-delete then identity.scim.connection-get then identity.scim.connection-list then identity.scim.connection-reconcile then identity.scim.connection-rotate then identity.scim.connection-token-revoke then identity.scim.connection-update for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version and capture every required artifact field"
+                "const": "Run identity.scim.connection-create then identity.scim.connection-delete then identity.scim.connection-get then identity.scim.connection-list then identity.scim.connection-reconcile then identity.scim.connection-rotate then identity.scim.connection-token-revoke then identity.scim.connection-update for success, failure, denial, outage, cleanup cases using tenant_id, base_url, bearer_token, mapping_version, delete_failure_point, cascade_id, cascade_generation and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, token_digest, mapping_version, old_token_rejected, remaining_schedule_count"
+                "const": "Invariant: create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, outage=unavailable/unavailable, cleanup=pass/none; required artifact fields: connection_id, cascade_id, token_digest, mapping_version, cascade_generation, old_token_rejected, local_authority_denied, delete_required_consumer_count, delete_closed_consumer_count, delete_outcome_unknown_count, remaining_schedule_count, delete_cascade_digest, connection_cascade_results"
               },
               "result": {
                 "const": "pass"
@@ -799,10 +780,18 @@
         "execution",
         "scenario_cases",
         "connection_id",
+        "cascade_id",
         "token_digest",
         "mapping_version",
+        "cascade_generation",
         "old_token_rejected",
-        "remaining_schedule_count"
+        "local_authority_denied",
+        "delete_required_consumer_count",
+        "delete_closed_consumer_count",
+        "delete_outcome_unknown_count",
+        "remaining_schedule_count",
+        "delete_cascade_digest",
+        "connection_cascade_results"
       ],
       "properties": {
         "artifact_id": {
@@ -812,7 +801,7 @@
           "const": "scim-connection-lifecycle-report.invariant"
         },
         "invariant": {
-          "const": "create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials"
+          "const": "create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion"
         },
         "operation_ids": {
           "const": [
@@ -838,11 +827,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -853,6 +862,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -869,10 +879,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "scim-connection-lifecycle-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -882,15 +918,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -931,6 +1078,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -1114,7 +1265,7 @@
                 ]
               },
               "expected_invariant": {
-                "const": "create stores only token digest, rotate invalidates old token, revoke stops calls, and delete removes schedules and credentials"
+                "const": "create stores only token digest, rotate invalidates old token, and revoke stops calls; delete atomically denies local bearer/provisioning authority and closes only after every scim_connection_delete consumer reports applied, not-applicable, or an eligible limitation, while pending and outcome-unknown remain visible and provider ambiguity never claims deletion"
               },
               "observed_state_digest": {
                 "type": "string",
@@ -1133,7 +1284,7 @@
                 "pattern": "^sha256:[0-9a-f]{64}$"
               },
               "observed_value_count": {
-                "const": 5
+                "const": 12
               },
               "ordered_steps": {
                 "const": [
@@ -1184,13 +1335,24 @@
                 "additionalProperties": false,
                 "required": [
                   "connection_id",
+                  "cascade_id",
                   "token_digest",
                   "mapping_version",
+                  "cascade_generation",
                   "old_token_rejected",
-                  "remaining_schedule_count"
+                  "local_authority_denied",
+                  "delete_required_consumer_count",
+                  "delete_closed_consumer_count",
+                  "delete_outcome_unknown_count",
+                  "remaining_schedule_count",
+                  "delete_cascade_digest"
                 ],
                 "properties": {
                   "connection_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+                  },
+                  "cascade_id": {
                     "type": "string",
                     "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
@@ -1203,13 +1365,40 @@
                     "minimum": 1,
                     "maximum": 9223372036854775807
                   },
+                  "cascade_generation": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
                   "old_token_rejected": {
                     "type": "boolean"
+                  },
+                  "local_authority_denied": {
+                    "type": "boolean"
+                  },
+                  "delete_required_consumer_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "delete_closed_consumer_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "delete_outcome_unknown_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
                   },
                   "remaining_schedule_count": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 2147483647
+                  },
+                  "delete_cascade_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
                   }
                 }
               }
@@ -1241,11 +1430,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:685f17626f880aee4a1b8c5c85e497888fc6994cee3a2bee0f06428404fb85fc",
+              "artifact_contract_sha256": "sha256:4819829d84bce9ebdf1050a4703c4b8d1c496f61f2c87d602ed8b7fc2c1fdd7d",
               "expected_operation_set": [
                 "identity.scim.connection-create"
               ],
@@ -1265,11 +1457,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:cc7f772152d141922c556f96f9f919212303b573b5f7e4eedd9d35da82f9583f",
+              "artifact_contract_sha256": "sha256:8634f7bc9074ed8f5a4027f05c18dcd256f299dd5b1f64276adadf2853849473",
               "expected_operation_set": [
                 "identity.scim.connection-create"
               ],
@@ -1289,11 +1484,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:ae3e606bfc74fb667cc5732be221a59a11d88b62a51d32908f3b47e0ba210747",
+              "artifact_contract_sha256": "sha256:7036569f05cd0b835e778b131f5b67326625e2b58ee76c7e11875a14db877c79",
               "expected_operation_set": [
                 "identity.scim.connection-create"
               ],
@@ -1313,11 +1511,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:a308489c9948e38516d02eb30afde464d8667dd3da14bcc337514ec4ceeee475",
+              "artifact_contract_sha256": "sha256:abc8433ef3c0c128750094bf8b06853d693e99da15898ad6c0365f3fc8ae44e8",
               "expected_operation_set": [
                 "identity.scim.connection-create"
               ],
@@ -1337,11 +1538,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:5bdda50cd55d562586d222c037801efc77ab6856d35e49cc57573bd63613c5ad",
+              "artifact_contract_sha256": "sha256:710b33acb745729c2788b07b96ac05025f5d051d467f7345bdd324115c55242e",
               "expected_operation_set": [
                 "identity.scim.connection-create"
               ],
@@ -1361,11 +1565,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:1cbae6c885e83c041f783a05b66484597ac708ca5b8ba1a8f042a410b7b01714",
+              "artifact_contract_sha256": "sha256:7ceb65c5867d4fba84a8900919ab97464874bdab9e05d97879edb928fc164658",
               "expected_operation_set": [
                 "identity.scim.connection-delete"
               ],
@@ -1385,11 +1592,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:a1587fef808226f551c295d340d9fec19ea244f6d1980cbc673258734aa986da",
+              "artifact_contract_sha256": "sha256:1c9175d07f2fe982b31e1e4ae8676c7594a7368828f5c8bf4031ca3d7ee20fb2",
               "expected_operation_set": [
                 "identity.scim.connection-delete"
               ],
@@ -1409,11 +1619,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:1b5a6e5badfd6253e9687d9536e0db617f385a45e140fc2a678a1e82628316ea",
+              "artifact_contract_sha256": "sha256:0dc494953aa4d99d967b7e83ac67628f8fa65cc3e5a8046071cd31f2ccb9be67",
               "expected_operation_set": [
                 "identity.scim.connection-delete"
               ],
@@ -1433,11 +1646,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:90ce0ab1b930479315b85b007ba8115a11ad4c7fd85fb98b6fe4ce9263df6ec3",
+              "artifact_contract_sha256": "sha256:6905e45eeaa9929549ee19ee4fdcee71cac5473818ca27803371898fe54c5841",
               "expected_operation_set": [
                 "identity.scim.connection-delete"
               ],
@@ -1457,11 +1673,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:0b7d9ebe26c475c5f4ef0b73b1940c791d7e30e0fd5b153bed2acbf4f962dfe2",
+              "artifact_contract_sha256": "sha256:4d3182f99869f8b978a20b076b5253a033e409ec5d868365d7e27d90525257df",
               "expected_operation_set": [
                 "identity.scim.connection-delete"
               ],
@@ -1481,11 +1700,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:851332c5553a2f8ddbf26d1aa2ca1f52aab782f77abf4dca7d7309b1a438f565",
+              "artifact_contract_sha256": "sha256:d50d4141e94a4ccfd2049ae86ac570a724e803556e7f48359c434adc858c3331",
               "expected_operation_set": [
                 "identity.scim.connection-get"
               ],
@@ -1505,11 +1727,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:a6679bc55c747bb7ac3dc1d8d523eb08d58e0ef5032d6d3b006c4ba252ce932a",
+              "artifact_contract_sha256": "sha256:821afae953300f45b8f385f44b1a1decd3ade7d50afb3a29c4aaf2001ee57e5a",
               "expected_operation_set": [
                 "identity.scim.connection-get"
               ],
@@ -1529,11 +1754,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:e5793929e7b979ec5b5d9335ac2a84b11e3fb502c4c1be29857666859b0d5798",
+              "artifact_contract_sha256": "sha256:8b6bd303d403a79f21d56777ae393c389d159e1c63ab3fdcde0c82c53c0b2cfb",
               "expected_operation_set": [
                 "identity.scim.connection-get"
               ],
@@ -1553,11 +1781,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:711e54e9a00d0c4f8c4d972c63a61e4ffa87a644453d1fa206f224dea5df0545",
+              "artifact_contract_sha256": "sha256:48b7fd0cde71c35db82b8969f135c4bac74daa30f63cbeba5d9c9f0b5cff6844",
               "expected_operation_set": [
                 "identity.scim.connection-get"
               ],
@@ -1577,11 +1808,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:d664901e12d2439951a3a846a5837d63e62ac13bb063663c364f71392ee63dbf",
+              "artifact_contract_sha256": "sha256:5b5b77cb576d768cb539eddc1b1ab54a8324b1be4f01b4c3b6f265ef7a27432c",
               "expected_operation_set": [
                 "identity.scim.connection-get"
               ],
@@ -1601,11 +1835,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:9184aec344b9b8817c068582e3635a51a2ad766854838de6f5802f920f5c285c",
+              "artifact_contract_sha256": "sha256:1ee29078795199917bab0bddb5167a929a60b25b5311ecc99e8ddcf463eb257c",
               "expected_operation_set": [
                 "identity.scim.connection-list"
               ],
@@ -1625,11 +1862,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:f6d2f9e3004f5ef99c98c3d38e47972ac2921f7194ef4f42958ad520796aefb8",
+              "artifact_contract_sha256": "sha256:973a9f3f4ab346ed430055a1bb469821dd3e4ef2056dcc1537801acefc59c794",
               "expected_operation_set": [
                 "identity.scim.connection-list"
               ],
@@ -1649,11 +1889,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:4b266212a9fe53e3862a2b02ef0c8306bbb173102a1f938ca072b9fdc5323c36",
+              "artifact_contract_sha256": "sha256:a46f03036a202e2e17e9cc7f2af05dcdcf79d00cef656d73d4a6ba65003a5c8d",
               "expected_operation_set": [
                 "identity.scim.connection-list"
               ],
@@ -1673,11 +1916,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:b7ea5a1465d2820f867ffecf19ab1468141733fa8713ee26d51b0d2789f18629",
+              "artifact_contract_sha256": "sha256:31cfc5cdfd1bc309d927da0b29973f8a46afe5d63725f2c01c1df12d9f6f7410",
               "expected_operation_set": [
                 "identity.scim.connection-list"
               ],
@@ -1697,11 +1943,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:db813d98ec7b8e0cc41095a38263732e159641b981478c74b798c3c10caeb1de",
+              "artifact_contract_sha256": "sha256:3505cc1262410d41ce68888876fc41f3d7a51c504909f4fa0b4e6f91d16d537f",
               "expected_operation_set": [
                 "identity.scim.connection-list"
               ],
@@ -1721,11 +1970,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:f3a79cac71677de939bcccf30cf571591ba3fa6e3918802c1f3d1fc44cadde14",
+              "artifact_contract_sha256": "sha256:b9ee8d82cb5b7def944ceab94d79b8a30cb5ce798b333f112edc6b068b96ec22",
               "expected_operation_set": [
                 "identity.scim.connection-reconcile"
               ],
@@ -1745,11 +1997,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:7332d084e25d3859152040b9e9ae43b7839c61c8d2a3319152b856f8496a1a85",
+              "artifact_contract_sha256": "sha256:f7a55351dd29221ddd4da07479992d317715e93e1de27033582652a7de4c5640",
               "expected_operation_set": [
                 "identity.scim.connection-reconcile"
               ],
@@ -1769,11 +2024,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:cba75013bd988de516b6e5e35b62f1c3a816e455131cf51a5e9bc6551b1b1a07",
+              "artifact_contract_sha256": "sha256:98deb71629b574bf0136d3cb9bbb72726575c65f5b2f4b1d035b73b839a2e230",
               "expected_operation_set": [
                 "identity.scim.connection-reconcile"
               ],
@@ -1793,11 +2051,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:b9784cd261393eec295610036c542982427ff8f3f23bf7e07c592b78d5f387da",
+              "artifact_contract_sha256": "sha256:0aab690a236a0de964f6010973c8fc4b0171f34985a54a9fae452546ca69c3de",
               "expected_operation_set": [
                 "identity.scim.connection-reconcile"
               ],
@@ -1817,11 +2078,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:4eb3bafadaa0aab331819c2da92bb10b645dea2d1804daa43c3ad2b13f75c5b2",
+              "artifact_contract_sha256": "sha256:51a644104971041b54dbf71bfed5944276c3ee3ed13885c9a71712eadb6a9b02",
               "expected_operation_set": [
                 "identity.scim.connection-reconcile"
               ],
@@ -1841,11 +2105,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:512183ff49268e020c10cce4cb0616a6df5a4c64b83ace4172b573b14fc98c32",
+              "artifact_contract_sha256": "sha256:783f915f32b157f3d08c4596e6f6b28ce8b8fd4a46009ee2ec5fa0c22263e2be",
               "expected_operation_set": [
                 "identity.scim.connection-rotate"
               ],
@@ -1865,11 +2132,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:cb09a6001c7ef493df66b8f62d8db874f4885ba02270074e641b8be6d96003c8",
+              "artifact_contract_sha256": "sha256:4d7aff12a717eed07fbb66c3ed8fd34c519237896967884bab1d6045ccc7dc27",
               "expected_operation_set": [
                 "identity.scim.connection-rotate"
               ],
@@ -1889,11 +2159,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:f59b46de4a77fbd37475c98c8a9205677231762620f585c9f27370f6cf4f318a",
+              "artifact_contract_sha256": "sha256:d61de2895cdc4f0c3f05a74a1763072decc25a7fefa55e79df0adc853da3f4c7",
               "expected_operation_set": [
                 "identity.scim.connection-rotate"
               ],
@@ -1913,11 +2186,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:eccdf9eccb5d4e2d6e2beba6028eee1a70cfdaf4e4724f57eb422a3a447e6a82",
+              "artifact_contract_sha256": "sha256:79e6e58877120e99a7575f2a65c69f0052733df24abdd789be40ea7827af643c",
               "expected_operation_set": [
                 "identity.scim.connection-rotate"
               ],
@@ -1937,11 +2213,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:7d4dab100010649ff33bd202af9520a8d1ca53a5c169f6c1648e393c2b1b9255",
+              "artifact_contract_sha256": "sha256:610f4bd90a1dee054174aaf6c92962bf89408bbb1e75ad1e1e3f6584970ea71e",
               "expected_operation_set": [
                 "identity.scim.connection-rotate"
               ],
@@ -1961,11 +2240,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:35a30f71b5e6e25e4ac5494f52d0f7e2f0cffc3edb2c8b7c822f208658e563a4",
+              "artifact_contract_sha256": "sha256:1ad80a467ed7522bd7b553b8b4c5c58d8276b23c3157e8b5244fa76e22de0ecb",
               "expected_operation_set": [
                 "identity.scim.connection-token-revoke"
               ],
@@ -1985,11 +2267,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:a23c6bd2f071504c6796c7f36bcd9268fa39569ff0d5780687e9dbd380731747",
+              "artifact_contract_sha256": "sha256:6f280ed64e416a0b0d17b0f429d82cbea85b773024da7ead38a3146f117f674e",
               "expected_operation_set": [
                 "identity.scim.connection-token-revoke"
               ],
@@ -2009,11 +2294,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:0f426eb6337232489df37254b0797d7c1106ba5610891ad4e671c9293580dd73",
+              "artifact_contract_sha256": "sha256:96e803b38520dc5ea55c1891c318357baf9d74faa6f359664ca195b0f4f47121",
               "expected_operation_set": [
                 "identity.scim.connection-token-revoke"
               ],
@@ -2033,11 +2321,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:9a0d7ce590203af4a582c61a5e38a8311da5ef2e63add2dcaf4a729b17904ea0",
+              "artifact_contract_sha256": "sha256:0a58281e56f8dfddf255e76f1a57b565a3e5821b77e9eb715f0ec48f51a6d387",
               "expected_operation_set": [
                 "identity.scim.connection-token-revoke"
               ],
@@ -2057,11 +2348,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:8291dad016543841ade0719ae4b2b95188434c40826e65eb29d834ae2faafc26",
+              "artifact_contract_sha256": "sha256:6fd581cbcee4d1144028410e49cc5568d21bb495cf5071a2da175d0dcc5f3dcc",
               "expected_operation_set": [
                 "identity.scim.connection-token-revoke"
               ],
@@ -2081,11 +2375,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:2e044a1405454be2b85cc57ca7b73bf630b1caced071c6fc5ddba7fdd8d10774",
+              "artifact_contract_sha256": "sha256:34848e7f8981d9f6a1de40a9b7b2b85966e5131066c580592ae469ae3169845d",
               "expected_operation_set": [
                 "identity.scim.connection-update"
               ],
@@ -2105,11 +2402,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:809a96aeeab9ff85071b5719f395041c8fb25e29471d04114fd7ad271337bfea",
+              "artifact_contract_sha256": "sha256:394d373c630be9393a5c7be5f528715121a5ecba944b59ea8da82555b805bc71",
               "expected_operation_set": [
                 "identity.scim.connection-update"
               ],
@@ -2129,11 +2429,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:4bd37df1efb40ed665028946fbf8096df145f6ccea1efef06d6f6421f54ee754",
+              "artifact_contract_sha256": "sha256:f5805b716f78156baf3680d18db5119d8d563ccd764ac7735b978a6367de1dea",
               "expected_operation_set": [
                 "identity.scim.connection-update"
               ],
@@ -2153,11 +2456,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:17faf72040d0901d2053322da2b06b56cfa5a0484455acef39a70137a27fd5d9",
+              "artifact_contract_sha256": "sha256:2507f0226aa2d145150bdbdedec7712460fdc0bf93b5d3ef394c46abdcbba420",
               "expected_operation_set": [
                 "identity.scim.connection-update"
               ],
@@ -2177,11 +2483,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:7673428c879c0456596f3ed0aadd8ac400a309e3ec13d2327857792757d3ca28",
+              "artifact_contract_sha256": "sha256:8aaa98004cc5fa80af37d9656d5ef93eb7354d6048132346a60690c4c09d8253",
               "expected_operation_set": [
                 "identity.scim.connection-update"
               ],
@@ -2208,11 +2517,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:f22ef06c0512149c79c7091084ae12b4853e6f819f4e9a2e2bd376d969db75b3",
+              "artifact_contract_sha256": "sha256:4f98b1c5e202436f33ca53eafd49901402b99f5cf44ef049d510a8f141f709f7",
               "expected_operation_set": [
                 "identity.scim.connection-create",
                 "identity.scim.connection-delete",
@@ -2253,11 +2565,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:9139ee9442d880447168391c1c85cfb9fa7ecb0ea74a6824c9d98218f4976393",
+              "artifact_contract_sha256": "sha256:f301aa17226df146c5b69fa301a56cf9145f8bcc748651655cfa072274477279",
               "expected_operation_set": [
                 "identity.scim.connection-create",
                 "identity.scim.connection-delete",
@@ -2298,11 +2613,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:865f7ce9e34a6b7c727dc2a39cc9d7cc9960206f08cab9d4eabae57ecc0ed039",
+              "artifact_contract_sha256": "sha256:f6ca72c9c8161bfb4c88477922602671b0490648c9f20cbf4646b1a77764260a",
               "expected_operation_set": [
                 "identity.scim.connection-create",
                 "identity.scim.connection-delete",
@@ -2343,11 +2661,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:ff88974463b5115986c22da3b03840207de889d659cd1a4e86ae8a49b238e3f1",
+              "artifact_contract_sha256": "sha256:05616712dbbfc07d177adb52fcc9c000b7ac4b04158d6474c3614940a53ad0e9",
               "expected_operation_set": [
                 "identity.scim.connection-create",
                 "identity.scim.connection-delete",
@@ -2388,11 +2709,14 @@
                 "tenant_id",
                 "base_url",
                 "bearer_token",
-                "mapping_version"
+                "mapping_version",
+                "delete_failure_point",
+                "cascade_id",
+                "cascade_generation"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:b10a78fa3429ab512cf3d793915a290b3976762e6d22dd8d861bc411f2544609",
+              "artifact_contract_sha256": "sha256:0e7b1a3a097effded4ee16165f50d9e6c5d4c69c9e6239d291f8e494d7c69d95",
               "expected_operation_set": [
                 "identity.scim.connection-create",
                 "identity.scim.connection-delete",
@@ -2420,6 +2744,10 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
         },
+        "cascade_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+        },
         "token_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
@@ -2429,20 +2757,294 @@
           "minimum": 1,
           "maximum": 9223372036854775807
         },
+        "cascade_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
         "old_token_rejected": {
           "type": "boolean"
+        },
+        "local_authority_denied": {
+          "type": "boolean"
+        },
+        "delete_required_consumer_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "delete_closed_consumer_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "delete_outcome_unknown_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
         },
         "remaining_schedule_count": {
           "type": "integer",
           "minimum": 0,
           "maximum": 2147483647
+        },
+        "delete_cascade_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "connection_cascade_results": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "transition",
+                  "resource_kind",
+                  "cascade_started",
+                  "authority_version_advanced",
+                  "old_authority_rejected",
+                  "cleanup_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "transition": {
+                    "const": "disable"
+                  },
+                  "resource_kind": {
+                    "const": "connection"
+                  },
+                  "cascade_started": {
+                    "const": true
+                  },
+                  "authority_version_advanced": {
+                    "const": true
+                  },
+                  "old_authority_rejected": {
+                    "const": true
+                  },
+                  "cleanup_outcome": {
+                    "const": "committed-or-reconcilable"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "transition",
+                  "resource_kind",
+                  "cascade_started",
+                  "authority_version_advanced",
+                  "old_authority_rejected",
+                  "cleanup_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "transition": {
+                    "const": "credential-rotate"
+                  },
+                  "resource_kind": {
+                    "const": "connection"
+                  },
+                  "cascade_started": {
+                    "const": true
+                  },
+                  "authority_version_advanced": {
+                    "const": true
+                  },
+                  "old_authority_rejected": {
+                    "const": true
+                  },
+                  "cleanup_outcome": {
+                    "const": "committed-or-reconcilable"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "transition",
+                  "resource_kind",
+                  "cascade_started",
+                  "authority_version_advanced",
+                  "old_authority_rejected",
+                  "cleanup_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "transition": {
+                    "const": "delete"
+                  },
+                  "resource_kind": {
+                    "const": "connection"
+                  },
+                  "cascade_started": {
+                    "const": true
+                  },
+                  "authority_version_advanced": {
+                    "const": true
+                  },
+                  "old_authority_rejected": {
+                    "const": true
+                  },
+                  "cleanup_outcome": {
+                    "const": "committed-or-reconcilable"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "transition",
+                  "resource_kind",
+                  "cascade_started",
+                  "authority_version_advanced",
+                  "old_authority_rejected",
+                  "cleanup_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "transition": {
+                    "const": "disable"
+                  },
+                  "resource_kind": {
+                    "const": "connection"
+                  },
+                  "cascade_started": {
+                    "const": true
+                  },
+                  "authority_version_advanced": {
+                    "const": true
+                  },
+                  "old_authority_rejected": {
+                    "const": true
+                  },
+                  "cleanup_outcome": {
+                    "const": "committed-or-reconcilable"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "transition",
+                  "resource_kind",
+                  "cascade_started",
+                  "authority_version_advanced",
+                  "old_authority_rejected",
+                  "cleanup_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "transition": {
+                    "const": "credential-rotate"
+                  },
+                  "resource_kind": {
+                    "const": "connection"
+                  },
+                  "cascade_started": {
+                    "const": true
+                  },
+                  "authority_version_advanced": {
+                    "const": true
+                  },
+                  "old_authority_rejected": {
+                    "const": true
+                  },
+                  "cleanup_outcome": {
+                    "const": "committed-or-reconcilable"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "transition",
+                  "resource_kind",
+                  "cascade_started",
+                  "authority_version_advanced",
+                  "old_authority_rejected",
+                  "cleanup_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "transition": {
+                    "const": "delete"
+                  },
+                  "resource_kind": {
+                    "const": "connection"
+                  },
+                  "cascade_started": {
+                    "const": true
+                  },
+                  "authority_version_advanced": {
+                    "const": true
+                  },
+                  "old_authority_rejected": {
+                    "const": true
+                  },
+                  "cleanup_outcome": {
+                    "const": "committed-or-reconcilable"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
         {
           "kind": "positive",
           "fields": [
-            "mapping_version"
+            "mapping_version",
+            "cascade_generation",
+            "delete_required_consumer_count",
+            "delete_closed_consumer_count",
+            "delete_outcome_unknown_count"
           ]
         },
         {
@@ -2454,7 +3056,8 @@
         {
           "kind": "true",
           "fields": [
-            "old_token_rejected"
+            "old_token_rejected",
+            "local_authority_denied"
           ]
         }
       ]

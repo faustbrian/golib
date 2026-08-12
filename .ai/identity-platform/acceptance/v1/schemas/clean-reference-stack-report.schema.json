@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -87,24 +86,6 @@
     "input_root": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
-    },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
     },
     "observations": {
       "type": "array",
@@ -277,10 +258,10 @@
             ],
             "properties": {
               "observation_id": {
-                "const": "clean-reference-stack-report.identity.reference.migration-plan.behavior"
+                "const": "clean-reference-stack-report.identity.reference.migration-check.behavior"
               },
               "claim_id": {
-                "const": "identity.reference.migration-plan"
+                "const": "identity.reference.migration-check"
               },
               "contract_reference": {
                 "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
@@ -289,10 +270,10 @@
                 "const": "success,failure,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.reference.migration-plan; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+                "const": "Operations: identity.reference.migration-check; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
               },
               "stimulus": {
-                "const": "Run identity.reference.migration-plan for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+                "const": "Run identity.reference.migration-check for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
@@ -326,10 +307,10 @@
             ],
             "properties": {
               "observation_id": {
-                "const": "clean-reference-stack-report.identity.reference.migration-status.behavior"
+                "const": "clean-reference-stack-report.identity.reference.migration-plan.behavior"
               },
               "claim_id": {
-                "const": "identity.reference.migration-status"
+                "const": "identity.reference.migration-plan"
               },
               "contract_reference": {
                 "const": "identity-platform.acceptance.clean-reference-stack-report.v1"
@@ -338,10 +319,10 @@
                 "const": "success,failure,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.reference.migration-status; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+                "const": "Operations: identity.reference.migration-plan; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
               },
               "stimulus": {
-                "const": "Run identity.reference.migration-status for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+                "const": "Run identity.reference.migration-plan for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
@@ -485,10 +466,10 @@
                 "const": "success,failure,cleanup"
               },
               "preconditions": {
-                "const": "Operations: identity.reference.config-validate, identity.reference.diagnostics, identity.reference.migration-apply, identity.reference.migration-plan, identity.reference.migration-status, identity.reference.schema-generate, identity.reference.secret-generate; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
+                "const": "Operations: identity.reference.config-validate, identity.reference.diagnostics, identity.reference.migration-apply, identity.reference.migration-check, identity.reference.migration-plan, identity.reference.schema-generate, identity.reference.secret-generate; exact inputs: reference_config, migration_plan, service_deadline; initial state: empty PostgreSQL and Valkey instances are reachable"
               },
               "stimulus": {
-                "const": "Run identity.reference.config-validate then identity.reference.diagnostics then identity.reference.migration-apply then identity.reference.migration-plan then identity.reference.migration-status then identity.reference.schema-generate then identity.reference.secret-generate for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
+                "const": "Run identity.reference.config-validate then identity.reference.diagnostics then identity.reference.migration-apply then identity.reference.migration-check then identity.reference.migration-plan then identity.reference.schema-generate then identity.reference.secret-generate for success, failure, cleanup cases using reference_config, migration_plan, service_deadline and capture every required artifact field"
               },
               "expected_outcome": {
                 "const": "Invariant: configuration validates, migrations apply once, and health reports the initialized stack ready; stable outcomes: success=pass/none, failure=failed/internal, cleanup=pass/none; required artifact fields: migration_count, applied_migration_count, health_status, configuration_digest, schema_digest"
@@ -613,7 +594,7 @@
             ],
             "properties": {
               "observation_id": {
-                "const": "clean-reference-stack-report.identity.reference.migration-plan.behavior"
+                "const": "clean-reference-stack-report.identity.reference.migration-check.behavior"
               }
             }
           },
@@ -631,7 +612,7 @@
             ],
             "properties": {
               "observation_id": {
-                "const": "clean-reference-stack-report.identity.reference.migration-status.behavior"
+                "const": "clean-reference-stack-report.identity.reference.migration-plan.behavior"
               }
             }
           },
@@ -752,8 +733,8 @@
             "identity.reference.config-validate",
             "identity.reference.diagnostics",
             "identity.reference.migration-apply",
+            "identity.reference.migration-check",
             "identity.reference.migration-plan",
-            "identity.reference.migration-status",
             "identity.reference.schema-generate",
             "identity.reference.secret-generate"
           ]
@@ -770,11 +751,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -785,6 +786,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -801,10 +803,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "clean-reference-stack-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -814,15 +842,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -863,6 +1002,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -918,12 +1061,12 @@
                   "clean-reference-stack-report.identity.reference.migration-apply.behavior#success",
                   "clean-reference-stack-report.identity.reference.migration-apply.behavior#failure",
                   "clean-reference-stack-report.identity.reference.migration-apply.behavior#cleanup",
+                  "clean-reference-stack-report.identity.reference.migration-check.behavior#success",
+                  "clean-reference-stack-report.identity.reference.migration-check.behavior#failure",
+                  "clean-reference-stack-report.identity.reference.migration-check.behavior#cleanup",
                   "clean-reference-stack-report.identity.reference.migration-plan.behavior#success",
                   "clean-reference-stack-report.identity.reference.migration-plan.behavior#failure",
                   "clean-reference-stack-report.identity.reference.migration-plan.behavior#cleanup",
-                  "clean-reference-stack-report.identity.reference.migration-status.behavior#success",
-                  "clean-reference-stack-report.identity.reference.migration-status.behavior#failure",
-                  "clean-reference-stack-report.identity.reference.migration-status.behavior#cleanup",
                   "clean-reference-stack-report.identity.reference.schema-generate.behavior#success",
                   "clean-reference-stack-report.identity.reference.schema-generate.behavior#failure",
                   "clean-reference-stack-report.identity.reference.schema-generate.behavior#cleanup",
@@ -941,8 +1084,8 @@
                   "clean-reference-stack-report.identity.reference.config-validate.behavior",
                   "clean-reference-stack-report.identity.reference.diagnostics.behavior",
                   "clean-reference-stack-report.identity.reference.migration-apply.behavior",
+                  "clean-reference-stack-report.identity.reference.migration-check.behavior",
                   "clean-reference-stack-report.identity.reference.migration-plan.behavior",
-                  "clean-reference-stack-report.identity.reference.migration-status.behavior",
                   "clean-reference-stack-report.identity.reference.schema-generate.behavior",
                   "clean-reference-stack-report.identity.reference.secret-generate.behavior",
                   "clean-reference-stack-report.journey.developer-use.v1.behavior"
@@ -954,8 +1097,8 @@
                   "identity.reference.config-validate",
                   "identity.reference.diagnostics",
                   "identity.reference.migration-apply",
+                  "identity.reference.migration-check",
                   "identity.reference.migration-plan",
-                  "identity.reference.migration-status",
                   "identity.reference.schema-generate",
                   "identity.reference.secret-generate",
                   "journey.developer-use.v1"
@@ -982,8 +1125,8 @@
                     "identity.reference.config-validate",
                     "identity.reference.diagnostics",
                     "identity.reference.migration-apply",
+                    "identity.reference.migration-check",
                     "identity.reference.migration-plan",
-                    "identity.reference.migration-status",
                     "identity.reference.schema-generate",
                     "identity.reference.secret-generate"
                   ]
@@ -1055,8 +1198,8 @@
                     "identity.reference.config-validate",
                     "identity.reference.diagnostics",
                     "identity.reference.migration-apply",
+                    "identity.reference.migration-check",
                     "identity.reference.migration-plan",
-                    "identity.reference.migration-status",
                     "identity.reference.schema-generate",
                     "identity.reference.secret-generate"
                   ]
@@ -1072,8 +1215,8 @@
                     "identity.reference.config-validate",
                     "identity.reference.diagnostics",
                     "identity.reference.migration-apply",
+                    "identity.reference.migration-check",
                     "identity.reference.migration-plan",
-                    "identity.reference.migration-status",
                     "identity.reference.schema-generate",
                     "identity.reference.secret-generate"
                   ]
@@ -1341,6 +1484,75 @@
               ]
             },
             {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-check.behavior#success",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-check.behavior",
+              "claim_id": "identity.reference.migration-check",
+              "scenario": "success",
+              "operation_ids": [
+                "identity.reference.migration-check"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:deb5408552cdd50edaf253ee6407d4a4f32b403c394c4b7d42f1593e1d1d76e8",
+              "expected_operation_set": [
+                "identity.reference.migration-check"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-check"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-check.behavior#failure",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-check.behavior",
+              "claim_id": "identity.reference.migration-check",
+              "scenario": "failure",
+              "operation_ids": [
+                "identity.reference.migration-check"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "failed",
+              "stable_error": "internal",
+              "artifact_contract_sha256": "sha256:8ed82a273804f2ce5302dd1438d46ad86b6fc43fb78702a4d1cf7bdd6ff6cc7e",
+              "expected_operation_set": [
+                "identity.reference.migration-check"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-check"
+              ]
+            },
+            {
+              "case_id": "clean-reference-stack-report.identity.reference.migration-check.behavior#cleanup",
+              "observation_id": "clean-reference-stack-report.identity.reference.migration-check.behavior",
+              "claim_id": "identity.reference.migration-check",
+              "scenario": "cleanup",
+              "operation_ids": [
+                "identity.reference.migration-check"
+              ],
+              "input_fields": [
+                "reference_config",
+                "migration_plan",
+                "service_deadline"
+              ],
+              "status": "pass",
+              "stable_error": "none",
+              "artifact_contract_sha256": "sha256:6ad4f5e12d2abc879d8f91e6ac8b77e9a09ab7ffb4e3ca08d11ee0b69589ab19",
+              "expected_operation_set": [
+                "identity.reference.migration-check"
+              ],
+              "observed_operation_set": [
+                "identity.reference.migration-check"
+              ]
+            },
+            {
               "case_id": "clean-reference-stack-report.identity.reference.migration-plan.behavior#success",
               "observation_id": "clean-reference-stack-report.identity.reference.migration-plan.behavior",
               "claim_id": "identity.reference.migration-plan",
@@ -1407,75 +1619,6 @@
               ],
               "observed_operation_set": [
                 "identity.reference.migration-plan"
-              ]
-            },
-            {
-              "case_id": "clean-reference-stack-report.identity.reference.migration-status.behavior#success",
-              "observation_id": "clean-reference-stack-report.identity.reference.migration-status.behavior",
-              "claim_id": "identity.reference.migration-status",
-              "scenario": "success",
-              "operation_ids": [
-                "identity.reference.migration-status"
-              ],
-              "input_fields": [
-                "reference_config",
-                "migration_plan",
-                "service_deadline"
-              ],
-              "status": "pass",
-              "stable_error": "none",
-              "artifact_contract_sha256": "sha256:8128d9c8ea33964a23d8af84a0617e8a4e4060421cf62d5032f3e1867e53aa44",
-              "expected_operation_set": [
-                "identity.reference.migration-status"
-              ],
-              "observed_operation_set": [
-                "identity.reference.migration-status"
-              ]
-            },
-            {
-              "case_id": "clean-reference-stack-report.identity.reference.migration-status.behavior#failure",
-              "observation_id": "clean-reference-stack-report.identity.reference.migration-status.behavior",
-              "claim_id": "identity.reference.migration-status",
-              "scenario": "failure",
-              "operation_ids": [
-                "identity.reference.migration-status"
-              ],
-              "input_fields": [
-                "reference_config",
-                "migration_plan",
-                "service_deadline"
-              ],
-              "status": "failed",
-              "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:bc4910b2e29fb001333ef284fb66db711523c117d6105cbffad2625f3d5fe0c7",
-              "expected_operation_set": [
-                "identity.reference.migration-status"
-              ],
-              "observed_operation_set": [
-                "identity.reference.migration-status"
-              ]
-            },
-            {
-              "case_id": "clean-reference-stack-report.identity.reference.migration-status.behavior#cleanup",
-              "observation_id": "clean-reference-stack-report.identity.reference.migration-status.behavior",
-              "claim_id": "identity.reference.migration-status",
-              "scenario": "cleanup",
-              "operation_ids": [
-                "identity.reference.migration-status"
-              ],
-              "input_fields": [
-                "reference_config",
-                "migration_plan",
-                "service_deadline"
-              ],
-              "status": "pass",
-              "stable_error": "none",
-              "artifact_contract_sha256": "sha256:5db7d8b2d65e74bb8ad598a2ec8f9b76b217a10799df3ce90fdd00d751b46ac2",
-              "expected_operation_set": [
-                "identity.reference.migration-status"
-              ],
-              "observed_operation_set": [
-                "identity.reference.migration-status"
               ]
             },
             {
@@ -1625,8 +1768,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ],
@@ -1642,8 +1785,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ],
@@ -1651,8 +1794,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ]
@@ -1666,8 +1809,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ],
@@ -1683,8 +1826,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ],
@@ -1692,8 +1835,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ]
@@ -1707,8 +1850,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ],
@@ -1724,8 +1867,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ],
@@ -1733,8 +1876,8 @@
                 "identity.reference.config-validate",
                 "identity.reference.diagnostics",
                 "identity.reference.migration-apply",
+                "identity.reference.migration-check",
                 "identity.reference.migration-plan",
-                "identity.reference.migration-status",
                 "identity.reference.schema-generate",
                 "identity.reference.secret-generate"
               ]

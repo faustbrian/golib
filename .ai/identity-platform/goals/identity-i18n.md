@@ -81,6 +81,31 @@ scheduled upstream package is retroactively assigned a new public contract.
 Persistence, export and deletion MUST follow
 `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
+`identity/i18n` MUST be the exact personal-data contributor named in the
+version-1 privacy-export manifest and in identity anonymization/deletion
+cascades. For export, `PreferenceLifecycleContributor` MUST validate the full
+`PrivacyExportSnapshotV1` contributor binding and return a canonical
+`PrivacyExportFragmentV1` containing only the canonical stored locale,
+preference version, consent/notice version, and registered preference-update
+checkpoint, or the exact `not-applicable` fragment when no preference exists.
+It MUST NOT export trusted-cookie contents, raw `Accept-Language` input,
+catalog lookup history, rendered messages, or telemetry. The fragment contract
+version, projection ID, scope-key digest, requested/observed checkpoint,
+snapshot digest, classification, byte length, and content digest are mandatory;
+an export ID or timestamp alone is insufficient authority.
+
+For anonymization and deletion, the contributor MUST atomically remove the
+durable preference and persist its cascade ID, manifest version, generation,
+privacy epoch, command ID, prior preference version, and resulting tombstone or
+absence checkpoint. Results are exactly `applied`, `not-applicable`, `pending`,
+or `outcome-unknown`; only a generation-matching `applied` or proved
+`not-applicable` acknowledges closure. Duplicate commands return the persisted
+result, stale snapshot/version/generation is rejected, and an unknown commit is
+reconciled before retry. Session preference caches and HTTP cookies are
+non-authoritative projections: their invalidation/expiry is owned by their
+respective lifecycle consumers and cannot substitute for durable preference
+deletion or this acknowledgement.
+
 Escaping MUST occur exactly once in the owner of the final output context.
 Catalog interpolation MUST preserve typed parameters and reject templates that
 place values in undeclared contexts; this module MUST NOT claim that generic
@@ -93,7 +118,9 @@ safe parameters remain unchanged.
 
 Tests MUST cover canonicalization, weights, fallbacks, missing messages,
 placeholder mismatch, original-error preservation, custom locale detection,
-cookie/session precedence, deletion, escaping and concurrent catalog swaps.
+cookie/session precedence, exact-snapshot privacy export, absent-preference
+`not-applicable`, anonymization/deletion, duplicate delivery, stale generation,
+unknown-commit reconciliation, escaping and concurrent catalog swaps.
 Official BCP 47/HTTP language fixtures, parser/template fuzzing, exact
 coverage/mutation, race, lookup benchmarks, clean-consumer, API/docs with
 catalog authoring/update procedure, changelog and supply-chain gates MUST pass.

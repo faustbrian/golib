@@ -41,6 +41,15 @@ redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
+The adapter MUST publish an open versioned `identitypostgres.Contributor` for
+composition-root registration. Its `Apply` accepts the generation-bound
+`identitypostgres.Work` and a closed `session.SessionCommand`; it stages the
+session row, token transition, complete `session.AuthoritySnapshot`, required
+audit and outbox effects without beginning, committing, rolling back or
+retaining the transaction. The constructor MUST NOT accept a coordinator,
+Work, carrier, enlister or contributor registry. Core `identity/session`
+contracts remain storage-neutral and contain no concrete PostgreSQL type.
+
 ## Required behavior
 
 The implementation and tests MUST race refresh rotation; revoke a token family atomically; survive commit ambiguity; clean expiry without deleting active sessions; preserve tenant isolation and stable pagination. Every state transition MUST
@@ -51,12 +60,29 @@ involved.
 ## Package-specific acceptance checklist
 
 - The schema MUST support opaque sessions, families, active-account selection,
-  device metadata, last-login-method persistence, user/global version counters
-  and enrichment-cache metadata without storing raw bearer tokens.
+  device metadata, last-login-method persistence and one durable, immutable
+  authority snapshot without storing raw bearer tokens. That snapshot MUST
+  store the exact scope key and positive version for `global`, `tenant`, `user`,
+  `identifier`, `credential`, `session_family`, `session` and `authorization`.
+  It MUST additionally store the exact active organization ID and
+  `organization` version when an organization is selected, the `factor`
+  version when MFA or trusted-device authority is asserted, and the `passkey`
+  version when a passkey authenticated or stepped up the session. Optional
+  dimensions MUST use an explicit absent discriminator; zero, missing, unknown,
+  cross-tenant or dimension/scope-mismatched values are invalid and fail
+  closed. Enrichment metadata is a projection of this snapshot, never another
+  authority vector.
 - Token lookup MUST use a keyed or collision-resistant digest and constant-work
   comparison. Prefixes MAY aid operations but MUST NOT authenticate.
 - Rotation, family replay revocation, active-session switch, maximum-session
   enforcement and version increments MUST be atomic under concurrent requests.
+  Issue and refresh/rotation MUST persist the authority snapshot selected by
+  `LIFECYCLE_CASCADES.md` in the same transaction as the session row and token
+  transition. Selecting, switching or clearing an active organization MUST
+  compare current membership, organization and authorization authority,
+  atomically persist the exact selection/absence, and bump the session version;
+  it MUST NOT retain a prior organization's version or treat selection as an
+  authorization grant.
 - List/revoke-one/revoke-other/revoke-all MUST use stable bounded pagination and
   return outcomes that distinguish already absent from unknown commit without
   revealing another tenant's sessions.
@@ -67,11 +93,19 @@ involved.
 - Migration evidence MUST include live rows, old/new binary rotation,
   constraint rollout, version-counter backfill, query plans and restoration of
   a backup containing active and revoked sessions.
-- The adapter MUST consume authoritative user, credential, factor, tenant and
-  global invalidation versions/events according to
-  `.ai/identity-platform/LIFECYCLE_CASCADES.md`; local expiry or cache freshness
-  MUST NOT override a required revocation. Revocation audit outcomes MUST use
-  `.ai/identity-platform/SECURITY_EVENTS.md`.
+- At every lifecycle comparison point, the adapter MUST compare the stored
+  snapshot against every applicable current authority: `global`, `tenant`,
+  `user`, `identifier`, `credential`, `session_family`, `session`,
+  `authorization`, selected `organization`, asserted `factor`, and asserted
+  `passkey`, with their exact scope keys. Any missing authority, unsupported
+  dimension, version regression/overflow, scope mismatch or stale value MUST
+  deny use; refresh MUST NOT silently replace a stale snapshot and thereby
+  resurrect the session. Authoritative lifecycle events MAY accelerate local
+  invalidation or durable family revocation, but event delivery, local expiry
+  and cache freshness MUST NOT substitute for the required online comparisons
+  or override a required revocation. These rules and comparison cadence MUST
+  match `.ai/identity-platform/LIFECYCLE_CASCADES.md`; revocation audit outcomes
+  MUST use `.ai/identity-platform/SECURITY_EVENTS.md`.
 - Persistent (`rememberMe`) and non-persistent session records MUST be
   distinguishable without weakening server-side revocation. Non-persistent
   means no persistent browser credential, not an untracked or unversioned
@@ -80,7 +114,11 @@ involved.
 - Stored authentication time, method and assurance are evidence inputs only.
   This adapter MUST NOT manufacture a reauthentication proof; it MUST preserve
   the proof ID/version/freshness linkage defined by the session consumer and
-  reject stale version updates atomically.
+  reject stale version updates atomically. A passkey-authenticated or
+  passkey-step-up proof MUST preserve the credential ID plus bound `passkey`
+  version (and `factor` version when used as MFA); removing that linkage or
+  changing authentication-method metadata MUST NOT erase the applicable
+  lifecycle dimension.
 
 ## Security and abuse requirements
 

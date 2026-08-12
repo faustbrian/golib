@@ -14,7 +14,7 @@ shown here.
 - Public contracts: unit ID `contract:unit:identity:v1`; owned operation IDs: `contract:operation:identity.account.list:v1`, `contract:operation:identity.account.unlink:v1`, `contract:operation:identity.admin.user-ban:v1`, `contract:operation:identity.admin.user-delete:v1`, `contract:operation:identity.admin.user-unban:v1`, `contract:operation:identity.deletion.confirm:v1`, `contract:operation:identity.deletion.request:v1`, `contract:operation:identity.hooks.after:v1`, `contract:operation:identity.hooks.before:v1`, `contract:operation:identity.privacy-export.cancel:v1`, `contract:operation:identity.privacy-export.download:v1`, `contract:operation:identity.privacy-export.download-capability-issue:v1`, `contract:operation:identity.privacy-export.request:v1`, `contract:operation:identity.privacy-export.status:v1`, `contract:operation:identity.profile.get:v1`, `contract:operation:identity.profile.update:v1`, `contract:operation:identity.user.anonymize:v1`, `contract:operation:identity.user.create:v1`, `contract:operation:identity.user.get:v1`, `contract:operation:identity.user.list:v1`, `contract:operation:identity.user.restore:v1`, `contract:operation:identity.user.suspend:v1`, `contract:operation:identity.user.update-admin:v1`
 - Requires: `primitive/authorization-identity-contracts`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `authentication`, `authorization`, `capability`, `identifier`, `tenancy`, `audit`
-- Unlocks after verification: `identity/postgres`, `identity/session`, `identity/risk`, `identity/password`, `identity/username`, `identity/email`, `identity/magiclink`, `identity/otp`, `identity/phone`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/impersonation`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/i18n`, `identity/http`
+- Unlocks after verification: `identity/postgres`, `identity/session`, `identity/risk`, `identity/password`, `identity/username`, `identity/email`, `identity/magiclink`, `identity/otp`, `identity/phone`, `identity/anonymous`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/impersonation`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/i18n`, `identity/http`
 
 ## Start gate
 
@@ -40,6 +40,58 @@ The design MUST define User, Account, Identifier, CredentialRef, Verification, S
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+
+`SubjectID` MUST be a comparable defined string whose only valid representation
+is exactly 22 unpadded base64url characters encoding 128 non-zero bits. Its
+empty zero value is invalid. `NewSubjectID() (SubjectID, error)` MUST read
+exactly 16 bytes from `crypto/rand`, reject the all-zero value, and return no ID
+on entropy failure. `ParseSubjectID(string) (SubjectID, error)` MUST reject
+padding, alternate encodings, whitespace, wrong lengths, malformed base64url
+and the decoded all-zero value. `FormatSubjectID` MUST return only the
+canonical representation, and `CompareSubjectID` MUST return bytewise decoded
+ordering or `ErrInvalidSubjectID` for either invalid operand. The stable
+sentinels MUST be `ErrInvalidSubjectID` and `ErrSubjectIDEntropy`; neither may
+contain input or entropy-provider details.
+
+`PreAuthTransactionID` MUST use the same canonical 128-bit representation,
+zero, parsing, generation, formatting and bytewise ordering rules through
+`NewPreAuthTransactionID`, `ParsePreAuthTransactionID`,
+`FormatPreAuthTransactionID`, and `ComparePreAuthTransactionID`.
+Its stable errors MUST be `ErrInvalidPreAuthTransactionID` and
+`ErrPreAuthTransactionIDEntropy`. It is correlation and replay-binding data
+only: possession MUST NOT grant authentication, capability-consumption, or
+database-transaction authority, and callers MUST bind it to the exact tenant,
+attempt, operation and continuation before use.
+
+The module MUST NOT define `identity.Clock` or `identity.Transaction`.
+Caller-owned wall time MUST use the existing concurrency-safe `clock.Clock`
+interface; each operation MUST sample it once at the documented decision
+boundary, reject a zero returned `time.Time`, convert persisted timestamps to
+UTC without discarding process-local monotonic data before elapsed-time checks,
+and MUST NOT use wall-clock subtraction for process-local elapsed durations.
+The core MUST expose only consumer-owned storage-neutral command, repository,
+outcome and recovery contracts. It MUST NOT import or mention
+`identitypostgres.Work`, `Contributor`, `Coordinator`, `pgx.Tx`, a carrier or
+an enlister. PostgreSQL adapters map core commands to the concrete coordinator
+only at composition. No core or downstream module can construct, retain,
+commit, roll back or forge a database transaction.
+
+Identity deletion MUST own the opaque `DeletionAuthorizationProof`; the core
+MUST NOT expose `passkey.DeletionAuthorizationProof` or import passkey.
+`DeletionAuthorizationProofSpec` MUST bind the exact tenant, user, fresh
+session, literal `identity.deletion.request` operation, single-use challenge,
+canonical relying-party ID, positive credential generation, positive policy
+version, domain-separated non-zero verification digest, trusted issuance time,
+and exclusive expiry no more than five minutes later. The spec is not authority.
+Only a capability-bearing `DeletionAuthorizationProofIssuer` instance supplied
+by trusted identity composition may mint the opaque proof after independently
+validating all bindings; implementing the public issuer interface MUST NOT
+confer minting authority. Passkey or another phishing-resistant verifier MAY
+submit a verified spec to that issuer, but raw WebAuthn bytes and a reusable
+assertion MUST NOT cross the identity deletion boundary. Consumption MUST bind
+the proof to the same deletion command and burn it atomically; zero, expired,
+wrong-operation, wrong-generation, wrong-policy, wrong-session and replayed
+proofs fail closed.
 
 ## Required behavior
 
@@ -135,10 +187,11 @@ may persist it, but neither becomes a parallel semantic owner.
   The authority, acknowledgement and fail-closed boundaries MUST follow
   `.ai/identity-platform/LIFECYCLE_CASCADES.md`; their audit outcomes MUST use
   `.ai/identity-platform/SECURITY_EVENTS.md`.
-- `UnitOfWork` MUST expose the participant semantics required by
-  `.ai/identity-platform/TRANSACTION_CONTRACT.md`; it MUST NOT imply that an
-  arbitrary caller transaction, provider callback or post-commit hook is
-  atomically enrolled without the documented coordinator contract.
+- `UnitOfWork` MUST expose only storage-neutral execute and recovery semantics
+  for identity commands. It MUST NOT expose contributor registration, a work
+  handle, raw transaction, arbitrary caller transaction, provider callback or
+  post-commit hook. The PostgreSQL adapter alone bridges it to the documented
+  coordinator contract.
 
 ## Security and abuse requirements
 

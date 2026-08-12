@@ -35,9 +35,11 @@ consumer requires a new manifest version and an explicit migration decision.
 | `lifecycle.cascade.social_provider_disable` | `identity/oauth` | `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity`, `identity/session`, `identity/session/valkey`, `identity/delivery`, `audit` |
 | `lifecycle.cascade.social_provider_unlink` | `identity/oauth` | `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity`, `identity/session`, `identity/session/valkey`, `identity/delivery`, `audit` |
 | `lifecycle.cascade.enterprise_provider_disable` | `sso` | `sso`, `identity/session`, `identity/session/valkey`, `organization`, `scim/organization`, `authorization`, `authorization/valkey`, `audit` |
-| `lifecycle.cascade.domain_revoke` | `sso/domain-verification` | `sso`, `organization`, `scim/organization`, `identity/session`, `identity/session/valkey`, `authorization`, `authorization/valkey`, `audit` |
-| `lifecycle.cascade.identity_anonymize` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/email`, `identity/phone`, `identity/otp`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `oauth-server/oidc`, `identity/risk`, `identity/delivery`, `authorization`, `authorization/valkey`, `capability/postgres`, `audit` |
-| `lifecycle.cascade.identity_delete` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/email`, `identity/phone`, `identity/otp`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `oauth-server/device`, `oauth-server/oidc`, `identity/risk`, `identity/delivery`, `authorization`, `authorization/valkey`, `capability/postgres`, `audit` |
+| `lifecycle.cascade.enterprise_provider_delete` | `sso` | `sso`, `identity/session`, `identity/session/valkey`, `organization`, `scim`, `scim/organization`, `authorization`, `authorization/valkey`, `audit` |
+| `lifecycle.cascade.domain_revoke` | `organization` | `sso`, `organization`, `scim/organization`, `identity/session`, `identity/session/valkey`, `authorization`, `authorization/valkey`, `audit` |
+| `lifecycle.cascade.scim_connection_delete` | `scim` | `scim`, `scim/organization`, `sso`, `audit` |
+| `lifecycle.cascade.identity_anonymize` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/email`, `identity/phone`, `identity/otp`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `identity/i18n`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `oauth-server/oidc`, `identity/risk`, `identity/delivery`, `authorization`, `authorization/valkey`, `capability/postgres`, `audit` |
+| `lifecycle.cascade.identity_delete` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/email`, `identity/phone`, `identity/otp`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `identity/i18n`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `oauth-server/device`, `oauth-server/oidc`, `identity/risk`, `identity/delivery`, `authorization`, `authorization/valkey`, `capability/postgres`, `audit` |
 | `lifecycle.cascade.organization_archive` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `sso`, `scim`, `scim/organization`, `oauth-server`, `oauth-server/oidc`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
 | `lifecycle.cascade.organization_restore` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `sso`, `scim`, `scim/organization`, `oauth-server`, `oauth-server/oidc`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
 | `lifecycle.cascade.organization_delete` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `sso`, `scim`, `scim/organization`, `oauth-server`, `oauth-server/oidc`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
@@ -48,13 +50,21 @@ consumer requires a new manifest version and an explicit migration decision.
 The exact version-1 privacy-export contributor set is `identity`,
 `identity/session`, `identity/password`, `identity/email`, `identity/phone`, `identity/otp`, `identity/mfa`,
 `webauthn`, `passkey`, `identity/oauth`, `identity/apikey`,
-`identity/anonymous`, `identity/impersonation`, `organization`, `sso`, `scim`,
+`identity/anonymous`, `identity/impersonation`, `identity/i18n`, `organization`, `sso`, `scim`,
 `scim/organization`, `oauth-server`, `identity/risk`, `identity/delivery`,
 `authorization`, and `audit`. A request MUST snapshot each ID and its contract
 version. A contributor MAY return an explicit `not-applicable` fragment, but
 silence, timeout, an unknown contract version, or an unproved checkpoint MUST
 block publication. This set is independent of cascade generations and MUST NOT
 be inferred from whichever packages happen to return data.
+
+Each contributor MUST implement the exact `PrivacyExportSnapshotV1` binding and
+`PrivacyExportFragmentV1` result defined by `LIFECYCLE_CASCADES.md`. In
+particular, contributor ID/contract version, projection ID, scope-key digest,
+checkpoint schema/position, snapshot digest, classification, canonical byte
+length and content digest are mandatory rather than implementation-selected
+metadata. A contributor MUST NOT accept only an export ID or wall-clock cutoff,
+and the coordinator MUST NOT repair, reinterpret, or default a missing binding.
 
 ## Checkpoint persistence ownership
 
@@ -84,6 +94,22 @@ must be reconciled into the one `identity/risk` acknowledgement. The
 authority row nor an acknowledgement; `identity` owns the cascade and
 `identity/postgres` persists its global generation and owner checkpoint.
 
+`identity/i18n` is the sole semantic acknowledgement identity for stored locale
+preference export, anonymization, and deletion. Its injected
+`PreferenceLifecycleContributor` MUST persist the preference mutation and the
+manifest/snapshot/generation-bound checkpoint through the selected durable
+`PreferenceStore` in one authoritative transaction. In the reference
+composition that store is wired by `identity/reference`; neither the
+composition nor a session/cookie projection emits a duplicate semantic
+acknowledgement.
+
+Active-organization selection is durable session state owned solely by
+`identity/session/postgres`. `organization/postgres` supplies the coordinated
+membership/organization checks and version mutation, while
+`identity/session/valkey` may hold only the committed positive projection.
+Neither organization storage nor Valkey may persist a competing selection
+authority or acknowledge selection cleanup as a second semantic owner.
+
 The positive-cache projections `identity/session/valkey` and
 `identity/apikey/valkey` are intentionally separate required consumers in each
 applicable row because invalidation is their observable behavior; each persists
@@ -108,6 +134,17 @@ issued or reserved capability scoped to that tenant and subject, including
 privacy-export download capabilities, before the cascade can close. Its
 acknowledgement MUST bind the exact cascade ID, privacy epoch, and generation;
 a checkpoint from an older generation cannot close the destructive transition.
+
+`identity` is also the semantic consumer for privacy-export object erasure.
+`identity/postgres` persists the exact versioned
+`ApplyExportErasure`/`ExportErasureStatus`/`ReconcileExportErasure` journal and
+checkpoint described in `LIFECYCLE_CASCADES.md`; an object-store adapter is an
+effect collaborator, not a second lifecycle acknowledgement identity. An
+`erasure-outcome-unknown` result is incomplete and MUST remain attached to the
+owning anonymization/deletion cascade until authenticated provider evidence
+proves erasure or an eligible legal hold is recorded. Capability revocation or
+an object TTL establishes denial but does not by itself acknowledge object
+erasure.
 
 ## Consumer contract
 

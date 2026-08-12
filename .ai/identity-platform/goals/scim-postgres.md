@@ -119,13 +119,16 @@ involved.
   cyclic SCC member failure MUST roll back the complete SCC so no partial cycle
   is exposed. A positive
   `failOnErrors` value durably marks every
-  remaining not-started child skipped only after that many child results are
+  remaining admitted child with `Status=skipped` and
+  `SkipReason=fail-on-errors` only after that many child results are
   durably failed; zero or omission disables the cutoff. Unknown dependencies
   remain blocked for reconciliation, and savepoints MUST NOT be represented as
   durable checkpoints. The terminal wire response MUST replay only processed
-  `succeeded`/`failed` children in request order and omit every durable
-  `skipped-fail-on-errors` child as unprocessed; skipped children retain no wire
-  status/location/version/Error body.
+  `succeeded`/`failed` child in request order and omit every durable child with
+  `Status=skipped` as unprocessed. `fail-on-errors` MUST be stored separately as
+  that child's closed skip reason and MUST NOT be encoded as a status; every
+  non-skipped child MUST store `SkipReason=none`. Skipped children retain
+  no wire status/location/version/Error body.
 - The adapter MUST implement the HTTP/SCIM idempotency mapping and command
   ledger as one authority with each mutation. The mapping uniqueness scope is
   tenant, actor, method, canonical route, and keyed idempotency-key digest;

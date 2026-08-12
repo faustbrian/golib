@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -27,7 +26,7 @@
     },
     "result": {
       "const": {
-        "status": "pass",
+        "status": "blocked",
         "gate": "make check MODULES=pkg/identity/reference"
       }
     },
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 18,
@@ -148,10 +129,10 @@
                 "const": "Run identity.admin.mfa-recovery-issue for success, denial, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, user_id, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -197,10 +178,10 @@
                 "const": "Run identity.admin.mfa-reset for success, denial, failure, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, user_id, reset_generation, approval_id, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -246,10 +227,10 @@
                 "const": "Run identity.mfa.disable for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -295,10 +276,10 @@
                 "const": "Run identity.mfa.enable for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -344,10 +325,10 @@
                 "const": "Run identity.mfa.factor-update for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -393,10 +374,10 @@
                 "const": "Run identity.mfa.list for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -442,10 +423,10 @@
                 "const": "Run identity.mfa.otp-send for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -491,10 +472,10 @@
                 "const": "Run identity.mfa.otp-verify for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -540,10 +521,10 @@
                 "const": "Run identity.mfa.recovery-regenerate for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -589,10 +570,10 @@
                 "const": "Run identity.mfa.recovery-use for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -638,10 +619,10 @@
                 "const": "Run identity.mfa.security-key-assert-options for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -687,10 +668,10 @@
                 "const": "Run identity.mfa.security-key-assert-verify for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -736,10 +717,10 @@
                 "const": "Run identity.mfa.security-key-register-options for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -785,10 +766,10 @@
                 "const": "Run identity.mfa.security-key-register-verify for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -834,10 +815,10 @@
                 "const": "Run identity.mfa.totp-uri for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -883,10 +864,10 @@
                 "const": "Run identity.mfa.totp-verify for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -932,10 +913,10 @@
                 "const": "Run identity.mfa.trusted-device-revoke for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -981,10 +962,10 @@
                 "const": "Run identity.admin.mfa-recovery-issue then identity.admin.mfa-reset then identity.mfa.disable then identity.mfa.enable then identity.mfa.factor-update then identity.mfa.list then identity.mfa.otp-send then identity.mfa.otp-verify then identity.mfa.recovery-regenerate then identity.mfa.recovery-use then identity.mfa.security-key-assert-options then identity.mfa.security-key-assert-verify then identity.mfa.security-key-register-options then identity.mfa.security-key-register-verify then identity.mfa.totp-uri then identity.mfa.totp-verify then identity.mfa.trusted-device-revoke for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "actual_outcome": {
-                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest, factor_lifecycle_results, totp_profile_results, protocol_case_results"
               },
               "result": {
                 "const": "pass"
@@ -1408,7 +1389,10 @@
         "reset_generation",
         "independent_approval_count",
         "recovery_capability_id",
-        "audit_event_digest"
+        "audit_event_digest",
+        "factor_lifecycle_results",
+        "totp_profile_results",
+        "protocol_case_results"
       ],
       "properties": {
         "artifact_id": {
@@ -1453,11 +1437,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -1468,6 +1472,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -1484,10 +1489,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "mfa-recovery-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -1497,15 +1528,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -1546,6 +1688,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -5373,6 +5519,1197 @@
         "audit_event_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "factor_lifecycle_results": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "totp-enroll-verify"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.totp-uri",
+                      "identity.mfa.totp-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "totp-replay"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.totp-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "denied"
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "otp-send-verify"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.otp-send",
+                      "identity.mfa.otp-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "otp-expired"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.otp-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "denied"
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "security-key-register-assert"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "security-key-challenge-replay"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-assert-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "denied"
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "recovery-regenerate-use"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "recovery-code-replay"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-use"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "denied"
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "trusted-device-revoke"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.trusted-device-revoke"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "admin-reset-independent-approval"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset",
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "totp-enroll-verify"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.totp-uri",
+                      "identity.mfa.totp-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "totp-replay"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.totp-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "denied"
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "otp-send-verify"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.otp-send",
+                      "identity.mfa.otp-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "otp-expired"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.otp-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "denied"
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "security-key-register-assert"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "security-key-challenge-replay"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-assert-verify"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "denied"
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "recovery-regenerate-use"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "recovery-code-replay"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-use"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "denied"
+                  },
+                  "replay_rejected": {
+                    "const": true
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "trusted-device-revoke"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.trusted-device-revoke"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_ids",
+                  "observed_outcome",
+                  "replay_rejected",
+                  "secret_disclosure_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "admin-reset-independent-approval"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset",
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "observed_outcome": {
+                    "const": "passed"
+                  },
+                  "replay_rejected": {
+                    "const": false
+                  },
+                  "secret_disclosure_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "totp_profile_results": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "profile_id",
+                  "algorithm",
+                  "digits",
+                  "period_seconds",
+                  "rfc6238_vector_count",
+                  "rfc6238_vectors_passed",
+                  "independent_authenticator_app",
+                  "authenticator_app_version",
+                  "authenticator_app_binary_sha256",
+                  "rfc6238_source_sha256",
+                  "independent_app_result",
+                  "provisioning_uri_verified",
+                  "vector_transcript_sha256",
+                  "app_transcript_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "profile_id": {
+                    "const": "sha1-6-30"
+                  },
+                  "algorithm": {
+                    "const": "SHA-1"
+                  },
+                  "digits": {
+                    "const": 6
+                  },
+                  "period_seconds": {
+                    "const": 30
+                  },
+                  "rfc6238_vector_count": {
+                    "const": 6
+                  },
+                  "rfc6238_vectors_passed": {
+                    "const": true
+                  },
+                  "independent_authenticator_app": {
+                    "const": "google-authenticator-compatible-independent-verifier"
+                  },
+                  "authenticator_app_version": {
+                    "const": "google-authenticator-key-uri-8ba6e793"
+                  },
+                  "authenticator_app_binary_sha256": {
+                    "const": "sha256:07d2f6e3a2b0e5dd8e5690d87932c0bdc0888281495b2ccc52e96aaa2a6fbdcd"
+                  },
+                  "rfc6238_source_sha256": {
+                    "const": "sha256:82947ed9064450850547f55959dc79d2de775f0fa33f7b3f9622fb6c93e69a7a"
+                  },
+                  "independent_app_result": {
+                    "const": "passed"
+                  },
+                  "provisioning_uri_verified": {
+                    "const": true
+                  },
+                  "vector_transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "app_transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "profile_id",
+                  "algorithm",
+                  "digits",
+                  "period_seconds",
+                  "rfc6238_vector_count",
+                  "rfc6238_vectors_passed",
+                  "independent_authenticator_app",
+                  "authenticator_app_version",
+                  "authenticator_app_binary_sha256",
+                  "rfc6238_source_sha256",
+                  "independent_app_result",
+                  "provisioning_uri_verified",
+                  "vector_transcript_sha256",
+                  "app_transcript_sha256",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "profile_id": {
+                    "const": "sha1-6-30"
+                  },
+                  "algorithm": {
+                    "const": "SHA-1"
+                  },
+                  "digits": {
+                    "const": 6
+                  },
+                  "period_seconds": {
+                    "const": 30
+                  },
+                  "rfc6238_vector_count": {
+                    "const": 6
+                  },
+                  "rfc6238_vectors_passed": {
+                    "const": true
+                  },
+                  "independent_authenticator_app": {
+                    "const": "google-authenticator-compatible-independent-verifier"
+                  },
+                  "authenticator_app_version": {
+                    "const": "google-authenticator-key-uri-8ba6e793"
+                  },
+                  "authenticator_app_binary_sha256": {
+                    "const": "sha256:07d2f6e3a2b0e5dd8e5690d87932c0bdc0888281495b2ccc52e96aaa2a6fbdcd"
+                  },
+                  "rfc6238_source_sha256": {
+                    "const": "sha256:82947ed9064450850547f55959dc79d2de775f0fa33f7b3f9622fb6c93e69a7a"
+                  },
+                  "independent_app_result": {
+                    "const": "passed"
+                  },
+                  "provisioning_uri_verified": {
+                    "const": true
+                  },
+                  "vector_transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "app_transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "protocol_case_results": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report:mfa.hotp-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-4226:mfa.hotp-validation"
+                  },
+                  "requirement_id": {
+                    "const": "mfa.hotp-validation"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset",
+                      "identity.mfa.disable",
+                      "identity.mfa.enable",
+                      "identity.mfa.factor-update",
+                      "identity.mfa.list",
+                      "identity.mfa.otp-send",
+                      "identity.mfa.otp-verify",
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.totp-uri",
+                      "identity.mfa.totp-verify",
+                      "identity.mfa.trusted-device-revoke"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-4226"
+                  },
+                  "locator": {
+                    "const": "Sections 5.3, 6, 7.2, 7.3, and Appendix D test values"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report:mfa.totp-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6238:mfa.totp-validation"
+                  },
+                  "requirement_id": {
+                    "const": "mfa.totp-validation"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset",
+                      "identity.mfa.disable",
+                      "identity.mfa.enable",
+                      "identity.mfa.factor-update",
+                      "identity.mfa.list",
+                      "identity.mfa.otp-send",
+                      "identity.mfa.otp-verify",
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.totp-uri",
+                      "identity.mfa.totp-verify",
+                      "identity.mfa.trusted-device-revoke"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6238"
+                  },
+                  "locator": {
+                    "const": "Sections 4, 5.2, and 6 plus Appendix B SHA-1, SHA-256, and SHA-512 test vectors; only configured advertised profiles are selected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report:mfa.hotp-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-4226:mfa.hotp-validation"
+                  },
+                  "requirement_id": {
+                    "const": "mfa.hotp-validation"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset",
+                      "identity.mfa.disable",
+                      "identity.mfa.enable",
+                      "identity.mfa.factor-update",
+                      "identity.mfa.list",
+                      "identity.mfa.otp-send",
+                      "identity.mfa.otp-verify",
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.totp-uri",
+                      "identity.mfa.totp-verify",
+                      "identity.mfa.trusted-device-revoke"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-4226"
+                  },
+                  "locator": {
+                    "const": "Sections 5.3, 6, 7.2, 7.3, and Appendix D test values"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "suite_case_id",
+                  "requirement_id",
+                  "consumer_ids",
+                  "operation_ids",
+                  "outcome",
+                  "source_id",
+                  "locator",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report:mfa.totp-validation"
+                  },
+                  "suite_case_id": {
+                    "const": "rfc-6238:mfa.totp-validation"
+                  },
+                  "requirement_id": {
+                    "const": "mfa.totp-validation"
+                  },
+                  "consumer_ids": {
+                    "const": [
+                      "identity/mfa"
+                    ]
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset",
+                      "identity.mfa.disable",
+                      "identity.mfa.enable",
+                      "identity.mfa.factor-update",
+                      "identity.mfa.list",
+                      "identity.mfa.otp-send",
+                      "identity.mfa.otp-verify",
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.totp-uri",
+                      "identity.mfa.totp-verify",
+                      "identity.mfa.trusted-device-revoke"
+                    ]
+                  },
+                  "outcome": {
+                    "const": "passed"
+                  },
+                  "source_id": {
+                    "const": "rfc-6238"
+                  },
+                  "locator": {
+                    "const": "Sections 4, 5.2, and 6 plus Appendix B SHA-1, SHA-256, and SHA-512 test vectors; only configured advertised profiles are selected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [

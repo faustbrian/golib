@@ -67,14 +67,14 @@
       "kind": "tree",
       "object_id": "2cc84b5f623da92e892bd3288243a8c3ec4a5110",
       "disposition_section": "Official top-level packages",
-      "enumeration": "immediate_children"
+      "enumeration": "recursive_blobs"
     }
   ],
   "disposition_inventory": {
     "source": "UPSTREAM_DISPOSITIONS.md",
     "canonicalization": "document-order TSV of level-2 section plus every table data row's item, disposition, and rationale cells, with Markdown code ticks removed and LF terminator",
     "count": 169,
-    "sha256": "91fff3fb7cec2a5af966c7c976c272ddebff484838ffc30d30d4c5c050ef17f1"
+    "sha256": "3d57795962b8b38b2a5c77e89bd4a04711a259c5b598055fa575ba8ef485b877"
   },
   "capability_inventory": {
     "source": "BETTER_AUTH_PARITY.md",
@@ -219,6 +219,8 @@
       "identity.oauth-server.userinfo",
       "identity.oauth.callback",
       "identity.oauth.callback-form-post",
+      "identity.oauth.logout-complete",
+      "identity.oauth.logout-start",
       "identity.oauth.onetap-callback",
       "identity.oauth.onetap-start",
       "identity.oauth.popup-complete",
@@ -318,8 +320,8 @@
       "identity.reference.config-validate",
       "identity.reference.diagnostics",
       "identity.reference.migration-apply",
+      "identity.reference.migration-check",
       "identity.reference.migration-plan",
-      "identity.reference.migration-status",
       "identity.reference.schema-generate",
       "identity.reference.secret-generate",
       "identity.risk.captcha-verify",
@@ -414,8 +416,8 @@
       "identity.username.signup",
       "identity.username.update"
     ],
-    "count": 327,
-    "sha256": "370785905e5be9b697b2f567489954f64c5a0b66071cb06af727459ec46573f6"
+    "count": 329,
+    "sha256": "98d9342669953fd75e023f21efac9234a446a3ea951bd87ac2f560216879d931"
   },
   "owner_goal_closure": {
     "audit": "pkg/audit/.ai/GOAL.md",
@@ -470,8 +472,8 @@
   "item_closure": {
     "canonicalization": "rows in disposition order as upstream_item_id, source_locator, source_kind, source_object_id, disposition_row_id, classification, sorted capability IDs, and sorted exact operation IDs; then lexicographically sorted capability-to-operation, operation-to-owner, and owner-to-goal edges; tab-separated with LF terminator",
     "row_count": 169,
-    "capability_operation_edge_count": 891,
-    "sha256": "968df3ceffb99461256b3e485fd5a6c083a7ced5056a22dac3c220249888cc9d",
+    "capability_operation_edge_count": 893,
+    "sha256": "89f306a8db290735be8fbba9dbea6134d1a09b1beb222bed90166b5acb91f547",
     "rows": [
       {
         "upstream_item_id": "docs/content/docs/concepts/api.mdx",
@@ -644,6 +646,8 @@
           "identity.oauth-server.userinfo",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.onetap-callback",
           "identity.oauth.onetap-start",
           "identity.oauth.popup-complete",
@@ -737,8 +741,8 @@
           "identity.reference.config-validate",
           "identity.reference.diagnostics",
           "identity.reference.migration-apply",
+          "identity.reference.migration-check",
           "identity.reference.migration-plan",
-          "identity.reference.migration-status",
           "identity.reference.schema-generate",
           "identity.reference.secret-generate",
           "identity.risk.captcha-verify",
@@ -838,8 +842,8 @@
           "identity.reference.config-validate",
           "identity.reference.diagnostics",
           "identity.reference.migration-apply",
+          "identity.reference.migration-check",
           "identity.reference.migration-plan",
-          "identity.reference.migration-status",
           "identity.reference.schema-generate",
           "identity.reference.secret-generate"
         ],
@@ -903,8 +907,8 @@
         ],
         "operation_ids": [
           "identity.reference.migration-apply",
+          "identity.reference.migration-check",
           "identity.reference.migration-plan",
-          "identity.reference.migration-status",
           "identity.reference.schema-generate"
         ],
         "source_locator": "docs/content/docs/concepts/database.mdx",
@@ -971,6 +975,8 @@
           "identity.account.refresh-token",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -1381,6 +1387,8 @@
           "identity.account.refresh-token",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-apple-client-secret-sign",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
@@ -1406,6 +1414,8 @@
           "identity.account.refresh-token",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -1974,6 +1984,8 @@
           "identity.account.refresh-token",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -2656,6 +2668,8 @@
           "identity.account.refresh-token",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -3257,6 +3271,8 @@
           "identity.oauth-server.userinfo",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.onetap-callback",
           "identity.oauth.onetap-start",
           "identity.oauth.popup-complete",
@@ -3349,8 +3365,8 @@
           "identity.reference.config-validate",
           "identity.reference.diagnostics",
           "identity.reference.migration-apply",
+          "identity.reference.migration-check",
           "identity.reference.migration-plan",
-          "identity.reference.migration-status",
           "identity.reference.schema-generate",
           "identity.reference.secret-generate",
           "identity.risk.captcha-verify",
@@ -3450,8 +3466,8 @@
           "identity.reference.config-validate",
           "identity.reference.diagnostics",
           "identity.reference.migration-apply",
+          "identity.reference.migration-check",
           "identity.reference.migration-plan",
-          "identity.reference.migration-status",
           "identity.reference.schema-generate",
           "identity.reference.secret-generate"
         ],
@@ -3584,6 +3600,7 @@
         "classification": "in-scope",
         "capability_ids": [
           "OAuth 2.1 provider",
+          "OAuth protected resources",
           "OIDC provider"
         ],
         "operation_ids": [
@@ -3607,6 +3624,8 @@
           "identity.oauth-server.end-session",
           "identity.oauth-server.introspect",
           "identity.oauth-server.jwks",
+          "identity.oauth-server.protected-resource-metadata",
+          "identity.oauth-server.resource-verify",
           "identity.oauth-server.revoke",
           "identity.oauth-server.session-token",
           "identity.oauth-server.token",
@@ -3834,6 +3853,8 @@
           "identity.account.refresh-token",
           "identity.oauth.callback",
           "identity.oauth.callback-form-post",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-apple-client-secret-sign",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
@@ -3860,6 +3881,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -3885,6 +3908,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -3910,6 +3935,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -3935,6 +3962,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -3960,6 +3989,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -3985,6 +4016,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4010,6 +4043,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4035,6 +4070,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4060,6 +4097,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4085,6 +4124,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4110,6 +4151,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4135,6 +4178,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4160,6 +4205,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4185,6 +4232,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4210,6 +4259,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4235,6 +4286,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4260,6 +4313,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4285,6 +4340,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4310,6 +4367,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4335,6 +4394,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4360,6 +4421,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4385,6 +4448,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4410,6 +4475,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4435,6 +4502,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4460,6 +4529,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4485,6 +4556,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4510,6 +4583,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4535,6 +4610,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4560,6 +4637,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4585,6 +4664,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4610,6 +4691,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4635,6 +4718,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4660,6 +4745,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4685,6 +4772,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4710,6 +4799,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4735,6 +4826,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4760,6 +4853,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4785,6 +4880,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4810,6 +4907,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4835,6 +4934,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4860,6 +4961,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4885,6 +4988,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4910,6 +5015,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4935,6 +5042,8 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.logout-complete",
+          "identity.oauth.logout-start",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -5712,8 +5821,8 @@
         "identity.reference.config-validate",
         "identity.reference.diagnostics",
         "identity.reference.migration-apply",
+        "identity.reference.migration-check",
         "identity.reference.migration-plan",
-        "identity.reference.migration-status",
         "identity.reference.schema-generate",
         "identity.reference.secret-generate"
       ],
@@ -5838,8 +5947,8 @@
       ],
       "Schema and migration operations": [
         "identity.reference.migration-apply",
+        "identity.reference.migration-check",
         "identity.reference.migration-plan",
-        "identity.reference.migration-status",
         "identity.reference.schema-generate"
       ],
       "Self-service profile": [
@@ -5863,6 +5972,8 @@
         "identity.account.refresh-token",
         "identity.oauth.callback",
         "identity.oauth.callback-form-post",
+        "identity.oauth.logout-complete",
+        "identity.oauth.logout-start",
         "identity.oauth.provider-apple-client-secret-sign",
         "identity.oauth.provider-list",
         "identity.oauth.signin-start",
@@ -5947,7 +6058,7 @@
         "identity.deletion.request"
       ]
     },
-    "operation_owner_edge_count": 431
+    "operation_owner_edge_count": 434
   },
   "operation_contract_inventory": {
     "source": "API_OPERATIONS.md",
@@ -5964,9 +6075,10 @@
       "event_semantics",
       "http_method",
       "http_path",
-      "openapi_operation_id"
+      "openapi_operation_id",
+      "idempotency_transport"
     ],
-    "count": 327,
-    "sha256": "130a385a2b5f44f87cbe1efc0017779cd6db0c024d46610f5684da43216e6634"
+    "count": 329,
+    "sha256": "ebc7c5460e1c400a348d81daffb077f68db71eea89e2dc745e7747c5847b3b7b"
   }
 }

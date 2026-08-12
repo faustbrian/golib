@@ -134,10 +134,12 @@ flowchart TD
   capability --> oauth_onetap
   capability --> oauth_pg
   capability --> oauth_proxy
+  capability --> otp
   capability --> password
+  capability --> phone
   capability --> session
   capability --> organization
-  capability --> domain_verify
+  capability --> sso
   capability --> sso_saml
   capability --> sso_pg
   capability --> oauth_server_oidc
@@ -145,16 +147,9 @@ flowchart TD
   capability --> oauth_server
   capability --> webauthn
   capability --> capability_pg
-  capability_pg --> session
-  capability_pg --> magiclink
-  capability_pg --> otp
   capability_pg --> mfa_pg
   capability_pg --> oauth_pg
-  capability_pg --> organization
-  capability_pg --> sso
   capability_pg --> sso_pg
-  capability_pg --> oauth_server
-  capability_pg --> oauth_server_device
   capability_pg --> oauth_server_pg
   capability_pg --> reference
   identifier --> email
@@ -169,6 +164,7 @@ flowchart TD
   primitive_password --> phone
   primitive_password --> username
   identity --> identity_pg[identity/postgres]
+  identity_pg --> capability_pg
   identity --> session
   session --> session_pg[identity/session/postgres]
   identity_pg --> session_pg
@@ -220,6 +216,7 @@ flowchart TD
   session --> anonymous_pg
   otp --> mfa
   identity --> mfa
+  identity --> webauthn
   session --> mfa
   risk --> mfa
   webauthn --> mfa
@@ -271,9 +268,6 @@ flowchart TD
   sso --> sso_oauth2[sso/oauth2]
   sso --> sso_saml[sso/saml]
   sso --> sso_pg[sso/postgres]
-  sso_oidc --> sso_pg
-  sso_oauth2 --> sso_pg
-  sso_saml --> sso_pg
   organization_pg --> sso_pg
   identity_pg --> sso_pg
   sso --> domain_verify[sso/domain-verification]
@@ -361,8 +355,8 @@ flowchart TD
 ```
 
 The authoritative inventory currently resolves to 67 schedulable units and
-248 direct edges across nine zero-based waves. Wave populations are
-`0:6, 1:3, 2:4, 3:15, 4:20, 5:14, 6:3, 7:1, 8:1`. The 61-unit canonical
+242 direct edges across nine zero-based waves. Wave populations are
+`0:6, 1:1, 2:5, 3:16, 4:20, 5:15, 6:2, 7:1, 8:1`. The 61-unit canonical
 identity-platform scope is unchanged; the sixth prerequisite unit is the
 ordered PostgreSQL capability extension.
 

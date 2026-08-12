@@ -133,7 +133,8 @@ involved.
   purpose-bound OTP challenge, reset capability, outbox/audit, and command
   result. Completion finalize MUST commit with the existing purpose-bound OTP,
   reset capability, password mutation, session invalidation, outbox/audit, and
-  command result. This adapter MUST use the shared transaction carrier and MUST
+  command result. This adapter MUST use the sole shared coordinator and its
+  open versioned contributor contract and MUST
   NOT open a private transaction for those steps.
 - Unknown completion MUST retain `reserved` and reconcile the owning command
   before finalizing or releasing; expiry, lease loss, cleanup, or another

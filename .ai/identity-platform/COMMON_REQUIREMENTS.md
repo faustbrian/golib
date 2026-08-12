@@ -6,7 +6,9 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
 shown here.
 
-These requirements apply to every goal in `goals/`.
+These requirements apply to every manifest-registered goal at its current
+planning or canonical path. Moving a goal does not end these requirements or
+transfer its custody to a package worker.
 
 The following coordinator specifications are binding. Applicability MUST NOT be
 left to worker discretion. `SHARED_CONTRACT_APPLICABILITY.json` is the sole
@@ -55,8 +57,14 @@ undocumented application glue.
    `in-progress`, recorded that worker, and verified every unit in its
    `Requires` field.
 2. Only the coordinator MAY change inventory status, ownership, dependencies,
-   planning-goal locations, or shared repository manifests. Workers MUST NOT
-   edit coordinator-owned files.
+   goal locations, or shared repository manifests. The coordinator retains
+   write custody of a moved goal beneath a module root; workers MUST NOT edit
+   coordinator-owned files. Coordinator custody does not authorize semantic
+   changes: the user-authorization boundary in `PROGRAM.md` applies.
+   Authorization is valid only with the committed exact-byte user-message capture
+   pinned by `PREFLIGHT_EVIDENCE.md`; a coordinator-authored row or digest is
+   insufficient. Canonical moved goals remain part of the revision-aware
+   semantic-source closure.
 3. The agent MUST implement only the named canonical module. A new dependency,
    shared contract, or ownership transfer MUST be approved and recorded in the
    graph before implementation continues.
@@ -66,8 +74,10 @@ undocumented application glue.
 5. `Unlocks` is informative. A dependant remains blocked until all of its own
    `Requires` units are `verified`.
 6. After integrating a scaffolded module, the coordinator MUST move its
-   planning goal to the unit's declared canonical goal path and update
-   the inventory link. The move MUST NOT weaken or silently rewrite the goal.
+   planning goal byte-for-byte to the unit's declared canonical goal path and
+   update the inventory link. The moved path remains coordinator-owned and
+   excluded from worker scope. The move MUST NOT weaken or silently rewrite the
+   goal.
 7. Every worker MUST satisfy the parity rows and end-state requirements that
    name its unit. A package goal is incomplete when those documents assign an
    unproved behavior to it.
@@ -92,6 +102,18 @@ undocumented application glue.
 - Public contracts for operations that own or perform those concerns MUST expose
   ownership, cancellation, resource limits, concurrency, retry and timeout
   policy, stable errors, and lifecycle.
+- Every public type whose zero value is invalid MUST be constructible in a
+  clean external consumer. The contract MUST identify exactly one of: a public
+  constructor or parser with bounded validation and stable errors; an
+  authority-issued result method that returns the value before any caller must
+  supply it; or an exact existing external type with that construction
+  contract. An unexported-field value MUST NOT appear in a caller-created
+  request, configuration, contributor input, persistence reconstruction, or
+  interface argument unless a reachable public constructor/parser produces it.
+  Goal review and clean-consumer evidence MUST compile one valid construction
+  path and every invalid-zero rejection path for each such type. Placeholder
+  prose that a constructor, transition, or query may return a value is not an
+  API contract and MUST block scheduling until the exact symbol is named.
 - Core modules MUST define consumer-oriented interfaces. Persistence,
   protocols, transports, and providers MUST remain in named adapters.
 - Cross-module dependencies MUST remain acyclic. Permanent `replace`
@@ -178,5 +200,14 @@ Each goal MUST produce:
 
 A unit may move to `implemented-unverified` when implementation and docs are
 complete. It may move to `verified` only after every goal requirement and
-release gate passes against final inputs. Gaps, warning substitutions,
+per-unit verification gate passes against its current exhaustive inputs. Gaps,
+warning substitutions,
 unavailable provider proof, or stale fingerprints block `verified`.
+
+Worker-local evidence cannot set status. A per-unit verification gate is the
+coordinator-run exhaustive gate used to verify one integrated unit at its
+current integration revision. A program-final-input gate is the later all-unit,
+all-acceptance proof at one frozen clean integration revision. A current
+per-unit pass may unlock dependants but MUST NOT be reported as the latter;
+every root changed before final acceptance MUST be revalidated or validly
+reused under the complete-input fingerprint rules.

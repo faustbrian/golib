@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -27,7 +26,7 @@
     },
     "result": {
       "const": {
-        "status": "pass",
+        "status": "blocked",
         "gate": "make check MODULES=pkg/identity/reference"
       }
     },
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -142,16 +123,16 @@
                 "const": "success,failure"
               },
               "preconditions": {
-                "const": "Operations: identity.reference.diagnostics; exact inputs: runbook_catalog, operation_catalog, failure_class_catalog; initial state: operability requirements enumerate startup, shutdown, backup, restore, rotation, outage, and recovery actions"
+                "const": "Operations: identity.reference.diagnostics; exact inputs: runbook_catalog, operation_catalog, failure_class_catalog; initial state: the exact closed operational action catalog enumerates startup, shutdown, backup, restore, rotation, outage, and recovery actions"
               },
               "stimulus": {
                 "const": "Run identity.reference.diagnostics for success, failure cases using runbook_catalog, operation_catalog, failure_class_catalog and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: runbook_count, covered_action_count, missing_action_count, index_digest, owner_digest"
+                "const": "Invariant: every exact action row has one versioned owner and independently resolvable trigger, procedure, verification, rollback, and escalation references; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: runbook_count, covered_action_count, missing_action_count, index_digest, owner_digest, action_results"
               },
               "actual_outcome": {
-                "const": "Invariant: every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: runbook_count, covered_action_count, missing_action_count, index_digest, owner_digest"
+                "const": "Invariant: every exact action row has one versioned owner and independently resolvable trigger, procedure, verification, rollback, and escalation references; stable outcomes: success=pass/none, failure=failed/internal; required artifact fields: runbook_count, covered_action_count, missing_action_count, index_digest, owner_digest, action_results"
               },
               "result": {
                 "const": "pass"
@@ -266,7 +247,8 @@
         "covered_action_count",
         "missing_action_count",
         "index_digest",
-        "owner_digest"
+        "owner_digest",
+        "action_results"
       ],
       "properties": {
         "artifact_id": {
@@ -276,7 +258,7 @@
           "const": "operations-runbook-index.invariant"
         },
         "invariant": {
-          "const": "every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference"
+          "const": "every exact action row has one versioned owner and independently resolvable trigger, procedure, verification, rollback, and escalation references"
         },
         "operation_ids": {
           "const": [
@@ -295,11 +277,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -310,6 +312,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -326,10 +329,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "operations-runbook-index"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -339,15 +368,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -388,6 +528,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -481,7 +625,7 @@
                 }
               },
               "initial_state": {
-                "const": "operability requirements enumerate startup, shutdown, backup, restore, rotation, outage, and recovery actions"
+                "const": "the exact closed operational action catalog enumerates startup, shutdown, backup, restore, rotation, outage, and recovery actions"
               },
               "status": {
                 "type": "string",
@@ -498,7 +642,7 @@
                 ]
               },
               "expected_invariant": {
-                "const": "every required action has one versioned owner, trigger, procedure, verification, rollback, and escalation reference"
+                "const": "every exact action row has one versioned owner and independently resolvable trigger, procedure, verification, rollback, and escalation references"
               },
               "observed_state_digest": {
                 "type": "string",
@@ -616,7 +760,7 @@
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:9a1acce630d70dd3f6e4c9a1de67a1b4d36bb1279c54885a20dbbb0ac26600c5",
+              "artifact_contract_sha256": "sha256:795021fa5d4201a3641a3c15c6f5c9e922bbec608462098ff2c09de30336b7f9",
               "expected_operation_set": [
                 "identity.reference.diagnostics"
               ],
@@ -639,7 +783,7 @@
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:7bc02b846000c1bbef9cf066e7c1a09fcf3cfde78e74cef71c51b6e7cd87acdc",
+              "artifact_contract_sha256": "sha256:7e0618896bc64fa4f77a63ddc122b8b887fa80624419b447a697ca2c3a6f4166",
               "expected_operation_set": [
                 "identity.reference.diagnostics"
               ],
@@ -671,6 +815,1768 @@
         "owner_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "action_results": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "startup"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:ca90cb427a263aaad4f5e7eabf266b92a4f17c863bdbc1d1f04873a1d272cdc6"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:fce7cea1845b3aabd65c96e91a542946b2768bba36f30ddccd9733ef4de69c86"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:a0895d59cdb3846f570701d8d7502df66bab6f0ed6d0d9b0a69c28aae2e2a1d2"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:d91cdf46d471908e6cd86dc9b8b58fcd4d7c49fe866579abdc101d1500ba7972"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:d8b08e8e5073c623a2452c0b795982ac467bd913464e1dcdcb3835ab09db3cef"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "shutdown"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:da2208ebace6fc12b5ebc425c7a971f027c1f453c247ae71e851266dd59fe66e"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:e700b3803d877f5f560478550daa1005a8209d2281112f19446f319d1cfa972d"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:2a7b89dbd8eae3abe599a37b27c3fad6ed5b2f0149b70d791c7f3bcf448226c5"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:4c4299f6cb013df2f0e263d08ad1d4076c16675935e9a878f446689a31c94e94"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:9546cefe84e27bdf5868211f140cf6e044df0555a58ef567ae16faaab6fbea29"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "backup"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:734c6a6892b96fb3286ed008b1814b48686d2aa02e12606ddf13cb7497e558dc"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:4be0b25a2a23e92c34ff107130154a6ef8e68c88ee66e4d54c01a91c554b397a"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:5c65d45c6a7f9f7d8d8f97ee37f1dd71f6cab9365502108564dd7693e77713a2"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:791ffc64de241210b65ad721e0c35553a4866c5728a81ff2aa9177d1031b1545"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:52ac65359378982d84b5af197f5bf1774d0006c1431f6a9267b4795d664d1449"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "restore"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:938e91a62e099f313d06e7a42657ff330b01c5797b9fe5ef326726e0469af46c"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:fac7fee6df3d8c7bad34c202108e86eb83b6b02aebe3d1dcea3c54ee324ed3eb"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:5e202388582ae765bc58e8766f4ed15aa1e0a02d47f54f74626d838c1c066d4a"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:d06c3ca15f33881689d484f05610696d1beb907c8a5ddba08ad87bf201688de6"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:5c8ea596a85089eab8985d32d38457ae6cfbd21e1e7cb0bdf63d4699c7f54e25"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "credential-rotation"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:79d42dd0360899065094f91e72f2c98eadbab310c416848debe66baea9353fe7"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:907f3e17d3df3f33d98f099dd1f879bb98f3764da82d3da5598d96da87617d06"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:f89f496f9446a8c990ad67688f02a096f21230f06da7100d62efc0543c7c8ef6"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:76b57ff1d1ae0d06c7cca709ed60972d844cb4d616b98e27beaaee6a4e81e7ee"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:e23afc7dbbe27abf31af267d602d5969cfd4bc3700c206de23c142f68e3bdff5"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "signing-key-rotation"
+                  },
+                  "owner": {
+                    "const": "oauth-server"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:f05250fa02673b0313c63cb7535ee0f9f4548875c1d78a389ee2317b9e71d270"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:79fa914711cc1b78b7fcf7e36ed87048500d0a253cdc27290e0de8088634bf40"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:d9d84b0d770998a360ab5f22cd57f67fc1d44c832304dc65665f94ffb234873d"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:599a08b7e7ec80a24b3ad83c4266dba1993235efd5f0cfb4a2e3047d90bb0f81"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:8686bfc80d07de1be93f52b4f8e3a1063dcc746e53de82ac76d597e1f93da94f"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "postgres-outage"
+                  },
+                  "owner": {
+                    "const": "identity/postgres"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:b45308db731b2029c84dd704c2d98aec1aa4fc8afce0aefb010f2b51ea736722"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:b64a035b4ce0ba3634b826edbcc2f21b31fc8f8b6368e1e92c07894b47eebe6d"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:d2a3e8fe0458b55c13fbd8b06b4edef18515075eaff9c71317a9475cd6c64ebb"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:7d396273f0a558e228b85fd9fad4399e0f8addb24fd60f17e737e5f4930fe7d6"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:919656acaa831830de2550867223e004ab63e7669f338c61bd132236ea79d6e7"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "valkey-outage"
+                  },
+                  "owner": {
+                    "const": "identity/session/valkey"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:462115ccecb73cf04dee23717eeb42612c39a2e392887972e84bda9d600cb091"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:67baa1751ce9c87b4889d5fb25358811e319fd0552bf6cf20d98bc115f86d491"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:f88cd129c050cf4279719a6b2b6e76325f0470fe679582f4fb55e4b2c9d38bde"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:9f8d8365c6a7f392afd255204783a25067d763640af148aabe8a04af04d70ce3"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:be1a1d99f53c71b79bdf0ef92dfc5b03129a611dcaf18d0cebc0142993f638d0"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "provider-outage"
+                  },
+                  "owner": {
+                    "const": "identity/oauth/providers"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:113628d26a5d3f02e0d380349d2741b0ef304d4daedabfa82c7417b57db5bcad"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:86b5c259405e533999c37aa66e48e80d18388c017f7de85727a407ef4b5f5cd8"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:e49b1794b6b7ff576569ee7b38692d83581ee16c84f3ca30ac0e9a5bdf5e9357"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:8bb1eb39ed934f55cdb2ba58e11f55d7a30e86bfdb2188f4d14654c7c0996fe3"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:8ce680c6276e1686a633451a6ab0ae804ae6f09246ddc9eb6df5d4c9e018f957"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "unknown-outcome-recovery"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:6aa516308001cde4c4fc052592ae96d435dd7f80283b01c232a684cd384f15dd"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:a6bf736ddbe0cb2075f5f966c9c8b9a0ded5f86fba77420e699c31c0dfb75ad5"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:ec7705d3863a8ad594a2dbbfdfc0d723f51f8bf74c342a94132e8627a42b21b1"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:7f3e57b2912982f415d8f079d68740d1c556fa6a9995a5de8893b90fff22ad2b"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:ae326190b46246a0df477f0c998dd12c61a6d1152c971f304722633c6f3bb59f"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "startup"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:ca90cb427a263aaad4f5e7eabf266b92a4f17c863bdbc1d1f04873a1d272cdc6"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:fce7cea1845b3aabd65c96e91a542946b2768bba36f30ddccd9733ef4de69c86"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:a0895d59cdb3846f570701d8d7502df66bab6f0ed6d0d9b0a69c28aae2e2a1d2"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:d91cdf46d471908e6cd86dc9b8b58fcd4d7c49fe866579abdc101d1500ba7972"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/0/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:d8b08e8e5073c623a2452c0b795982ac467bd913464e1dcdcb3835ab09db3cef"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "shutdown"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:da2208ebace6fc12b5ebc425c7a971f027c1f453c247ae71e851266dd59fe66e"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:e700b3803d877f5f560478550daa1005a8209d2281112f19446f319d1cfa972d"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:2a7b89dbd8eae3abe599a37b27c3fad6ed5b2f0149b70d791c7f3bcf448226c5"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:4c4299f6cb013df2f0e263d08ad1d4076c16675935e9a878f446689a31c94e94"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/1/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:9546cefe84e27bdf5868211f140cf6e044df0555a58ef567ae16faaab6fbea29"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "backup"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:734c6a6892b96fb3286ed008b1814b48686d2aa02e12606ddf13cb7497e558dc"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:4be0b25a2a23e92c34ff107130154a6ef8e68c88ee66e4d54c01a91c554b397a"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:5c65d45c6a7f9f7d8d8f97ee37f1dd71f6cab9365502108564dd7693e77713a2"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:791ffc64de241210b65ad721e0c35553a4866c5728a81ff2aa9177d1031b1545"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/2/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:52ac65359378982d84b5af197f5bf1774d0006c1431f6a9267b4795d664d1449"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "restore"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:938e91a62e099f313d06e7a42657ff330b01c5797b9fe5ef326726e0469af46c"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:fac7fee6df3d8c7bad34c202108e86eb83b6b02aebe3d1dcea3c54ee324ed3eb"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:5e202388582ae765bc58e8766f4ed15aa1e0a02d47f54f74626d838c1c066d4a"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:d06c3ca15f33881689d484f05610696d1beb907c8a5ddba08ad87bf201688de6"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/3/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:5c8ea596a85089eab8985d32d38457ae6cfbd21e1e7cb0bdf63d4699c7f54e25"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "credential-rotation"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:79d42dd0360899065094f91e72f2c98eadbab310c416848debe66baea9353fe7"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:907f3e17d3df3f33d98f099dd1f879bb98f3764da82d3da5598d96da87617d06"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:f89f496f9446a8c990ad67688f02a096f21230f06da7100d62efc0543c7c8ef6"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:76b57ff1d1ae0d06c7cca709ed60972d844cb4d616b98e27beaaee6a4e81e7ee"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/4/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:e23afc7dbbe27abf31af267d602d5969cfd4bc3700c206de23c142f68e3bdff5"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "signing-key-rotation"
+                  },
+                  "owner": {
+                    "const": "oauth-server"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:f05250fa02673b0313c63cb7535ee0f9f4548875c1d78a389ee2317b9e71d270"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:79fa914711cc1b78b7fcf7e36ed87048500d0a253cdc27290e0de8088634bf40"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:d9d84b0d770998a360ab5f22cd57f67fc1d44c832304dc65665f94ffb234873d"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:599a08b7e7ec80a24b3ad83c4266dba1993235efd5f0cfb4a2e3047d90bb0f81"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/5/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:8686bfc80d07de1be93f52b4f8e3a1063dcc746e53de82ac76d597e1f93da94f"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "postgres-outage"
+                  },
+                  "owner": {
+                    "const": "identity/postgres"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:b45308db731b2029c84dd704c2d98aec1aa4fc8afce0aefb010f2b51ea736722"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:b64a035b4ce0ba3634b826edbcc2f21b31fc8f8b6368e1e92c07894b47eebe6d"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:d2a3e8fe0458b55c13fbd8b06b4edef18515075eaff9c71317a9475cd6c64ebb"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:7d396273f0a558e228b85fd9fad4399e0f8addb24fd60f17e737e5f4930fe7d6"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/6/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:919656acaa831830de2550867223e004ab63e7669f338c61bd132236ea79d6e7"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "valkey-outage"
+                  },
+                  "owner": {
+                    "const": "identity/session/valkey"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:462115ccecb73cf04dee23717eeb42612c39a2e392887972e84bda9d600cb091"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:67baa1751ce9c87b4889d5fb25358811e319fd0552bf6cf20d98bc115f86d491"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:f88cd129c050cf4279719a6b2b6e76325f0470fe679582f4fb55e4b2c9d38bde"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:9f8d8365c6a7f392afd255204783a25067d763640af148aabe8a04af04d70ce3"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/7/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:be1a1d99f53c71b79bdf0ef92dfc5b03129a611dcaf18d0cebc0142993f638d0"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "provider-outage"
+                  },
+                  "owner": {
+                    "const": "identity/oauth/providers"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:113628d26a5d3f02e0d380349d2741b0ef304d4daedabfa82c7417b57db5bcad"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:86b5c259405e533999c37aa66e48e80d18388c017f7de85727a407ef4b5f5cd8"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:e49b1794b6b7ff576569ee7b38692d83581ee16c84f3ca30ac0e9a5bdf5e9357"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:8bb1eb39ed934f55cdb2ba58e11f55d7a30e86bfdb2188f4d14654c7c0996fe3"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/8/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:8ce680c6276e1686a633451a6ab0ae804ae6f09246ddc9eb6df5d4c9e018f957"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "owner",
+                  "version",
+                  "trigger_ref",
+                  "trigger_content_sha256",
+                  "procedure_ref",
+                  "procedure_content_sha256",
+                  "verification_ref",
+                  "verification_content_sha256",
+                  "rollback_ref",
+                  "rollback_content_sha256",
+                  "escalation_ref",
+                  "escalation_content_sha256",
+                  "canonical_locator",
+                  "canonical_content_sha256",
+                  "resolver",
+                  "resolver_receipt_sha256",
+                  "independently_resolved",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "const": "unknown-outcome-recovery"
+                  },
+                  "owner": {
+                    "const": "identity/reference"
+                  },
+                  "version": {
+                    "const": 1
+                  },
+                  "trigger_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/trigger/content"
+                  },
+                  "trigger_content_sha256": {
+                    "const": "sha256:6aa516308001cde4c4fc052592ae96d435dd7f80283b01c232a684cd384f15dd"
+                  },
+                  "procedure_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/procedure/content"
+                  },
+                  "procedure_content_sha256": {
+                    "const": "sha256:a6bf736ddbe0cb2075f5f966c9c8b9a0ded5f86fba77420e699c31c0dfb75ad5"
+                  },
+                  "verification_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/verification/content"
+                  },
+                  "verification_content_sha256": {
+                    "const": "sha256:ec7705d3863a8ad594a2dbbfdfc0d723f51f8bf74c342a94132e8627a42b21b1"
+                  },
+                  "rollback_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/rollback/content"
+                  },
+                  "rollback_content_sha256": {
+                    "const": "sha256:7f3e57b2912982f415d8f079d68740d1c556fa6a9995a5de8893b90fff22ad2b"
+                  },
+                  "escalation_ref": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json#/actions/9/components/escalation/content"
+                  },
+                  "escalation_content_sha256": {
+                    "const": "sha256:ae326190b46246a0df477f0c998dd12c61a6d1152c971f304722633c6f3bb59f"
+                  },
+                  "canonical_locator": {
+                    "const": ".ai/identity-platform/OPERATIONS_RUNBOOK_CATALOG.json"
+                  },
+                  "canonical_content_sha256": {
+                    "const": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+                  },
+                  "resolver": {
+                    "const": "coordinator-owned-runbook-resolver/v1"
+                  },
+                  "resolver_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "independently_resolved": {
+                    "const": true
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -686,6 +2592,26 @@
           "fields": [
             "missing_action_count"
           ]
+        },
+        {
+          "kind": "const",
+          "field": "runbook_count",
+          "value": 10
+        },
+        {
+          "kind": "const",
+          "field": "covered_action_count",
+          "value": 10
+        },
+        {
+          "kind": "const",
+          "field": "index_digest",
+          "value": "sha256:a54cb255333fcdab5c8560d588cd465224d48bf7e6f627a89f87559f27e059eb"
+        },
+        {
+          "kind": "const",
+          "field": "owner_digest",
+          "value": "sha256:57a6fa4efb99fd80742fd5129db213d476e508531b946bf5aa0128ced5a48969"
         },
         {
           "kind": "equal",

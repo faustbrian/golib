@@ -5,31 +5,31 @@
       "unit": "primitive/authentication-identity-contracts",
       "planning_path": "goals/primitive-authentication-identity-contracts.md",
       "canonical_path": "pkg/authentication/.ai/GOAL_IDENTITY_CONTRACTS.md",
-      "sha256": "4709d4c30bbba6e3922005677aa7981973f583ed2cf47068591d5f601d358701"
+      "sha256": "b98b3b50bf84be3941de1f6d473d61559124bc574775c7443747bc57edbbad79"
     },
     {
       "unit": "primitive/authorization-identity-contracts",
       "planning_path": "goals/primitive-authorization-identity-contracts.md",
       "canonical_path": "pkg/authorization/.ai/GOAL_IDENTITY_CONTRACTS.md",
-      "sha256": "62391af70bfd8103305303700e49afeb005e30f26181c050a6f37e80eca0ffe5"
+      "sha256": "c1e0a0199ed6d4eac6ee5641704712dd71b96a06f7650b4b3c43cbc0f6206938"
     },
     {
       "unit": "primitive/capability-identity-contracts",
       "planning_path": "goals/primitive-capability-identity-contracts.md",
       "canonical_path": "pkg/capability/.ai/GOAL_IDENTITY_CONTRACTS.md",
-      "sha256": "a28ef81086d2858db6a0208e41420418ccbbb04212da9d55cc4e1b4edd4139b9"
+      "sha256": "30f4efae21a845ea6fa02f5be828175555c77ac8b8badec9de093da59248489a"
     },
     {
       "unit": "primitive/capability-postgres-identity-contracts",
       "planning_path": "goals/primitive-capability-postgres-identity-contracts.md",
       "canonical_path": "pkg/capability/postgres/.ai/GOAL_IDENTITY_CONTRACTS.md",
-      "sha256": "7b74829d255c01a8ab0c6ae56a86454f31d35661e6e35f8f4699594caa4929fb"
+      "sha256": "03a62bb34204e1bd4997a2de98a9817a345f9869d4755b21e5a9f93587f7a1b4"
     },
     {
       "unit": "primitive/identifier-identity-contracts",
       "planning_path": "goals/primitive-identifier-identity-contracts.md",
       "canonical_path": "pkg/identifier/.ai/GOAL_IDENTITY_CONTRACTS.md",
-      "sha256": "79bde77847ae53b4a82d0cc94a2445df0c486c809f7ce6c9c2e2568fbad78069"
+      "sha256": "0f0f8b8f147afbeb2061319b452fb5f2dd55b81575bd1f0acfe7cac0b6cb3a49"
     },
     {
       "unit": "primitive/password-secret-contracts",
@@ -41,31 +41,31 @@
       "unit": "identity",
       "planning_path": "goals/identity.md",
       "canonical_path": "pkg/identity/.ai/GOAL.md",
-      "sha256": "f329994ccf5b5c118e5ed392161972ad4e19685db26e73ea4c71ec470f89635f"
+      "sha256": "5e9da1dff1d060504a9ee1ce51816439c9f38cff62ab517ac4607a3a1df45991"
     },
     {
       "unit": "identity/postgres",
       "planning_path": "goals/identity-postgres.md",
       "canonical_path": "pkg/identity/postgres/.ai/GOAL.md",
-      "sha256": "57c7df15e46acee88cee82f03e4076fee08f0b343e5f8908f269dae7e92520ca"
+      "sha256": "0da08c0c253b03a2a6dd9e6ae9955db4fe66945e8aac25babc3b64ac2a1c1288"
     },
     {
       "unit": "identity/session",
       "planning_path": "goals/identity-session.md",
       "canonical_path": "pkg/identity/session/.ai/GOAL.md",
-      "sha256": "2939db6995ab31b978eec0d8a773fce8308e375f041cb51ede258d80ec0f287f"
+      "sha256": "e39d6ee65a834a7400f147b116f58316028abd5e78ddccfb27c73058ab6f20df"
     },
     {
       "unit": "identity/session/postgres",
       "planning_path": "goals/identity-session-postgres.md",
       "canonical_path": "pkg/identity/session/postgres/.ai/GOAL.md",
-      "sha256": "86469a2c9aa089ce7879fd51020560f57a703aeeeba169efb7316e848a115ae8"
+      "sha256": "28318c0b8481356ae736b3440c7730e9d4f89ee799341c34e55e6cfe8d615d5b"
     },
     {
       "unit": "identity/session/valkey",
       "planning_path": "goals/identity-session-valkey.md",
       "canonical_path": "pkg/identity/session/valkey/.ai/GOAL.md",
-      "sha256": "ffe11e055825faf7bea5d68acd753b3a6a66ef557d0d03253306ba7de4bd45d8"
+      "sha256": "6a7e3ddd3f8c84cbfaaf2196e05f3e5358465adaa15bd3be54739794fa11582b"
     },
     {
       "unit": "identity/delivery",
@@ -77,19 +77,19 @@
       "unit": "identity/delivery/postgres",
       "planning_path": "goals/identity-delivery-postgres.md",
       "canonical_path": "pkg/identity/delivery/postgres/.ai/GOAL.md",
-      "sha256": "2df0f87fa959b584bb97a055c8f8a5ad8d2934bee2a7a351babd23bd9e6b1791"
+      "sha256": "121ac1c619d537f85f1ea76f462830fa55d762bc80c4ec58accfeff3f45a6f14"
     },
     {
       "unit": "identity/risk",
       "planning_path": "goals/identity-risk.md",
       "canonical_path": "pkg/identity/risk/.ai/GOAL.md",
-      "sha256": "237c999b67fba4c3d393646758f21c7e705ed87ef8922655480b75e6ded00957"
+      "sha256": "02c25baebf845446dbfddc129420db85a417714bb68be8386b7c065d9f19e2e3"
     },
     {
       "unit": "identity/risk/postgres",
       "planning_path": "goals/identity-risk-postgres.md",
       "canonical_path": "pkg/identity/risk/postgres/.ai/GOAL.md",
-      "sha256": "db27a5ca31bcd3e99cf109b90456a7a36ae6631b8df715182120f7718b0420ed"
+      "sha256": "3c8c09e7dd8550ab602642f382b5d148e4e367fb394c3ab99d8b977ae904184c"
     },
     {
       "unit": "identity/risk/valkey",
@@ -137,7 +137,7 @@
       "unit": "identity/password",
       "planning_path": "goals/identity-password.md",
       "canonical_path": "pkg/identity/password/.ai/GOAL.md",
-      "sha256": "5259eb7e395be52a7d7f944d584d82da3233df717418ba526e219da5e32fa918"
+      "sha256": "8fe8f3ffed9d79691e77a7a36293718813d22989a90c8e6195d2e484072bf4d9"
     },
     {
       "unit": "identity/password/postgres",
@@ -161,13 +161,13 @@
       "unit": "identity/magiclink",
       "planning_path": "goals/identity-magiclink.md",
       "canonical_path": "pkg/identity/magiclink/.ai/GOAL.md",
-      "sha256": "c745bc96ff8d38fe76d921cee48cd214db243ca42f7d9bf6a68cf4b9662c7063"
+      "sha256": "96d8028086c133cd734667cb9f3620a95362441776c348f50692faef89a4c68f"
     },
     {
       "unit": "identity/otp",
       "planning_path": "goals/identity-otp.md",
       "canonical_path": "pkg/identity/otp/.ai/GOAL.md",
-      "sha256": "8c00179a074eeba0f408f7b153b1a0cd5c7fba2845719f629a74b82eda68b4e0"
+      "sha256": "3fb0c7507be6ee2d63b0b0832182fb3878decf0f51bac40b92e1895bae80e42d"
     },
     {
       "unit": "identity/otp/postgres",
@@ -179,7 +179,7 @@
       "unit": "identity/phone",
       "planning_path": "goals/identity-phone.md",
       "canonical_path": "pkg/identity/phone/.ai/GOAL.md",
-      "sha256": "0a24354a3c96f97371b9ae9d913f7a394ce91b5d805b8d86d98c493a5fd802e5"
+      "sha256": "ecb29ddcac5945f1f9781655a248abedd4fdcdd45540d942ebc49f310b644c50"
     },
     {
       "unit": "identity/anonymous",
@@ -191,13 +191,13 @@
       "unit": "identity/anonymous/postgres",
       "planning_path": "goals/identity-anonymous-postgres.md",
       "canonical_path": "pkg/identity/anonymous/postgres/.ai/GOAL.md",
-      "sha256": "75297d80a2b328ce36dbe72d4d3605ea19fbb6c00abbd744894b642b5b86bc77"
+      "sha256": "f563da43bcb1455d3205552d7725e9ddda410324fd976db41994f361ca629cdc"
     },
     {
       "unit": "identity/mfa",
       "planning_path": "goals/identity-mfa.md",
       "canonical_path": "pkg/identity/mfa/.ai/GOAL.md",
-      "sha256": "9a903f38da60096e616c01c75f9214dd944b3320acab1d40857078a744496a24"
+      "sha256": "8ca817bcdfb004a4b851f03fbd33b845a67376dff1c9add111eacd797522e0d1"
     },
     {
       "unit": "identity/mfa/postgres",
@@ -209,7 +209,7 @@
       "unit": "webauthn",
       "planning_path": "goals/webauthn.md",
       "canonical_path": "pkg/webauthn/.ai/GOAL.md",
-      "sha256": "d8735d8f5d915feef6d414dac08f9418e2bbc6c6e1999cf3a25af52e2221d18a"
+      "sha256": "5f63350a261382d79471c1e2c3fee95af14fb78e324fcba52f065866841e586f"
     },
     {
       "unit": "webauthn/postgres",
@@ -221,19 +221,19 @@
       "unit": "passkey",
       "planning_path": "goals/passkey.md",
       "canonical_path": "pkg/passkey/.ai/GOAL.md",
-      "sha256": "04f0b877048cde132dcdeba367777c311c8b4c2d53c130de060018109622f3bb"
+      "sha256": "b2ffab7746ee7a8f984d6861efb8c08c547bbcc8aeda9f741e05be9d75b840fb"
     },
     {
       "unit": "passkey/postgres",
       "planning_path": "goals/passkey-postgres.md",
       "canonical_path": "pkg/passkey/postgres/.ai/GOAL.md",
-      "sha256": "86fc965aed0d3f6b716f7c7b1fe27cf95c54fd547f96e61ac08ddddfa21d5991"
+      "sha256": "e8cf5e66fc65ace0812838c98662ea6e56cd330d59cd521ddc74e07cd7b48d99"
     },
     {
       "unit": "identity/oauth",
       "planning_path": "goals/identity-oauth.md",
       "canonical_path": "pkg/identity/oauth/.ai/GOAL.md",
-      "sha256": "a3927f863f05a85e7b3eeae80ce427b1051b8b154e7dba8f4d9316821520983c"
+      "sha256": "48d46e863d47b3d1ed1a2bf26489a13ec6ba4abc5a1e451f00118942e75b5038"
     },
     {
       "unit": "identity/oauth/postgres",
@@ -245,7 +245,7 @@
       "unit": "identity/oauth/providers",
       "planning_path": "goals/identity-oauth-providers.md",
       "canonical_path": "pkg/identity/oauth/providers/.ai/GOAL.md",
-      "sha256": "4bc61b4ab05d569a548e1c6c9ce24973e23a34614a00f59a8bea3437f5f9a8b5"
+      "sha256": "f22dfa6db5cf68d1a6087c8177ed26df3f1030468ece6cb96094185969281eeb"
     },
     {
       "unit": "identity/oauth/onetap",
@@ -263,25 +263,25 @@
       "unit": "identity/apikey",
       "planning_path": "goals/identity-apikey.md",
       "canonical_path": "pkg/identity/apikey/.ai/GOAL.md",
-      "sha256": "5cf0471755b122de0bb8ddf8c6e48669fce5aef9ba24409e82014c402b1ef009"
+      "sha256": "bcef3ebc4e2fba0f31d7866f1bba06a0cc824b2525b0151849cd9b25c2a77f6b"
     },
     {
       "unit": "identity/apikey/postgres",
       "planning_path": "goals/identity-apikey-postgres.md",
       "canonical_path": "pkg/identity/apikey/postgres/.ai/GOAL.md",
-      "sha256": "1f9664ee4dd87c337f2a0b7d03505014d7c70d3ce669bc8b5b1ea793c655c17f"
+      "sha256": "94c247fe6477d90152a5874d4b4b1de6b22cb172843f8ed4bb1e510d0a0e5830"
     },
     {
       "unit": "identity/apikey/valkey",
       "planning_path": "goals/identity-apikey-valkey.md",
       "canonical_path": "pkg/identity/apikey/valkey/.ai/GOAL.md",
-      "sha256": "34b73c6e4286f5198929255d1bfedc36c7af5c8b0dd3610c70552160a2013ac9"
+      "sha256": "3d3e0603797fc936c6ba4006c00e706541386d0454dec070d49356558a4e4238"
     },
     {
       "unit": "identity/impersonation",
       "planning_path": "goals/identity-impersonation.md",
       "canonical_path": "pkg/identity/impersonation/.ai/GOAL.md",
-      "sha256": "96463175bed773aea3e5ffd83ee5a2f064f3e06786ef58d30b120bd2ae868559"
+      "sha256": "aa3622e1ead130f1045bc4db3d09495740f488019c3f7d07272b224ba77fc676"
     },
     {
       "unit": "identity/impersonation/postgres",
@@ -293,109 +293,109 @@
       "unit": "organization",
       "planning_path": "goals/organization.md",
       "canonical_path": "pkg/organization/.ai/GOAL.md",
-      "sha256": "02b19337c725cc44e7325a12475ca700da4d40fa2ddbf00c6f88f314444f8aec"
+      "sha256": "9660847150c7f90193c6bc7088f0fcb84971fe0a4e1957f5c8905635b8736e95"
     },
     {
       "unit": "organization/postgres",
       "planning_path": "goals/organization-postgres.md",
       "canonical_path": "pkg/organization/postgres/.ai/GOAL.md",
-      "sha256": "5eff6bb00cab4ae0f5bdc0a8b6ba742a898fc08ddbb394f4e74fb52339b6f5f0"
+      "sha256": "7786d4e2a3ee45e5f3e6016213de5216921c3309c251b47cfd70d398bcbed674"
     },
     {
       "unit": "sso",
       "planning_path": "goals/sso.md",
       "canonical_path": "pkg/sso/.ai/GOAL.md",
-      "sha256": "06182c72cf8381a722c9876c45a0eaaa15c6fcae6a76140160862b854fbf2117"
+      "sha256": "d5455f0f9d2b2d934451a859b235f532b76d68d202223e3832b3480f3403153e"
     },
     {
       "unit": "sso/domain-verification",
       "planning_path": "goals/sso-domain-verification.md",
       "canonical_path": "pkg/sso/domain-verification/.ai/GOAL.md",
-      "sha256": "3be9882ed6bf3d1b815c7f16809a2f28894185081a506f226215e8dbe06a8bfc"
+      "sha256": "1a62a9eec79b7ab45e43739cf0f0b658c8c6c41d4f0ee0d87f8c7c2642f9dd36"
     },
     {
       "unit": "sso/oidc",
       "planning_path": "goals/sso-oidc.md",
       "canonical_path": "pkg/sso/oidc/.ai/GOAL.md",
-      "sha256": "0f6a099e67ca2e8bc4f1db1977ace57064b789fb00b4740c11dd96c355e46756"
+      "sha256": "bf0a09696095410491bfb511f6448a4670cbaa52e4850d6bbf80c8ad8811d5a5"
     },
     {
       "unit": "sso/oauth2",
       "planning_path": "goals/sso-oauth2.md",
       "canonical_path": "pkg/sso/oauth2/.ai/GOAL.md",
-      "sha256": "f0510f24dfd483bc1fc197060cd909f6b011c7158355e8d2b7dbaf9864a1e93d"
+      "sha256": "43ba05dcbda4f72b7ccbc5312217d6b907cdfe1727fb834d21669c312c1d67ab"
     },
     {
       "unit": "sso/saml",
       "planning_path": "goals/sso-saml.md",
       "canonical_path": "pkg/sso/saml/.ai/GOAL.md",
-      "sha256": "986dc54d1ec61e0adc25942913726fd84f4fa37ef19c2588a1c3deec40c52717"
+      "sha256": "d9732211dcd6fe91b8734eb1f548baa31d880e76f9e665ac6360690331cdb0f6"
     },
     {
       "unit": "sso/postgres",
       "planning_path": "goals/sso-postgres.md",
       "canonical_path": "pkg/sso/postgres/.ai/GOAL.md",
-      "sha256": "dcf45706c384d8227594cfef6e8a267f6da175fafa20f1521e5e8eb7f24b5e63"
+      "sha256": "da344390073c436b3864325a2890132e8f3bc779f37308a541e45493a4edc03b"
     },
     {
       "unit": "scim",
       "planning_path": "goals/scim.md",
       "canonical_path": "pkg/scim/.ai/GOAL.md",
-      "sha256": "b9d5e6b5c93c0a1e4edc0fdecacc63b9863fcda753a99d06d68b2689c586dcaa"
+      "sha256": "f1265e043145851798a3cff7cffd34d1226e94100fee3101dcf2bf2c1e8d9eb8"
     },
     {
       "unit": "scim/postgres",
       "planning_path": "goals/scim-postgres.md",
       "canonical_path": "pkg/scim/postgres/.ai/GOAL.md",
-      "sha256": "83f1565f7b3b641364c1dfc87ad4156b6ca0733bd63bc51635e3ea065b27d5e3"
+      "sha256": "4e6f33444e48da407765838a3f9b5e9d7b5025723278ba1625c5b13d0fdf8646"
     },
     {
       "unit": "scim/organization",
       "planning_path": "goals/scim-organization.md",
       "canonical_path": "pkg/scim/organization/.ai/GOAL.md",
-      "sha256": "adb339abde1f8316fda2c4e4be0befb36c3af645ea8d0f22fb56aefd5ab6245d"
+      "sha256": "d4a10bd69f4037b8b881517d7e45e62194396e10a759a1e424485c36efb26f95"
     },
     {
       "unit": "oauth-server",
       "planning_path": "goals/oauth-server.md",
       "canonical_path": "pkg/oauth-server/.ai/GOAL.md",
-      "sha256": "a292f784ecb1e040c2463af30c857288e4cd6e2fee40fb338d30dd2d11afae04"
+      "sha256": "fd9b2cb2cb832799f89ef727c9118be512a71eb156b819292109316accd69b50"
     },
     {
       "unit": "oauth-server/oidc",
       "planning_path": "goals/oauth-server-oidc.md",
       "canonical_path": "pkg/oauth-server/oidc/.ai/GOAL.md",
-      "sha256": "fc09b62fe2a4b5f9ce09f25e39db6123bb95a80200ef1bbd82c50a3c49a3cd2a"
+      "sha256": "95fd6589d14ad6d60a8601afb0bb306e300839bc5f32d0346f1c270690c9bed4"
     },
     {
       "unit": "oauth-server/device",
       "planning_path": "goals/oauth-server-device.md",
       "canonical_path": "pkg/oauth-server/device/.ai/GOAL.md",
-      "sha256": "1694b9b89167dc75e10e6119243f0bc541e04fc86c48a54b6591484116afbfae"
+      "sha256": "15474e89759e6e101e9f149386dfcbf62d7e4e2dde35f0035ffcd13be6775385"
     },
     {
       "unit": "oauth-server/postgres",
       "planning_path": "goals/oauth-server-postgres.md",
       "canonical_path": "pkg/oauth-server/postgres/.ai/GOAL.md",
-      "sha256": "96054f4f02de2f3de3b53f9b7368f679c55002e058c14d52556ed0e8987535c6"
+      "sha256": "a58e0b47a2a447ab9bde9066c96031818df28cb591c649539971665a2616153f"
     },
     {
       "unit": "identity/i18n",
       "planning_path": "goals/identity-i18n.md",
       "canonical_path": "pkg/identity/i18n/.ai/GOAL.md",
-      "sha256": "0e8b3e1ca866db1be202469cd655a65f83ea5bc933094387e5957f809381201d"
+      "sha256": "495a35a2d3499268437d45c7d0f576d398ea88e48ce66b527248f16a2f3aa7f7"
     },
     {
       "unit": "identity/http",
       "planning_path": "goals/identity-http.md",
       "canonical_path": "pkg/identity/http/.ai/GOAL.md",
-      "sha256": "34e0549149d897ead3783e4b0c2ce442e69989947f1f639d494b4aa77e3b8f03"
+      "sha256": "61b2940ce63f6ff48cf7f1a40b66cbf1679fe25fe11fa40e3589e0a51ec0d4c6"
     },
     {
       "unit": "identity/reference",
       "planning_path": "goals/identity-reference.md",
       "canonical_path": "pkg/identity/reference/.ai/GOAL.md",
-      "sha256": "e6e232a3fb7b9706008a671747bb5c16009f9de341476f5121cd177f72b5470a"
+      "sha256": "13f59ca4871b0d298b0729ef67c4fa23fcc2914e1485ee5e831663020c74a13f"
     },
     {
       "unit": "identity/identitytest",

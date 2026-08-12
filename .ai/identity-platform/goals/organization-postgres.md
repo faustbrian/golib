@@ -40,6 +40,22 @@ The design MUST define schema, membership and invitation constraints, ownership 
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+The repository MUST implement `organization.DomainProofReader` and
+`organization.DomainEvidenceTransition` with the exact core signatures. Its
+`ApplyDomainEvidence` and `RecoverDomainEvidence` implementations MUST return
+`organization.DomainEvidenceResult`, preserve the exact command identity and
+fingerprint, and retrieve committed proof state from primary authority without
+repeating external DNS or HTTPS observation.
+
+The adapter MUST publish an open, versioned `identitypostgres.Contributor` for
+registration by the composition root. The contributor maps
+`organization.Command` to this adapter's registered participant input and
+stages it through `identitypostgres.Work`; the core `organization.UnitOfWork`
+and `organization.DomainEvidenceTransition` remain free of those concrete
+types. The repository constructor MUST NOT accept or retain a coordinator,
+transaction, work handle, carrier, or contributor registry. Only the
+composition root registers the contributor and supplies the resulting
+storage-neutral `organization.UnitOfWork` implementation to the core service.
 
 ## Required behavior
 
@@ -50,18 +66,23 @@ involved.
 
 ## Package-specific acceptance checklist
 
-- The schema MUST persist organizations, active-organization selection,
-  memberships, invitations, static/dynamic roles, permission statements,
+- The schema MUST persist organizations, memberships, invitations,
+  static/dynamic roles, permission statements,
   teams, team membership, typed additional fields, domain claims and aggregate
   versions with tenant-scoped foreign keys.
-- Active selection MUST be keyed by the owning stable session identifier and
-  tenant, with at most one selected organization per session. Foreign keys
-  where state is co-located, versioned validation and locking/authorization
-  reads MUST prevent a selection from outliving its session, membership or
-  usable organization state; a user-level singleton is not an acceptable
-  implementation.
+- This module MUST NOT persist or expose an active-organization selection.
+  `identity/session/postgres` is the sole durable owner of the selection keyed
+  by tenant and stable session ID, and Valkey is only a positive projection.
+  The active-organization switch command MUST coordinate
+  `identity/session/postgres` and this module through the one
+  `identity/postgres` `Coordinator`: lock the session and organization/member
+  rows in the global order, prove that the session subject has usable
+  membership in an active organization, update the session-owned selection,
+  bind its organization/policy versions, and publish invalidation in one
+  commit. A user-level singleton, organization-owned duplicate column, or cache
+  write as authority is forbidden.
 - Constraints/locking MUST enforce unique slugs in declared scope, unique
-  membership, bounded active selection, invitation identity, last-owner safety,
+  membership, bounded effects on session-owned active selections, invitation identity, last-owner safety,
   role/team limits and organization-compatible team membership under races.
 - Invitation accept/reject/cancel/expire/resend and ownership transfer MUST be
   atomic with events/outbox and idempotent by stable command identity. Resend
@@ -78,18 +99,24 @@ involved.
   explicit and indexed at production-shaped cardinality.
 - Domain-claim challenge, verification, expiry, uniqueness and takeover
   prevention MUST be database-enforced where possible and reconciled after
-  unknown external proof outcomes.
+  unknown external proof outcomes. Applying domain evidence MUST atomically
+  validate the expected claim/proof versions and stable command fingerprint;
+  recovery MUST classify the same command as not committed, committed, or
+  unknown and return the identical committed proof/version when committed.
 - Invitation rows MUST persist only a digest/reference for the capability-owned
   bearer value and MUST atomically couple acceptance, single-use consumption,
   membership/role effects and outbox state. Resend/supersession races MUST
   leave at most one consumable invitation grant.
 - Separate archive, restore and delete commands MUST have database-enforced,
-  resumable disposition for active
-  selections, pending invitations, memberships, teams, role bindings, domain
+  resumable disposition for pending invitations, memberships, teams, role bindings, domain
   claims and integration references. Cleanup MUST follow the audit/legal-hold/
   outbox boundaries in `.ai/identity-platform/COMMON_REQUIREMENTS.md`; tests
   MUST prove no orphan can retain organization authority after partial or
-  ambiguous cascade execution.
+  ambiguous cascade execution. Archive/delete and membership removal MUST
+  advance organization authority first and enlist the session owner for
+  bounded active-selection cleanup; an unknown cleanup outcome cannot preserve
+  access because every cached or durable selection remains bound to the stale
+  organization version.
 - Migration evidence MUST include existing organizations, legacy/static roles,
   team enablement, added typed fields, mixed binaries, interrupted backfills,
   backup/restore and query-plan budgets.

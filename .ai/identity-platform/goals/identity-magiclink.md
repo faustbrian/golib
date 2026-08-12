@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/identity/magiclink`
 - Canonical goal after scaffolding: `pkg/identity/magiclink/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:identity/magiclink:v1`; owned operation IDs: `contract:operation:identity.magic-link.consume:v1`, `contract:operation:identity.magic-link.request:v1`
-- Requires: `identity`, `identity/session`, `identity/email`, `identity/risk`, `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`, `primitive/identifier-identity-contracts`
-- Consumes existing primitives: `capability`, `capability/postgres`, `workflow`, `audit`, `rate-limit`
+- Requires: `identity`, `identity/session`, `identity/email`, `identity/risk`, `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/identifier-identity-contracts`
+- Consumes existing primitives: `capability`, `workflow`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/http`
 
 ## Start gate

@@ -14,7 +14,7 @@ shown here.
 - Public contracts: unit ID `contract:unit:identity/postgres:v1`; owned operation IDs: none
 - Requires: `identity`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
-- Unlocks after verification: `identity/session/postgres`, `identity/delivery/postgres`, `identity/risk/postgres`, `identity/password/postgres`, `identity/otp/postgres`, `identity/anonymous/postgres`, `identity/mfa/postgres`, `webauthn/postgres`, `passkey/postgres`, `identity/oauth/postgres`, `identity/apikey/postgres`, `identity/impersonation/postgres`, `organization/postgres`, `sso/postgres`, `scim/postgres`, `oauth-server/postgres`, `identity/reference`
+- Unlocks after verification: `primitive/capability-postgres-identity-contracts`, `identity/session/postgres`, `identity/delivery/postgres`, `identity/risk/postgres`, `identity/password/postgres`, `identity/otp/postgres`, `identity/anonymous/postgres`, `identity/mfa/postgres`, `webauthn/postgres`, `passkey/postgres`, `identity/oauth/postgres`, `identity/apikey/postgres`, `identity/impersonation/postgres`, `organization/postgres`, `sso/postgres`, `scim/postgres`, `oauth-server/postgres`, `identity/reference`
 
 ## Start gate
 
@@ -86,6 +86,26 @@ involved.
   unknown classification, durable recovery records and idempotent replay. A
   local SQL transaction MUST NOT be described as atomic with another module's
   database transaction merely because both use PostgreSQL.
+- The database MUST contain a global command-ID claim table keyed only by the
+  canonical 128-bit `CommandID`, in addition to the scoped command ledger keyed
+  by tenant, purpose and command ID. Admission MUST insert or lock the global
+  claim before the scoped ledger row, bind tenant, purpose, canonical request
+  fingerprint plus fingerprint-key version, and reject every cross-tenant,
+  cross-purpose or different-fingerprint reuse as `Conflict`. A matching replay
+  under a rotated retained fingerprint key must resolve the same claim. A claim
+  without its scoped ledger row is an integrity failure, never absence; cleanup
+  retains a non-reassignable retired claim tombstone so a command ID can never
+  acquire new meaning.
+- `CommandPlan` MUST declare exactly one typed `AuditPlan` for each security
+  audit event required by the operation, in deterministic bounded order. The
+  coordinator's generation-bound `Work` MUST expose only
+  `StageAudit(index uint16, record audit.Record) error` to the registered `audit/postgres`
+  participant. The staged event binds command, tenant, actor/effective subject,
+  operation, outcome class and safe fields; it commits with the mutation and
+  command result. Missing, duplicate, undeclared or invalid audit staging fails
+  the transaction. Abort and unknown-commit recovery must preserve the required
+  denial/failure audit classification without allowing a post-commit callback
+  to fabricate same-transaction evidence.
 - Privacy export and destructive lifecycle storage operations MUST implement
   the checkpoints, tombstones, retention/legal-hold exceptions and verified-
   deletion evidence defined in `.ai/identity-platform/LIFECYCLE_CASCADES.md`.

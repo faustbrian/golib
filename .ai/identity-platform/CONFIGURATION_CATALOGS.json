@@ -65,7 +65,24 @@
       "interoperability_not_run": "configuration facts are pinned, but no sandbox or live interoperability result is claimed",
       "discovery_endpoint": "the endpoint value discovery means the exact URL MUST be obtained from validated pinned issuer metadata",
       "tenant_metadata_endpoint": "the endpoint value tenant-metadata-pin-required blocks use until exact tenant metadata is pinned and validated",
-      "unlisted_scope_forbidden": "every scope absent from default and optional is forbidden until a reviewed row revision names it"
+      "unlisted_scope_forbidden": "every scope absent from default and optional is forbidden until a reviewed row revision names it",
+      "oidc_logout_closed_object": "exact members are status, end_session_endpoint_source, state_correlation, one_time_state_recovery, post_logout_redirect, frontchannel_session_effect and evidence_blocker; additional members are forbidden",
+      "oidc_logout_status_supported": "provider logout may be attempted only with a usable fixed or validated-discovery endpoint and an empty evidence_blocker array",
+      "oidc_logout_status_unsupported": "provider logout MUST be rejected before provider I/O while authorized local session revocation and its allowlisted local redirect remain available",
+      "oidc_logout_status_unknown": "provider logout support MUST NOT be claimed; a best-effort attempt is allowed only when the catalog-authorized endpoint source resolves, and authorized local session revocation remains independent of its outcome until every evidence blocker is closed",
+      "oidc_logout_endpoint_fixed": "value is the exact immutable HTTPS end-session endpoint and callers cannot replace it",
+      "oidc_logout_endpoint_discovery": "value identifies the exact issuer-bound discovery document and end_session_endpoint member; runtime absence, invalid metadata or issuer mismatch yields local-only logout and a visible unknown reconciliation outcome",
+      "oidc_logout_endpoint_unsupported": "the selected provider profile supplies no OIDC end-session endpoint authority",
+      "oidc_logout_state_authority": "when provider logout is attempted, one-use state binds and exclusively recovers provider, issuer, endpoint, session/version, callback origin and allowlisted post-logout target",
+      "oidc_logout_local_revocation": "local session revocation completes independently of provider logout support, provider response, timeout or reconciliation ambiguity",
+      "oidc_logout_evidence_blockers": "IDs are sorted and unique; any non-empty array forbids status supported and every blocker must be closed before catalog revision",
+      "oidc_logout_status_values": "supported,unsupported,unknown only",
+      "oidc_logout_endpoint_source_closed_object": "exact members are kind and value; kind is fixed,discovery or unsupported only",
+      "oidc_logout_state_correlation_values": "required-single-use-exact or not-applicable-local-only only",
+      "oidc_logout_one_time_state_recovery_values": "provider-and-session-derived-exclusively-from-bound-state or not-applicable-local-only only",
+      "oidc_logout_post_logout_redirect_values": "allowlisted-local-redirect-after-provider-outcome or allowlisted-local-redirect-after-local-revocation only",
+      "oidc_logout_frontchannel_session_effect_values": "local-only,provider-logout-attempt,unsupported,unknown only",
+      "oidc_logout_evidence_blocker_ids": "official-provider-logout-documentation-pin-required,provider-logout-interoperability-not-run,selected-provider-profile-has-no-oidc-end-session-contract,tenant-provider-metadata-pin-required only"
     },
     "rows": [
       {
@@ -402,6 +419,22 @@
           "source": "npm:@better-auth/core@1.6.27/apple",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run",
+            "tenant-provider-metadata-pin-required"
+          ]
         }
       },
       {
@@ -723,6 +756,20 @@
           "source": "npm:@better-auth/core@1.6.27/atlassian",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -1048,6 +1095,21 @@
           "source": "npm:better-auth@1.6.27/generic-auth0",
           "official_docs": "tenant-metadata-pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://{domain}/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "provider-logout-interoperability-not-run",
+            "tenant-provider-metadata-pin-required"
+          ]
         }
       },
       {
@@ -1379,6 +1441,22 @@
           "source": "npm:@better-auth/core@1.6.27/cognito",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run",
+            "tenant-provider-metadata-pin-required"
+          ]
         }
       },
       {
@@ -1705,6 +1783,20 @@
           "source": "npm:@better-auth/core@1.6.27/discord",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -2029,6 +2121,20 @@
           "source": "npm:@better-auth/core@1.6.27/dropbox",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -2363,6 +2469,21 @@
           "source": "npm:@better-auth/core@1.6.27/facebook",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -2683,6 +2804,20 @@
           "source": "npm:@better-auth/core@1.6.27/figma",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -3004,6 +3139,20 @@
           "source": "npm:@better-auth/core@1.6.27/github",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -3328,6 +3477,20 @@
           "source": "npm:@better-auth/core@1.6.27/gitlab",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -3671,6 +3834,21 @@
           "source": "npm:@better-auth/core@1.6.27/google",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://accounts.google.com/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -3988,6 +4166,20 @@
           "source": "npm:better-auth@1.6.27/generic-gumroad",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -4307,6 +4499,20 @@
           "source": "npm:better-auth@1.6.27/generic-hubspot",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -4634,6 +4840,21 @@
           "source": "npm:@better-auth/core@1.6.27/huggingface",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://huggingface.co/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -4953,6 +5174,20 @@
           "source": "npm:@better-auth/core@1.6.27/kakao",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -5278,6 +5513,21 @@
           "source": "npm:better-auth@1.6.27/generic-keycloak",
           "official_docs": "tenant-metadata-pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "{issuer}/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "provider-logout-interoperability-not-run",
+            "tenant-provider-metadata-pin-required"
+          ]
         }
       },
       {
@@ -5598,6 +5848,20 @@
           "source": "npm:@better-auth/core@1.6.27/kick",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -5934,6 +6198,21 @@
           "source": "npm:@better-auth/core@1.6.27/line",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://access.line.me/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -6254,6 +6533,20 @@
           "source": "npm:@better-auth/core@1.6.27/linear",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -6580,6 +6873,21 @@
           "source": "npm:@better-auth/core@1.6.27/linkedin",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://www.linkedin.com/oauth/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -6920,6 +7228,21 @@
           "source": "npm:@better-auth/core@1.6.27/microsoft-entra-id",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "{authority|https://login.microsoftonline.com}/{tenant_id}/v2.0/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -7255,6 +7578,21 @@
           "source": "npm:better-auth@1.6.27/generic-microsoft-entra-id",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://login.microsoftonline.com/{tenant_id}/v2.0/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -7573,6 +7911,20 @@
           "source": "npm:@better-auth/core@1.6.27/naver",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -7892,6 +8244,20 @@
           "source": "npm:@better-auth/core@1.6.27/notion",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -8217,6 +8583,21 @@
           "source": "npm:better-auth@1.6.27/generic-okta",
           "official_docs": "tenant-metadata-pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "{issuer}/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "provider-logout-interoperability-not-run",
+            "tenant-provider-metadata-pin-required"
+          ]
         }
       },
       {
@@ -8535,6 +8916,20 @@
           "source": "npm:better-auth@1.6.27/generic-patreon",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -8862,6 +9257,21 @@
           "source": "npm:@better-auth/core@1.6.27/paybin",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "{issuer}/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "provider-logout-interoperability-not-run",
+            "tenant-provider-metadata-pin-required"
+          ]
         }
       },
       {
@@ -9193,6 +9603,21 @@
           "source": "npm:@better-auth/core@1.6.27/paypal",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "{issuer}/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "provider-logout-interoperability-not-run",
+            "tenant-provider-metadata-pin-required"
+          ]
         }
       },
       {
@@ -9517,6 +9942,20 @@
           "source": "npm:@better-auth/core@1.6.27/polar",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -9839,6 +10278,20 @@
           "source": "npm:@better-auth/core@1.6.27/railway",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -10159,6 +10612,20 @@
           "source": "npm:@better-auth/core@1.6.27/reddit",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -10482,6 +10949,21 @@
           "source": "npm:@better-auth/core@1.6.27/roblox",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://apis.roblox.com/oauth/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -10814,6 +11296,21 @@
           "source": "npm:@better-auth/core@1.6.27/salesforce",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://{login_host}/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -11141,6 +11638,21 @@
           "source": "npm:@better-auth/core@1.6.27/slack",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://slack.com/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -11463,6 +11975,20 @@
           "source": "npm:@better-auth/core@1.6.27/spotify",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -11790,6 +12316,20 @@
           "source": "npm:@better-auth/core@1.6.27/tiktok",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -12111,6 +12651,21 @@
           "source": "npm:@better-auth/core@1.6.27/twitch",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unknown",
+          "end_session_endpoint_source": {
+            "kind": "discovery",
+            "value": "https://id.twitch.tv/oauth2/.well-known/openid-configuration#end_session_endpoint"
+          },
+          "state_correlation": "required-single-use-exact",
+          "one_time_state_recovery": "provider-and-session-derived-exclusively-from-bound-state",
+          "post_logout_redirect": "allowlisted-local-redirect-after-provider-outcome",
+          "frontchannel_session_effect": "unknown",
+          "evidence_blocker": [
+            "official-provider-logout-documentation-pin-required",
+            "provider-logout-interoperability-not-run"
+          ]
         }
       },
       {
@@ -12437,6 +12992,20 @@
           "source": "npm:@better-auth/core@1.6.27/twitter",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -12758,6 +13327,20 @@
           "source": "npm:@better-auth/core@1.6.27/vercel",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -13083,6 +13666,20 @@
           "source": "npm:@better-auth/core@1.6.27/vk",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -13405,6 +14002,20 @@
           "source": "npm:@better-auth/core@1.6.27/wechat",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -13723,6 +14334,20 @@
           "source": "npm:better-auth@1.6.27/generic-yandex",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       },
       {
@@ -14043,6 +14668,20 @@
           "source": "npm:@better-auth/core@1.6.27/zoom",
           "official_docs": "pin-required",
           "interoperability": "not-run"
+        },
+        "oidc_logout": {
+          "status": "unsupported",
+          "end_session_endpoint_source": {
+            "kind": "unsupported",
+            "value": "unsupported"
+          },
+          "state_correlation": "not-applicable-local-only",
+          "one_time_state_recovery": "not-applicable-local-only",
+          "post_logout_redirect": "allowlisted-local-redirect-after-local-revocation",
+          "frontchannel_session_effect": "local-only",
+          "evidence_blocker": [
+            "selected-provider-profile-has-no-oidc-end-session-contract"
+          ]
         }
       }
     ]
@@ -14061,6 +14700,24 @@
       "hcaptcha": "identity/risk/captcha/hcaptcha",
       "recaptcha": "identity/risk/captcha/recaptcha",
       "turnstile": "identity/risk/captcha/turnstile"
+    },
+    "profile_consumers": {
+      "captchafox": {
+        "unit": "identity/risk/captcha/captchafox",
+        "artifact_id": "captcha-four-provider-report"
+      },
+      "hcaptcha": {
+        "unit": "identity/risk/captcha/hcaptcha",
+        "artifact_id": "captcha-four-provider-report"
+      },
+      "recaptcha": {
+        "unit": "identity/risk/captcha/recaptcha",
+        "artifact_id": "captcha-four-provider-report"
+      },
+      "turnstile": {
+        "unit": "identity/risk/captcha/turnstile",
+        "artifact_id": "captcha-four-provider-report"
+      }
     }
   },
   "native_token_modes": {
@@ -14117,6 +14774,21 @@
       "classification": "typed_adapter",
       "interface": "authentication/jwt.KeySource",
       "owner": "authentication/jwt"
+    }
+  },
+  "api_key_permission_reduction": {
+    "version": "api-key-permission-reduction-v1",
+    "reference_default": "narrow",
+    "allowed": [
+      "narrow",
+      "revoke"
+    ],
+    "selector": "immutable_configuration_revision",
+    "caller_override": false,
+    "unknown_outcome": "deny_and_reconcile_original_command",
+    "events": {
+      "narrow": "api_key.permissions_changed.v1",
+      "revoke": "api_key.revoked.v1"
     }
   }
 }

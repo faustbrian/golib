@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -87,24 +86,6 @@
     "input_root": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
-    },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
     },
     "observations": {
       "type": "array",
@@ -296,11 +277,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -311,6 +312,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -327,10 +329,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "provider-evidence-index"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -340,15 +368,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -389,6 +528,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -732,6 +875,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -741,7 +885,7 @@
                     "const": "apple"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:6c357e197e260cc6904e735ac0fbf01a5ebe59e159aeb058117f77ffb847e20b"
+                    "const": "sha256:87b77a3bc183470a140dd95890b0d9df3e4e670ab17e44c231e62ac40d11f7a5"
                   },
                   "protocol": {
                     "const": "oidc-hybrid-exception"
@@ -802,11 +946,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 3
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -839,6 +986,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -848,7 +996,7 @@
                     "const": "atlassian"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:d258ed2caf746f61b41969e0bd6cc0261e03ce6aeb4104a577dd961d93f17e9d"
+                    "const": "sha256:000a53222edc76c80305af09e05cf2627570ba9a544f601369bdb86c0787044b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -907,11 +1055,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -944,6 +1095,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -953,7 +1105,7 @@
                     "const": "auth0"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:99a97b30a1748e3c77f0ae837ab00c47875d800b548e4634ee3a0e60267a1e4e"
+                    "const": "sha256:0b3e67640401d60f8d1d647b790693da1d0c157ed82bb5658f7ae17b54d64cdc"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -1012,11 +1164,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1049,6 +1204,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1058,7 +1214,7 @@
                     "const": "cognito"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:5e06a95632dec7031b6b9949c830b9f3c5871a550e75fba53fd00d7efede7838"
+                    "const": "sha256:34d992c0a93a1fdb9b603ff842de0db93192d1121f6c0caaa033fe7dcc99ad84"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -1117,11 +1273,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 3
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1154,6 +1313,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1163,7 +1323,7 @@
                     "const": "discord"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:b3c907dbc1af52d56da9d61bfaed09cb7ae82a4ec7c40958445009079cc6e677"
+                    "const": "sha256:66d4fe948f2c23f1c32dfae0e4d914a3445c104d03dd7a9cfbd06b65fc1dc624"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -1222,11 +1382,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1259,6 +1422,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1268,7 +1432,7 @@
                     "const": "dropbox"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:7df51005c39a28fc6c90a672d28f111ae20ef6e90fac4496f3896962d7b3c596"
+                    "const": "sha256:054e9bde0b3333ddd12eaa6ab811f6a817fbd350b69ebe5b14edf7882015cbb4"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -1327,11 +1491,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1364,6 +1531,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1373,7 +1541,7 @@
                     "const": "facebook"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:d40f5c516d02b699038f7602b04825731c8fa9c668ebda23833b32ad5f0d0d9d"
+                    "const": "sha256:1d971915680b3a14f3b736fd6e05514fa892a6a1bf5a21ac448d99c071649e59"
                   },
                   "protocol": {
                     "const": "oauth2-with-limited-login-oidc"
@@ -1434,11 +1602,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1471,6 +1642,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1480,7 +1652,7 @@
                     "const": "figma"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:82117edb0fc935b7e2d2ae972b2f0e0c041529beb480cc071c9eb351e8886747"
+                    "const": "sha256:68d8cf7dd05f735a4776f6c4b2d4abd4e550d0fe664038d18145c89a92444c15"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -1539,11 +1711,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1576,6 +1751,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1585,7 +1761,7 @@
                     "const": "github"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:5dd3bf6981c194cc9dfb1ebd155230a600ae6c2f1a2e736f6f628dee48bb4de3"
+                    "const": "sha256:3984500704a46fed9e3c4057daed2151403cbf858ef058ce2afc786ec2ea4e2b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -1644,11 +1820,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1681,6 +1860,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1690,7 +1870,7 @@
                     "const": "gitlab"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:64a475d3fc11ca5d136c7d3e4f25592cb105055ad414551e272f0c48509172a3"
+                    "const": "sha256:5779f0c67c981523ed1a1c5b7f607d6df39c631b6380ae746d7076c9aababfdd"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -1749,11 +1929,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1786,6 +1969,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1795,7 +1979,7 @@
                     "const": "google"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:9f150df2927ea222487d36fcde34e6aa658d409c1ad3500d02251f3bf8e68e5a"
+                    "const": "sha256:3e38972c15e4f8c4ce212e98ddaf7599066060d2dca0ed96857460dfc126a004"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -1857,11 +2041,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1894,6 +2081,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -1903,7 +2091,7 @@
                     "const": "gumroad"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:8a273630cd438058e9e4e8aba74fe208b6dfcb032336a4819e1806a09af0ad15"
+                    "const": "sha256:3d10f0a3cc7fa05a9767d71d8ac427d44500826591a808f0c35a4756519c874b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -1962,11 +2150,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -1999,6 +2190,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2008,7 +2200,7 @@
                     "const": "hubspot"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:f074fb264c70e835105d1f1aecaa553ff301a31513c1324c4b707d5f5ab7dfbe"
+                    "const": "sha256:fd0f909f70d4a4a869c08d91433783b423a4d86687d95365970db486e8aa76d3"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -2067,11 +2259,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2104,6 +2299,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2113,7 +2309,7 @@
                     "const": "huggingface"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:b4fcc55690402bc95225905c34664d3fb5554aed91c971510818b76f02884961"
+                    "const": "sha256:974f5c2ef522a53fae8ac3acf8d893739551aaaaeb162c7a188f41e4ba4496d3"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -2172,11 +2368,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2209,6 +2408,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2218,7 +2418,7 @@
                     "const": "kakao"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:7b278e25f49d749e7693bdcf9b896df4c2f1b3b0f1efcb839c42ddaac6db7be1"
+                    "const": "sha256:096ebe8c799ff0716657f9fde12ceea66fa519b258371dd90388e33430667fb2"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -2277,11 +2477,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2314,6 +2517,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2323,7 +2527,7 @@
                     "const": "keycloak"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:0f2c1b73f38e7fc0816da17ad558583aeceb2a1db5fb2e5141a12610986725c7"
+                    "const": "sha256:78546348feac015e7c176dd65e0ae080e1214dee346d0a25d12a242284e0ec7f"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -2382,11 +2586,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2419,6 +2626,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2428,7 +2636,7 @@
                     "const": "kick"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:17c96cc2c0a33527ffea76ad015c7a58afc38bccdfbcb33d8568d02055d04483"
+                    "const": "sha256:f6289c6dbbb1d10bed6230ed50db5e049318891a98b09107d0ed47c11d0bff2a"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -2487,11 +2695,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2524,6 +2735,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2533,7 +2745,7 @@
                     "const": "line"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:c915718c77d06f902290a4ee4baa8b8370f96b611404d44b366cd3f998cb3b2b"
+                    "const": "sha256:2e7a1bbe8d2ba4bb3501f4114df46d89589a5f70a41b6b70d11c895faee8626e"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -2595,11 +2807,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2632,6 +2847,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2641,7 +2857,7 @@
                     "const": "linear"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:31c197c320df89d638f0bddad8a31a6077bb01eb011e70c4a27bb5725486c308"
+                    "const": "sha256:21c73f79e8dd5d83cf8252a6be2849e1473211fb53c5d6de3ba06341e9e9b97b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -2700,11 +2916,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2737,6 +2956,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2746,7 +2966,7 @@
                     "const": "linkedin"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:73b0f2d829b3f2b9a3ac1dee046b985557d89c5cd277634722518fec4e1619f9"
+                    "const": "sha256:f20e99bf7fa04fc6252f752812b665265ebe6abac988b698901ed862042a6c38"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -2805,11 +3025,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2842,6 +3065,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2851,7 +3075,7 @@
                     "const": "microsoft"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:babdee6aafd89f6636447dabad07e443355a52c7cdc68d4813281254917a52e9"
+                    "const": "sha256:c1550f8efb56f3e3f4482816566009d29a208156471b83e781e8314fd010c31a"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -2910,11 +3134,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -2947,6 +3174,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -2956,7 +3184,7 @@
                     "const": "microsoft-entra-id"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:a6a009e31e1830a120d0c3f7f61c374939a5d372c9ebca256113624e00f3bc1e"
+                    "const": "sha256:4d7f62669c9a46c1c77975f797ced2c1eccab5bc6567e309b4ee991a680e0dbd"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -3015,11 +3243,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3052,6 +3283,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3061,7 +3293,7 @@
                     "const": "naver"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:44835d11058f4b059d2a967650ef6370ab00308c0c291440112165df1c486167"
+                    "const": "sha256:02e8cf45f4d188cf51f76b301b0f7b5d75744c795b61ecd044d14bf0fb8ef2ec"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -3120,11 +3352,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3157,6 +3392,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3166,7 +3402,7 @@
                     "const": "notion"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:321b6f1347bfc71b62b1ed66e67513154c7b8b9f980487ab4d009ac270d333f1"
+                    "const": "sha256:d9489709cda878758b519059a51ad60fb37535c9513e7a96e417424caf513467"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -3225,11 +3461,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3262,6 +3501,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3271,7 +3511,7 @@
                     "const": "okta"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:5b9e2879bf695eabd5e9aa7bb5604523f76fccb54810d612944618d3b10a40f9"
+                    "const": "sha256:6d2368cebab3cf4f10beb4cf7f8cf8f4808132a3756bb8bfb9176fedc8b2c39b"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -3330,11 +3570,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3367,6 +3610,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3376,7 +3620,7 @@
                     "const": "patreon"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:12b7abe94e1880b4fee2e778861c5cadab756f97eaadf1c54a21a33684ac9bed"
+                    "const": "sha256:be25dcc8cf675fac0d15156cfd4ea5f5ac41a039810d7897813f8c49a3375775"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -3435,11 +3679,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3472,6 +3719,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3481,7 +3729,7 @@
                     "const": "paybin"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:782cc00d1633a0808fe585b336d014989bce10ce9c8ed79bcfc7c0dd6b529b4d"
+                    "const": "sha256:dda7f2299727eec997ada9c7278decd670c0609be5ead90d5329c1df83708237"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -3540,11 +3788,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3577,6 +3828,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3586,7 +3838,7 @@
                     "const": "paypal"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:b1f208b5aaf8ea2237307766999b6d694a4c9235bec4960b88d45b1dd8608cc3"
+                    "const": "sha256:667db2413b3c798e91a18db5947fb580dbec139a4c0f2989a75fb60a0530991e"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -3645,11 +3897,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3682,6 +3937,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3691,7 +3947,7 @@
                     "const": "polar"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:9c77f425477fa67da3eb1c0e6caf1a6b09376cde5eacaa0ce3a65b9248719c60"
+                    "const": "sha256:930c81731a237a06467c5a210f5a79facf258321f7c27ffc24fb2f8d097caf8e"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -3750,11 +4006,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3787,6 +4046,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3796,7 +4056,7 @@
                     "const": "railway"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:0c6f8a886a80089a88a602cc536b6430415f5cb48ae2c26460124099b4c29006"
+                    "const": "sha256:9c425dc31107a6f1bba73b0b181a63aaa4e3e33eda407159a255eb57e18176dc"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -3855,11 +4115,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3892,6 +4155,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -3901,7 +4165,7 @@
                     "const": "reddit"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:f5c6d15447aa0076e80d60e16f34fb659b3438dfb88056d135cf4fca67e71f44"
+                    "const": "sha256:e54a7a3d86ea9772e9d754165c5c5f4f618be87859825c433c33a3bdd3093270"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -3960,11 +4224,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -3997,6 +4264,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4006,7 +4274,7 @@
                     "const": "roblox"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:99e4938973d700bab0b0ffb1aab6482f3b5087c3e704daef8833cdb127fe5949"
+                    "const": "sha256:a3e817a01f6a5b23ee87f83a52a47e1ef73529050719f462f711c174bb4f0103"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -4065,11 +4333,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4102,6 +4373,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4111,7 +4383,7 @@
                     "const": "salesforce"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:69d7b6c3f6a2a62bbbd8974a03ad0d45d02ac33c6abf6284041f74208f4a0265"
+                    "const": "sha256:9ab141094711b4eab4dc758841b1fde63c8f1c3d910260454a21f63931f52771"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -4170,11 +4442,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4207,6 +4482,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4216,7 +4492,7 @@
                     "const": "slack"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:5699592ba872e3c202cbb9cb25aa9a24070016645a1c82d6e880b45b2ba073c5"
+                    "const": "sha256:d92e59234c40e6b3a73c442ed47dcf207b35032d14175f51e3da4a20e72c4906"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -4275,11 +4551,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4312,6 +4591,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4321,7 +4601,7 @@
                     "const": "spotify"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:b387af790911fc723454bad73ce2ec9266836cee3596c65f8e6569ddbd98acae"
+                    "const": "sha256:ecaa0268d1449431438d3d26ed035172697a90de5881b7097488cd0342f97b52"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -4380,11 +4660,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4417,6 +4700,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4426,7 +4710,7 @@
                     "const": "tiktok"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:f9fc515693e1de6c90e4c98df92031f0b423aa5081a7e2fc21f2fb655589a22d"
+                    "const": "sha256:d6bc8b9df6249df1668c19ecbfefa30571c2bf4979eb75ac9e28727cade71e4f"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -4485,11 +4769,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4522,6 +4809,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4531,7 +4819,7 @@
                     "const": "twitch"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:450dec202e44da2d3e1c5f414b77673917d894e14066c1dc676e4d33de56ea43"
+                    "const": "sha256:dcda93f4f602ee0d5f611bc1f0fa32d3eabcd0865a13dadb8156263e97f11cfc"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -4590,11 +4878,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4627,6 +4918,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4636,7 +4928,7 @@
                     "const": "twitter"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:8d6f8bf4dddf1967370e2fa5d0b1558387d9c2bde02d999c1f4bfce6d96d6497"
+                    "const": "sha256:397c020b1371d669314079f614f423cb321ea2122445b0390a8f89e5dbde342d"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -4695,11 +4987,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4732,6 +5027,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4741,7 +5037,7 @@
                     "const": "vercel"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:792f161e6820f42f8117b1355afb36621593e698b5c2abb4300171dad89fbd1e"
+                    "const": "sha256:bb5fca164746801d11a5fb8958076b0556222ecbdf8bd22a57b225703ca085bf"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -4800,11 +5096,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4837,6 +5136,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4846,7 +5146,7 @@
                     "const": "vk"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:86cdc1b1b662a646fa4c5dced2f5812e52535399ec4e5d5ccb554bfe7f750b05"
+                    "const": "sha256:08b43201aa9d0cbf5b7c5d1b8d8625de812fb66a1ad98b7d527a6fd0ed15fd33"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -4905,11 +5205,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -4942,6 +5245,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -4951,7 +5255,7 @@
                     "const": "wechat"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:3123261402278811174352e1325e4e8baae099ca1af82263f19dc02b38c3449a"
+                    "const": "sha256:26b0eee9c39f92185135384b7a8d6a57c44582a82fb367016c924924dcef2238"
                   },
                   "protocol": {
                     "const": "oauth2-nonstandard"
@@ -5010,11 +5314,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5047,6 +5354,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5056,7 +5364,7 @@
                     "const": "yandex"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:9795abaaf2aecb3b5c9ce4eab287067a8dc1fb539a79872fd9a2c11c56991abc"
+                    "const": "sha256:79888ecfd033ff7ca8a3625a1e98d054783369883b1c2c7c85d15002ba15f72b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -5115,11 +5423,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5152,6 +5463,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5161,7 +5473,7 @@
                     "const": "zoom"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:3ecf758fac847ff799eb538723f9e849dd9cae8ddc4f2933a3c10a25181dcaeb"
+                    "const": "sha256:d633dc6f254161e40f9a9ce9bfc0b6d631cef89c516e4110a9c2f1618cfda2a5"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -5220,11 +5532,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5261,6 +5576,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5270,7 +5586,7 @@
                     "const": "apple"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:6c357e197e260cc6904e735ac0fbf01a5ebe59e159aeb058117f77ffb847e20b"
+                    "const": "sha256:87b77a3bc183470a140dd95890b0d9df3e4e670ab17e44c231e62ac40d11f7a5"
                   },
                   "protocol": {
                     "const": "oidc-hybrid-exception"
@@ -5331,11 +5647,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 3
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5371,6 +5690,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5380,7 +5700,7 @@
                     "const": "atlassian"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:d258ed2caf746f61b41969e0bd6cc0261e03ce6aeb4104a577dd961d93f17e9d"
+                    "const": "sha256:000a53222edc76c80305af09e05cf2627570ba9a544f601369bdb86c0787044b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -5439,11 +5759,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5479,6 +5802,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5488,7 +5812,7 @@
                     "const": "auth0"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:99a97b30a1748e3c77f0ae837ab00c47875d800b548e4634ee3a0e60267a1e4e"
+                    "const": "sha256:0b3e67640401d60f8d1d647b790693da1d0c157ed82bb5658f7ae17b54d64cdc"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -5547,11 +5871,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5587,6 +5914,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5596,7 +5924,7 @@
                     "const": "cognito"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:5e06a95632dec7031b6b9949c830b9f3c5871a550e75fba53fd00d7efede7838"
+                    "const": "sha256:34d992c0a93a1fdb9b603ff842de0db93192d1121f6c0caaa033fe7dcc99ad84"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -5655,11 +5983,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 3
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5695,6 +6026,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5704,7 +6036,7 @@
                     "const": "discord"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:b3c907dbc1af52d56da9d61bfaed09cb7ae82a4ec7c40958445009079cc6e677"
+                    "const": "sha256:66d4fe948f2c23f1c32dfae0e4d914a3445c104d03dd7a9cfbd06b65fc1dc624"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -5763,11 +6095,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5803,6 +6138,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5812,7 +6148,7 @@
                     "const": "dropbox"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:7df51005c39a28fc6c90a672d28f111ae20ef6e90fac4496f3896962d7b3c596"
+                    "const": "sha256:054e9bde0b3333ddd12eaa6ab811f6a817fbd350b69ebe5b14edf7882015cbb4"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -5871,11 +6207,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -5911,6 +6250,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -5920,7 +6260,7 @@
                     "const": "facebook"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:d40f5c516d02b699038f7602b04825731c8fa9c668ebda23833b32ad5f0d0d9d"
+                    "const": "sha256:1d971915680b3a14f3b736fd6e05514fa892a6a1bf5a21ac448d99c071649e59"
                   },
                   "protocol": {
                     "const": "oauth2-with-limited-login-oidc"
@@ -5981,11 +6321,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6021,6 +6364,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6030,7 +6374,7 @@
                     "const": "figma"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:82117edb0fc935b7e2d2ae972b2f0e0c041529beb480cc071c9eb351e8886747"
+                    "const": "sha256:68d8cf7dd05f735a4776f6c4b2d4abd4e550d0fe664038d18145c89a92444c15"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -6089,11 +6433,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6129,6 +6476,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6138,7 +6486,7 @@
                     "const": "github"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:5dd3bf6981c194cc9dfb1ebd155230a600ae6c2f1a2e736f6f628dee48bb4de3"
+                    "const": "sha256:3984500704a46fed9e3c4057daed2151403cbf858ef058ce2afc786ec2ea4e2b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -6197,11 +6545,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6237,6 +6588,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6246,7 +6598,7 @@
                     "const": "gitlab"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:64a475d3fc11ca5d136c7d3e4f25592cb105055ad414551e272f0c48509172a3"
+                    "const": "sha256:5779f0c67c981523ed1a1c5b7f607d6df39c631b6380ae746d7076c9aababfdd"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -6305,11 +6657,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6345,6 +6700,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6354,7 +6710,7 @@
                     "const": "google"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:9f150df2927ea222487d36fcde34e6aa658d409c1ad3500d02251f3bf8e68e5a"
+                    "const": "sha256:3e38972c15e4f8c4ce212e98ddaf7599066060d2dca0ed96857460dfc126a004"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -6416,11 +6772,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6456,6 +6815,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6465,7 +6825,7 @@
                     "const": "gumroad"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:8a273630cd438058e9e4e8aba74fe208b6dfcb032336a4819e1806a09af0ad15"
+                    "const": "sha256:3d10f0a3cc7fa05a9767d71d8ac427d44500826591a808f0c35a4756519c874b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -6524,11 +6884,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6564,6 +6927,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6573,7 +6937,7 @@
                     "const": "hubspot"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:f074fb264c70e835105d1f1aecaa553ff301a31513c1324c4b707d5f5ab7dfbe"
+                    "const": "sha256:fd0f909f70d4a4a869c08d91433783b423a4d86687d95365970db486e8aa76d3"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -6632,11 +6996,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6672,6 +7039,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6681,7 +7049,7 @@
                     "const": "huggingface"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:b4fcc55690402bc95225905c34664d3fb5554aed91c971510818b76f02884961"
+                    "const": "sha256:974f5c2ef522a53fae8ac3acf8d893739551aaaaeb162c7a188f41e4ba4496d3"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -6740,11 +7108,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6780,6 +7151,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6789,7 +7161,7 @@
                     "const": "kakao"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:7b278e25f49d749e7693bdcf9b896df4c2f1b3b0f1efcb839c42ddaac6db7be1"
+                    "const": "sha256:096ebe8c799ff0716657f9fde12ceea66fa519b258371dd90388e33430667fb2"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -6848,11 +7220,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6888,6 +7263,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -6897,7 +7273,7 @@
                     "const": "keycloak"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:0f2c1b73f38e7fc0816da17ad558583aeceb2a1db5fb2e5141a12610986725c7"
+                    "const": "sha256:78546348feac015e7c176dd65e0ae080e1214dee346d0a25d12a242284e0ec7f"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -6956,11 +7332,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -6996,6 +7375,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7005,7 +7385,7 @@
                     "const": "kick"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:17c96cc2c0a33527ffea76ad015c7a58afc38bccdfbcb33d8568d02055d04483"
+                    "const": "sha256:f6289c6dbbb1d10bed6230ed50db5e049318891a98b09107d0ed47c11d0bff2a"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -7064,11 +7444,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7104,6 +7487,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7113,7 +7497,7 @@
                     "const": "line"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:c915718c77d06f902290a4ee4baa8b8370f96b611404d44b366cd3f998cb3b2b"
+                    "const": "sha256:2e7a1bbe8d2ba4bb3501f4114df46d89589a5f70a41b6b70d11c895faee8626e"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -7175,11 +7559,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7215,6 +7602,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7224,7 +7612,7 @@
                     "const": "linear"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:31c197c320df89d638f0bddad8a31a6077bb01eb011e70c4a27bb5725486c308"
+                    "const": "sha256:21c73f79e8dd5d83cf8252a6be2849e1473211fb53c5d6de3ba06341e9e9b97b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -7283,11 +7671,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7323,6 +7714,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7332,7 +7724,7 @@
                     "const": "linkedin"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:73b0f2d829b3f2b9a3ac1dee046b985557d89c5cd277634722518fec4e1619f9"
+                    "const": "sha256:f20e99bf7fa04fc6252f752812b665265ebe6abac988b698901ed862042a6c38"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -7391,11 +7783,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7431,6 +7826,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7440,7 +7836,7 @@
                     "const": "microsoft"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:babdee6aafd89f6636447dabad07e443355a52c7cdc68d4813281254917a52e9"
+                    "const": "sha256:c1550f8efb56f3e3f4482816566009d29a208156471b83e781e8314fd010c31a"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -7499,11 +7895,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7539,6 +7938,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7548,7 +7948,7 @@
                     "const": "microsoft-entra-id"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:a6a009e31e1830a120d0c3f7f61c374939a5d372c9ebca256113624e00f3bc1e"
+                    "const": "sha256:4d7f62669c9a46c1c77975f797ced2c1eccab5bc6567e309b4ee991a680e0dbd"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -7607,11 +8007,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7647,6 +8050,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7656,7 +8060,7 @@
                     "const": "naver"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:44835d11058f4b059d2a967650ef6370ab00308c0c291440112165df1c486167"
+                    "const": "sha256:02e8cf45f4d188cf51f76b301b0f7b5d75744c795b61ecd044d14bf0fb8ef2ec"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -7715,11 +8119,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7755,6 +8162,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7764,7 +8172,7 @@
                     "const": "notion"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:321b6f1347bfc71b62b1ed66e67513154c7b8b9f980487ab4d009ac270d333f1"
+                    "const": "sha256:d9489709cda878758b519059a51ad60fb37535c9513e7a96e417424caf513467"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -7823,11 +8231,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7863,6 +8274,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7872,7 +8284,7 @@
                     "const": "okta"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:5b9e2879bf695eabd5e9aa7bb5604523f76fccb54810d612944618d3b10a40f9"
+                    "const": "sha256:6d2368cebab3cf4f10beb4cf7f8cf8f4808132a3756bb8bfb9176fedc8b2c39b"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -7931,11 +8343,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -7971,6 +8386,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -7980,7 +8396,7 @@
                     "const": "patreon"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:12b7abe94e1880b4fee2e778861c5cadab756f97eaadf1c54a21a33684ac9bed"
+                    "const": "sha256:be25dcc8cf675fac0d15156cfd4ea5f5ac41a039810d7897813f8c49a3375775"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -8039,11 +8455,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8079,6 +8498,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8088,7 +8508,7 @@
                     "const": "paybin"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:782cc00d1633a0808fe585b336d014989bce10ce9c8ed79bcfc7c0dd6b529b4d"
+                    "const": "sha256:dda7f2299727eec997ada9c7278decd670c0609be5ead90d5329c1df83708237"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -8147,11 +8567,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8187,6 +8610,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8196,7 +8620,7 @@
                     "const": "paypal"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:b1f208b5aaf8ea2237307766999b6d694a4c9235bec4960b88d45b1dd8608cc3"
+                    "const": "sha256:667db2413b3c798e91a18db5947fb580dbec139a4c0f2989a75fb60a0530991e"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -8255,11 +8679,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8295,6 +8722,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8304,7 +8732,7 @@
                     "const": "polar"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:9c77f425477fa67da3eb1c0e6caf1a6b09376cde5eacaa0ce3a65b9248719c60"
+                    "const": "sha256:930c81731a237a06467c5a210f5a79facf258321f7c27ffc24fb2f8d097caf8e"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -8363,11 +8791,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8403,6 +8834,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8412,7 +8844,7 @@
                     "const": "railway"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:0c6f8a886a80089a88a602cc536b6430415f5cb48ae2c26460124099b4c29006"
+                    "const": "sha256:9c425dc31107a6f1bba73b0b181a63aaa4e3e33eda407159a255eb57e18176dc"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -8471,11 +8903,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8511,6 +8946,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8520,7 +8956,7 @@
                     "const": "reddit"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:f5c6d15447aa0076e80d60e16f34fb659b3438dfb88056d135cf4fca67e71f44"
+                    "const": "sha256:e54a7a3d86ea9772e9d754165c5c5f4f618be87859825c433c33a3bdd3093270"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -8579,11 +9015,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8619,6 +9058,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8628,7 +9068,7 @@
                     "const": "roblox"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:99e4938973d700bab0b0ffb1aab6482f3b5087c3e704daef8833cdb127fe5949"
+                    "const": "sha256:a3e817a01f6a5b23ee87f83a52a47e1ef73529050719f462f711c174bb4f0103"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -8687,11 +9127,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8727,6 +9170,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8736,7 +9180,7 @@
                     "const": "salesforce"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:69d7b6c3f6a2a62bbbd8974a03ad0d45d02ac33c6abf6284041f74208f4a0265"
+                    "const": "sha256:9ab141094711b4eab4dc758841b1fde63c8f1c3d910260454a21f63931f52771"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -8795,11 +9239,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8835,6 +9282,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8844,7 +9292,7 @@
                     "const": "slack"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:5699592ba872e3c202cbb9cb25aa9a24070016645a1c82d6e880b45b2ba073c5"
+                    "const": "sha256:d92e59234c40e6b3a73c442ed47dcf207b35032d14175f51e3da4a20e72c4906"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -8903,11 +9351,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -8943,6 +9394,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -8952,7 +9404,7 @@
                     "const": "spotify"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:b387af790911fc723454bad73ce2ec9266836cee3596c65f8e6569ddbd98acae"
+                    "const": "sha256:ecaa0268d1449431438d3d26ed035172697a90de5881b7097488cd0342f97b52"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -9011,11 +9463,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -9051,6 +9506,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -9060,7 +9516,7 @@
                     "const": "tiktok"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:f9fc515693e1de6c90e4c98df92031f0b423aa5081a7e2fc21f2fb655589a22d"
+                    "const": "sha256:d6bc8b9df6249df1668c19ecbfefa30571c2bf4979eb75ac9e28727cade71e4f"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -9119,11 +9575,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -9159,6 +9618,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -9168,7 +9628,7 @@
                     "const": "twitch"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:450dec202e44da2d3e1c5f414b77673917d894e14066c1dc676e4d33de56ea43"
+                    "const": "sha256:dcda93f4f602ee0d5f611bc1f0fa32d3eabcd0865a13dadb8156263e97f11cfc"
                   },
                   "protocol": {
                     "const": "oidc"
@@ -9227,11 +9687,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 2
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -9267,6 +9730,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -9276,7 +9740,7 @@
                     "const": "twitter"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:8d6f8bf4dddf1967370e2fa5d0b1558387d9c2bde02d999c1f4bfce6d96d6497"
+                    "const": "sha256:397c020b1371d669314079f614f423cb321ea2122445b0390a8f89e5dbde342d"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -9335,11 +9799,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -9375,6 +9842,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -9384,7 +9852,7 @@
                     "const": "vercel"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:792f161e6820f42f8117b1355afb36621593e698b5c2abb4300171dad89fbd1e"
+                    "const": "sha256:bb5fca164746801d11a5fb8958076b0556222ecbdf8bd22a57b225703ca085bf"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -9443,11 +9911,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -9483,6 +9954,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -9492,7 +9964,7 @@
                     "const": "vk"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:86cdc1b1b662a646fa4c5dced2f5812e52535399ec4e5d5ccb554bfe7f750b05"
+                    "const": "sha256:08b43201aa9d0cbf5b7c5d1b8d8625de812fb66a1ad98b7d527a6fd0ed15fd33"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -9551,11 +10023,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -9591,6 +10066,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -9600,7 +10076,7 @@
                     "const": "wechat"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:3123261402278811174352e1325e4e8baae099ca1af82263f19dc02b38c3449a"
+                    "const": "sha256:26b0eee9c39f92185135384b7a8d6a57c44582a82fb367016c924924dcef2238"
                   },
                   "protocol": {
                     "const": "oauth2-nonstandard"
@@ -9659,11 +10135,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -9699,6 +10178,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -9708,7 +10188,7 @@
                     "const": "yandex"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:9795abaaf2aecb3b5c9ce4eab287067a8dc1fb539a79872fd9a2c11c56991abc"
+                    "const": "sha256:79888ecfd033ff7ca8a3625a1e98d054783369883b1c2c7c85d15002ba15f72b"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -9767,11 +10247,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",
@@ -9807,6 +10290,7 @@
                   "source_locator",
                   "official_docs_status",
                   "catalog_interoperability_status",
+                  "catalog_blocker_count",
                   "execution_outcome",
                   "verified",
                   "transcript_sha256"
@@ -9816,7 +10300,7 @@
                     "const": "zoom"
                   },
                   "catalog_row_sha256": {
-                    "const": "sha256:3ecf758fac847ff799eb538723f9e849dd9cae8ddc4f2933a3c10a25181dcaeb"
+                    "const": "sha256:d633dc6f254161e40f9a9ce9bfc0b6d631cef89c516e4110a9c2f1618cfda2a5"
                   },
                   "protocol": {
                     "const": "oauth2"
@@ -9875,11 +10359,14 @@
                   "catalog_interoperability_status": {
                     "const": "not-run"
                   },
+                  "catalog_blocker_count": {
+                    "const": 1
+                  },
                   "execution_outcome": {
-                    "const": "passed"
+                    "const": "not-run"
                   },
                   "verified": {
-                    "const": true
+                    "const": false
                   },
                   "transcript_sha256": {
                     "type": "string",

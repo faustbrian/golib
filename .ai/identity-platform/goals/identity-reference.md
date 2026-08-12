@@ -11,7 +11,7 @@ shown here.
 - Unit: `identity/reference`
 - Canonical module: `pkg/identity/reference`
 - Canonical goal after scaffolding: `pkg/identity/reference/.ai/GOAL.md`
-- Public contracts: unit ID `contract:unit:identity/reference:v1`; owned operation IDs: `contract:operation:identity.audit-retention.deletion.confirm:v1`, `contract:operation:identity.audit-retention.deletion.plan:v1`, `contract:operation:identity.audit-retention.legal-hold.create:v1`, `contract:operation:identity.audit-retention.legal-hold.release:v1`, `contract:operation:identity.audit-retention.legal-hold.update:v1`, `contract:operation:identity.audit-retention.policy.update:v1`, `contract:operation:identity.audit-retention.records.delete:v1`, `contract:operation:identity.audit.export:v1`, `contract:operation:identity.audit.get:v1`, `contract:operation:identity.audit.list:v1`, `contract:operation:identity.audit.search:v1`, `contract:operation:identity.platform.bootstrap-administrator:v1`, `contract:operation:identity.platform.permission-statement.create:v1`, `contract:operation:identity.platform.permission-statement.delete:v1`, `contract:operation:identity.platform.permission-statement.update:v1`, `contract:operation:identity.platform.role.create:v1`, `contract:operation:identity.platform.role.delete:v1`, `contract:operation:identity.platform.role.update:v1`, `contract:operation:identity.readiness:v1`, `contract:operation:identity.reference.config-validate:v1`, `contract:operation:identity.reference.diagnostics:v1`, `contract:operation:identity.reference.migration-apply:v1`, `contract:operation:identity.reference.migration-plan:v1`, `contract:operation:identity.reference.migration-status:v1`, `contract:operation:identity.reference.schema-generate:v1`, `contract:operation:identity.reference.secret-generate:v1`
+- Public contracts: unit ID `contract:unit:identity/reference:v1`; owned operation IDs: `contract:operation:identity.audit-retention.deletion.confirm:v1`, `contract:operation:identity.audit-retention.deletion.plan:v1`, `contract:operation:identity.audit-retention.legal-hold.create:v1`, `contract:operation:identity.audit-retention.legal-hold.release:v1`, `contract:operation:identity.audit-retention.legal-hold.update:v1`, `contract:operation:identity.audit-retention.policy.update:v1`, `contract:operation:identity.audit-retention.records.delete:v1`, `contract:operation:identity.audit.export:v1`, `contract:operation:identity.audit.get:v1`, `contract:operation:identity.audit.list:v1`, `contract:operation:identity.audit.search:v1`, `contract:operation:identity.platform.bootstrap-administrator:v1`, `contract:operation:identity.platform.permission-statement.create:v1`, `contract:operation:identity.platform.permission-statement.delete:v1`, `contract:operation:identity.platform.permission-statement.update:v1`, `contract:operation:identity.platform.role.create:v1`, `contract:operation:identity.platform.role.delete:v1`, `contract:operation:identity.platform.role.update:v1`, `contract:operation:identity.readiness:v1`, `contract:operation:identity.reference.config-validate:v1`, `contract:operation:identity.reference.diagnostics:v1`, `contract:operation:identity.reference.migration-apply:v1`, `contract:operation:identity.reference.migration-plan:v1`, `contract:operation:identity.reference.migration-check:v1`, `contract:operation:identity.reference.schema-generate:v1`, `contract:operation:identity.reference.secret-generate:v1`
 - Requires: `identity/http` and every concrete adapter listed explicitly in `INVENTORY.md`, plus `primitive/authorization-identity-contracts` and `primitive/capability-postgres-identity-contracts`
 - Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `capability/valkey`, `audit/postgres`, `authorization/postgres`, `authorization/valkey`, `rate-limit/postgres`, `rate-limit/valkey`, `idempotency/postgres`, `idempotency/valkey`, `outbox/postgres`, `workflow/postgres`, `secret-envelope`, `outbox`, `workflow`, `telemetry`
 - Unlocks after verification: `identity/identitytest`
@@ -45,6 +45,41 @@ all safe validation failures before starting listeners or migrations.
 `struct:ref.identity.policy_set`; composition validates the upstream
 `authorization.Service` and all four identity callbacks before exposing a
 handler and MUST NOT wrap, replace or silently default any member.
+
+The sole public construction graph is `ComposeStores` -> `ComposeProviders` ->
+`ComposeWorkers` -> `ComposeFeatures` -> `NewServer`. `NewServer` MUST have the
+exact signature `NewServer(ReferenceConfig, ReferenceDependencies, FeatureSet)
+(*Server, error)` and MUST be side-effect free. `Server.Handler`,
+`Server.OpenAPI`, `Server.Health`, and `Server.Readiness` expose one immutable
+validated graph. Competing `NewApplication`, `NewHandler`, reflection, global
+registration and service-locator composition paths are forbidden.
+
+`ComposeStores` MUST have the exact signature
+`ComposeStores(StoreConfiguration, ReferenceDependencies) (StoreSet, error)`.
+`StoreConfiguration` is the exported immutable input containing every selected
+adapter configuration exactly once; `StoreSet` is the sealed result and MUST
+NOT be caller-constructible. `ReferenceDependencies` MUST expose its deployment
+primitives as validated fields so a clean external consumer can construct it;
+an empty unexported dependency value or a constructor outside this graph is
+forbidden.
+
+`StoreSet` MUST represent every selected PostgreSQL authority and permitted
+Valkey secondary named by this goal exactly once. `ProviderSet` MUST represent
+delivery callbacks, social/One-Tap/proxy providers, all four CAPTCHA adapters,
+HIBP, enterprise federation/domain proof, OAuth/OIDC signing and key services,
+and telemetry exactly once when selected. `WorkerSet` MUST represent delivery,
+outbox, workflow, privacy export and contributors, cleanup/expiry,
+reconciliation and audit-retention workers with explicit bounds. `FeatureSet`
+MUST prove that every mandatory store, provider and worker is consumed exactly
+once and carry the exact HTTP operation descriptors, middleware and migration
+contributions. Each set MUST be immutable and constructible only by its named
+`Compose*` function.
+
+`ReferenceDependencies` MUST contain only deployment-owned PostgreSQL and
+optional Valkey connection resources, secret/key resolution, bounded HTTP/DNS
+clients, email/SMS sender callbacks and telemetry. It MUST NOT accept domain
+stores, handlers or workflow callbacks. Test clocks, randomness and provider
+drivers belong only to explicit test overrides rejected by production config.
 
 ## Selected complete profile
 
@@ -212,6 +247,22 @@ assignment authority.
   after interruption without replaying completed work. Startup MUST check but
   MUST NOT implicitly apply migrations unless an explicit deployment profile
   enables the reviewed apply policy.
+- `Check` and `Plan` requests MUST accept only selected canonical module IDs.
+  The coordinator MUST discover current versions from the authoritative
+  migration ledger; caller-supplied current versions are forbidden. `Plan`
+  MUST be read-only and return one immutable canonical `MigrationPlan` carrying
+  the base ledger digest, catalog digest, current and target versions, ordered
+  contributor/step identities and source/step digests, plus one
+  domain-separated digest over the complete plan.
+- `Apply` MUST accept the complete `MigrationPlan`, command identity and
+  idempotency policy; a digest alone is insufficient. Under canonical bounded
+  contributor locks it MUST rediscover the ledger and catalog and require exact
+  equality with the plan base before any new write. Only a same-command resume
+  with an exact durable applied prefix MAY continue. Catalog/source/version
+  drift MUST conflict before writes; dirty/unrecognized state MUST return
+  dirty/incompatible; lock contention MUST return locked. Each committed step
+  MUST be checkpointed. An ambiguous step or commit MUST remain unknown under
+  its stable command ID until reconciliation proves the outcome.
 - Readiness MUST fail safely for unavailable mandatory stores/keys and report
   optional-provider degradation without exposing endpoints or secrets.
 - Shutdown MUST stop admission, drain bounded requests/workers, flush owned

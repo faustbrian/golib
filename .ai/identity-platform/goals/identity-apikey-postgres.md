@@ -52,6 +52,39 @@ reveal-once result and does not decide authorization policy.
 - Quota/remaining/refill and optional rate limits MUST update atomically by
   database time under concurrent verification. Usage observation MUST be
   write-amplification bounded and MUST NOT turn authentication success unknown.
+- This adapter MUST implement the public `identity/apikey.AtomicVerifier` as
+  the durable verification and quota authority. `VerifyAndConsume` MUST insert
+  or lock the exact attempt ID and canonical fingerprint, validate current key
+  and owner authority, compute refill and apply at most one debit in one
+  PostgreSQL transaction. A matching retry MUST return the recorded result
+  without another digest comparison or debit; a fingerprint mismatch MUST
+  conflict before mutation.
+- A known rollback or failure before transaction submission MUST return
+  `not-debited`; a successful profile with no finite quota MUST return
+  `not-applicable`. Loss of connection or acknowledgement after submission,
+  when a positive debit's commit cannot be proved, MUST return
+  `possible-debit` and `apikey.ErrDebitOutcomeUnknown` carrying the attempt ID;
+  it MUST NOT be translated to unavailable or invalid credential and MUST NOT
+  trigger another store/fallback attempt.
+  `ReconcileVerifyAndConsume` MUST perform an owner- and tenant-scoped read of
+  the durable attempt/result only, never rerun verification, refill or debit,
+  and preserve `possible-debit` until PostgreSQL can prove the terminal state.
+  Cleanup MUST retain attempt fingerprints and redacted terminal results for at
+  least the configured retry/idempotency horizon and protect them from key-row
+  expiry or deletion.
+- The exported PostgreSQL store MUST implement the core `identity/apikey.Store`
+  signatures exactly, including
+  `ApplyPermissionReduction(context.Context, apikey.PermissionReductionDecision) (apikey.PermissionReductionResult, error)`
+  and
+  `ReconcilePermissionReduction(context.Context, apikey.PermissionReductionReconcileQuery) (apikey.PermissionReductionResult, error)`.
+  Transaction participation MUST be a separate
+  `PermissionReductionContributor` with
+  `StagePermissionReduction(context.Context, identitypostgres.Work, apikey.PermissionReductionDecision) (apikey.PermissionReductionResult, error)`;
+  the store implementation MUST delegate through an already enlisted
+  contributor and MUST NOT open an independent transaction. Reconciliation
+  MUST read the primary command journal by the exact original command ID and
+  fingerprint, MUST NOT re-decide or reapply the transition, and MUST return no
+  post-transition record while the outcome remains unknown.
 - Revocation/expiry/rotation MUST win against concurrent verification according
   to a documented isolation point and propagate to any API-key session.
 - Verification MUST join or transactionally validate the key's current owner,
@@ -61,7 +94,7 @@ reveal-once result and does not decide authorization policy.
   distinguish active, verify-only, deprecated, disabled and missing revisions
   without prefix-based fallback.
 - Cleanup MUST use bounded indexed batches and retain required rotation/audit/
-  unknown-outcome evidence.
+  issuance and verification/debit unknown-outcome evidence.
 - Real PostgreSQL races, disconnects, migrations from older key formats,
   mixed binaries, backup/restore and query plans are REQUIRED.
 

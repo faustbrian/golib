@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -148,10 +129,10 @@
                 "const": "Run identity.admin.user-delete then identity.organization.delete for success, failure, outage, concurrency, cleanup, unknown-outcome cases using tenant_id, user_id, organization_id, expected_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: aggregate_id, cascade_row_count, restricted_row_count, tombstoned_row_count, transaction_digest, cascade_transitions"
+                "const": "Invariant: delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: aggregate_id, cascade_row_count, restricted_row_count, tombstoned_row_count, transaction_digest, cascade_transitions, command_id_integrity_results, audit_stage_results, scim_bulk_skip_results"
               },
               "actual_outcome": {
-                "const": "Invariant: delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: aggregate_id, cascade_row_count, restricted_row_count, tombstoned_row_count, transaction_digest, cascade_transitions"
+                "const": "Invariant: delete locks the aggregate version and executes every restrict, revoke, tombstone, anonymize, and delete cascade atomically; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: aggregate_id, cascade_row_count, restricted_row_count, tombstoned_row_count, transaction_digest, cascade_transitions, command_id_integrity_results, audit_stage_results, scim_bulk_skip_results"
               },
               "result": {
                 "const": "pass"
@@ -267,7 +248,10 @@
         "restricted_row_count",
         "tombstoned_row_count",
         "transaction_digest",
-        "cascade_transitions"
+        "cascade_transitions",
+        "command_id_integrity_results",
+        "audit_stage_results",
+        "scim_bulk_skip_results"
       ],
       "properties": {
         "artifact_id": {
@@ -297,11 +281,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -312,6 +316,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -328,10 +333,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "postgres-lifecycle-cascade-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -341,15 +372,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -390,6 +532,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -1057,6 +1203,924 @@
                   },
                   "state": {
                     "const": "terminal"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "command_id_integrity_results": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "cross-tenant-collision"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "different-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "same-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": false
+                  },
+                  "replayed": {
+                    "const": false
+                  },
+                  "tombstone_present": {
+                    "const": false
+                  },
+                  "scoped_ledger_present": {
+                    "const": true
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "cross-purpose-collision"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "same-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "different-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": false
+                  },
+                  "replayed": {
+                    "const": false
+                  },
+                  "tombstone_present": {
+                    "const": false
+                  },
+                  "scoped_ledger_present": {
+                    "const": true
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "matching-replay-after-key-rotation"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "same-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "same-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": true
+                  },
+                  "replayed": {
+                    "const": true
+                  },
+                  "tombstone_present": {
+                    "const": false
+                  },
+                  "scoped_ledger_present": {
+                    "const": true
+                  },
+                  "observed_outcome": {
+                    "const": "exact-recorded-result"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "retired-tombstone"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "same-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "same-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": false
+                  },
+                  "replayed": {
+                    "const": false
+                  },
+                  "tombstone_present": {
+                    "const": true
+                  },
+                  "scoped_ledger_present": {
+                    "const": true
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "missing-scoped-ledger"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "same-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "same-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": false
+                  },
+                  "replayed": {
+                    "const": false
+                  },
+                  "tombstone_present": {
+                    "const": false
+                  },
+                  "scoped_ledger_present": {
+                    "const": false
+                  },
+                  "observed_outcome": {
+                    "const": "integrity-failure"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "cross-tenant-collision"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "different-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "same-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": false
+                  },
+                  "replayed": {
+                    "const": false
+                  },
+                  "tombstone_present": {
+                    "const": false
+                  },
+                  "scoped_ledger_present": {
+                    "const": true
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "cross-purpose-collision"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "same-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "different-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": false
+                  },
+                  "replayed": {
+                    "const": false
+                  },
+                  "tombstone_present": {
+                    "const": false
+                  },
+                  "scoped_ledger_present": {
+                    "const": true
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "matching-replay-after-key-rotation"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "same-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "same-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": true
+                  },
+                  "replayed": {
+                    "const": true
+                  },
+                  "tombstone_present": {
+                    "const": false
+                  },
+                  "scoped_ledger_present": {
+                    "const": true
+                  },
+                  "observed_outcome": {
+                    "const": "exact-recorded-result"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "retired-tombstone"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "same-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "same-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": false
+                  },
+                  "replayed": {
+                    "const": false
+                  },
+                  "tombstone_present": {
+                    "const": true
+                  },
+                  "scoped_ledger_present": {
+                    "const": true
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "command_id",
+                  "tenant_scope",
+                  "purpose_scope",
+                  "key_version_changed",
+                  "replayed",
+                  "tombstone_present",
+                  "scoped_ledger_present",
+                  "observed_outcome",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "missing-scoped-ledger"
+                  },
+                  "command_id": {
+                    "const": "global-command-id"
+                  },
+                  "tenant_scope": {
+                    "const": "same-tenant"
+                  },
+                  "purpose_scope": {
+                    "const": "same-purpose"
+                  },
+                  "key_version_changed": {
+                    "const": false
+                  },
+                  "replayed": {
+                    "const": false
+                  },
+                  "tombstone_present": {
+                    "const": false
+                  },
+                  "scoped_ledger_present": {
+                    "const": false
+                  },
+                  "observed_outcome": {
+                    "const": "integrity-failure"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "audit_stage_results": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "audit_plan_id",
+                  "stage_audit_called",
+                  "event_count",
+                  "outcome",
+                  "reconciliation_required",
+                  "duplicate_event_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "commit"
+                  },
+                  "audit_plan_id": {
+                    "const": "audit-plan"
+                  },
+                  "stage_audit_called": {
+                    "const": true
+                  },
+                  "event_count": {
+                    "const": 1
+                  },
+                  "outcome": {
+                    "const": "committed"
+                  },
+                  "reconciliation_required": {
+                    "const": false
+                  },
+                  "duplicate_event_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "audit_plan_id",
+                  "stage_audit_called",
+                  "event_count",
+                  "outcome",
+                  "reconciliation_required",
+                  "duplicate_event_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "rollback"
+                  },
+                  "audit_plan_id": {
+                    "const": "audit-plan"
+                  },
+                  "stage_audit_called": {
+                    "const": true
+                  },
+                  "event_count": {
+                    "const": 0
+                  },
+                  "outcome": {
+                    "const": "rolled-back"
+                  },
+                  "reconciliation_required": {
+                    "const": false
+                  },
+                  "duplicate_event_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "audit_plan_id",
+                  "stage_audit_called",
+                  "event_count",
+                  "outcome",
+                  "reconciliation_required",
+                  "duplicate_event_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "unknown"
+                  },
+                  "audit_plan_id": {
+                    "const": "audit-plan"
+                  },
+                  "stage_audit_called": {
+                    "const": true
+                  },
+                  "event_count": {
+                    "const": 0
+                  },
+                  "outcome": {
+                    "const": "unknown"
+                  },
+                  "reconciliation_required": {
+                    "const": true
+                  },
+                  "duplicate_event_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "audit_plan_id",
+                  "stage_audit_called",
+                  "event_count",
+                  "outcome",
+                  "reconciliation_required",
+                  "duplicate_event_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "commit"
+                  },
+                  "audit_plan_id": {
+                    "const": "audit-plan"
+                  },
+                  "stage_audit_called": {
+                    "const": true
+                  },
+                  "event_count": {
+                    "const": 1
+                  },
+                  "outcome": {
+                    "const": "committed"
+                  },
+                  "reconciliation_required": {
+                    "const": false
+                  },
+                  "duplicate_event_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "audit_plan_id",
+                  "stage_audit_called",
+                  "event_count",
+                  "outcome",
+                  "reconciliation_required",
+                  "duplicate_event_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "rollback"
+                  },
+                  "audit_plan_id": {
+                    "const": "audit-plan"
+                  },
+                  "stage_audit_called": {
+                    "const": true
+                  },
+                  "event_count": {
+                    "const": 0
+                  },
+                  "outcome": {
+                    "const": "rolled-back"
+                  },
+                  "reconciliation_required": {
+                    "const": false
+                  },
+                  "duplicate_event_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "audit_plan_id",
+                  "stage_audit_called",
+                  "event_count",
+                  "outcome",
+                  "reconciliation_required",
+                  "duplicate_event_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "unknown"
+                  },
+                  "audit_plan_id": {
+                    "const": "audit-plan"
+                  },
+                  "stage_audit_called": {
+                    "const": true
+                  },
+                  "event_count": {
+                    "const": 0
+                  },
+                  "outcome": {
+                    "const": "unknown"
+                  },
+                  "reconciliation_required": {
+                    "const": true
+                  },
+                  "duplicate_event_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "scim_bulk_skip_results": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "status",
+                  "skip_reason",
+                  "side_effect_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "fail-on-errors-dependent"
+                  },
+                  "status": {
+                    "const": "skipped"
+                  },
+                  "skip_reason": {
+                    "const": "fail-on-errors"
+                  },
+                  "side_effect_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "status",
+                  "skip_reason",
+                  "side_effect_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "independent-before-threshold"
+                  },
+                  "status": {
+                    "const": "committed"
+                  },
+                  "skip_reason": {
+                    "const": "none"
+                  },
+                  "side_effect_count": {
+                    "const": 1
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "status",
+                  "skip_reason",
+                  "side_effect_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "fail-on-errors-dependent"
+                  },
+                  "status": {
+                    "const": "skipped"
+                  },
+                  "skip_reason": {
+                    "const": "fail-on-errors"
+                  },
+                  "side_effect_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "status",
+                  "skip_reason",
+                  "side_effect_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "independent-before-threshold"
+                  },
+                  "status": {
+                    "const": "committed"
+                  },
+                  "skip_reason": {
+                    "const": "none"
+                  },
+                  "side_effect_count": {
+                    "const": 1
                   },
                   "transcript_sha256": {
                     "type": "string",

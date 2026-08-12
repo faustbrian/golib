@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -148,10 +129,10 @@
                 "const": "Run identity.risk.evaluate then identity.session.revoke-all for success, failure, denial cases using tenant_id, subject_id, signals, policy_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: risk decision is deterministic, required challenge or denial is enforced, and revoke action removes all selected sessions; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: decision_id, risk_score_basis_points, action, revoked_session_count, security_event_digest"
+                "const": "Invariant: risk decision is deterministic, step_up or denial is enforced, and a separately authorized response policy invokes session revoke-all after deny without inventing a revoke risk action; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: decision_id, risk_score_basis_points, action, revoked_session_count, security_event_digest"
               },
               "actual_outcome": {
-                "const": "Invariant: risk decision is deterministic, required challenge or denial is enforced, and revoke action removes all selected sessions; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: decision_id, risk_score_basis_points, action, revoked_session_count, security_event_digest"
+                "const": "Invariant: risk decision is deterministic, step_up or denial is enforced, and a separately authorized response policy invokes session revoke-all after deny without inventing a revoke risk action; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: decision_id, risk_score_basis_points, action, revoked_session_count, security_event_digest"
               },
               "result": {
                 "const": "pass"
@@ -276,7 +257,7 @@
           "const": "integrated-threat-report.invariant"
         },
         "invariant": {
-          "const": "risk decision is deterministic, required challenge or denial is enforced, and revoke action removes all selected sessions"
+          "const": "risk decision is deterministic, step_up or denial is enforced, and a separately authorized response policy invokes session revoke-all after deny without inventing a revoke risk action"
         },
         "operation_ids": {
           "const": [
@@ -296,11 +277,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -311,6 +312,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -327,10 +329,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "integrated-threat-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -340,15 +368,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -389,6 +528,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -504,7 +647,7 @@
                 ]
               },
               "expected_invariant": {
-                "const": "risk decision is deterministic, required challenge or denial is enforced, and revoke action removes all selected sessions"
+                "const": "risk decision is deterministic, step_up or denial is enforced, and a separately authorized response policy invokes session revoke-all after deny without inventing a revoke risk action"
               },
               "observed_state_digest": {
                 "type": "string",
@@ -581,9 +724,9 @@
                     "type": "string",
                     "enum": [
                       "allow",
-                      "challenge",
                       "deny",
-                      "revoke"
+                      "throttle",
+                      "step_up"
                     ]
                   },
                   "revoked_session_count": {
@@ -630,7 +773,7 @@
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:37d6d7017f6997a609ef819aeca5d402341e5dd74532e7de6c6ea63ea1514302",
+              "artifact_contract_sha256": "sha256:3ace30c9f4504495ffd006ceaf99d70d237a11ccaffbaa1d5c8db165154c4eab",
               "expected_operation_set": [
                 "identity.risk.evaluate",
                 "identity.session.revoke-all"
@@ -657,7 +800,7 @@
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:3b306a4ff28c41e7f20aba2953518bca33b55ef97e974173ba9eb76855016a70",
+              "artifact_contract_sha256": "sha256:1b7cb619bf2e9c483643bc5704ffce73a7627847be5aa11b6dc3ad43df879778",
               "expected_operation_set": [
                 "identity.risk.evaluate",
                 "identity.session.revoke-all"
@@ -684,7 +827,7 @@
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:a8b7c7504859fb452741156d2c02969d570ad8e8cd89b16bc221d4f240e0605e",
+              "artifact_contract_sha256": "sha256:e3a8225af7543b317b06519b447538dada6d08a813462f10eb3334df62ebb1fd",
               "expected_operation_set": [
                 "identity.risk.evaluate",
                 "identity.session.revoke-all"
@@ -709,9 +852,9 @@
           "type": "string",
           "enum": [
             "allow",
-            "challenge",
             "deny",
-            "revoke"
+            "throttle",
+            "step_up"
           ]
         },
         "revoked_session_count": {

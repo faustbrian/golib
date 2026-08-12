@@ -14,7 +14,7 @@ shown here.
 - Public contracts: unit ID `contract:unit:sso/saml:v1`; owned operation IDs: `contract:operation:identity.sso.saml-acs:v1`, `contract:operation:identity.sso.saml-idp-init:v1`, `contract:operation:identity.sso.saml-logout-start:v1`, `contract:operation:identity.sso.saml-metadata:v1`, `contract:operation:identity.sso.saml-slo:v1`, `contract:operation:identity.sso.saml-start:v1`
 - Requires: `sso`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `http-client`, `secret-envelope`, `capability`, `audit`
-- Unlocks after verification: `sso/postgres`, `identity/http`
+- Unlocks after verification: `identity/http`
 
 ## Start gate
 
@@ -44,6 +44,14 @@ The module MUST implement `sso.ProtocolAdapter` and translate a successful,
 fully validated SAML assertion into `sso.ProtocolAssertion`. It MUST NOT apply
 SSO routing, JIT, membership, role, directory-sync, token-vault, or session
 policy.
+After authoritative local-session selection, the public `LocalRevocation`
+projection MUST contain the exact local session identifier, authoritative
+revocation version, committed state and explicit reconciliation requirement.
+Both logout result contracts and every post-selection typed error variant they
+can return MUST carry that projection; remote support, provider failure,
+timeout or unknown completion cannot erase it or replace an unknown local
+outcome with committed success. A pre-selection invalid-request error MUST NOT
+carry or fabricate a local session identifier or revocation version.
 
 ## Required behavior
 
@@ -89,9 +97,15 @@ involved.
   `__Secure-identity_frontchannel` Secure/HttpOnly/SameSite=None, exact-path,
   five-minute, one-use correlation cookie. Normal session and flow cookies
   remain SameSite=Lax and MUST NOT be reused or weakened for this exception.
-- Signed AuthnRequests MUST be configurable with supported algorithms and key
-  rotation. Every outbound HTTP-Redirect AuthnRequest and LogoutRequest MUST
-  use the configured `saml.redirect_signature_algorithm`, sign the exact
+- Signed AuthnRequests MUST use the closed reference algorithm and explicit key
+  rotation. The public constant `SignatureAlgorithmRSAPSSSHA256` MUST equal
+  exactly `http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1`, and
+  MUST implement the fixed-parameter URI selected by RFC 6931 §2.3.10 rather
+  than the parameterized `rsa-pss` URI from §2.3.9: SHA-256 message digest,
+  MGF1 with SHA-256, 32-byte salt and trailer field `0xBC`. The
+  `saml.redirect_signature_algorithm` MUST select only that constant in this
+  profile. Every outbound HTTP-Redirect AuthnRequest and LogoutRequest MUST use
+  that configured constant and sign the exact
   `SAMLRequest=value&RelayState=value&SigAlg=value` query sequence when
   RelayState is present or `SAMLRequest=value&SigAlg=value` when absent, and
   append `Signature` afterward. Missing, duplicated, unsupported, or mismatched
@@ -111,9 +125,28 @@ involved.
   provider, NameID, SessionIndex and local session exclusively from stored
   request context; response-supplied subject/session fields MUST NOT select
   authority.
+- Authorized SAML logout MUST complete local session revocation independently
+  of remote support or outcome. Every `identity.sso.saml-logout-start` and
+  `identity.sso.saml-slo` success, local-only, provider-error, timeout,
+  unavailable, or unknown-reconciliation result after authoritative session
+  selection MUST expose an unconditional
+  typed `LocalRevocation` projection containing the local session identifier,
+  revocation version, committed state, and reconciliation requirement. A
+  remote error or unknown outcome MUST NOT erase, defer, or ambiguously encode
+  the authoritative local revocation; if the local revocation itself is
+  unknown, no result may claim it committed and reconciliation is mandatory.
+  Malformed or unsupported input rejected before authoritative session
+  selection MUST return the distinct invalid-request error without a
+  `LocalRevocation` projection and MUST NOT invent a session or version.
 - Single Logout MUST implement SAML Core 2.0 §3.7 and SAML Profiles 2.0 §4.4
   under the exact directional binding table; unlisted SLO profiles and bindings
   are unsupported.
+- Implementation and conformance tests MUST trace every selected behavior to
+  the exact closed Core, Bindings, Profiles, Metadata, XML Signature and
+  Security clause lists in `PROTOCOL_BASELINES.md`. The requirement-to-test
+  matrix MUST name the individual clause locator for each test; a source-level
+  or whole-section-family citation is insufficient. Unlisted clauses MUST NOT
+  silently select another binding, profile, algorithm, or trust decision.
 - Response validation MUST cover XML signature location/reference, issuer,
   audience, destination, recipient, subject confirmation, InResponseTo,
   NotBefore/NotOnOrAfter, session index and assertion/response replay.

@@ -216,7 +216,9 @@ exception is built-in Apple: its provider profile fixes
 front-channel ID token and `c_hash`, and then exchanges the code; the subject
 and nonce must match across both proofs. This Apple exception is not advertised
 by the reference authorization server and cannot enable hybrid behavior for
-another provider. Implicit, every other hybrid response, JARM, request objects,
+another provider. It is the one selected hybrid response and therefore is not
+covered by the generic `oidc.hybrid-unsupported` disposition. Implicit, every
+other hybrid response, JARM, request objects,
 encrypted ID tokens, front-channel logout, and back-channel logout MUST be
 omitted from metadata and rejected with typed unsupported-profile errors. ID token and UserInfo proof MUST cover issuer,
 audience, `azp`, subject, nonce, time, `auth_time`, `acr`/`amr` where claimed,
@@ -234,8 +236,17 @@ reject missing or duplicated members, a success missing either `code` or
 substitution.
 Every other social OAuth/OIDC provider, the enterprise OIDC relying-party
 profile, and the reference OIDC provider MUST use `query` and reject
-`form_post`. RP-Initiated Logout is enabled for the reference OIDC provider and
-relying-party profiles. Its
+`form_post`. RP-Initiated Logout is selected for the reference OIDC provider,
+enterprise OIDC relying-party profiles, and social OIDC orchestration in
+`identity/oauth`. A built-in provider profile supplies only its pinned end-session
+endpoint, issuer aliases, and logout capability decision; `identity/oauth`
+owns logout transaction orchestration and the public start/complete operations.
+The start operation MUST bind provider, issuer, client, initiating session,
+post-logout redirect, state, expiry, and configuration version before redirect.
+The completion operation MUST recover the expected provider and issuer only
+from the single-use state transaction before validating any response issuer or
+provider-supplied parameter; caller-selected provider identity and an unbound
+response issuer MUST NOT select validation keys or session authority. Its
 `post_logout_redirect_uri` MUST be pre-registered and matched byte-for-byte,
 and the provider MUST validate the `id_token_hint` issuer, audience, signature,
 and session binding before accepting it as logout context. Front-channel and
@@ -243,10 +254,13 @@ back-channel logout are not selected and MUST be omitted from metadata.
 Authorization request parsing preserves parameter presence: absent `prompt`
 is distinct from a present non-empty closed prompt set, and absent `max_age`
 is distinct from explicit `max_age=0`, which requires immediate
-reauthentication. Token endpoint parsing is grant-discriminated before
+reauthentication. Token endpoint parsing in `oauth-server` core is grant-discriminated before
 credential use; variant fields that do not belong to the selected grant are
 rejected, while omitted optional `scope` or `resource` parameters preserve the
 existing grant/client authority and never broaden scope or audience.
+`oauth-server/oidc` consumes only the core's typed, authenticated grant result
+and MUST NOT reparse token requests, select a grant, or become a second owner of
+grant-field validation.
 
 The reference issuer is origin-only and has no path other than `/`.
 Path-bearing issuers are rejected at configuration validation, so RFC 8414 and
@@ -284,9 +298,22 @@ Profile**. The selected implementation is SP-initiated LogoutRequest plus
 inbound LogoutRequest/LogoutResponse under the directional bindings below;
 SOAP, artifact and any unlisted SLO profile or binding are unsupported.
 
+The exact local SAML clause selection is closed. It selects SAML Core 2.0
+§§2.2.2, 2.2.3, 2.2.5, 2.3.3, 2.4.1 through 2.4.1.2, 2.5.1 through
+2.5.1.2, 2.5.1.4, 2.7.2, 2.7.2.2, 2.7.3 through 2.7.3.1.1, 3.2.1,
+3.2.2 through 3.2.2.2, 3.3.3, 3.3.4, 3.4.1, 3.4.1.1, 3.4.1.4 and 3.7
+through 3.7.3.2. It selects SAML Bindings 2.0 §§3.4.1, 3.4.3 through
+3.4.5.2, 3.4.6, 3.4.7, 3.5.1, 3.5.3 through 3.5.5.2, 3.5.6 and 3.5.7;
+SAML Profiles 2.0 §§4.1.4.2, 4.1.4.3, 4.1.4.5, 4.1.5 and 4.4; SAML Metadata
+2.0 §§2.2.1 through 2.2.3, 2.3.2, 2.4.1 through 2.4.4 and 3.1 through
+3.1.2; and SAML Security and Privacy Considerations 2.0 §§5.4.2, 6.4.3 and
+6.5.1. A whole-document source pin does not select an additional binding,
+profile, signature placement, identifier, or trust behavior.
+
 XML signature processing is pinned to XML Signature Syntax and Processing 1.1,
-W3C Recommendation 11 April 2013, and Exclusive XML Canonicalization 1.0, W3C
-Recommendation 18 July 2002. Direction and message type define the binding:
+W3C Recommendation 11 April 2013, Exclusive XML Canonicalization 1.0, W3C
+Recommendation 18 July 2002, and RFC 6931 §2.3.10 for the selected
+`sha256-rsa-MGF1` SignatureMethod URI. Direction and message type define the binding:
 SP-to-IdP AuthnRequest and LogoutRequest use HTTP-Redirect; IdP-to-SP login
 Response, LogoutRequest and LogoutResponse use HTTP-POST; and the SP's
 LogoutResponse answering an inbound HTTP-POST LogoutRequest returns by
@@ -380,8 +407,12 @@ attribute-value, signature, assertion, certificate, base64, Redirect-DEFLATE,
 and inflate-work limits are the exact `saml.*` manifest rows and are enforced
 before the next allocation stage.
 
-The reference XML-signature profile accepts only RSA-PSS with SHA-256
-(`http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1`) using an RSA key of
+The reference XML-signature profile accepts only RSA-PSS with SHA-256 under
+RFC 6931 §2.3.10 and the
+exact constant `SignatureAlgorithmRSAPSSSHA256` =
+`http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1`, with SHA-256 as the
+message digest, MGF1 with SHA-256, a 32-byte salt and trailer field `0xBC`,
+using an RSA key of
 at least 2048 bits, or ECDSA with SHA-256
 (`http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256`) using NIST P-256. The
 digest algorithm is SHA-256 (`http://www.w3.org/2001/04/xmlenc#sha256`) and the
@@ -609,6 +640,23 @@ TOTP is pinned to RFC 6238 and HOTP moving-factor mechanics to RFC 4226. The
 provisioning URI follows the Google Authenticator Key URI Format snapshot
 recorded in the conformance manifest; issuer label/query equality and strict
 percent encoding are mandatory.
+
+The protocol claims above do not become verified from a source pin alone.
+WebAuthn/passkey MUST retain browser and authenticator results for every
+selected algorithm, attestation, extension, resident-key, user-verification,
+backup and counter profile. MFA MUST retain RFC vector proof plus independent
+authenticator-app results for every advertised algorithm/digit/period profile.
+Each CAPTCHA adapter MUST retain an attributable sandbox result or immutable
+provider fixture for its exact request, response, hostname/action binding,
+expiry, replay, timeout and provider-error behavior. HIBP MUST retain
+attributable range-response fixtures for compromised, absent, padded,
+malformed, unavailable and unknown results and prove that only the five-hex
+prefix crossed the provider boundary. Every built-in OAuth/OIDC provider MUST
+retain attributable official-document or immutable metadata pins and a
+provider-specific interoperability result for every feature advertised by its
+matrix row. `pin-required`, `tenant-metadata-pin-required`, `not-run`, missing
+provider access, self-declaration, and implementation-only fixtures are blocker
+states and MUST NOT be interpreted as verified conformance.
 
 ## Pinned conformance tools
 

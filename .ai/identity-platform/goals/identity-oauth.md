@@ -11,7 +11,7 @@ shown here.
 - Unit: `identity/oauth`
 - Canonical module: `pkg/identity/oauth`
 - Canonical goal after scaffolding: `pkg/identity/oauth/.ai/GOAL.md`
-- Public contracts: unit ID `contract:unit:identity/oauth:v1`; owned operation IDs: `contract:operation:identity.account.access-token:v1`, `contract:operation:identity.account.link-start:v1`, `contract:operation:identity.account.link-token:v1`, `contract:operation:identity.account.provider-info:v1`, `contract:operation:identity.account.refresh-token:v1`, `contract:operation:identity.oauth.callback:v1`, `contract:operation:identity.oauth.callback-form-post:v1`, `contract:operation:identity.oauth.popup-complete:v1`, `contract:operation:identity.oauth.signin-start:v1`, `contract:operation:identity.oauth.signin-token:v1`
+- Public contracts: unit ID `contract:unit:identity/oauth:v1`; owned operation IDs: `contract:operation:identity.account.access-token:v1`, `contract:operation:identity.account.link-start:v1`, `contract:operation:identity.account.link-token:v1`, `contract:operation:identity.account.provider-info:v1`, `contract:operation:identity.account.refresh-token:v1`, `contract:operation:identity.oauth.callback:v1`, `contract:operation:identity.oauth.callback-form-post:v1`, `contract:operation:identity.oauth.logout-complete:v1`, `contract:operation:identity.oauth.logout-start:v1`, `contract:operation:identity.oauth.popup-complete:v1`, `contract:operation:identity.oauth.signin-start:v1`, `contract:operation:identity.oauth.signin-token:v1`
 - Requires: `identity`, `identity/session`, `identity/risk`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `capability`, `secret-envelope`, `audit`
 - Unlocks after verification: `identity/oauth/postgres`, `identity/oauth/providers`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/http`
@@ -159,6 +159,16 @@ involved.
 - Refresh MUST be single-flight per grant, rotate stored secrets when returned,
   preserve old-token validity only according to provider semantics, and expose
   revoked, retryable and reconciliation-required outcomes.
+- Social-provider logout MUST be explicit and profile-selected. Start MUST
+  revoke the exact local session and use only the immutable provider logout
+  endpoint when the selected profile supports one; unsupported providers return
+  a typed local-only outcome. One-use state MUST bind provider, endpoint,
+  session/version, allowlisted redirect and callback origin. Completion accepts
+  state and bounded provider outcome only, derives all authority from state,
+  consumes it once, and returns one closed redirect, local-only,
+  provider-complete, provider-error, timeout or unknown-reconciliation result.
+  Caller-supplied logout endpoints, inbound issuer authority, and retries that
+  recreate state are forbidden.
 - Popup mode MUST bind expected opener origin and one-time result channel,
   produce the same identity/link/session result as redirect mode, and define
   cancellation, blocked popup, user closure and error delivery. Browser

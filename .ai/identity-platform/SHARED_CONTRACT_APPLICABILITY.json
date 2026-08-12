@@ -206,6 +206,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -258,6 +259,7 @@
         "lifecycle.artifact.stateless_session",
         "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.factor_reset",
         "lifecycle.cascade.global_compromise",
@@ -282,6 +284,7 @@
       "lifecycle_consumers": [
         "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.factor_reset",
         "lifecycle.cascade.global_compromise",
@@ -369,6 +372,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -409,6 +413,7 @@
         "lifecycle.artifact.cookie_cache",
         "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.factor_reset",
         "lifecycle.cascade.global_compromise",
@@ -432,6 +437,7 @@
       "lifecycle_consumers": [
         "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.factor_reset",
         "lifecycle.cascade.global_compromise",
@@ -582,6 +588,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -659,6 +666,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -745,6 +753,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -1113,6 +1122,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -1327,6 +1337,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -1475,6 +1486,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -1594,6 +1606,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -1703,6 +1716,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -1790,6 +1804,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -1902,6 +1917,7 @@
         "ref.oauth.rp.state_bytes",
         "ref.oauth.rp.state_ttl",
         "ref.oauth.rp.transaction",
+        "ref.providers.<id>.oidc_logout",
         "ref.providers.<id>.response_mode",
         "ref.providers.native_token_modes",
         "ref.secrets.capability_digest_key",
@@ -1910,6 +1926,7 @@
         "ref.secrets.oauth_rp_pkce_commitment_key",
         "ref.struct:ref.capability.crypto",
         "ref.struct:ref.frontchannel_post_cookie",
+        "ref.struct:ref.oauth.provider_oidc_logout",
         "ref.struct:ref.oauth.rp_transaction"
       ],
       "security_events": [
@@ -1961,6 +1978,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -2016,6 +2034,7 @@
         "ref.providers.<id>.enabled",
         "ref.providers.<id>.issuer",
         "ref.providers.<id>.jwks_uri",
+        "ref.providers.<id>.oidc_logout",
         "ref.providers.<id>.profile_endpoint",
         "ref.providers.<id>.protocol",
         "ref.providers.<id>.response_mode",
@@ -2023,7 +2042,8 @@
         "ref.providers.<id>.token_endpoint",
         "ref.providers.apple.response_type",
         "ref.providers.catalog_version",
-        "ref.providers.native_token_modes"
+        "ref.providers.native_token_modes",
+        "ref.struct:ref.oauth.provider_oidc_logout"
       ],
       "security_events": [
         "none"
@@ -2187,6 +2207,7 @@
         "ref.api_key.valkey_cache_ttl",
         "ref.secrets.api_key_digest_key",
         "ref.struct:ref.api_key.encoding",
+        "ref.struct:ref.api_key.permission_reduction",
         "ref.struct:ref.api_key.session_authentication"
       ],
       "security_events": [
@@ -2213,6 +2234,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -2237,6 +2259,7 @@
         "ref.postgres.tls.root_ca",
         "ref.postgres.tls.server_name",
         "ref.postgres.tx_timeout",
+        "ref.struct:ref.api_key.permission_reduction",
         "ref.struct:ref.postgres.command_retry"
       ],
       "security_events": [
@@ -2350,6 +2373,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -2392,6 +2416,7 @@
       "lifecycle": [
         "lifecycle.artifact.session_enrichment",
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
@@ -2410,6 +2435,7 @@
       ],
       "lifecycle_consumers": [
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
@@ -2439,6 +2465,7 @@
         "ref.organization.team_change_batch",
         "ref.secrets.capability_digest_key",
         "ref.secrets.capability_signing_provider",
+        "ref.struct:ref.api_key.permission_reduction",
         "ref.struct:ref.capability.crypto",
         "ref.struct:ref.organization.active_scope"
       ],
@@ -2486,6 +2513,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -2548,6 +2576,7 @@
       ],
       "lifecycle": [
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
@@ -2557,11 +2586,13 @@
         "lifecycle.cascade.organization_archive",
         "lifecycle.cascade.organization_delete",
         "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.scim_connection_delete",
         "lifecycle.events.enterprise_provider",
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
@@ -2570,7 +2601,8 @@
         "lifecycle.cascade.identity_delete",
         "lifecycle.cascade.organization_archive",
         "lifecycle.cascade.organization_delete",
-        "lifecycle.cascade.organization_restore"
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.scim_connection_delete"
       ],
       "configuration": [
         "ref.capability.crypto",
@@ -2620,7 +2652,7 @@
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
-        "lifecycle.cascade.domain_revoke"
+        "none"
       ],
       "configuration": [
         "ref.capability.crypto",
@@ -2806,6 +2838,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -2865,21 +2898,26 @@
         "tx.foundation"
       ],
       "lifecycle": [
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identity_anonymize",
         "lifecycle.cascade.identity_delete",
         "lifecycle.cascade.organization_archive",
         "lifecycle.cascade.organization_delete",
         "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.scim_connection_delete",
+        "lifecycle.events.scim_connection",
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identity_anonymize",
         "lifecycle.cascade.identity_delete",
         "lifecycle.cascade.organization_archive",
         "lifecycle.cascade.organization_delete",
-        "lifecycle.cascade.organization_restore"
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.scim_connection_delete"
       ],
       "configuration": [
         "ref.scim.authentication_schemes",
@@ -2968,11 +3006,13 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
       "lifecycle": [
-        "none"
+        "lifecycle.dimension.scim_connection",
+        "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
         "none"
@@ -3011,29 +3051,34 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
       "lifecycle": [
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.identity_anonymize",
         "lifecycle.cascade.identity_delete",
         "lifecycle.cascade.organization_archive",
         "lifecycle.cascade.organization_delete",
         "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.scim_connection_delete",
         "lifecycle.cascade.team_change",
         "lifecycle.cascade.team_delete",
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
         "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_delete",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.identity_anonymize",
         "lifecycle.cascade.identity_delete",
         "lifecycle.cascade.organization_archive",
         "lifecycle.cascade.organization_delete",
         "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.scim_connection_delete",
         "lifecycle.cascade.team_change",
         "lifecycle.cascade.team_delete"
       ],
@@ -3281,6 +3326,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -3320,10 +3366,13 @@
         "none"
       ],
       "lifecycle": [
-        "none"
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
-        "none"
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete"
       ],
       "configuration": [
         "ref.i18n.default",
@@ -3403,6 +3452,7 @@
         "ref.session.cookie.same_site",
         "ref.session.cookie.secure",
         "ref.sso.enforcement.mode",
+        "ref.struct:ref.api_key.permission_reduction",
         "ref.struct:ref.api_key.session_authentication",
         "ref.struct:ref.audit.investigation",
         "ref.struct:ref.http.external_retry",
@@ -3455,6 +3505,7 @@
         "tx.uow.enlist",
         "tx.uow.locks",
         "tx.uow.query",
+        "tx.uow.recover",
         "tx.uow.reserve",
         "tx.uow.rollback"
       ],
@@ -3778,6 +3829,7 @@
         "ref.providers.<id>.enabled",
         "ref.providers.<id>.issuer",
         "ref.providers.<id>.jwks_uri",
+        "ref.providers.<id>.oidc_logout",
         "ref.providers.<id>.profile_endpoint",
         "ref.providers.<id>.protocol",
         "ref.providers.<id>.subject_pointer",
@@ -3914,6 +3966,7 @@
         "ref.sso.provider.credential_overlap",
         "ref.sso.provider.initial_state",
         "ref.struct:ref.api_key.encoding",
+        "ref.struct:ref.api_key.permission_reduction",
         "ref.struct:ref.api_key.session_authentication",
         "ref.struct:ref.audit.investigation",
         "ref.struct:ref.audit.retention_policy",
@@ -3928,6 +3981,7 @@
         "ref.struct:ref.identity.delete.proof",
         "ref.struct:ref.identity.policy_set",
         "ref.struct:ref.lifecycle.legal_hold",
+        "ref.struct:ref.oauth.provider_oidc_logout",
         "ref.struct:ref.oauth.rp_transaction",
         "ref.struct:ref.oauth_server.dynamic_registration",
         "ref.struct:ref.oauth_server.pairwise_subject",

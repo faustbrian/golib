@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/oauth-server`
 - Canonical goal after scaffolding: `pkg/oauth-server/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:oauth-server:v1`; owned operation IDs: `contract:operation:identity.oauth-server.authorize:v1`, `contract:operation:identity.oauth-server.client-create:v1`, `contract:operation:identity.oauth-server.client-delete:v1`, `contract:operation:identity.oauth-server.client-get:v1`, `contract:operation:identity.oauth-server.client-get-public:v1`, `contract:operation:identity.oauth-server.client-get-public-prelogin:v1`, `contract:operation:identity.oauth-server.client-list:v1`, `contract:operation:identity.oauth-server.client-rotate-secret:v1`, `contract:operation:identity.oauth-server.client-update:v1`, `contract:operation:identity.oauth-server.consent-delete:v1`, `contract:operation:identity.oauth-server.consent-get:v1`, `contract:operation:identity.oauth-server.consent-list:v1`, `contract:operation:identity.oauth-server.consent-update:v1`, `contract:operation:identity.oauth-server.continue:v1`, `contract:operation:identity.oauth-server.discovery-oauth:v1`, `contract:operation:identity.oauth-server.dynamic-register:v1`, `contract:operation:identity.oauth-server.introspect:v1`, `contract:operation:identity.oauth-server.protected-resource-metadata:v1`, `contract:operation:identity.oauth-server.resource-verify:v1`, `contract:operation:identity.oauth-server.revoke:v1`, `contract:operation:identity.oauth-server.token:v1`
-- Requires: `identity`, `identity/session`, `identity/risk`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
-- Consumes existing primitives: `authorization`, `authentication`, `capability`, `capability/postgres`, `secret-envelope`, `audit`, `rate-limit`, `http-client`
+- Requires: `identity`, `identity/session`, `identity/risk`, `primitive/capability-identity-contracts`
+- Consumes existing primitives: `authorization`, `authentication`, `capability`, `secret-envelope`, `audit`, `rate-limit`, `http-client`
 - Unlocks after verification: `oauth-server/oidc`, `oauth-server/device`, `oauth-server/postgres`, `identity/http`
 
 ## Start gate
@@ -36,7 +36,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Issuer, Client, RedirectPolicy, AuthorizationRequest, Consent, Code, Grant, TokenIssuer, RefreshFamily, Revoker, Introspector, KeySet, Store, and endpoint result contracts. Public errors MUST be typed, stable,
+The design MUST define Issuer, Client, RedirectPolicy, AuthorizationRequest, Consent, Code, Grant, TokenIssuer, RefreshFamily, Revoker, Introspector, KeySet, Store, an OAuth-only `ScopeCatalog`, an OIDC extension seam, and endpoint result contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -48,6 +48,25 @@ before redirect validation MUST be rendered locally and MUST NOT redirect.
 Public management operations and their actor/resource authorization MUST match
 [`API_OPERATIONS.md`](../API_OPERATIONS.md), and all grant and client mutations
 MUST implement [`TRANSACTION_CONTRACT.md`](../TRANSACTION_CONTRACT.md).
+
+Core's built-in `ScopeCatalog` entries MUST contain OAuth resource scopes only.
+The composed effective `oauth_server.scopes` catalog MAY additionally contain
+OIDC extension entries, but core MUST NOT define, interpret, or issue the OIDC
+`openid`, `profile`, `email`, `address`, `phone`, or `offline_access` scope
+semantics or their claims. The consumer-owned OIDC
+extension seam MUST accept one immutable, validated `OIDCExtension` supplied by
+`oauth-server/oidc` at composition. It may contribute OIDC scopes, claims,
+authorization validation and discovery projection without importing
+`oauth-server/oidc` into core. Core MUST reject OIDC scopes when that extension
+is absent, and OAuth discovery MUST advertise only the composed effective scope
+union without interpreting OIDC claims.
+`OIDCExtension` MUST expose exactly
+`Scopes() ScopeCatalog`,
+`ValidateAuthorization(context.Context, OIDCAuthorizationInput) (OIDCAuthorizationProjection, error)`,
+`Claims(context.Context, OIDCClaimsInput) (OIDCClaimsProjection, error)`, and
+`OIDCDiscovery(context.Context) (OIDCDiscoveryProjection, error)`. The core
+`Dependencies` contract accepts at most one optional extension and the core
+`Config.Scopes` field is the explicit OAuth-only `ScopeCatalog`.
 
 ## Required behavior
 

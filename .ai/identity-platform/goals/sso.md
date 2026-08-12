@@ -12,8 +12,8 @@ shown here.
 - Canonical module: `pkg/sso`
 - Canonical goal after scaffolding: `pkg/sso/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:sso:v1`; owned operation IDs: `contract:operation:identity.sso.break-glass.consume:v1`, `contract:operation:identity.sso.break-glass.issue:v1`, `contract:operation:identity.sso.directory-sync-apply:v1`, `contract:operation:identity.sso.directory-sync-cancel:v1`, `contract:operation:identity.sso.directory-sync-start:v1`, `contract:operation:identity.sso.directory-sync-status:v1`, `contract:operation:identity.sso.discover:v1`, `contract:operation:identity.sso.domain-challenge:v1`, `contract:operation:identity.sso.domain-verify:v1`, `contract:operation:identity.sso.enforcement.update:v1`, `contract:operation:identity.sso.provider.credentials-rotate:v1`, `contract:operation:identity.sso.provider.delete:v1`, `contract:operation:identity.sso.provider.disable:v1`, `contract:operation:identity.sso.provider.enable:v1`, `contract:operation:identity.sso.provider.get:v1`, `contract:operation:identity.sso.provider.list:v1`, `contract:operation:identity.sso.provider.register-oauth:v1`, `contract:operation:identity.sso.provider.register-oidc:v1`, `contract:operation:identity.sso.provider.register-saml:v1`, `contract:operation:identity.sso.provider.update:v1`, `contract:operation:identity.sso.signin-start:v1`
-- Requires: `identity`, `identity/session`, `identity/risk`, `organization`, `primitive/capability-postgres-identity-contracts`
-- Consumes existing primitives: `authentication`, `authorization`, `capability`, `capability/postgres`, `secret-envelope`, `audit`, `workflow`
+- Requires: `identity`, `identity/session`, `identity/risk`, `organization`, `primitive/capability-identity-contracts`
+- Consumes existing primitives: `authentication`, `authorization`, `capability`, `secret-envelope`, `audit`, `workflow`
 - Unlocks after verification: `sso/domain-verification`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `sso/postgres`, `scim/organization`, `identity/http`
 
 ## Start gate
@@ -39,7 +39,9 @@ outside its public API and dependency graph.
 The design MUST define Provider, Protocol, DomainRoute,
 DiscoveryPolicy, AttributeMapping, JITPolicy, MembershipPolicy,
 RepeatLoginPolicy, EnforcementPolicy, LoginTransaction, EnterpriseTokenVault,
-SessionIssuer, ProtocolAdapter, ProtocolAssertion, DirectorySyncContributor,
+ProvisioningUnitOfWork, ProvisioningCommand, ProvisioningResult,
+ProtocolAdapter, ProtocolAssertion, ProtocolStateStore,
+ProtocolReplayID, ProtocolMappingCheckpoint, DirectorySyncContributor,
 DirectoryDeltaBatch, DirectoryApplyResult, Repository, and Hook contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
@@ -47,6 +49,14 @@ limits, and extension points MUST have explicit semantics.
 `ProtocolAdapter` MUST expose exactly
 `Start(context.Context, ProtocolStartCommand) (ProtocolStartResult, error)` and
 `Complete(context.Context, ProtocolCallback) (ProtocolAssertion, error)`.
+SSO MUST own every provider-registration request, result and protocol-neutral
+registration value, including `SAMLMetadataDocument`, `SAMLConfiguration` and
+`OIDCStaticMetadata`. The `identity.sso.provider.register-oauth`,
+`identity.sso.provider.register-oidc` and
+`identity.sso.provider.register-saml` contracts MUST NOT name their protocol
+adapter packages as collaborators or use adapter-owned request/result types;
+adapters validate or render wire material only after SSO selects the provider
+snapshot.
 Protocol packages MUST translate only validated protocol evidence into
 `ProtocolAssertion`; SSO alone applies routing, JIT, membership, role,
 token-vault, and session policy. `DirectorySyncContributor` MUST expose exactly
@@ -55,6 +65,29 @@ The batch and result MUST bind provider, organization, generation, mapping
 version, stable child command IDs, predecessor checkpoint, per-child outcome,
 and unknown/reconciliation state. `scim/organization` implements that
 consumer-owned interface; SSO remains sole owner of sync generations and cursors.
+
+`ProvisioningUnitOfWork` is the sole callable boundary for the atomic JIT or
+repeat-login transition. `Execute` MUST accept one complete
+`ProvisioningCommand` binding the globally unique command identity, validated
+protocol assertion, JIT/repeat-login/membership policy versions and resolved
+`identity/session.RememberPolicy`; it MUST atomically apply identity linkage,
+organization membership and role changes, enterprise-token linkage, session
+issuance, required audit and outbox effects. `Recover` MUST return the exact
+same `ProvisioningResult` by command identity without repeating protocol
+exchange or any child effect. Unknown returns no session.
+
+Core `sso` MUST remain storage-neutral. No public core constructor, method,
+command, result, callback or field may mention `identitypostgres.Work`,
+`identitypostgres.Contributor`, `identitypostgres.Coordinator`, `pgx.Tx`, a
+carrier or an enlister. PostgreSQL adapters expose open versioned contributors
+and map the consumer-owned provisioning command at the composition boundary;
+only the `identity/postgres` coordinator owns transaction lifetime.
+
+`ProtocolStateStore` is the protocol-neutral persistence boundary consumed by
+every protocol adapter. It owns digest-indexed replay consumption and validated
+mapping checkpoints using only SSO-owned types. `sso/oidc`, `sso/oauth2` and
+`sso/saml` MUST NOT publish persistence interfaces or require their
+implementation package to be imported by `sso/postgres`.
 
 ## Required behavior
 
@@ -69,12 +102,25 @@ involved.
   rotate credentials/certificates, delete and organization link/unlink with
   explicit ownership and authorization. Provider IDs, domains and issuer/entity
   IDs MUST have collision rules.
+- Provider delete MUST atomically establish local provider denial and return
+  the exact `lifecycle.cascade.enterprise_provider_delete` ID, generation,
+  status and redacted limitations. `deleted` is impossible until every
+  transaction/routing/token-vault, session/cache, organization/domain, SCIM,
+  authorization-cache and audit consumer closes; pending, outcome-unknown or
+  limited provider cleanup MUST remain visible and cannot restore authority.
 - The callable lifecycle MUST expose `identity.sso.provider.enable`,
   `identity.sso.provider.disable`, `identity.sso.provider.credentials-rotate`
   and `identity.sso.enforcement.update` as distinct operations with the exact
   access, CSRF, rate, idempotency and outcome contracts in
   `API_OPERATIONS.md`; generic provider update/delete MUST NOT substitute for
   those transitions.
+- Generic `identity.sso.provider.update` MUST be limited to non-secret provider
+  metadata, display, discovery, mapping, JIT, membership and synchronization
+  policy fields. It MUST reject credentials, client secrets, signing or
+  decryption keys, certificates, secret handles and key/certificate activation
+  or retirement. Credential and certificate/key rotation MUST occur only
+  through `identity.sso.provider.credentials-rotate` with its separate
+  authorization, reveal/redaction, overlap, audit and recovery contract.
 - Routing MUST support explicit provider ID, verified-domain discovery,
   configured default and deterministic multiple-provider conflict. Unverified
   domains, arbitrary email suffixes and hostile discovery metadata MUST NOT
@@ -88,7 +134,8 @@ involved.
 - `sso` owns the callable `identity.sso.domain-challenge` and
   `identity.sso.domain-verify` orchestration and their HTTP/OpenAPI contracts.
   It MUST translate its challenge into the verifier's exact
-  `VerificationRequest`, receive only `ObservedDomainEvidence`, and commit that
+  `DomainProofRequest`, invoke `DomainProofEngine.Observe`, receive only
+  `DomainProofObservation`, and commit that
   evidence through `organization.DomainEvidenceTransition`; subsequent routing
   MUST retrieve only `organization.DomainProof` through
   `organization.DomainProofReader`. It MUST delegate bounded proof retrieval

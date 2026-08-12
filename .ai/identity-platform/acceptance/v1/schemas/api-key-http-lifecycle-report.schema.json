@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 10,
@@ -148,10 +129,10 @@
                 "const": "Run identity.apikey.create for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -197,10 +178,10 @@
                 "const": "Run identity.apikey.delete for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -246,10 +227,10 @@
                 "const": "Run identity.apikey.delete-expired for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -295,10 +276,10 @@
                 "const": "Run identity.apikey.get for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -344,10 +325,10 @@
                 "const": "Run identity.apikey.list for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -393,10 +374,10 @@
                 "const": "Run identity.apikey.rotate for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -442,10 +423,10 @@
                 "const": "Run identity.apikey.session-authenticate for success, denial, failure, outage, replay, cleanup cases using tenant_id, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, cleanup=pass/none; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, cleanup=pass/none; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, cleanup=pass/none; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, cleanup=pass/none; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -491,10 +472,10 @@
                 "const": "Run identity.apikey.update for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -540,10 +521,10 @@
                 "const": "Run identity.apikey.verify for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -589,10 +570,10 @@
                 "const": "Run identity.apikey.create then identity.apikey.delete then identity.apikey.delete-expired then identity.apikey.get then identity.apikey.list then identity.apikey.rotate then identity.apikey.session-authenticate then identity.apikey.update then identity.apikey.verify for success, failure, denial, replay cases using tenant_id, key_name, scopes, expires_at, idempotency_key, api_key_secret, session_authentication_enabled, revocation_version and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "actual_outcome": {
-                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases"
+                "const": "Invariant: create returns one secret, verify authenticates, rotate invalidates the old secret, delete and revocation prevent authentication, disabled session authentication denies without session creation, and enabled authentication creates only a bounded profile-compliant session that observes revocation; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict; required artifact fields: api_key_id, created_secret_digest, rotated_secret_digest, old_secret_rejected, deleted_secret_rejected, disabled_profile_rejected, enabled_session_authenticated, revocation_propagated, api_key_security_cases, permission_reduction_results"
               },
               "result": {
                 "const": "pass"
@@ -873,7 +854,8 @@
         "disabled_profile_rejected",
         "enabled_session_authenticated",
         "revocation_propagated",
-        "api_key_security_cases"
+        "api_key_security_cases",
+        "permission_reduction_results"
       ],
       "properties": {
         "artifact_id": {
@@ -910,11 +892,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -925,6 +927,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -941,10 +944,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "api-key-http-lifecycle-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -954,15 +983,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -1003,6 +1143,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -2823,6 +2967,963 @@
                   },
                   "resubmit_allowed": {
                     "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "permission_reduction_results": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "narrow-committed"
+                  },
+                  "policy": {
+                    "const": "narrow"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": true
+                  },
+                  "revoked": {
+                    "const": false
+                  },
+                  "event_type": {
+                    "const": "api_key.permissions_changed.v1"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 1
+                  },
+                  "cascade_outcome": {
+                    "const": "committed"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "fingerprint_match": {
+                    "const": true
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": false
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "revoke-committed"
+                  },
+                  "policy": {
+                    "const": "revoke"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": false
+                  },
+                  "revoked": {
+                    "const": true
+                  },
+                  "event_type": {
+                    "const": "api_key.revoked.v1"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 1
+                  },
+                  "cascade_outcome": {
+                    "const": "committed"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:fe3284c55616af6fcf0c863c4e7c1461ee274d1f42b7bf1378dd40a93bf6900d"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:fe3284c55616af6fcf0c863c4e7c1461ee274d1f42b7bf1378dd40a93bf6900d"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:5809d44c66b1fcb655b49e1b1ff51994190622603c68aeaf3358fe31fcac433c"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:5809d44c66b1fcb655b49e1b1ff51994190622603c68aeaf3358fe31fcac433c"
+                  },
+                  "fingerprint_match": {
+                    "const": true
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": false
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "narrow-unknown-reconciled"
+                  },
+                  "policy": {
+                    "const": "narrow"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": true
+                  },
+                  "revoked": {
+                    "const": false
+                  },
+                  "event_type": {
+                    "const": "api_key.permissions_changed.v1"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 1
+                  },
+                  "cascade_outcome": {
+                    "const": "reconciled-committed"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "fingerprint_match": {
+                    "const": true
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": true
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "revoke-unknown-reconciled"
+                  },
+                  "policy": {
+                    "const": "revoke"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": false
+                  },
+                  "revoked": {
+                    "const": true
+                  },
+                  "event_type": {
+                    "const": "api_key.revoked.v1"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 1
+                  },
+                  "cascade_outcome": {
+                    "const": "reconciled-committed"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:fe3284c55616af6fcf0c863c4e7c1461ee274d1f42b7bf1378dd40a93bf6900d"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:fe3284c55616af6fcf0c863c4e7c1461ee274d1f42b7bf1378dd40a93bf6900d"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:5809d44c66b1fcb655b49e1b1ff51994190622603c68aeaf3358fe31fcac433c"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:5809d44c66b1fcb655b49e1b1ff51994190622603c68aeaf3358fe31fcac433c"
+                  },
+                  "fingerprint_match": {
+                    "const": true
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": true
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "unknown-fingerprint-mismatch"
+                  },
+                  "policy": {
+                    "const": "narrow"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": false
+                  },
+                  "revoked": {
+                    "const": false
+                  },
+                  "event_type": {
+                    "const": "none"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 0
+                  },
+                  "cascade_outcome": {
+                    "const": "conflict"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:529a75aafe65b225ce04337d8cfca820026edff1c606f14345f63a3e8a58d4aa"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:217638fe55dd935d1b51bf313628de89f38f777293d6ae11c99f5f09c1979ece"
+                  },
+                  "fingerprint_match": {
+                    "const": false
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": true
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "narrow-committed"
+                  },
+                  "policy": {
+                    "const": "narrow"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": true
+                  },
+                  "revoked": {
+                    "const": false
+                  },
+                  "event_type": {
+                    "const": "api_key.permissions_changed.v1"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 1
+                  },
+                  "cascade_outcome": {
+                    "const": "committed"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "fingerprint_match": {
+                    "const": true
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": false
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "revoke-committed"
+                  },
+                  "policy": {
+                    "const": "revoke"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": false
+                  },
+                  "revoked": {
+                    "const": true
+                  },
+                  "event_type": {
+                    "const": "api_key.revoked.v1"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 1
+                  },
+                  "cascade_outcome": {
+                    "const": "committed"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:fe3284c55616af6fcf0c863c4e7c1461ee274d1f42b7bf1378dd40a93bf6900d"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:fe3284c55616af6fcf0c863c4e7c1461ee274d1f42b7bf1378dd40a93bf6900d"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:5809d44c66b1fcb655b49e1b1ff51994190622603c68aeaf3358fe31fcac433c"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:5809d44c66b1fcb655b49e1b1ff51994190622603c68aeaf3358fe31fcac433c"
+                  },
+                  "fingerprint_match": {
+                    "const": true
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": false
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "narrow-unknown-reconciled"
+                  },
+                  "policy": {
+                    "const": "narrow"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": true
+                  },
+                  "revoked": {
+                    "const": false
+                  },
+                  "event_type": {
+                    "const": "api_key.permissions_changed.v1"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 1
+                  },
+                  "cascade_outcome": {
+                    "const": "reconciled-committed"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "fingerprint_match": {
+                    "const": true
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": true
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "revoke-unknown-reconciled"
+                  },
+                  "policy": {
+                    "const": "revoke"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": false
+                  },
+                  "revoked": {
+                    "const": true
+                  },
+                  "event_type": {
+                    "const": "api_key.revoked.v1"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 1
+                  },
+                  "cascade_outcome": {
+                    "const": "reconciled-committed"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:fe3284c55616af6fcf0c863c4e7c1461ee274d1f42b7bf1378dd40a93bf6900d"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:fe3284c55616af6fcf0c863c4e7c1461ee274d1f42b7bf1378dd40a93bf6900d"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:5809d44c66b1fcb655b49e1b1ff51994190622603c68aeaf3358fe31fcac433c"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:5809d44c66b1fcb655b49e1b1ff51994190622603c68aeaf3358fe31fcac433c"
+                  },
+                  "fingerprint_match": {
+                    "const": true
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": true
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "policy",
+                  "policy_version",
+                  "narrowed",
+                  "revoked",
+                  "event_type",
+                  "lifecycle_event_count",
+                  "cascade_outcome",
+                  "same_command_id",
+                  "stored_canonical_input_sha256",
+                  "query_canonical_input_sha256",
+                  "stored_fingerprint",
+                  "query_fingerprint",
+                  "fingerprint_match",
+                  "fingerprint_derivation",
+                  "terminal_reconciliation",
+                  "reapplication_count",
+                  "authority_version",
+                  "command_id",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "unknown-fingerprint-mismatch"
+                  },
+                  "policy": {
+                    "const": "narrow"
+                  },
+                  "policy_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "narrowed": {
+                    "const": false
+                  },
+                  "revoked": {
+                    "const": false
+                  },
+                  "event_type": {
+                    "const": "none"
+                  },
+                  "lifecycle_event_count": {
+                    "const": 0
+                  },
+                  "cascade_outcome": {
+                    "const": "conflict"
+                  },
+                  "same_command_id": {
+                    "const": true
+                  },
+                  "stored_canonical_input_sha256": {
+                    "const": "sha256:ecf03673daa10ff7bb53511c211acbb69acbec3939dcb933141d769180c42376"
+                  },
+                  "query_canonical_input_sha256": {
+                    "const": "sha256:529a75aafe65b225ce04337d8cfca820026edff1c606f14345f63a3e8a58d4aa"
+                  },
+                  "stored_fingerprint": {
+                    "const": "sha256:38ad104f6b90739cd73e7a9b6c5441840e9fca8d779c736f84552b229d6dd695"
+                  },
+                  "query_fingerprint": {
+                    "const": "sha256:217638fe55dd935d1b51bf313628de89f38f777293d6ae11c99f5f09c1979ece"
+                  },
+                  "fingerprint_match": {
+                    "const": false
+                  },
+                  "fingerprint_derivation": {
+                    "const": "sha256(api-key-permission-reduction-v1\\n+canonical-input-sha256)"
+                  },
+                  "terminal_reconciliation": {
+                    "const": true
+                  },
+                  "reapplication_count": {
+                    "const": 0
+                  },
+                  "authority_version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "command_id": {
+                    "const": "permission-reduction-command"
                   },
                   "transcript_sha256": {
                     "type": "string",

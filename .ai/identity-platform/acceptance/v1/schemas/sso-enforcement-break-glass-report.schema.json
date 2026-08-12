@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -27,7 +26,7 @@
     },
     "result": {
       "const": {
-        "status": "pass",
+        "status": "blocked",
         "gate": "make check MODULES=pkg/identity/reference"
       }
     },
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -142,16 +123,16 @@
                 "const": "success,failure,denial"
               },
               "preconditions": {
-                "const": "Operations: identity.sso.enforcement.update, identity.sso.break-glass.issue, identity.sso.break-glass.consume; exact inputs: tenant_id, domain, enforcement_version, actor_id, break_glass_reason; initial state: verified domain enforces SSO and local signin is disabled"
+                "const": "Operations: identity.sso.enforcement.update, identity.sso.break-glass.issue, identity.sso.break-glass.consume; exact inputs: tenant_id, organization_id, domain, enforcement_version, actor_id, recipient_id, break_glass_reason, expires_at, preauth_transaction_id; initial state: verified domain enforces SSO, local signin is disabled, and a separately tested recovery exclusion prevents administrator lockout"
               },
               "stimulus": {
-                "const": "Run identity.sso.enforcement.update then identity.sso.break-glass.issue then identity.sso.break-glass.consume for success, failure, denial cases using tenant_id, domain, enforcement_version, actor_id, break_glass_reason and capture every required artifact field"
+                "const": "Run identity.sso.enforcement.update then identity.sso.break-glass.issue then identity.sso.break-glass.consume for success, failure, denial cases using tenant_id, organization_id, domain, enforcement_version, actor_id, recipient_id, break_glass_reason, expires_at, preauth_transaction_id and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: local signin is denied; authorized issue creates one bounded audited break-glass grant; consume works once and cannot weaken tenant policy; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: grant_id, enforcement_version, consumed_count, replay_rejected, audit_event_digest"
+                "const": "Invariant: lockout-unsafe enforcement is rejected; only an authorized fresh owner issues one organization and policy-version-bound reveal-once capability; consume creates one bounded recovery session, emits a distinct use audit event, rejects mismatch, expiry and replay, and never weakens enforcement policy; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: grant_id, enforcement_version, consumed_count, replay_rejected, audit_event_digest, safety_results"
               },
               "actual_outcome": {
-                "const": "Invariant: local signin is denied; authorized issue creates one bounded audited break-glass grant; consume works once and cannot weaken tenant policy; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: grant_id, enforcement_version, consumed_count, replay_rejected, audit_event_digest"
+                "const": "Invariant: lockout-unsafe enforcement is rejected; only an authorized fresh owner issues one organization and policy-version-bound reveal-once capability; consume creates one bounded recovery session, emits a distinct use audit event, rejects mismatch, expiry and replay, and never weakens enforcement policy; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden; required artifact fields: grant_id, enforcement_version, consumed_count, replay_rejected, audit_event_digest, safety_results"
               },
               "result": {
                 "const": "pass"
@@ -266,7 +247,8 @@
         "enforcement_version",
         "consumed_count",
         "replay_rejected",
-        "audit_event_digest"
+        "audit_event_digest",
+        "safety_results"
       ],
       "properties": {
         "artifact_id": {
@@ -276,7 +258,7 @@
           "const": "sso-enforcement-break-glass-report.invariant"
         },
         "invariant": {
-          "const": "local signin is denied; authorized issue creates one bounded audited break-glass grant; consume works once and cannot weaken tenant policy"
+          "const": "lockout-unsafe enforcement is rejected; only an authorized fresh owner issues one organization and policy-version-bound reveal-once capability; consume creates one bounded recovery session, emits a distinct use audit event, rejects mismatch, expiry and replay, and never weakens enforcement policy"
         },
         "operation_ids": {
           "const": [
@@ -297,11 +279,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -312,6 +314,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -328,10 +331,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "sso-enforcement-break-glass-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -341,15 +370,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -390,6 +530,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -487,7 +631,7 @@
                 }
               },
               "initial_state": {
-                "const": "verified domain enforces SSO and local signin is disabled"
+                "const": "verified domain enforces SSO, local signin is disabled, and a separately tested recovery exclusion prevents administrator lockout"
               },
               "status": {
                 "type": "string",
@@ -506,7 +650,7 @@
                 ]
               },
               "expected_invariant": {
-                "const": "local signin is denied; authorized issue creates one bounded audited break-glass grant; consume works once and cannot weaken tenant policy"
+                "const": "lockout-unsafe enforcement is rejected; only an authorized fresh owner issues one organization and policy-version-bound reveal-once capability; consume creates one bounded recovery session, emits a distinct use audit event, rejects mismatch, expiry and replay, and never weakens enforcement policy"
               },
               "observed_state_digest": {
                 "type": "string",
@@ -623,14 +767,18 @@
               ],
               "input_fields": [
                 "tenant_id",
+                "organization_id",
                 "domain",
                 "enforcement_version",
                 "actor_id",
-                "break_glass_reason"
+                "recipient_id",
+                "break_glass_reason",
+                "expires_at",
+                "preauth_transaction_id"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:2d1c133d7e652d374120dc37a9f4cb80627546dcd8847c85cdebd38541c2738a",
+              "artifact_contract_sha256": "sha256:48884e4aa79ea4943476bf86f459dd0e9e77a283cf4deebb510b8c821581182f",
               "expected_operation_set": [
                 "identity.sso.break-glass.consume",
                 "identity.sso.break-glass.issue",
@@ -654,14 +802,18 @@
               ],
               "input_fields": [
                 "tenant_id",
+                "organization_id",
                 "domain",
                 "enforcement_version",
                 "actor_id",
-                "break_glass_reason"
+                "recipient_id",
+                "break_glass_reason",
+                "expires_at",
+                "preauth_transaction_id"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:78743ed4fae76c01fb8f4dddbacd6dafb8a304593615c251bea20c076516fdc7",
+              "artifact_contract_sha256": "sha256:17adfd529f7a59d92e215bdf83f80ebaa72e2c49892f7f03c59a48be219ca2d3",
               "expected_operation_set": [
                 "identity.sso.break-glass.consume",
                 "identity.sso.break-glass.issue",
@@ -685,14 +837,18 @@
               ],
               "input_fields": [
                 "tenant_id",
+                "organization_id",
                 "domain",
                 "enforcement_version",
                 "actor_id",
-                "break_glass_reason"
+                "recipient_id",
+                "break_glass_reason",
+                "expires_at",
+                "preauth_transaction_id"
               ],
               "status": "denied",
               "stable_error": "forbidden",
-              "artifact_contract_sha256": "sha256:f3fa545483858357ad65d60b3b9fcca6ac4128d4082a6aa1a7e20691e9b62624",
+              "artifact_contract_sha256": "sha256:c7d40ae8ecb62e5007b73cdcdcaa615ce5acc36fd2dd369192662e08031ef02c",
               "expected_operation_set": [
                 "identity.sso.break-glass.consume",
                 "identity.sso.break-glass.issue",
@@ -726,6 +882,1117 @@
         "audit_event_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "safety_results": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "lockout-unsafe-policy"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.enforcement.update"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": false
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.enforcement_rejected"
+                  },
+                  "audit_event_id": {
+                    "const": "lockout-unsafe-policy-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "authorized-issue"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.issue"
+                  },
+                  "observed_outcome": {
+                    "const": "issued"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.issue_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "authorized-issue-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "consume-once"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "recovery-session-created"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "consume-once-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": true
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "wrong-organization"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "wrong-organization-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "wrong-policy-version"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "wrong-policy-version-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "expired"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "expired-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "replay"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "replay-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "lockout-unsafe-policy"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.enforcement.update"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": false
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.enforcement_rejected"
+                  },
+                  "audit_event_id": {
+                    "const": "lockout-unsafe-policy-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "authorized-issue"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.issue"
+                  },
+                  "observed_outcome": {
+                    "const": "issued"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.issue_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "authorized-issue-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "consume-once"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "recovery-session-created"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "consume-once-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": true
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "wrong-organization"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "wrong-organization-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "wrong-policy-version"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "wrong-policy-version-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "expired"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "expired-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "operation_id",
+                  "observed_outcome",
+                  "organization_bound",
+                  "policy_version_bound",
+                  "audited",
+                  "audit_event_type",
+                  "audit_event_id",
+                  "grant_id",
+                  "organization_id",
+                  "policy_version",
+                  "actor_id",
+                  "recipient_id",
+                  "grant_binding_digest",
+                  "recovery_session_created",
+                  "policy_weakened",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "replay"
+                  },
+                  "operation_id": {
+                    "const": "identity.sso.break-glass.consume"
+                  },
+                  "observed_outcome": {
+                    "const": "rejected"
+                  },
+                  "organization_bound": {
+                    "const": true
+                  },
+                  "policy_version_bound": {
+                    "const": true
+                  },
+                  "audited": {
+                    "const": true
+                  },
+                  "audit_event_type": {
+                    "const": "identity.sso.use_break_glass"
+                  },
+                  "audit_event_id": {
+                    "const": "replay-audit-event"
+                  },
+                  "grant_id": {
+                    "const": "break-glass-grant"
+                  },
+                  "organization_id": {
+                    "const": "organization-a"
+                  },
+                  "policy_version": {
+                    "const": 1
+                  },
+                  "actor_id": {
+                    "const": "owner-a"
+                  },
+                  "recipient_id": {
+                    "const": "recovery-admin-a"
+                  },
+                  "grant_binding_digest": {
+                    "const": "sha256:e3df62fb4b3e96c7ceab2837acca5708356156c4147210e08136ee56220c42ff"
+                  },
+                  "recovery_session_created": {
+                    "const": false
+                  },
+                  "policy_weakened": {
+                    "const": false
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [

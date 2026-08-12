@@ -13,7 +13,6 @@
     "revalidation_revision",
     "input_manifest",
     "input_root",
-    "tool_environment",
     "observations",
     "artifact_hashes",
     "recorded_at"
@@ -27,7 +26,7 @@
     },
     "result": {
       "const": {
-        "status": "pass",
+        "status": "blocked",
         "gate": "make check MODULES=pkg/identity/reference"
       }
     },
@@ -88,24 +87,6 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "tool_environment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tool",
-        "environment"
-      ],
-      "properties": {
-        "tool": {
-          "type": "string",
-          "minLength": 1
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "observations": {
       "type": "array",
       "minItems": 1,
@@ -142,16 +123,16 @@
                 "const": "success,failure,outage,concurrency,unknown-outcome"
               },
               "preconditions": {
-                "const": "Operations: identity.apikey.create, identity.apikey.rotate, identity.apikey.verify; exact inputs: tenant_id, api_key_id, rotation_version, idempotency_key; initial state: PostgreSQL and Valkey contain the same active key version"
+                "const": "Operations: identity.apikey.create, identity.apikey.rotate, identity.apikey.verify; exact inputs: tenant_id, api_key_id, rotation_version, idempotency_key, debit_operation_id, debit_failure_point; initial state: PostgreSQL owns the active key lifecycle and Valkey contains only a current positive metadata/quota projection"
               },
               "stimulus": {
-                "const": "Run identity.apikey.create then identity.apikey.rotate then identity.apikey.verify for success, failure, outage, concurrency, unknown-outcome cases using tenant_id, api_key_id, rotation_version, idempotency_key and capture every required artifact field"
+                "const": "Run identity.apikey.create then identity.apikey.rotate then identity.apikey.verify for success, failure, outage, concurrency, unknown-outcome cases using tenant_id, api_key_id, rotation_version, idempotency_key, debit_operation_id, debit_failure_point and capture every required artifact field"
               },
               "expected_outcome": {
-                "const": "Invariant: one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: api_key_id, winner_version, conflict_count, postgres_state_digest, valkey_state_digest"
+                "const": "Invariant: one concurrent rotation wins; every allow follows a fresh PostgreSQL-authoritative decision; cache miss, stale projection, epoch loss and nil authority never allow; a disconnect around quota mutation returns definitely-not-debited, debited, or possibly-debited with the same operation ID, possible debit blocks retry, and reconciliation converges without a duplicate debit; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: api_key_id, debit_operation_id, winner_version, conflict_count, possible_debit_count, reconciled_debit_count, duplicate_debit_count, authoritative_verification_count, postgres_state_digest, valkey_state_digest, debit_journal_digest, possibly_debited_results"
               },
               "actual_outcome": {
-                "const": "Invariant: one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: api_key_id, winner_version, conflict_count, postgres_state_digest, valkey_state_digest"
+                "const": "Invariant: one concurrent rotation wins; every allow follows a fresh PostgreSQL-authoritative decision; cache miss, stale projection, epoch loss and nil authority never allow; a disconnect around quota mutation returns definitely-not-debited, debited, or possibly-debited with the same operation ID, possible debit blocks retry, and reconciliation converges without a duplicate debit; stable outcomes: success=pass/none, failure=failed/internal, outage=unavailable/unavailable, concurrency=pass/conflict, unknown-outcome=reconciled/unknown_commit; required artifact fields: api_key_id, debit_operation_id, winner_version, conflict_count, possible_debit_count, reconciled_debit_count, duplicate_debit_count, authoritative_verification_count, postgres_state_digest, valkey_state_digest, debit_journal_digest, possibly_debited_results"
               },
               "result": {
                 "const": "pass"
@@ -263,10 +244,17 @@
         "execution",
         "scenario_cases",
         "api_key_id",
+        "debit_operation_id",
         "winner_version",
         "conflict_count",
+        "possible_debit_count",
+        "reconciled_debit_count",
+        "duplicate_debit_count",
+        "authoritative_verification_count",
         "postgres_state_digest",
-        "valkey_state_digest"
+        "valkey_state_digest",
+        "debit_journal_digest",
+        "possibly_debited_results"
       ],
       "properties": {
         "artifact_id": {
@@ -276,7 +264,7 @@
           "const": "api-key-postgres-valkey-race-report.invariant"
         },
         "invariant": {
-          "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
+          "const": "one concurrent rotation wins; every allow follows a fresh PostgreSQL-authoritative decision; cache miss, stale projection, epoch loss and nil authority never allow; a disconnect around quota mutation returns definitely-not-debited, debited, or possibly-debited with the same operation ID, possible debit blocks retry, and reconciliation converges without a duplicate debit"
         },
         "operation_ids": {
           "const": [
@@ -297,11 +285,31 @@
             "execution_receipt_path",
             "execution_receipt_sha256",
             "capture_authority",
-            "command",
+            "producer_argv",
+            "verifier_argv",
             "tested_revision",
             "input_root",
-            "tool",
-            "environment",
+            "sandbox_environment_sha256",
+            "canonical_workdir",
+            "executable_realpath",
+            "executable_sha256",
+            "verifier_executable_realpath",
+            "verifier_executable_sha256",
+            "verifier_driver_realpath",
+            "verifier_driver_sha256",
+            "version_argv",
+            "version_stdout",
+            "version_stderr",
+            "verifier_version_argv",
+            "verifier_version_stdout",
+            "verifier_version_stderr",
+            "environment_probe_argv",
+            "environment_probe_stdout",
+            "environment_probe_stderr",
+            "verifier_exit_status",
+            "verifier_stdout",
+            "verifier_stderr",
+            "verifier_attestation_sha256",
             "started_at",
             "completed_at",
             "exit_status",
@@ -312,6 +320,7 @@
             "stderr_byte_length",
             "stderr_sha256",
             "captured_output_sha256",
+            "raw_capture_sha256",
             "output_artifact_path",
             "artifact_payload_binding"
           ],
@@ -328,10 +337,36 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "capture_authority": {
-              "const": "coordinator-owned-execution-runner/v1"
+              "const": "coordinator-owned-execution-runner/v3"
             },
-            "command": {
-              "const": "make check MODULES=pkg/identity/reference"
+            "producer_argv": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "check",
+                "MODULES=pkg/identity/reference"
+              ]
+            },
+            "verifier_argv": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                ".ai/identity-platform/acceptance/schema_validation.rb",
+                "verify",
+                "api-key-postgres-valkey-race-report"
+              ]
             },
             "tested_revision": {
               "type": "string",
@@ -341,15 +376,126 @@
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "tool": {
+            "sandbox_environment_sha256": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 256
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
-            "environment": {
+            "canonical_workdir": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_executable_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_executable_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "verifier_driver_realpath": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verifier_driver_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "make",
+                "--version"
+              ]
+            },
+            "version_stdout": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 512
+              "maxLength": 65536
+            },
+            "version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_version_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "ruby",
+                "--version"
+              ]
+            },
+            "verifier_version_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "verifier_version_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "environment_probe_argv": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "const": [
+                "uname",
+                "-a"
+              ]
+            },
+            "environment_probe_stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "environment_probe_stderr": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "verifier_exit_status": {
+              "const": 0
+            },
+            "verifier_stdout": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "verifier_attestation_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "started_at": {
               "type": "string",
@@ -390,6 +536,10 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
             "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "raw_capture_sha256": {
               "type": "string",
               "pattern": "^sha256:[0-9a-f]{64}$"
             },
@@ -491,7 +641,7 @@
                 }
               },
               "initial_state": {
-                "const": "PostgreSQL and Valkey contain the same active key version"
+                "const": "PostgreSQL owns the active key lifecycle and Valkey contains only a current positive metadata/quota projection"
               },
               "status": {
                 "type": "string",
@@ -513,7 +663,7 @@
                 ]
               },
               "expected_invariant": {
-                "const": "one concurrent rotation wins and cache authentication converges to the committed PostgreSQL version"
+                "const": "one concurrent rotation wins; every allow follows a fresh PostgreSQL-authoritative decision; cache miss, stale projection, epoch loss and nil authority never allow; a disconnect around quota mutation returns definitely-not-debited, debited, or possibly-debited with the same operation ID, possible debit blocks retry, and reconciliation converges without a duplicate debit"
               },
               "observed_state_digest": {
                 "type": "string",
@@ -532,7 +682,7 @@
                 "pattern": "^sha256:[0-9a-f]{64}$"
               },
               "observed_value_count": {
-                "const": 5
+                "const": 11
               },
               "ordered_steps": {
                 "const": [
@@ -573,13 +723,23 @@
                 "additionalProperties": false,
                 "required": [
                   "api_key_id",
+                  "debit_operation_id",
                   "winner_version",
                   "conflict_count",
+                  "possible_debit_count",
+                  "reconciled_debit_count",
+                  "duplicate_debit_count",
+                  "authoritative_verification_count",
                   "postgres_state_digest",
-                  "valkey_state_digest"
+                  "valkey_state_digest",
+                  "debit_journal_digest"
                 ],
                 "properties": {
                   "api_key_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+                  },
+                  "debit_operation_id": {
                     "type": "string",
                     "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
                   },
@@ -593,11 +753,35 @@
                     "minimum": 0,
                     "maximum": 2147483647
                   },
+                  "possible_debit_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "reconciled_debit_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "duplicate_debit_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "authoritative_verification_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
                   "postgres_state_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   },
                   "valkey_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "debit_journal_digest": {
                     "type": "string",
                     "pattern": "^sha256:[0-9a-f]{64}$"
                   }
@@ -633,11 +817,13 @@
                 "tenant_id",
                 "api_key_id",
                 "rotation_version",
-                "idempotency_key"
+                "idempotency_key",
+                "debit_operation_id",
+                "debit_failure_point"
               ],
               "status": "pass",
               "stable_error": "none",
-              "artifact_contract_sha256": "sha256:4436c4190ace3ab232be1aeb3d1bf972a3cd93f05f2b5cfde7a4eb568fa2cf09",
+              "artifact_contract_sha256": "sha256:92a8f0d74c2743977800b2f4d42ea0710e817d152ae47419709a38e3852a2b0f",
               "expected_operation_set": [
                 "identity.apikey.create",
                 "identity.apikey.rotate",
@@ -663,11 +849,13 @@
                 "tenant_id",
                 "api_key_id",
                 "rotation_version",
-                "idempotency_key"
+                "idempotency_key",
+                "debit_operation_id",
+                "debit_failure_point"
               ],
               "status": "failed",
               "stable_error": "internal",
-              "artifact_contract_sha256": "sha256:dfbcc04d09af204d14bfbab85f0f802bef985e1e0bd54bad34dfdec78e6ddbbd",
+              "artifact_contract_sha256": "sha256:9d8e59eb45e9f7147053c385e64da27bd8ca37d691f12d9787ca679e0784d352",
               "expected_operation_set": [
                 "identity.apikey.create",
                 "identity.apikey.rotate",
@@ -693,11 +881,13 @@
                 "tenant_id",
                 "api_key_id",
                 "rotation_version",
-                "idempotency_key"
+                "idempotency_key",
+                "debit_operation_id",
+                "debit_failure_point"
               ],
               "status": "unavailable",
               "stable_error": "unavailable",
-              "artifact_contract_sha256": "sha256:6a2bf449296e5fde76ecadb3e0b8e381b4ae906a8f4c903f3169f7ada5d4b283",
+              "artifact_contract_sha256": "sha256:487b414b0ed60157daf01cfac1990f1d80d526e6f4488a1cbe925dbb1b1ce268",
               "expected_operation_set": [
                 "identity.apikey.create",
                 "identity.apikey.rotate",
@@ -723,11 +913,13 @@
                 "tenant_id",
                 "api_key_id",
                 "rotation_version",
-                "idempotency_key"
+                "idempotency_key",
+                "debit_operation_id",
+                "debit_failure_point"
               ],
               "status": "pass",
               "stable_error": "conflict",
-              "artifact_contract_sha256": "sha256:769f67ac3d99593443f262954b74dab3d3adddbe7562e730bc77afa90f8a717c",
+              "artifact_contract_sha256": "sha256:ba59d0b0f697be9d47b42a766a97348850b798492f0ea7e68fe569fae572fc3d",
               "expected_operation_set": [
                 "identity.apikey.create",
                 "identity.apikey.rotate",
@@ -753,11 +945,13 @@
                 "tenant_id",
                 "api_key_id",
                 "rotation_version",
-                "idempotency_key"
+                "idempotency_key",
+                "debit_operation_id",
+                "debit_failure_point"
               ],
               "status": "reconciled",
               "stable_error": "unknown_commit",
-              "artifact_contract_sha256": "sha256:28679d154447b920b3907ea8cee15c25aefa228be4e2534eebf27961d31a89cb",
+              "artifact_contract_sha256": "sha256:12af8005c50e56df18343af25b95d4645186a2bbd79b592bbbac7a0e4c8dba5a",
               "expected_operation_set": [
                 "identity.apikey.create",
                 "identity.apikey.rotate",
@@ -775,12 +969,36 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
         },
+        "debit_operation_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+        },
         "winner_version": {
           "type": "integer",
           "minimum": 1,
           "maximum": 9223372036854775807
         },
         "conflict_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "possible_debit_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "reconciled_debit_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "duplicate_debit_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "authoritative_verification_count": {
           "type": "integer",
           "minimum": 0,
           "maximum": 2147483647
@@ -792,6 +1010,256 @@
         "valkey_state_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "debit_journal_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "possibly_debited_results": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "verification_attempt_id",
+                  "operation_id",
+                  "canonical_attempt_input_sha256",
+                  "journal_attempt_sha256",
+                  "result_attempt_sha256",
+                  "outcome",
+                  "same_attempt_id",
+                  "resolved",
+                  "retry_blocked",
+                  "duplicate_debit_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "initial-unknown"
+                  },
+                  "verification_attempt_id": {
+                    "const": "verification-attempt"
+                  },
+                  "operation_id": {
+                    "const": "identity.apikey.verify"
+                  },
+                  "canonical_attempt_input_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "journal_attempt_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "result_attempt_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "outcome": {
+                    "const": "possibly-debited"
+                  },
+                  "same_attempt_id": {
+                    "const": true
+                  },
+                  "resolved": {
+                    "const": false
+                  },
+                  "retry_blocked": {
+                    "const": true
+                  },
+                  "duplicate_debit_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "verification_attempt_id",
+                  "operation_id",
+                  "canonical_attempt_input_sha256",
+                  "journal_attempt_sha256",
+                  "result_attempt_sha256",
+                  "outcome",
+                  "same_attempt_id",
+                  "resolved",
+                  "retry_blocked",
+                  "duplicate_debit_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "same-attempt-reconcile"
+                  },
+                  "verification_attempt_id": {
+                    "const": "verification-attempt"
+                  },
+                  "operation_id": {
+                    "const": "identity.apikey.verify"
+                  },
+                  "canonical_attempt_input_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "journal_attempt_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "result_attempt_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "outcome": {
+                    "const": "reconciled"
+                  },
+                  "same_attempt_id": {
+                    "const": true
+                  },
+                  "resolved": {
+                    "const": true
+                  },
+                  "retry_blocked": {
+                    "const": true
+                  },
+                  "duplicate_debit_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "verification_attempt_id",
+                  "operation_id",
+                  "canonical_attempt_input_sha256",
+                  "journal_attempt_sha256",
+                  "result_attempt_sha256",
+                  "outcome",
+                  "same_attempt_id",
+                  "resolved",
+                  "retry_blocked",
+                  "duplicate_debit_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "initial-unknown"
+                  },
+                  "verification_attempt_id": {
+                    "const": "verification-attempt"
+                  },
+                  "operation_id": {
+                    "const": "identity.apikey.verify"
+                  },
+                  "canonical_attempt_input_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "journal_attempt_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "result_attempt_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "outcome": {
+                    "const": "possibly-debited"
+                  },
+                  "same_attempt_id": {
+                    "const": true
+                  },
+                  "resolved": {
+                    "const": false
+                  },
+                  "retry_blocked": {
+                    "const": true
+                  },
+                  "duplicate_debit_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "verification_attempt_id",
+                  "operation_id",
+                  "canonical_attempt_input_sha256",
+                  "journal_attempt_sha256",
+                  "result_attempt_sha256",
+                  "outcome",
+                  "same_attempt_id",
+                  "resolved",
+                  "retry_blocked",
+                  "duplicate_debit_count",
+                  "transcript_sha256"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "same-attempt-reconcile"
+                  },
+                  "verification_attempt_id": {
+                    "const": "verification-attempt"
+                  },
+                  "operation_id": {
+                    "const": "identity.apikey.verify"
+                  },
+                  "canonical_attempt_input_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "journal_attempt_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "result_attempt_sha256": {
+                    "const": "sha256:bb999984502e425b0d6e509f976fb7563cd936f9d3c10063a0a386085e95cda9"
+                  },
+                  "outcome": {
+                    "const": "reconciled"
+                  },
+                  "same_attempt_id": {
+                    "const": true
+                  },
+                  "resolved": {
+                    "const": true
+                  },
+                  "retry_blocked": {
+                    "const": true
+                  },
+                  "duplicate_debit_count": {
+                    "const": 0
+                  },
+                  "transcript_sha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
         }
       },
       "x-semantic-rules": [
@@ -799,7 +1267,11 @@
           "kind": "positive",
           "fields": [
             "winner_version",
-            "conflict_count"
+            "conflict_count",
+            "possible_debit_count",
+            "reconciled_debit_count",
+            "duplicate_debit_count",
+            "authoritative_verification_count"
           ]
         },
         {

@@ -25,18 +25,45 @@ assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 
-Build an independently releasable `pkg/identity/apikey` module that owns user-owned API-key issuance, display-once secrets, digested lookup, naming, scopes, expiry, rotation, revocation, and usage metadata. Completion
+Build an independently releasable `pkg/identity/apikey` module that owns user-
+and organization-owned API-key issuance, display-once secrets, digested lookup,
+naming, scopes, expiry, rotation, revocation, and usage metadata. Completion
 requires executable proof of the behaviors below through its public API and,
 where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns user-owned API-key issuance, display-once secrets, digested lookup, naming, scopes, expiry, rotation, revocation, and usage metadata. It does not own generic API-key request validation, OAuth clients, service-to-service PKI, and UI. Those exclusions MUST remain
+This module owns user- and organization-owned API-key issuance, display-once
+secrets, digested lookup, naming, scopes, expiry, rotation, revocation, and
+usage metadata. It does not own generic API-key request validation, OAuth
+clients, service-to-service PKI, and UI. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Service, KeyID, SecretGenerator, Record, ScopePolicy, Store, IssuanceResult, AuthenticatorAdapter, Rotation, Revocation, and UsageObserver contracts. Public errors MUST be typed, stable,
+The design MUST define Service, KeyID, OwnerKind, Owner, SecretGenerator,
+Record, ScopePolicy, Store, AtomicVerifier, VerificationAttemptID,
+VerificationAttemptState, AtomicVerificationRequest,
+AtomicVerificationResult, VerificationReconcileQuery,
+ErrDebitOutcomeUnknown, IssuanceResult, AuthenticatorAdapter, Rotation,
+Revocation, UsageObserver, PermissionReductionDisposition,
+PermissionReductionDecision, PermissionReductionReconcileQuery, and
+PermissionReductionResult contracts.
+`PermissionReductionDisposition` MUST be the closed enum
+`PermissionReductionUnspecified`, `PermissionReductionNarrow`, and
+`PermissionReductionRevoke`; Unspecified is invalid. `VerificationAttemptID` MUST be a
+validated non-zero `identity.CommandID`. `VerificationAttemptState` MUST be the
+closed enum `VerificationAttemptNotApplicable`,
+`VerificationAttemptNotDebited`, `VerificationAttemptDebited`, and
+`VerificationAttemptPossibleDebit`. `AtomicVerifier` MUST expose exactly
+`VerifyAndConsume(context.Context, AtomicVerificationRequest) (AtomicVerificationResult, error)`
+and `ReconcileVerifyAndConsume(context.Context, VerificationReconcileQuery) (AtomicVerificationResult, error)`;
+no method may imply that reconciliation performs the attempt again.
+`OwnerKind` MUST be the closed enum
+`OwnerKindUnspecified`, `OwnerUser`, and `OwnerOrganization`. `Owner` MUST bind
+tenant, kind, exactly one typed user or organization ID, and the positive
+authoritative owner version; its fields MUST be constructed and validated as
+one tagged value. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -54,10 +81,16 @@ involved.
   pagination, update name/metadata/permissions, rotate, revoke/delete, and
   bounded deletion of expired keys. Secrets MUST be returned only at creation
   or rotation.
-- Keys MUST support user or organization ownership, tenant binding, named
-  configurations, permissions/scopes and explicit authorization for every
-  management operation. Ownership changes are forbidden; rotation creates a
-  traceable successor.
+- Keys MUST support explicit user or organization ownership, tenant binding,
+  named configurations, permissions/scopes and explicit authorization for
+  every management operation. An unspecified owner kind, both IDs, neither ID,
+  the wrong ID arm, a zero owner version, or cross-tenant owner binding MUST be
+  rejected before lookup or mutation. User-owned management MUST authorize the
+  exact current user or an explicit administrator permission;
+  organization-owned management MUST authorize the exact current organization
+  membership and required organization permission at the owner version.
+  Ownership kind and ID changes are forbidden; rotation preserves the owner
+  and creates a traceable successor.
 - Management and verification MUST compute effective current authority from
   the key record plus the authoritative current owner, organization membership,
   tenant status, policy, permission ceiling and revocation state. A permission
@@ -84,6 +117,32 @@ involved.
 - Fixed-window or token-bucket limits, remaining allowance, refill interval,
   refill amount and expiry MUST have atomic semantics under concurrency.
   Verification MUST return bounded safe quota metadata where configured.
+- `AtomicVerifier.VerifyAndConsume` MUST bind one non-zero
+  `VerificationAttemptID` to the canonical tenant, configuration, candidate,
+  presented-digest commitment, required-permission set and debit amount. Its
+  closed outcome MUST distinguish `not-applicable`, `not-debited`, `debited`,
+  and `possible-debit`. A successful unlimited/no-quota profile is valid only
+  with `not-applicable`; quota-enforced success is valid only with `debited`; an
+  ordinary denial or pre-submission failure is valid only with `not-debited`;
+  and a transport or commit ambiguity after submission of a positive debit MUST
+  return `possible-debit` with `ErrDebitOutcomeUnknown` carrying the same
+  attempt ID. The result MUST carry that attempt ID, state and an optional
+  `VerificationResult`, which is present only for known successful
+  `not-applicable` or `debited` outcomes. It MUST NOT collapse a possible debit
+  into unavailable, invalid credential, success or a safe retry.
+- A matching replay of `VerifyAndConsume` MUST return the recorded terminal
+  result without comparing the secret or debiting again; reuse of an attempt ID
+  with a different canonical fingerprint MUST conflict before verification or
+  quota mutation. `AtomicVerifier.ReconcileVerifyAndConsume` MUST query the
+  exact attempt without performing verification, refill or debit and return
+  `not-applicable`, `not-debited`, `debited`, or still `possible-debit`.
+  `VerificationReconcileQuery` MUST bind the attempt ID, tenant and canonical
+  request fingerprint without carrying the raw key or presented digest. Callers
+  MUST retain the request-scoped principal/result only for a known successful
+  `not-applicable` or `debited` outcome and MUST never invoke another authority,
+  fallback, or new attempt to guess an unknown outcome. Attempt records and
+  reconciliation retention MUST cover the maximum client retry/idempotency
+  horizon.
 - Custom generators/verifiers MUST meet minimum entropy, redaction and
   constant-work contracts; unsafe configurations MUST fail construction.
 - Metadata MUST be schema-validated, size/depth bounded, authorization-filtered
@@ -102,7 +161,57 @@ involved.
   downstream authorization check reuses it without a second debit. It MUST NOT
   create a durable session or browser cookie; organization-owned keys cannot
   impersonate a user; revocation, expiry, owner suspension or permission
-  removal denies the next request and positive caches are version-bounded.
+  removal denies the next request and positive caches are version-bounded. A
+  `possible-debit` outcome MUST return no principal and require reconciliation
+  by the same attempt ID; HTTP or middleware retry MUST NOT debit again.
+- User deletion MUST immediately deny verification and durably revoke every
+  key owned by that user as the cascade's terminal local outcome. User ban or
+  suspension MUST immediately deny verification while retaining the key in a
+  distinct suspended-owner state that cannot be used or managed except for
+  revocation; unban MAY restore only a still-unexpired, otherwise-unrevoked key
+  after an authoritative owner-version recheck and MUST NOT restore a deleted
+  user's key. A user authority-version or permission change MUST immediately
+  remove authority no longer present and MUST NOT expand the immutable key
+  grant; policy MUST choose either narrowing the effective grant or durably
+  revoking the key, and store that configured outcome in the cascade result.
+  Organization archive or deletion MUST immediately deny verification and
+  durably revoke every organization-owned key as the cascade's terminal local
+  outcome. A membership or role change MUST NOT revoke an organization-owned
+  key merely because one human member lost access; it MUST invalidate cached
+  management authority for that actor and deny that actor's next management
+  operation. Only an organization authority-version or permission-ceiling
+  change that reduces the key's effective grant MUST immediately deny the
+  removed permissions; policy MUST choose either narrowing the immutable key
+  grant or durably revoking the key, and that configured choice MUST be stored
+  in the attributable cascade result. These transitions MUST be idempotent,
+  version-fenced, non-enumerating, and observable in audit/reconciliation
+  results; disabling one owner MUST NOT affect another owner's keys.
+- Every `Configuration` MUST contain one immutable
+  `PermissionReductionDisposition`. The reference configuration MUST select
+  `PermissionReductionNarrow`; a deployment MAY select
+  `PermissionReductionRevoke` only as an explicit configuration revision.
+  `ScopePolicy.DecidePermissionReduction` MUST bind the key ID, exact owner and
+  positive owner-authority version, expected key version, prior immutable
+  grant, effective current grant, disposition and positive policy version.
+  Narrow MUST persist a bytewise sorted duplicate-free strict subset as the
+  new immutable grant, advance the key version and API-key authority dimension,
+  and emit `api_key.permissions_changed.v1`. Revoke MUST persist deny-all,
+  transition the key to revoked, advance the same versions, and emit
+  `api_key.revoked.v1`. `Store.ApplyPermissionReduction` MUST version-fence and
+  idempotently persist the decision and attributable `PermissionReductionResult`;
+  a stale version conflicts before mutation and an ambiguous commit remains
+  unknown and reconcilable by the original command. `Store` MUST expose the
+  exact methods
+  `ApplyPermissionReduction(context.Context, PermissionReductionDecision) (PermissionReductionResult, error)`
+  and
+  `ReconcilePermissionReduction(context.Context, PermissionReductionReconcileQuery) (PermissionReductionResult, error)`.
+  The reconciliation query MUST contain the exact original `CommandID` and
+  canonical fingerprint. A result MUST reproduce the decision and outcome,
+  but its authoritative post-transition `Record` MUST be present only when a
+  committed outcome is proven and MUST be absent for not-committed or unknown
+  outcomes. Verification MUST deny
+  removed permissions before persistence completes and MUST NOT use an old
+  positive cache to bridge the cascade.
 - Reveal-once results MUST distinguish committed-and-revealed,
   committed-but-delivery-unknown, not-committed and commit-unknown outcomes.
   Plaintext MUST NOT be durably recoverable or returned by get/list after the

@@ -18,13 +18,6 @@ PREDECLARED_GO_TYPES = Set.new(%w[
   bool byte complex64 complex128 error float32 float64 int int8 int16 int32 int64 rune
   string uint uint8 uint16 uint32 uint64 uintptr
 ]).freeze
-STRICT_LOCAL_REFERENCE_UNITS = Set.new(%w[
-  identity/anonymous identity/anonymous/postgres identity/email identity/magiclink identity/mfa identity/mfa/postgres
-  identity/oauth identity/oauth/onetap identity/oauth/postgres identity/oauth/providers identity/oauth/proxy identity/otp
-  identity/otp/postgres identity/password identity/password/postgres identity/phone identity/username oauth-server
-  oauth-server/device oauth-server/oidc oauth-server/postgres passkey passkey/postgres sso sso/domain-verification
-  sso/oauth2 sso/oidc sso/postgres sso/saml webauthn webauthn/postgres
-]).freeze
 
 def canonical(value)
   case value
@@ -216,13 +209,13 @@ end
 
 def unqualified_public_type_identifiers(expression, callable: false)
   source = expression.to_s
+  source = source.sub(/\Afunc\s+[A-Z][A-Za-z0-9]*\s*(?=\()/, "") if callable
   source = source.sub(/\A[A-Z][A-Za-z0-9]*\s*(?=\()/, "") if callable
   source.scan(/(?<![.\/])\b[A-Z][A-Za-z0-9]*\b/).uniq
 end
 
-def validate_local_public_type_references!(path, fragment)
-  return if fragment.fetch("units").none? { |unit| STRICT_LOCAL_REFERENCE_UNITS.include?(unit.fetch("unit")) }
-
+def local_public_type_reference_errors(path, fragment)
+  errors = []
   fragment.fetch("units").each do |unit|
     unit_name = unit.fetch("unit")
     declarations = Set.new(PREDECLARED_GO_TYPES)
@@ -230,6 +223,7 @@ def validate_local_public_type_references!(path, fragment)
       unit.fetch(collection).each { |definition| declarations << definition.fetch("name") }
     end
     fragment.fetch("operations").select { |operation| operation.fetch("owner") == unit_name }.each do |operation|
+      declarations << operation.fetch("service_interface").split(".").last
       declarations << operation.dig("request", "name")
       declarations << operation.dig("result", "name")
       declarations << operation.dig("errors", "name")
@@ -279,9 +273,27 @@ def validate_local_public_type_references!(path, fragment)
       unresolved = unqualified_public_type_identifiers(expression, callable: callable).reject { |identifier| declarations.include?(identifier) }
       next if unresolved.empty?
 
-      fail_contract("#{File.basename(path)} #{label} references unresolved local public type #{unresolved.join(', ')}")
+      errors << "#{File.basename(path)} #{label} references unresolved local public type #{unresolved.join(', ')}"
     end
   end
+  errors
+end
+
+def validate_local_public_type_references!(path, fragment)
+  errors = local_public_type_reference_errors(path, fragment)
+  fail_contract("local public type closure failed:\n- #{errors.join("\n- ")}") unless errors.empty?
+end
+
+all_unit_reference_fixture = {
+  "units" => [{
+    "unit" => "identity/risk", "package_name" => "risk",
+    "types" => [{"name" => "Carrier", "fields" => [{"name" => "Value", "type" => "Missing"}]}],
+    "interfaces" => [], "constructors" => [], "errors" => []
+  }],
+  "operations" => []
+}
+unless local_public_type_reference_errors("fixture.json", all_unit_reference_fixture).any? { |error| error.include?("identity/risk.Carrier.Value") && error.include?("Missing") }
+  fail_contract("all-unit unqualified public type negative fixture was accepted")
 end
 
 def validate_fragment_metadata!(path, metadata)
@@ -376,6 +388,8 @@ def validate_fragment!(path, fragment, allowed_kinds)
         method.fetch("name")
       end
       fail_contract("#{unit['unit']}.#{type['name']} has duplicate methods") unless type_method_names.uniq.length == type_method_names.length
+      type_field_names = type.fetch("fields", []).map { |field| field.fetch("name") }
+      fail_contract("#{unit['unit']}.#{type['name']} has duplicate fields") unless type_field_names.uniq.length == type_field_names.length
       backup_flag_type = unit.fetch("unit") == "webauthn" && %w[Credential VerifiedRegistration VerifiedAssertion].include?(type.fetch("name"))
       if backup_flag_type
         backup_eligible = type.fetch("fields", []).find { |field| field["name"] == "BackupEligible" }
@@ -474,6 +488,8 @@ def validate_fragment!(path, fragment, allowed_kinds)
       schema = operation.fetch(kind)
       validate_closed_object!("#{operation['id']} #{kind}", schema, required: %w[schema_id name fields])
       %w[schema_id name fields].each { |key| fail_contract("#{operation["id"]} #{kind} lacks #{key}") unless schema.key?(key) }
+      schema_field_names = schema.fetch("fields").map { |field| field.fetch("name") }
+      fail_contract("#{operation['id']} #{kind} has duplicate fields") unless schema_field_names.uniq.length == schema_field_names.length
     end
     errors = operation.fetch("errors")
     validate_closed_object!("#{operation['id']} errors", errors, required: %w[name schema_id variants])
@@ -552,12 +568,20 @@ def local_contract_pin(relative)
   {"api_baseline_files"=>relative_files, "api_baseline_sha256"=>digest_api_files(relative_files)}
 end
 
+def local_exported_symbols(relative, alias_name)
+  repository = File.expand_path(File.join(File.dirname(ROOT), ".."))
+  directory = File.expand_path(File.join(repository, relative))
+  Dir.glob(File.join(directory, "*.go")).reject { |path| path.end_with?("_test.go") }.flat_map do |path|
+    File.binread(path).scan(/^\s*(?:type|func|var|const)\s+([A-Z][A-Za-z0-9]*)\b/).flatten
+  end.uniq.map { |symbol| "#{alias_name}.#{symbol}" }
+end
+
 LOCAL_ALIASES = {
-  "audit"=>"pkg/audit", "authentication"=>"pkg/authentication", "authorization"=>"pkg/authorization",
+  "audit"=>"pkg/audit", "auditpostgres"=>"pkg/audit/postgres", "authentication"=>"pkg/authentication", "authorization"=>"pkg/authorization", "authorizationpostgres"=>"pkg/authorization/postgres",
   "capability"=>"pkg/capability", "capabilitypostgres"=>"pkg/capability/postgres", "clock"=>"pkg/clock",
-  "golibpassword"=>"pkg/password", "httpclient"=>"pkg/http-client", "idempotency"=>"pkg/idempotency", "identifier"=>"pkg/identifier",
-  "limit"=>"pkg/limit", "outbox"=>"pkg/outbox", "pagination"=>"pkg/pagination", "rate_limit"=>"pkg/rate-limit", "request"=>"pkg/request",
-  "secretenvelope"=>"pkg/secret-envelope", "tenancy"=>"pkg/tenancy", "workflow"=>"pkg/workflow"
+  "golibpassword"=>"pkg/password", "httpclient"=>"pkg/http-client", "idempotency"=>"pkg/idempotency", "idempotencypostgres"=>"pkg/idempotency/postgres", "identifier"=>"pkg/identifier",
+  "limit"=>"pkg/limit", "outbox"=>"pkg/outbox", "outboxpostgres"=>"pkg/outbox/postgres", "pagination"=>"pkg/pagination", "ratelimit"=>"pkg/rate-limit", "ratelimitpostgres"=>"pkg/rate-limit/postgres", "request"=>"pkg/request",
+  "secretenvelope"=>"pkg/secret-envelope", "tenancy"=>"pkg/tenancy", "workflow"=>"pkg/workflow", "workflowpostgres"=>"pkg/workflow/postgres"
 }.freeze
 STDLIB_ALIASES = %w[context errors http io netip sql testing time url].freeze
 THIRD_PARTY = {
@@ -565,48 +589,316 @@ THIRD_PARTY = {
   "pgxpool"=>{"module"=>"github.com/jackc/pgx/v5", "package_path"=>"github.com/jackc/pgx/v5/pgxpool", "version"=>"v5.10.0"},
   "valkeyclient"=>{"module"=>"github.com/valkey-io/valkey-go", "package_path"=>"github.com/valkey-io/valkey-go", "version"=>"v1.0.76"}
 }.freeze
+LOCAL_UNIT_IMPORT_ALIASES = {
+  "rootorganization" => "organization"
+}.freeze
+EXACT_EXTERNAL_SYMBOLS = {
+  "context" => %w[context.Context],
+  "errors" => %w[errors.Is],
+  "http" => %w[http.Cookie http.Handler http.Header http.SameSite],
+  "io" => %w[io.ReadCloser io.Reader],
+  "netip" => %w[netip.Addr netip.Prefix],
+  "sql" => %w[sql.DB],
+  "testing" => %w[testing.TB],
+  "time" => %w[time.Duration time.Time],
+  "url" => %w[url.URL],
+  "pgx" => [],
+  "pgxpool" => %w[pgxpool.Pool],
+  "valkeyclient" => %w[valkeyclient.Client]
+}.transform_values { |symbols| symbols.sort.freeze }.freeze
+
+def external_symbol_errors(grouped)
+  grouped.flat_map do |alias_name, symbols|
+    next [] unless STDLIB_ALIASES.include?(alias_name) || THIRD_PARTY.key?(alias_name)
+
+    (symbols - EXACT_EXTERNAL_SYMBOLS.fetch(alias_name)).map do |symbol|
+      "#{alias_name} references symbol absent from its exact pinned API catalog: #{symbol}"
+    end
+  end
+end
+
+def semantic_external_qualified_symbols(fragments)
+  all_strings = lambda do |value|
+    case value
+    when Hash
+      value.flat_map { |key, child| [key.to_s, *all_strings.call(child)] }
+    when Array
+      value.flat_map { |child| all_strings.call(child) }
+    when String
+      [value]
+    else
+      []
+    end
+  end
+  semantic_text = fragments.flat_map { |_path, fragment| all_strings.call(fragment) }.join("\n")
+  known_external = (STDLIB_ALIASES + THIRD_PARTY.keys).to_set
+  semantic_text.scan(/\b([a-z][a-z0-9_]*)\.([A-Z][A-Za-z0-9]*)/).filter_map do |prefix, symbol|
+    [prefix, "#{prefix}.#{symbol}"] if known_external.include?(prefix)
+  end.uniq
+end
+
+def invalid_qualified_type_syntax_errors(fragments)
+  fragments.flat_map do |path, fragment|
+    public_contract_expression_contexts(fragment).filter_map do |context|
+      next unless context.fetch("path").match?(/\.(?:type|signature|underlying)\z/)
+      expression = context.fetch("expression")
+      next unless expression.match?(%r{\b[a-z][a-z0-9_-]*/[a-z][a-z0-9_/-]*\.[A-Z]})
+
+      "#{File.basename(path)} #{context.fetch('path')} uses module path where a Go package qualifier is required: #{expression}"
+    end
+  end.uniq
+end
 
 def referenced_qualified_symbols(fragments)
-  expressions = []
+  expressions = fragments.flat_map { |_path, fragment| public_contract_expression_contexts(fragment).map { |context| context.fetch("expression") } }
   fragments.each do |_path, fragment|
-    fragment.fetch("units").each do |unit|
-      unit.fetch("types").each do |type|
-        expressions << type["underlying"] if type["underlying"]
-        type.fetch("fields", []).each { |field| expressions << field.fetch("type") }
-      end
-      unit.fetch("interfaces").each { |interface| interface.fetch("methods").each { |method| expressions << method.fetch("signature") } }
-      unit.fetch("constructors").each { |constructor| expressions << constructor.fetch("signature") }
-      unit.fetch("errors").each { |error| error.fetch("fields", []).each { |field| expressions << field.fetch("type") } }
-    end
     fragment.fetch("operations").each do |operation|
-      expressions << operation.fetch("service_interface")
-      expressions << operation.fetch("signature")
-      if LOCAL_ALIASES.key?(operation.fetch("owner"))
-        owner = operation.fetch("owner")
+      owner = operation.fetch("owner")
+      if LOCAL_ALIASES.key?(owner)
         expressions << "#{owner}.#{operation.dig('request', 'name')}"
         expressions << "#{owner}.#{operation.dig('result', 'name')}"
         expressions << "#{owner}.#{operation.dig('errors', 'name')}"
       end
-      operation.dig("request", "fields").to_a.each { |field| expressions << field.fetch("type") }
-      operation.dig("result", "fields").to_a.each { |field| expressions << field.fetch("type") }
-      operation.dig("errors", "variants").to_a.each { |error| error.fetch("fields", []).each { |field| expressions << field.fetch("type") } }
     end
   end
   text = expressions.compact.join("\n")
-  text.scan(/\b([a-z][a-z0-9_]*)\.([A-Z][A-Za-z0-9]*)/).map { |prefix, symbol| [prefix, "#{prefix}.#{symbol}"] }.uniq
+  structural_references = text.scan(/\b([a-z][a-z0-9_]*)\.([A-Z][A-Za-z0-9]*)/).map do |prefix, symbol|
+    [prefix, "#{prefix}.#{symbol}"]
+  end
+  structural_references.uniq
+end
+
+def public_contract_expressions(fragment)
+  expressions = []
+  fragment.fetch("units").each do |unit|
+    unit.fetch("types").each do |type|
+      expressions << type["underlying"] if type["underlying"]
+      expressions << type["signature"] if type["signature"]
+      type.fetch("fields", []).each { |field| expressions << field.fetch("type") }
+      type.fetch("methods", []).each { |method| expressions << method.fetch("signature") }
+      type.fetch("variants", []).each do |variant|
+        expressions << variant["type"]
+        variant.fetch("fields", []).each { |field| expressions << field.fetch("type") }
+      end
+    end
+    unit.fetch("interfaces").each do |interface|
+      interface.fetch("methods").each { |method| expressions << method.fetch("signature") }
+    end
+    unit.fetch("constructors").each { |constructor| expressions << constructor.fetch("signature") }
+    unit.fetch("errors").each do |error|
+      error.fetch("fields", []).each { |field| expressions << field.fetch("type") }
+    end
+  end
+  fragment.fetch("operations").each do |operation|
+    expressions << operation.fetch("service_interface")
+    expressions << operation.fetch("signature")
+    %w[request result].each do |kind|
+      operation.fetch(kind).fetch("fields").each { |field| expressions << field.fetch("type") }
+    end
+    operation.dig("errors", "variants").to_a.each do |error|
+      error.fetch("fields", []).each { |field| expressions << field.fetch("type") }
+    end
+  end
+  expressions.compact
+end
+
+def public_contract_expression_contexts(fragment)
+  contexts = []
+  walk = lambda do |value, owner, path|
+    case value
+    when Hash
+      value.each { |key, child| walk.call(child, owner, "#{path}.#{key}") }
+    when Array
+      value.each_with_index { |child, index| walk.call(child, owner, "#{path}[#{index}]") }
+    when String
+      contexts << {"expression"=>value, "owner"=>owner, "path"=>path}
+    end
+  end
+  fragment.fetch("units").each_with_index do |unit, index|
+    walk.call(unit, unit.fetch("unit"), "units[#{index}]")
+  end
+  fragment.fetch("operations").each_with_index do |operation, index|
+    walk.call(operation, operation.fetch("owner"), "operations[#{index}]")
+  end
+  fragment.fetch("external_contracts", []).each_with_index do |contract, index|
+    walk.call(contract, nil, "external_contracts[#{index}]")
+  end
+  contexts
+end
+
+def qualified_local_reference_errors(fragments)
+  units = fragments.flat_map { |_path, fragment| fragment.fetch("units") }
+  unit_by_name = units.to_h { |unit| [unit.fetch("unit"), unit] }
+  aliases = Hash.new { |hash, key| hash[key] = [] }
+  units.each do |unit|
+    aliases[unit.fetch("unit").delete("/-")] << unit.fetch("unit")
+    aliases[unit.fetch("package_name")] << unit.fetch("unit")
+  end
+  LOCAL_UNIT_IMPORT_ALIASES.each { |alias_name, unit_name| aliases[alias_name] << unit_name }
+  aliases.transform_values!(&:uniq)
+  declarations = unit_by_name.transform_values do |unit|
+    Set.new(%w[types interfaces errors].flat_map { |collection| unit.fetch(collection).map { |row| row.fetch("name") } })
+  end
+  fragments.each do |_path, fragment|
+    fragment.fetch("operations").each do |operation|
+      owner = operation.fetch("owner")
+      next unless declarations.key?(owner)
+      declarations.fetch(owner) << operation.dig("request", "name")
+      declarations.fetch(owner) << operation.dig("result", "name")
+      declarations.fetch(owner) << operation.dig("errors", "name")
+      operation.dig("errors", "variants").to_a.each do |variant|
+        declarations.fetch(owner) << variant.fetch("type")
+      end
+    end
+  end
+
+  errors = []
+  fragments.each do |path, fragment|
+    public_contract_expression_contexts(fragment).each do |context|
+      expression = context.fetch("expression")
+      containing_owner = context.fetch("owner")
+      expression.scan(/\b([a-z][a-z0-9_]*)\.([A-Z][A-Za-z0-9]*)/).each do |alias_name, symbol|
+        targets = aliases.fetch(alias_name, [])
+        if targets.empty?
+          known_external_alias = LOCAL_ALIASES.key?(alias_name) || STDLIB_ALIASES.include?(alias_name) || THIRD_PARTY.key?(alias_name)
+          errors << "#{File.basename(path)} #{context.fetch('path')} references unknown qualified public type #{alias_name}.#{symbol}" unless known_external_alias
+          next
+        end
+
+        containing_unit = unit_by_name[containing_owner]
+        self_aliases = containing_unit ? [containing_unit.fetch("package_name"), containing_owner.delete("/-")] : []
+        target = containing_owner if containing_unit && self_aliases.include?(alias_name)
+        target ||= targets.find { |candidate| candidate == alias_name }
+        if target.nil? && targets.length == 1
+          target = targets.first
+        elsif target.nil?
+          errors << "#{File.basename(path)} #{context.fetch('path')} references ambiguous local public type #{alias_name}.#{symbol} (candidates #{targets.join(', ')})"
+          next
+        end
+        next if declarations.fetch(target).include?(symbol)
+
+        errors << "#{File.basename(path)} #{context.fetch('path')} references unresolved qualified local public type #{alias_name}.#{symbol} (owner #{target})"
+      end
+    end
+  end
+  errors.uniq
+end
+
+qualified_reference_fixture = [["fixture.json", {
+  "units" => [{"unit" => "identity", "package_name" => "identity", "types" => [], "interfaces" => [], "constructors" => [], "errors" => []}],
+  "operations" => [{
+    "owner" => "identity", "service_interface" => "identity.Service", "signature" => "Apply(identity.CommitOutcome) error",
+    "request" => {"name" => "ApplyRequest", "fields" => []}, "result" => {"name" => "ApplyResult", "fields" => []},
+    "errors" => {"name" => "ApplyErrors", "variants" => []}
+  }]
+}]]
+unless qualified_local_reference_errors(qualified_reference_fixture).any? { |error| error.include?("identity.CommitOutcome") }
+  fail_contract("unresolved qualified local public type negative fixture was accepted")
+end
+unknown_alias_fixture = Marshal.load(Marshal.dump(qualified_reference_fixture))
+unknown_alias_fixture.first.last.fetch("units").first.fetch("types") << {
+  "name" => "Carrier", "methods" => [{"name" => "Missing", "signature" => "Missing() missing.Missing"}]
+}
+unless qualified_local_reference_errors(unknown_alias_fixture).any? { |error| error.include?("missing.Missing") }
+  fail_contract("unknown qualified public type negative fixture was accepted")
+end
+ambiguous_alias_fixture = Marshal.load(Marshal.dump(qualified_reference_fixture))
+ambiguous_alias_fixture.first.last.fetch("units").concat([
+  {"unit" => "identity/postgres", "package_name" => "postgres", "types" => [{"name" => "ContributorDescriptor"}], "interfaces" => [], "constructors" => [], "errors" => []},
+  {"unit" => "sso/postgres", "package_name" => "postgres", "types" => [], "interfaces" => [], "constructors" => [], "errors" => []}
+])
+ambiguous_alias_fixture.first.last.fetch("units").first.fetch("types") << {
+  "name" => "Carrier", "methods" => [{"name" => "Descriptor", "signature" => "Descriptor() postgres.ContributorDescriptor"}]
+}
+unless qualified_local_reference_errors(ambiguous_alias_fixture).any? { |error| error.include?("ambiguous local public type postgres.ContributorDescriptor") }
+  fail_contract("ambiguous qualified public type negative fixture was accepted")
+end
+self_qualified_fixture = Marshal.load(Marshal.dump(ambiguous_alias_fixture))
+self_qualified_postgres = self_qualified_fixture.first.last.fetch("units").find { |unit| unit.fetch("unit") == "identity/postgres" }
+self_qualified_postgres.fetch("types") << {
+  "name" => "Store", "methods" => [{"name" => "Clone", "signature" => "Clone() postgres.Store"}]
+}
+unless qualified_local_reference_errors(self_qualified_fixture).none? { |error| error.include?("postgres.Store") }
+  fail_contract("self-qualified local public type positive fixture was rejected")
+end
+external_surface_fixture = Marshal.load(Marshal.dump(qualified_reference_fixture))
+external_surface_fixture.first.last.fetch("units").first.fetch("types") << {
+  "name" => "ExternalCarrier",
+  "methods" => [{"name" => "Missing", "signature" => "Missing() capability.Missing"}],
+  "variants" => [{"name" => "MissingVariant", "type" => "capability.Missing", "fields" => [{"name" => "Value", "type" => "capability.Missing"}]}]
+}
+unless referenced_qualified_symbols(external_surface_fixture).any? { |_prefix, symbol| symbol == "capability.Missing" }
+  fail_contract("known external symbol traversal negative fixture was accepted")
+end
+external_contract_fixture = Marshal.load(Marshal.dump(qualified_reference_fixture))
+external_contract_fixture.first.last["external_contracts"] = [{
+  "owner"=>"capability", "package_path"=>"example.invalid/capability", "symbols"=>["capability.Missing"]
+}]
+unless referenced_qualified_symbols(external_contract_fixture).any? { |_prefix, symbol| symbol == "capability.Missing" }
+  fail_contract("fragment external-contract symbol traversal negative fixture was accepted")
+end
+unless external_symbol_errors("context" => ["context.Missing"]).any? { |error| error.include?("context.Missing") }
+  fail_contract("nonexistent stdlib symbol negative fixture was accepted")
+end
+unless external_symbol_errors("pgxpool" => ["pgxpool.Missing"]).any? { |error| error.include?("pgxpool.Missing") }
+  fail_contract("nonexistent third-party symbol negative fixture was accepted")
+end
+semantic_external_fixture = [["fixture.json", {"ownership" => "http.Missing and pgxpool.Missing"}]]
+semantic_external_symbols = semantic_external_qualified_symbols(semantic_external_fixture).group_by(&:first)
+  .transform_values { |rows| rows.map(&:last) }
+unless external_symbol_errors(semantic_external_symbols).map(&:to_s).any? { |error| error.include?("http.Missing") }
+  fail_contract("nonexistent semantic stdlib symbol negative fixture was accepted")
+end
+unless external_symbol_errors(semantic_external_symbols).map(&:to_s).any? { |error| error.include?("pgxpool.Missing") }
+  fail_contract("nonexistent semantic third-party symbol negative fixture was accepted")
 end
 
 def pinned_external_contracts(meta_contracts, fragments, units)
-  unit_aliases = units.flat_map { |unit| [unit.fetch("package_name"), unit.fetch("unit").delete("/-")] }.uniq
+  unit_aliases = (units.flat_map { |unit| [unit.fetch("package_name"), unit.fetch("unit").delete("/-")] } + LOCAL_UNIT_IMPORT_ALIASES.keys).uniq
   references = referenced_qualified_symbols(fragments).reject { |prefix, _symbol| unit_aliases.include?(prefix) }
   grouped = references.group_by(&:first).transform_values { |rows| rows.map(&:last).sort }
   known = (LOCAL_ALIASES.keys + STDLIB_ALIASES + THIRD_PARTY.keys)
   unknown = grouped.keys - known
   fail_contract("unresolved external package aliases: #{unknown.sort.join(", ")}") unless unknown.empty?
+  semantic_grouped = semantic_external_qualified_symbols(fragments).group_by(&:first)
+    .transform_values { |rows| rows.map(&:last).sort }
+  exact_symbol_groups = (grouped.keys + semantic_grouped.keys).uniq.to_h do |alias_name|
+    [alias_name, (grouped.fetch(alias_name, []) + semantic_grouped.fetch(alias_name, [])).uniq.sort]
+  end
+  exact_external_errors = external_symbol_errors(exact_symbol_groups)
+  fail_contract("external symbol closure failed:\n- #{exact_external_errors.join("\n- ")}") unless exact_external_errors.empty?
 
   meta_by_alias = meta_contracts.to_h do |contract|
-    alias_name = contract.fetch("owner").tr("/-", "_").sub("capability_postgres", "capabilitypostgres").sub("secret_envelope", "secretenvelope").sub("password", "golibpassword")
+    alias_name = contract.fetch("owner").tr("/-", "_").sub("capability_postgres", "capabilitypostgres").sub("rate_limit", "ratelimit").sub("secret_envelope", "secretenvelope").sub("password", "golibpassword")
     [alias_name, contract]
+  end
+  grouped.each do |alias_name, symbols|
+    next unless LOCAL_ALIASES.key?(alias_name)
+
+    contract = meta_by_alias[alias_name]
+    declared = JSON.generate(contract || {}).scan(/\b#{Regexp.escape(alias_name)}\.[A-Z][A-Za-z0-9]*/).uniq +
+      local_exported_symbols(LOCAL_ALIASES.fetch(alias_name), alias_name)
+    intentional_extension_symbols = contract && contract["current_api_status"] == "requires-extension" ?
+      contract.fetch("types").map { |entry| entry.fetch("name") } : []
+    unknown_symbols = symbols - declared - intentional_extension_symbols
+    fail_contract("#{alias_name} references symbols absent from its pinned external contract: #{unknown_symbols.join(', ')}") unless unknown_symbols.empty?
+  end
+  grouped.each do |alias_name, symbols|
+    contract = meta_by_alias[alias_name]
+    next unless contract && contract["current_api_status"] == "requires-extension"
+
+    definitions = (contract.fetch("types", []) + contract.fetch("interfaces", [])).to_h { |entry| [entry.fetch("name"), entry] }
+    expanded = symbols.dup
+    loop do
+      discovered = expanded.flat_map do |symbol|
+        definition = definitions[symbol]
+        definition ? JSON.generate(definition).scan(/\b#{Regexp.escape(alias_name)}\.[A-Z][A-Za-z0-9]*/).uniq : []
+      end
+      next_expanded = (expanded + discovered).uniq.sort
+      break if next_expanded == expanded
+      expanded = next_expanded
+    end
+    grouped[alias_name] = expanded
   end
   grouped.map do |alias_name, symbols|
     if STDLIB_ALIASES.include?(alias_name)
@@ -667,6 +959,10 @@ def validate_required_extensions!(meta, external, units, fragments)
     derived_consumers = derived_consumers.uniq.sort
     missing_derived_consumers = derived_consumers - consumers
     fail_contract("#{authority} consumer closure omits symbol-derived consumers #{missing_derived_consumers}") unless missing_derived_consumers.empty?
+    if authority == "capability/postgres"
+      exact_consumers = %w[identity/mfa/postgres identity/oauth/postgres identity/reference oauth-server/postgres sso/postgres]
+      fail_contract("capability/postgres exact consumer closure drifted") unless consumers == exact_consumers
+    end
   end
 
   capability_extensions = schedule.select { |row| %w[capability capability/postgres].include?(row.fetch("unit")) }
@@ -675,7 +971,8 @@ def validate_required_extensions!(meta, external, units, fragments)
     "primitive/capability-postgres-identity-contracts"
   ]
   fail_contract("capability extension authorities must use distinct schedulable units") unless capability_extensions.map { |row| row.fetch("extension_unit") } == expected_capability_extension_units
-  fail_contract("capability/postgres extension must follow capability") unless schedule.find { |row| row.fetch("unit") == "capability/postgres" }.fetch("depends_on") == ["capability"]
+  fail_contract("capability/postgres extension prerequisite closure drifted") unless
+    schedule.find { |row| row.fetch("unit") == "capability/postgres" }.fetch("depends_on") == ["capability", "identity/postgres"]
 end
 
 def build
@@ -691,8 +988,31 @@ def build
 
   units = fragments.flat_map { |_path, fragment| fragment.fetch("units") }
   operations = fragments.flat_map { |_path, fragment| fragment.fetch("operations") }
+  qualified_reference_errors = qualified_local_reference_errors(fragments)
+  fail_contract("qualified local public type closure failed:\n- #{qualified_reference_errors.join("\n- ")}") unless qualified_reference_errors.empty?
+  invalid_qualified_syntax = invalid_qualified_type_syntax_errors(fragments)
+  fail_contract("qualified public type syntax failed:\n- #{invalid_qualified_syntax.join("\n- ")}") unless invalid_qualified_syntax.empty?
   fail_contract("unit count is #{units.length}, expected 61") unless units.length == 61
   fail_contract("duplicate unit") unless units.map { |unit| unit.fetch("unit") }.uniq.length == units.length
+  operations_by_owner = operations.group_by { |operation| operation.fetch("owner") }
+  units.each do |unit|
+    exported = []
+    unit.fetch("types").each do |type|
+      exported << type.fetch("name")
+      type.fetch("constants", []).each do |constant|
+        exported << (constant.is_a?(Hash) ? constant.fetch("name") : constant)
+      end
+    end
+    exported.concat(unit.fetch("interfaces").map { |interface| interface.fetch("name") })
+    exported.concat(unit.fetch("errors").map { |error| error.fetch("name") })
+    operations_by_owner.fetch(unit.fetch("unit"), []).each do |operation|
+      exported << operation.dig("request", "name")
+      exported << operation.dig("result", "name")
+      exported << operation.dig("errors", "name")
+    end
+    duplicates = exported.group_by(&:itself).select { |_name, rows| rows.length > 1 }.keys.sort
+    fail_contract("#{unit.fetch('unit')} has duplicate package-scope Go identifiers: #{duplicates.join(', ')}") unless duplicates.empty?
+  end
   expected_units = goals.reject { |goal| goal.fetch("unit").start_with?("primitive/") }.map { |goal| goal.fetch("unit") }
   fail_contract("unit inventory differs from GOAL_MANIFEST") unless units.map { |unit| unit.fetch("unit") }.sort == expected_units.sort
   unit_by_name = units.to_h { |unit| [unit.fetch("unit"), unit] }
@@ -810,7 +1130,8 @@ def build
   end
   fail_contract("duplicate unit contract ID") unless unit_rows.map { |unit| unit.fetch("contract_id") }.uniq.length == unit_rows.length
   fail_contract("duplicate operation contract ID") unless operation_rows.map { |operation| operation.fetch("contract_id") }.uniq.length == operation_rows.length
-  fail_contract("duplicate schema/type ID") unless types.map { |type| type.fetch("id") }.uniq.length == types.length
+  duplicate_type_ids = types.group_by { |type| type.fetch("id") }.select { |_id, rows| rows.length > 1 }.keys.sort
+  fail_contract("duplicate schema/type IDs: #{duplicate_type_ids.join(', ')}") unless duplicate_type_ids.empty?
 
   external = pinned_external_contracts(meta.fetch("external_contracts"), fragments, units)
   fail_contract("external contract aliases are duplicated") unless external.map { |entry| entry.fetch("alias") }.uniq.length == external.length
@@ -821,9 +1142,9 @@ def build
     declared_alias = alias_by_name.fetch(entry.fetch("alias")) { fail_contract("#{entry["alias"]} lacks authority alias declaration") }
     fail_contract("#{entry["alias"]} authority package path drifted") unless declared_alias.fetch("package_path") == entry.fetch("package_path")
     next if entry.fetch("owner").start_with?("stdlib:", "third-party:")
-    status = entry.fetch("current_api_status")
+    status = entry.fetch("current_api_status", "exact")
     fail_contract("#{entry["owner"]} has invalid current API status") unless %w[exact requires-extension].include?(status)
-    contract_roots = entry.fetch("types", []) + entry.fetch("interfaces", []) + entry.fetch("methods", [])
+    contract_roots = entry.fetch("types", []) + entry.fetch("interfaces", []) + entry.fetch("methods", []) + entry.fetch("symbols", [])
     fail_contract("#{entry["owner"]} has an empty external contract") if contract_roots.empty?
     fail_contract("#{entry["owner"]} lacks exact API baseline files") if entry.fetch("api_baseline_files").empty?
     fail_contract("#{entry["owner"]} has invalid API baseline digest") unless entry.fetch("api_baseline_sha256").match?(/\Asha256:[0-9a-f]{64}\z/)
@@ -885,6 +1206,10 @@ if ARGV == ["--check"]
   parsed = JSON.parse(expected)
   fail_contract("top-level schema drift") unless parsed.keys.sort == parsed.dig("manifest_schema", "allowed_top_level_keys").sort
   puts "PUBLIC_CONTRACTS.json: #{parsed["units"].length} units, #{parsed["operations"].length} operations, #{parsed["types"].length} exact Go/schema contracts"
+elsif ARGV == ["--write"]
+  File.binwrite(OUTPUT, expected)
+  parsed = JSON.parse(expected)
+  puts "PUBLIC_CONTRACTS.json: wrote #{parsed["units"].length} units, #{parsed["operations"].length} operations, #{parsed["types"].length} exact Go/schema contracts"
 else
   $stdout.write(expected)
 end

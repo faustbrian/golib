@@ -78,9 +78,10 @@ a gap, regression, or conflicting duplicate.
 | `lifecycle.events.factor` | `identity/mfa` | `factor.enrolled.v1`, `factor.changed.v1`, `factor.removed.v1`, `factor.reset.v1`, `trusted_device.created.v1`, `trusted_device.revoked.v1` |
 | `lifecycle.events.passkey` | `passkey` | `passkey.registered.v1`, `passkey.counter_advanced.v1`, `passkey.backup_state_changed.v1`, `passkey.revoked.v1`, `passkey.compromised.v1` |
 | `lifecycle.events.social_provider` | `identity/oauth` | `social_provider.linked.v1`, `social_provider.unlinked.v1`, `social_provider.configuration_changed.v1`, `social_provider.disabled.v1`, `social_provider.token_revoked.v1` |
-| `lifecycle.events.api_key` | `identity/apikey` | `api_key.created.v1`, `api_key.rotated.v1`, `api_key.permissions_changed.v1`, `api_key.revoked.v1` |
+| `lifecycle.events.api_key` | `identity/apikey` | `api_key.created.v1`, `api_key.rotated.v1`, `api_key.permissions_changed.v1`, `api_key.revoked.v1`; a permission-reduction cascade emits exactly `permissions_changed` after a persisted strict-subset Narrow disposition or `revoked` after a persisted Revoke disposition, and records key/owner/policy versions in the attributable result |
 | `lifecycle.events.organization` | `organization` | `organization.created.v1`, `organization.updated.v1`, `organization.archived.v1`, `organization.restored.v1`, `organization.deletion_requested.v1`, `organization.deleted.v1`, `membership.created.v1`, `membership.role_changed.v1`, `membership.removed.v1`, `team.created.v1`, `team.membership_changed.v1`, `team.deleted.v1`, `domain_claim.created.v1`, `domain_claim.verified.v1`, `domain_claim.revoked.v1` |
-| `lifecycle.events.enterprise_provider` | `sso` | `enterprise_provider.created.v1`, `enterprise_provider.configuration_changed.v1`, `enterprise_provider.mapping_changed.v1`, `enterprise_provider.enabled.v1`, `enterprise_provider.disabled.v1`, `enterprise_provider.deleted.v1` |
+| `lifecycle.events.enterprise_provider` | `sso` | `enterprise_provider.created.v1`, `enterprise_provider.configuration_changed.v1`, `enterprise_provider.mapping_changed.v1`, `enterprise_provider.enabled.v1`, `enterprise_provider.disabled.v1`, `enterprise_provider.deletion_requested.v1`, `enterprise_provider.deleted.v1` |
+| `lifecycle.events.scim_connection` | `scim` | `scim_connection.created.v1`, `scim_connection.configuration_changed.v1`, `scim_connection.token_rotated.v1`, `scim_connection.token_revoked.v1`, `scim_connection.deletion_requested.v1`, `scim_connection.deleted.v1` |
 | `lifecycle.events.oauth_server` | `oauth-server` | `oauth_client.created.v1`, `oauth_client.configuration_changed.v1`, `oauth_client.secret_rotated.v1`, `oauth_client.revoked.v1`, `grant.created.v1`, `grant.scope_changed.v1`, `grant.revoked.v1`, `consent.created.v1`, `consent.revoked.v1`, `signing_key.added.v1`, `signing_key.retired.v1`, `signing_key.compromised.v1` |
 | `lifecycle.events.risk` | `identity/risk` | `risk.policy_changed.v1`, `risk.evidence_expired.v1`, `risk.subject_anonymized.v1`, `risk.lockout_started.v1`, `risk.lockout_ended.v1` |
 | `lifecycle.events.captcha` | `identity/risk/captcha` | `captcha.site_disabled.v1`, `captcha.configuration_changed.v1`, `captcha.secret_rotated.v1` |
@@ -114,7 +115,8 @@ or decrement them.
 | `lifecycle.dimension.social_connection` | `social_connection` | `identity/oauth/postgres` | tenant + provider connection ID | connection configuration/key/disable change |
 | `lifecycle.dimension.social_link` | `social_link` | `identity/postgres` | tenant + user ID + provider connection ID | account link/token/unlink change; `identity/oauth/postgres` enlists this owner for token-coupled mutations |
 | `lifecycle.dimension.enterprise_provider` | `enterprise_provider` | `sso/postgres` | tenant + enterprise connection ID | configuration/mapping/key/domain/enable/disable/delete change |
-| `lifecycle.dimension.api_key` | `api_key` | `identity/apikey/postgres` | tenant + API-key configuration ID | permission/quota/configuration/rotate/revoke change |
+| `lifecycle.dimension.scim_connection` | `scim_connection` | `scim/postgres` | tenant + organization ID + SCIM connection ID | configuration/mapping/token/disable/delete change |
+| `lifecycle.dimension.api_key` | `api_key` | `identity/apikey/postgres` | tenant + API-key configuration ID | permission/quota/configuration/rotate/revoke change; owner or organization-ceiling reduction is version-fenced by owner authority + key + policy versions, immediately denies removed authority, then atomically persists the configured Narrow-or-Revoke result and advances this dimension |
 | `lifecycle.dimension.oauth_client` | `oauth_client` | `oauth-server/postgres` | tenant + client ID | redirect/auth-method/scope/secret/policy/revoke change |
 | `lifecycle.dimension.grant` | `grant` | `oauth-server/postgres` | tenant + subject + client + grant-family ID | consent/scope/refresh-family/revocation change |
 | `lifecycle.dimension.signing_compromise` | `signing_key_compromise_epoch` | `oauth-server/postgres` | issuer ID | key compromise or forced retirement before all bound tokens expire |
@@ -148,7 +150,7 @@ accelerate expiry.
 | `lifecycle.artifact.session_enrichment` | session enrichment/active organization | tenant, user, authorization, organization | `identity/session/postgres` plus owners | online on switch and protected organization operation; positive cache at most 5 minutes |
 | `lifecycle.artifact.trusted_device` | trusted-device assertion | global, tenant, user, credential, factor, session_family | `identity/mfa/postgres` plus owners | online whenever used to suppress step-up; expiry always checked |
 | `lifecycle.artifact.passkey` | WebAuthn/passkey authentication state | global, tenant, user, credential, passkey; factor only when the passkey is enrolled as an MFA factor | `passkey/postgres`; additionally `identity/mfa/postgres` only for MFA enrollment | online counter/status/version comparison before authority issuance |
-| `lifecycle.artifact.privacy_export` | privacy-export artifact and download capability | tenant, user, privacy, export ID, contributor contract versions and checkpoint vector | `identity/postgres` plus the exact contributors in `LIFECYCLE_CONSUMERS.md` and `capability/postgres` | fragment reads at the captured version vector; primary-authority identity/privacy/capability comparison on finalization and every download |
+| `lifecycle.artifact.privacy_export` | privacy-export artifact, download capability and erasure journal | tenant, user, privacy, export ID, exact `PrivacyExportSnapshotV1` digest, sealed-manifest/archive digests, capability binding, object state and erasure operation generation | `identity/postgres` plus the exact contributors in `LIFECYCLE_CONSUMERS.md` and `capability/postgres`; object store is effect-only | fragment reads at the exact snapshot; primary-authority identity/privacy/capability comparison on finalization and every download; cancellation/deletion drives typed erasure status/reconciliation and unknown never means erased |
 | `lifecycle.artifact.risk_velocity` | Valkey velocity/attempt counter | tenant, risk_policy, digest-key version, Valkey boot epoch | `identity/risk/valkey` projection of `identity/risk/postgres` journal | unavailable after restart, flush, marker loss, or epoch mismatch until the single reconciler reaches the PostgreSQL replay watermark and atomically publishes the new healthy epoch |
 | `lifecycle.artifact.delivery_effect` | queued encrypted provider effect | tenant, delivery_policy, command ID, effect ID, template and envelope-key versions | `identity/delivery/postgres` | online lease/generation comparison for every attempt; ciphertext is retained only in `planned`, `submitted`, `retry-wait`, or `outcome-unknown` before expiry and erases atomically at `confirmed`, `rejected`, `expired`, `cancelled`, `exhausted`, or `superseded` while keyed replay authority remains |
 
@@ -166,27 +168,126 @@ claim authenticator-local credential removal.
 
 A privacy-export request MUST lock the identity aggregate and, in the same
 identity command transaction, reject an identity already pending
-anonymization/deletion, allocate an export ID and privacy epoch, record the
-exact contributor IDs and contract versions from `LIFECYCLE_CONSUMERS.md`, and
-capture one immutable cross-module watermark. The watermark is a version
-vector containing the identity aggregate version, lifecycle event sequence,
-and each contributor's authoritative checkpoint; a wall-clock timestamp alone
-is not a watermark. A restartable worker MUST NOT retain or depend on a
-long-lived exported PostgreSQL snapshot. Every contributor MUST instead read
-from an append-only/versioned projection capable of reproducing its exact
-recorded checkpoint, or atomically stage an immutable bounded fragment during
-the request transaction. A contributor that cannot prove the requested cut
-MUST leave the export pending or fail it; it MUST NOT mix a current read with
-older contributor data or silently omit the contributor.
+anonymization/deletion, allocate an export ID and privacy epoch, and persist one
+immutable `PrivacyExportSnapshotV1`. That closed value contains exactly:
 
-Every fragment MUST bind export ID, tenant, subject, privacy epoch, contributor
-ID/contract version, requested checkpoint, observed checkpoint, schema version,
-and a digest of its canonical redacted bytes. The coordinator MUST publish an
-artifact only after every required fragment matches the captured watermark and
-the final identity lock proves the same active identity version and privacy
-epoch. Partial artifacts MUST remain encrypted, non-downloadable, and bounded;
-failure or cancellation MUST erase them and revoke any issued download
-capability.
+1. schema major/minor `uint16` values fixed to `1.0`;
+2. 16-byte random export, tenant, subject, and command IDs in their canonical
+   22-character unpadded-base64url form;
+3. identity aggregate version, privacy epoch, and lifecycle event sequence as
+   unsigned 64-bit integers;
+4. lifecycle-consumer manifest version as an unsigned 32-bit integer;
+5. requested-at as signed 64-bit Unix microseconds from PostgreSQL UTC; and
+6. one contributor binding for every exact version-1 contributor in
+   `LIFECYCLE_CONSUMERS.md`, ordered by registered ASCII contributor ID. Each
+   binding contains exactly contributor ID, contract major/minor `uint16`,
+   projection ID, canonical scope-key digest, checkpoint schema major/minor
+   `uint16`, and authoritative checkpoint position `uint64`.
+
+`projection_id` is a closed registered ASCII enum identifying the immutable
+versioned projection or staged-fragment authority; it is not a database name,
+table name, DSN, path, or caller-provided label. `scope_key` is a registered
+typed tuple of opaque IDs and enums whose exact fields and bounds are part of
+the contributor contract. `checkpoint_position` is the projection's monotonic
+commit-sequence value at which every earlier subject-scoped mutation is visible;
+aggregate versions, timestamps, replica positions without this visibility
+guarantee, and eventually consistent reads are not interchangeable substitutes.
+
+The scope-key digest is HMAC-SHA-256 over the ASCII domain
+`identity-privacy-export-scope-v1`, one zero byte, and RFC 8949 deterministic
+CBOR of the closed tuple `[tenant_id, subject_id, contributor_id, scope_key]`,
+using the recorded privacy-snapshot evidence-key version. The canonical bounded
+scope key is the registered typed union for that contributor, never a free-form
+map. The snapshot additionally
+stores that key version and an HMAC-SHA-256 digest over the ASCII domain
+`identity-privacy-export-snapshot-v1`, one zero byte, and RFC 8949 deterministic
+CBOR of all preceding fields. The CBOR profile uses definite lengths, shortest
+integers, encoded-key ordering, valid UTF-8, and no floats or free-form maps.
+Duplicate contributor IDs, a missing manifest member, an extra member, an
+unknown contract/checkpoint schema, a zero position where the projection does
+not define zero, or an unavailable evidence key MUST abort the request before
+an export becomes runnable. A wall-clock timestamp alone is not a watermark.
+
+A restartable worker MUST NOT retain or depend on a long-lived exported
+PostgreSQL snapshot. Every contributor MUST instead read from an
+append-only/versioned projection capable of reproducing its exact recorded
+checkpoint, or atomically stage an immutable bounded fragment during the
+request transaction. A contributor that cannot prove the requested cut MUST
+leave the export pending or fail it; it MUST NOT mix a current read with older
+contributor data or silently omit the contributor.
+
+Every `PrivacyExportFragmentV1` MUST contain exactly: export, tenant, subject,
+and command IDs; privacy epoch; snapshot evidence-key version and digest;
+contributor ID and contract major/minor; projection ID and scope-key digest;
+requested and observed checkpoint schema major/minor and position; fragment
+schema major/minor; classification exactly `data` or `not-applicable`;
+canonical uncompressed byte length `uint64`; and SHA-256 digest of the canonical
+redacted bytes. A `data` fragment MUST have nonzero bounded bytes unless its
+registered schema explicitly permits empty data; `not-applicable` MUST have
+zero length and the registered empty-content digest. Requested and observed
+checkpoints MUST be identical. The coordinator MUST reject a fragment whose
+snapshot binding, classification, checkpoint, length, digest, or schema does
+not match the recorded contributor contract.
+
+The coordinator MUST publish an artifact only after every required fragment
+matches the captured snapshot and a final primary-authority identity lock proves
+the same active identity aggregate version and privacy epoch. The sealed export
+manifest MUST embed the snapshot digest, the ordered fragment metadata and
+digests, canonical archive digest and byte length, encryption envelope/key
+version, object-store reference digest, creation time, and expiry. Partial
+artifacts MUST remain encrypted, non-downloadable, and bounded; failure or
+cancellation MUST deny download immediately and enter the erasure protocol
+below. A download capability MUST bind the export ID, privacy epoch, sealed
+manifest digest, archive digest, and expiry.
+
+### Export-object erasure and unknown outcomes
+
+The durable export row is the authority for download denial; an object store is
+never an authority. Object states are exactly `staging`, `sealed`, `published`,
+`erasure-pending`, `erasure-outcome-unknown`, `erased`, and
+`retained-encrypted-under-hold`. Cancellation, expiry, failed finalization,
+anonymization, deletion, or a lost publication race MUST atomically revoke
+download authority, record a random erasure operation ID and generation, and
+move every affected non-held object to `erasure-pending` before external delete
+I/O. No state after that denial may return to `published`.
+
+`identity` MUST expose a typed, versioned, idempotent export-erasure consumer
+surface with exactly `ApplyExportErasure`, `ExportErasureStatus`, and
+`ReconcileExportErasure`. Requests bind tenant, subject, export ID, privacy
+epoch, sealed-manifest digest, opaque object-reference digest, erasure operation
+ID/generation, reason, deadline, and legal-hold version. Results are exactly
+`erased`, `pending`, `outcome-unknown`, or `retained-under-hold` and contain no
+raw object key. `identity/postgres` persists the request, attempt journal,
+result, and evidence checkpoint; the injected object-store collaborator owns
+only bounded delete/status I/O and MUST NOT alter identity state.
+
+A proved not-found or authenticated deletion receipt transitions to `erased`.
+A timeout, disconnect, cancellation after send, contradictory response, or
+status-unavailable result transitions to `erasure-outcome-unknown`; it MUST NOT
+be reported as erased or blindly resubmitted unless the pinned provider profile
+proves delete idempotency for that exact object reference and operation ID.
+`ReconcileExportErasure` MUST query authoritative provider status or consume an
+authenticated receipt, preserve the same operation ID/generation, and converge
+to `erased`, `pending`, `outcome-unknown`, or an explicitly authorized hold.
+Object expiry, retry exhaustion, or elapsed time alone does not prove erasure.
+Terminal anonymized/deleted status requires every non-held export object to be
+`erased`; an unresolved unknown remains visible and blocks closure. A legal hold
+may transition only to `retained-encrypted-under-hold`, must destroy download
+authority, and must resume erasure with a new generation when the hold ends.
+
+The public privacy-export status and cancellation contracts MUST preserve this
+distinction. Status returns the closed job state separately from the closed
+object state and erasure result; its job states are exactly `pending`, `ready`,
+`failed`, `cancelled`, and `expired`, and a cancelled, failed, or expired job
+may still have object state `erasure-pending`, `erasure-outcome-unknown`, or
+`retained-encrypted-under-hold`. Cancellation atomically establishes
+`download-denied` and returns the durable erasure operation ID/generation plus
+exactly `not-required`, `pending`, `outcome-unknown`, `erased`, or
+`retained-under-hold`. It MUST NOT return or imply `crypto-erased`, `deleted`,
+or terminal cleanup solely because publication was denied, a capability was
+revoked, a delete request was sent, a TTL elapsed, or the cancellation command
+was repeated. Repeated status/cancel calls recover the persisted state for the
+same export and erasure generation rather than inventing a newer outcome.
 
 An anonymization or deletion request MUST take the same identity lock and
 increment the privacy epoch as the bounded atomic denial boundary. It MUST NOT
@@ -195,8 +296,9 @@ capability revocation marking, artifact erasure, and contributor cleanup run as
 bounded generation-tagged cascade batches; every affected export and capability
 is denied immediately because its captured privacy epoch is older. An export finalizer that loses this race
 MUST NOT publish and MUST schedule partial-artifact erasure. If publication won
-first, the destructive cascade MUST revoke download authority and erase the
-artifact before terminal anonymized/deleted status. A download MUST compare the
+first, the destructive cascade MUST revoke download authority and drive the
+artifact through the export-object erasure protocol before terminal
+anonymized/deleted status. A download MUST compare the
 current identity state, user and privacy epochs, export state, and capability
 reservation on the primary in one transaction; a deletion/anonymization commit
 therefore denies every later download even while artifact cleanup remains
@@ -248,7 +350,9 @@ does not roll back the authority version or fabricate completion.
 | `lifecycle.cascade.social_provider_disable` | social provider disable | social_connection for the one tenant + connection | `social_provider.disabled.v1` | every account link and provider-only session under the connection as cleanup, callbacks, token refresh/storage, audit | provider disabled locally for all users by connection epoch | token deletion/revocation remains pending, confirmed, rejected, unsupported, or outcome-unknown |
 | `lifecycle.cascade.social_provider_unlink` | social provider unlink | social_link for the one tenant + user + connection; credential for that tenant + user only when the link was an authentication credential | `social_provider.unlinked.v1` | callbacks, token refresh/storage, account linking, sessions issued solely from that link, audit | one user link removed locally | token deletion/revocation remains pending, confirmed, rejected, unsupported, or outcome-unknown |
 | `lifecycle.cascade.enterprise_provider_disable` | enterprise provider disable | enterprise_provider for the one tenant + connection; organization for its owning organization | `enterprise_provider.disabled.v1` | SSO routing/callbacks, JIT, SCIM mapping, sessions/enrichment and authorization cleanup, audit | provider disabled locally by enterprise-provider/organization epochs | external provider status never inferred from local completion |
+| `lifecycle.cascade.enterprise_provider_delete` | enterprise provider delete | enterprise_provider for the one tenant + connection; organization for its owning organization | `enterprise_provider.deletion_requested.v1`, then `enterprise_provider.deleted.v1` | every enterprise-provider deletion consumer captured by manifest: SSO transaction/routing/token-vault state, provider-derived sessions and cache, organization/domain links, SCIM core/organization mappings, authorization cache, audit | admission atomically disables the provider and enters `deletion-pending`; `deleted` only after all active login/logout/directory-sync transactions have terminal reconciled outcomes, provider token/credential material is erased or held, and every required consumer closes | a provider revocation/deletion result remains `pending`, `rejected`, `unsupported`, or `outcome-unknown`; local provider authority stays denied and unknown is never reported as deleted |
 | `lifecycle.cascade.domain_revoke` | enterprise domain claim revoke | enterprise_provider for the one tenant + connection; organization for its owning organization | `domain_claim.revoked.v1` | SSO routing, JIT, SCIM mapping, sessions/enrichment and authorization cleanup, audit | domain routing disabled locally | external provider status never inferred from local completion |
+| `lifecycle.cascade.scim_connection_delete` | SCIM connection delete | scim_connection for the one tenant + organization + connection; organization/user/authorization dimensions change only through separately admitted bounded child commands | `scim_connection.deletion_requested.v1`, then `scim_connection.deleted.v1` | SCIM token/mapping/external-ID/bulk state, organization bridge, attached SSO directory mapping, audit | admission atomically disables the connection and revokes every bearer by connection epoch, then remains `deletion-pending` until pending/unknown Bulk and reconciliation work is terminal and tokens, mappings, external-ID links, cursors, retained payloads, and provider attachment have the declared disposition; local identities, memberships, users, and groups remain untouched unless explicit child lifecycle commands close independently | external/provider cleanup remains named `pending`, `rejected`, `unsupported`, or `outcome-unknown`; it cannot reactivate the bearer or be inferred as deleted |
 | `lifecycle.cascade.identity_anonymize` | identity anonymize | user, privacy, identifier, credential, factor, and passkey for the one tenant + user; authorization for exact namespace `identity-self` and that subject; every other authorization namespace and social_link scope is cleanup only | `identity.anonymization_requested.v1`, then `identity.anonymized.v1` | every identity lifecycle consumer captured by cascade manifest | `anonymized` after all non-waived acknowledgements; no authority | legal hold retains only required pseudonymous evidence; external limitations remain visible |
 | `lifecycle.cascade.identity_delete` | identity delete | user, privacy, identifier, credential, factor, and passkey for the one tenant + user; authorization for exact namespace `identity-self` and that subject; every other authorization namespace and social_link scope is cleanup only | `identity.deletion_requested.v1`, then `identity.deleted.v1` | every identity lifecycle consumer captured by cascade manifest, including `capability/postgres`, `scim`, and `scim/organization` | `deleted` only after hard-delete closure; otherwise `deletion-pending` or `anonymized-held` | unsupported external deletion yields `completed-local-with-external-limitation`, never fully deleted |
 | `lifecycle.cascade.organization_archive` | organization archive | organization for the one tenant + organization; provider and subject counters are cleanup only | `organization.archived.v1` | invitations, membership/team writes, active selection, SSO, SCIM core/organization mapping, API keys, grants, organization-scoped impersonation, authorization cleanup, audit | `archived`, reversible; names/domains not reusable | external write disablement remains visible until reconciled |

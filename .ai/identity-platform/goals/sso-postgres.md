@@ -12,7 +12,7 @@ shown here.
 - Canonical module: `pkg/sso/postgres`
 - Canonical goal after scaffolding: `pkg/sso/postgres/.ai/GOAL.md`
 - Public contracts: unit ID `contract:unit:sso/postgres:v1`; owned operation IDs: none
-- Requires: `sso`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `identity/postgres`, `organization/postgres`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
+- Requires: `sso`, `identity/postgres`, `organization/postgres`, `primitive/capability-identity-contracts`, `primitive/capability-postgres-identity-contracts`
 - Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
@@ -34,7 +34,12 @@ where applicable, real supported infrastructure or providers.
 This module owns durable SSO providers, domains, mappings, encrypted
 configuration, OIDC/OAuth token-vault state, SAML request/assertion replay
 state, login transactions, enforcement state, and audit linkage. It MUST
-implement the selected protocol packages' public persistence contracts. It
+implement only the protocol-neutral `sso.Repository`,
+`sso.EnterpriseTokenVault`, `sso.ProtocolStateStore` and
+`sso.ProvisioningUnitOfWork` persistence contracts. It MUST NOT import
+`sso/oidc`, `sso/oauth2` or `sso/saml`, implement protocol-package-owned
+persistence interfaces, or make an optional protocol a persistence
+prerequisite. It
 does not own protocol parsing, SSO policy, and provider network calls. Those exclusions MUST remain
 outside its public API and dependency graph.
 
@@ -47,6 +52,22 @@ migrations, cleanup, and reconciliation contracts. Public errors MUST be typed, 
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+
+The adapter MUST publish an open versioned `identitypostgres.Contributor` for
+composition-root registration. It maps the complete
+`sso.ProvisioningCommand` through generation-bound `identitypostgres.Work` and
+returns the exact `sso.ProvisioningResult`; it never begins, commits, rolls
+back or retains a transaction. The constructor MUST NOT accept a coordinator,
+Work, carrier, enlister or contributor registry. Protocol-neutral repository,
+vault and replay/checkpoint contracts may share the same store, but no optional
+wire-protocol module is imported below this boundary.
+The public `Store` MUST implement the exact core `sso.Repository` method set:
+`Provider(context.Context, sso.ProviderID) (sso.Provider, error)`,
+`Route(context.Context, sso.DomainRouteRequest) (sso.DomainRoute, error)`,
+`ConsumeLogin(context.Context, sso.ConsumeLoginRequest) (sso.LoginTransaction, sso.Completion, error)`, and
+`RecoverLogin(context.Context, sso.CommandID) (sso.SigninCompletionResult, error)`.
+It MUST NOT substitute adapter-local request, result, or completion types or
+add methods to that implemented-interface declaration.
 
 ## Required behavior
 
@@ -92,8 +113,10 @@ involved.
   decrypt authority, terminal erasure, and ambiguous exchange recovery are
   mandatory and plaintext persistence is forbidden.
 - JIT identity/membership/provider-link updates and outbox state MUST be atomic
-  through the public `identity/postgres` enlistment carrier; the adapter MUST
-  NOT duplicate identity rows or carrier SQL. External or separately owned
+  through the sole public `identity/postgres` coordinator and open versioned
+  contributors; the adapter MUST NOT duplicate identity rows or coordinator
+  SQL. `sso.ProvisioningUnitOfWork` maps the storage-neutral command to those
+  contributors at composition. External or separately owned
   store ambiguity MUST enter reconciliation.
 - Repeat-login sync MUST persist provider/profile and mapping-policy versions,
   last applied assertion/claim version, authoritative-field decisions and

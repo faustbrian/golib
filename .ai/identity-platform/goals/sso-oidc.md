@@ -14,7 +14,7 @@ shown here.
 - Public contracts: unit ID `contract:unit:sso/oidc:v1`; owned operation IDs: `contract:operation:identity.sso.oidc-callback:v1`, `contract:operation:identity.sso.oidc-logout:v1`, `contract:operation:identity.sso.oidc-logout-complete:v1`
 - Requires: `sso`
 - Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `secret-envelope`, `audit`
-- Unlocks after verification: `sso/postgres`, `identity/http`
+- Unlocks after verification: `identity/http`
 
 ## Start gate
 

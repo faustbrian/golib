@@ -14,16 +14,34 @@ documentation tree, the `better-auth/plugins` export surface, official
 top-level packages, built-in social providers, and generic OAuth helpers at
 that revision.
 
-`UPSTREAM_LEAVES.json` is the authoritative recursive Git-tree inventory for
-every declared source. Every blob in those trees MUST have exactly one stable
-leaf disposition containing its exact path, kind, object ID, canonical source,
-classification, one semantic disposition row, capability IDs and exact
-operation IDs. The validator MUST
+`UPSTREAM_LEAVES.json` is the authoritative recursive Git-tree and package
+export inventory for every declared source. Every physical blob in those trees
+MUST have exactly one canonical leaf disposition containing its exact path,
+kind, object ID, canonical source, stable exact-disposition ID, classification,
+explicit classification-rule ID, semantic summary row, capability IDs and
+exact operation IDs. Exact-disposition IDs MUST be unique per physical blob or
+declared export; classification-rule IDs MAY group leaves only after each path
+has passed the rule's explicit package/path classification. Every declared
+package export and command entry point MUST likewise have one exact disposition
+bound to the object ID of the pinned `package.json` that declares it. The
+validator MUST
 recompute every declared tree object from the checked-in recursive entries and
-MUST require exact set equality between the proven blob set and leaf
-dispositions. Conceptual rows below MAY group related leaves and exported
-symbols, but MUST NOT act as a second leaf disposition or use a blanket source
-tree as their locator.
+MUST require exact set equality between the proven physical blob set and the
+canonical leaf dispositions, exact equality with the exports parsed from every
+pinned package manifest, and a unique longest-source owner for overlapping
+declared sources. Conceptual package rows below are derived summaries of those
+exact blob/export dispositions; they MUST NOT replace exact classifications or
+silently assign one blanket classification to a mixed package tree.
+
+For official packages, the exact classifier MUST distinguish package/build
+metadata, JavaScript client/framework surfaces, unselected database adapters,
+excluded product integrations, backend feature implementations, and mixed
+surfaces such as `cli`, `better-auth`, `core`, and `oauth-provider`. An in-scope
+blob or export MUST retain non-empty exact operation closure. Unknown packages,
+and unresolved exports MUST fail generation. Mixed-package classifiers MUST use
+explicit ordered path/export rules, and the validator MUST pin the resulting
+exact path-to-rule digest so a changed mixed tree cannot inherit a package
+summary without an explicit reviewed digest update.
 
 Every upstream item MUST have exactly one of these dispositions:
 
@@ -49,7 +67,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | Pinned core input | Disposition | Operation or local contract closure |
 | --- | --- | --- |
 | concepts `api` | In | Direct and HTTP calls, typed request/response/errors, headers and response metadata are closed by `API_OPERATIONS.md` and `identity/http`. |
-| concepts `cli` | In plus non-capability | Generate/migrate/info/secret become `identity.reference.*`; JavaScript project scaffolding and dependency-manager mutation are non-capability tooling. |
+| concepts `cli` | In plus non-capability | The backend outcomes behind schema generation, migration, info and secret become direct `identity.reference.*` APIs. Upstream JavaScript ORM/dialect generator implementations, exports, fixtures and mixed-database tests are deployment-profile divergences and do not prove the local PostgreSQL contract. JavaScript command wiring, project initialization, source rewriting, prompts, dependency installation/upgrading, hosted-account login, AI and MCP commands are excluded tooling or excluded products; no CLI product surface is retained. |
 | concepts `client` | Client surface | JavaScript reactive/fetch client behavior is not a backend capability; every backend action remains in the operation catalog and OpenAPI. |
 | concepts `cookies` | In | `identity/session`, `identity/http`, reference cookie profiles and browser-session persistence. |
 | concepts `database` | In by selected adapters | Core schemas, hooks, migrations and secondary storage are owned by PostgreSQL/Valkey adapters; alternate engines and experimental ORM joins are excluded. |
@@ -168,7 +186,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | --- | --- | --- |
 | `api-key` | In | `identity/apikey` and selected adapters. |
 | `better-auth` | In by decomposed ownership | All core/backend operations in `API_OPERATIONS.md`; JavaScript client behavior excluded. |
-| `cli` | In plus non-capability | Schema inspection, migration plan/apply, secret generation and diagnostics belong to `identity/reference`; JavaScript project scaffolding and package-manager upgrades are non-capability tooling. |
+| `cli` | Derived mixed summary | Exact blob/export dispositions retain secret generation, configuration inspection and redacted diagnostics as direct `identity/reference` outcomes. The selected PostgreSQL schema and migration APIs remain required by the conceptual contract, but upstream JavaScript ORM/dialect generators, exports, fixtures and mixed-database tests are conservatively classified as deployment-profile divergences rather than evidence for them. JavaScript project initialization, source rewriting, prompts, command wiring, package-manager mutation/upgrades, hosted-account login, AI and MCP commands remain excluded. This does not select or require a CLI product. |
 | `core` | In by contract | Shared backend types and behavior are decomposed across identity modules; TypeScript type inference itself is excluded. |
 | `drizzle-adapter` | Deployment-profile divergence | Additional database adapter; PostgreSQL is selected. |
 | `electron` | Client surface | JavaScript desktop client integration is not a backend capability. |
@@ -177,7 +195,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | `kysely-adapter` | Deployment-profile divergence | Additional database adapter is not in the selected deployment profile. |
 | `memory-adapter` | Deployment-profile divergence | Test doubles MAY implement public store contracts; an in-memory production profile is not selected. |
 | `mongo-adapter` | Deployment-profile divergence | Additional database engine is not in the selected deployment profile. |
-| `oauth-provider` | In | OAuth/OIDC authorization-server modules. |
+| `oauth-provider` | In | OAuth/OIDC authorization-server modules plus the exact `./resource-client` export for standards-generic protected-resource metadata and access-token verification; the ordinary `./client` export remains JavaScript client surface. |
 | `passkey` | In | WebAuthn/passkey modules. |
 | `prisma-adapter` | Deployment-profile divergence | Additional database adapter is not in the selected deployment profile. |
 | `redis-storage` | In by selected equivalent | Valkey adapters implement selected secondary/distributed storage behavior. |

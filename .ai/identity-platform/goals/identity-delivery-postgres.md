@@ -49,8 +49,9 @@ second workflow engine, or treat queue admission as provider delivery.
   workflow admission record. It MUST return one stable intent ID for duplicate
   commands and distinguish known rollback, committed enqueue and unknown
   commit.
-- Cross-module enqueue MUST enlist through the public `identity/postgres`
-  carrier defined by `TRANSACTION_CONTRACT.md`; this adapter MUST NOT copy its
+- Cross-module enqueue MUST stage through an open versioned contributor under
+  the sole public `identity/postgres` coordinator defined by
+  `TRANSACTION_CONTRACT.md`; this adapter MUST NOT copy its
   SQL or open a second transaction around an identity mutation.
 - Template and locale changes after enqueue MUST NOT mutate an already queued
   message. The exact version and safely encrypted render input or rendered

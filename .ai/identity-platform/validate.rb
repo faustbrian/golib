@@ -3,14 +3,19 @@
 
 require "json"
 require "digest"
+require "base64"
+require "openssl"
 require "open3"
 require "rbconfig"
 require "set"
+require "shellwords"
 require "time"
 require "tmpdir"
 require_relative "shared_contract_applicability"
 require_relative "acceptance/schema_validation"
 require_relative "acceptance/model"
+require_relative "final_report"
+require_relative "final_review_verifier"
 
 ROOT = File.expand_path(__dir__)
 REPOSITORY_ROOT = File.expand_path("../..", ROOT)
@@ -25,6 +30,8 @@ end
 EXPECTED_IDENTITY_UNITS = 61
 EXPECTED_PRIMITIVE_EXTENSION_AUTHORITIES = 6
 EXPECTED_PRIMITIVE_EXTENSION_UNITS = 6
+BLOCKED_OBSERVATION_REQUIRED_COUNT = 3
+
 EXPECTED_SCHEDULABLE_UNITS = EXPECTED_IDENTITY_UNITS + EXPECTED_PRIMITIVE_EXTENSION_UNITS
 SEMANTIC_ONLY_PRIMITIVE_CONSUMERS = {
   "primitive/identifier-identity-contracts" => ["identity/risk/captcha"],
@@ -39,12 +46,22 @@ BCP14_NOTICE = <<~NOTICE.chomp.freeze
   [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
   shown here.
 NOTICE
-EXPECTED_UPSTREAM_CLOSURE_SHA256 = "88f43accab0304344209b4af592b16c785de42880d766a362e0d9e72538b7a37"
-EXPECTED_UPSTREAM_LEAVES_SHA256 = "f0d20d17408ee143edf8614713641d2beb99159065c697b16ac505401111e2a9"
-EXPECTED_PROGRAM_SEMANTIC_ROOT = "65cc7e397731cb49bb17763bda29f3db542cc03a7eda90f126a8f67db70b6058"
+EXPECTED_UPSTREAM_CLOSURE_SHA256 = "89f306a8db290735be8fbba9dbea6134d1a09b1beb222bed90166b5acb91f547"
+EXPECTED_UPSTREAM_LEAVES_SHA256 = "17a02bb15912d10fd40434829ad2de967c570e2c7ab14a364c896a3fe4dc53f3"
+EXPECTED_UPSTREAM_CLASSIFICATION_BASES_SHA256 = "c892cfc4d3d50f0f46eb91da3730da01d65807c2868712321851627373d3feef"
+EXPECTED_UPSTREAM_PACKAGE_SUMMARIES_SHA256 = "615a3a2a5cc59d23142f5a2f67055e2e65682d9c300c2024d5020bfc057f1c1f"
+SEMANTIC_SOURCE_PATH_PATTERN = %r{\A\.ai/identity-platform/(?:goals/[a-zA-Z0-9._/-]+\.md|acceptance/[a-zA-Z0-9._/-]+\.(?:json|rb)|fragments/[a-zA-Z0-9._/-]+\.json|[a-zA-Z][a-zA-Z0-9_]*\.(?:md|json|rb))\z}.freeze
+EXPECTED_PROGRAM_SEMANTIC_ROOT = "070318c1401a6ed8f2f4fc280c68078107d3753d0cbd1c2eb8cef7fca655845a"
 REQUIRED_ENVIRONMENT_INPUT_IDS = %w[
   environment:behavior-variables environment:external-profiles environment:go-toolchain
-  environment:os-architecture environment:service-images
+  environment:os-architecture environment:pinned-upstream-repository environment:service-images
+].freeze
+REPOSITORY_GATE_INPUT_ROOTS = %w[
+  .ai/identity-platform .github/workflows .gitleaks.toml .go-version .golib
+  AGENTS.md CHANGELOG.md CODE_OF_CONDUCT.md COMPATIBILITY.md CONTRIBUTING.md
+  DEPRECATION.md LICENSE Makefile README.md SECURITY.md SUPPORT.md benchmarks.json
+  cmd/golib code-documentation.json docs go.mod go.sum go.work go.work.sum
+  modules.json packages.json scripts
 ].freeze
 NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS = [
   ".ai/identity-platform/EXECUTION_LEDGER.md",
@@ -52,6 +69,21 @@ NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS = [
   ".ai/identity-platform/PREFLIGHT_EVIDENCE.md",
   ".ai/identity-platform/evidence/"
 ].freeze
+
+def root_semantic_source_path?(path)
+  path.match?(SEMANTIC_SOURCE_PATH_PATTERN) &&
+    !NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS.any? do |excluded|
+      excluded.end_with?("/") ? path.start_with?(excluded) : path == excluded
+    end
+end
+
+def semantic_source_path?(path, canonical_goal_paths: Set.new)
+  root_semantic_source_path?(path) || canonical_goal_paths.include?(path)
+end
+
+def canonical_goal_semantic_paths(goal_manifest)
+  goal_manifest.fetch("goals", []).map { |entry| entry.fetch("canonical_path") }.to_set
+end
 EXPECTED_UPSTREAM_SOURCES = {
   "docs/content/docs/concepts" => ["tree", "9b98359e8415bc9a2f71617639cf2d61f15a0679", "Core documentation and route surface", "recursive_blobs"],
   "docs/content/docs/authentication" => ["tree", "b5132040e1543221912db02871153ed6ab57fc4c", "Core documentation and route surface", "recursive_blobs"],
@@ -61,13 +93,19 @@ EXPECTED_UPSTREAM_SOURCES = {
   "packages/better-auth/src/types/plugins.ts" => ["blob", "c3b7e77fdd268de9707e0b84feae92cc41b84dfb", "Source-exported and internal plugin surface", "exact_blob"],
   "packages/better-auth/src/utils/hide-metadata.ts" => ["blob", "a7ac60912fb14db1265e122b7e7daf0a59669bef", "Source-exported and internal plugin surface", "exact_blob"],
   "packages/core/src/social-providers" => ["tree", "39f9b83ca3681164e9eb8f8ef77f2ea5d5938e4c", "Provider catalog disposition", "recursive_blobs"],
-  "packages" => ["tree", "2cc84b5f623da92e892bd3288243a8c3ec4a5110", "Official top-level packages", "immediate_children"]
+  "packages" => ["tree", "2cc84b5f623da92e892bd3288243a8c3ec4a5110", "Official top-level packages", "recursive_blobs"]
 }.freeze
 ALLOWED_WORKER_PLACEHOLDERS = Set[
   "unit", "canonical-module", "absolute-worktree-path", "worker-branch",
   "integration-commit", "absolute-goal-path", "verified-prerequisite-list",
   "canonical-module-directory", "reserved-descendant-module-directories",
-  "assignment-generation", "assignment-commit", "shared-contract-applicability"
+  "assignment-generation", "assignment-commit", "shared-contract-applicability",
+  "release-handshake-row-commit", "runtime-capture-commit",
+  "assignment-authorization-checkpoint", "unit-namespace"
+].freeze
+ALLOWED_ORCHESTRATOR_METAVARIABLES = Set[
+  "safe-approval-id", "unit", "generation", "assignment-authorization-checkpoint",
+  "row-commit", "unit-namespace"
 ].freeze
 ALLOWED_STATUSES = Set[
   "proposed", "ready", "in-progress", "implemented-unverified", "verified",
@@ -176,7 +214,8 @@ REQUIRED_ARTIFACT_SECTIONS = {
     "Required secret and connection fields", "Validation and proof"
   ],
   "PREFLIGHT_EVIDENCE.md" => [
-    "Execution identity", "Worker assignment authorizations", "Worker runtime attestations",
+    "Execution identity", "Platform evidence trust", "Platform gate capture bindings", "Worker assignment authorizations", "Worker runtime attestations",
+    "Final gate bindings", "Blocked audit binding", "No-push coordinator assertion", "Worker release handshakes", "Worker return attestations", "Semantic authorization requests", "User semantic authorizations",
     "Tool and environment lanes", "External evidence lanes",
     "Existing primitive contracts", "Task-owned resource registry",
     "Acceptance evidence bindings", "Goal digest revisions", "Conflict-recovery baselines",
@@ -274,7 +313,7 @@ EXPECTED_CONFORMANCE_TOOLS = [
     "consumers" => %w[sso/saml]
   }
 ].freeze
-EXPECTED_PROTOCOL_SOURCE_IDENTITY_SHA256 = "e55db6f638681a26c2d8228876724a22176ff9a813aeeb33fdd8fb9495c8148b"
+EXPECTED_PROTOCOL_SOURCE_IDENTITY_SHA256 = "8d60312c521677153d5d92a4f987582fe4c033c1615a477a7a7537e921e690b8"
 EXPECTED_PROTOCOL_SOURCE_CONSUMERS = {
   "oauth-form-post-response-mode-1.0-final" => %w[identity/oauth identity/oauth/providers oauth-server/oidc sso/oidc],
   "oauth-jarm-1.0-final" => %w[identity/oauth oauth-server/oidc sso/oidc],
@@ -291,6 +330,7 @@ EXPECTED_PROTOCOL_SOURCE_CONSUMERS = {
   "rfc-6749" => %w[identity/oauth identity/oauth/providers oauth-server sso/oauth2 sso/oidc],
   "rfc-6750" => %w[identity/http identity/oauth identity/oauth/providers oauth-server oauth-server/oidc sso/oauth2 sso/oidc],
   "rfc-6901" => %w[identity/oauth/providers identity/reference],
+  "rfc-6931" => %w[sso/saml],
   "rfc-7009" => %w[identity/oauth identity/oauth/providers oauth-server sso/oauth2 sso/oidc],
   "rfc-7239" => %w[identity/http identity/reference],
   "rfc-7515" => %w[identity/oauth identity/oauth/onetap oauth-server oauth-server/oidc sso/oidc],
@@ -306,7 +346,7 @@ EXPECTED_PROTOCOL_SOURCE_CONSUMERS = {
   "rfc-7662" => %w[identity/oauth identity/oauth/providers oauth-server],
   "rfc-8174" => :all_units,
   "rfc-8252" => %w[oauth-server],
-  "rfc-8414" => %w[identity/oauth/providers oauth-server],
+  "rfc-8414" => %w[identity/oauth/providers oauth-server sso/oauth2 sso/oidc],
   "rfc-8628" => %w[oauth-server/device],
   "rfc-8693" => %w[oauth-server oauth-server/oidc],
   "rfc-8707" => %w[oauth-server],
@@ -332,7 +372,12 @@ EXPECTED_PROTOCOL_SOURCE_CONSUMERS = {
   "fido-metadata-service-3.1.1-20260105" => %w[webauthn],
   "fido-metadata-statement-3.1.1-20260105" => %w[webauthn],
   "public-suffix-list-e1b8015c" => %w[sso/domain-verification webauthn],
-  "google-authenticator-key-uri-8ba6e793" => %w[identity/mfa]
+  "google-authenticator-key-uri-8ba6e793" => %w[identity/mfa],
+  "captchafox-siteverify-20260517115151" => %w[identity/risk/captcha identity/risk/captcha/captchafox],
+  "hcaptcha-siteverify-20260719190355" => %w[identity/risk/captcha identity/risk/captcha/hcaptcha],
+  "hibp-pwned-passwords-20260807131257" => %w[identity/risk/hibp],
+  "recaptcha-siteverify-20260801153447" => %w[identity/risk/captcha identity/risk/captcha/recaptcha],
+  "turnstile-siteverify-20260728114909" => %w[identity/risk/captcha identity/risk/captcha/turnstile]
 }.freeze
 ADMINISTRATION_JOURNEY_TRANSITIONS = {
   "identity.platform.role.create" => [
@@ -659,8 +704,13 @@ def public_contract_goal_binding_errors(document, program_rows, goal_bodies)
     expected = []
     expected << unit_contract["contract_id"] if unit_contract
     expected.concat(operations.select { |operation| operation["owner"] == row[:unit] || owned_authorities.include?(operation["owner"]) }.map { |operation| operation["contract_id"] })
-    actual = metadata_values(goal_bodies.fetch(row[:unit], ""), "Public contracts")
-    errors << "public contract goal IDs drifted for #{row[:unit]}" unless actual == expected
+    actual = metadata_values(goal_bodies.fetch(row[:unit], ""), "Public contracts").grep(/\Acontract:/)
+    extra = actual - expected
+    invalid_extra = extra.reject do |contract_id|
+      operation = operations.find { |candidate| candidate["contract_id"] == contract_id }
+      operation && operation.fetch("declared_owners").include?(row[:unit]) && operation["owner"] != row[:unit]
+    end
+    errors << "public contract goal IDs drifted for #{row[:unit]}" unless (expected - actual).empty? && invalid_extra.empty? && actual.uniq == actual
     bound_operation_ids.concat(expected.grep(/\Acontract:operation:/))
   end
   errors << "public operation goal bindings are incomplete or duplicated" unless bound_operation_ids.sort_by(&:b) == operation_ids.sort_by(&:b)
@@ -739,9 +789,200 @@ def evidence_revision_reuse_errors(tested_revision:, gate_execution_revision:, r
   errors
 end
 
-def acceptance_evidence_errors(document, declaration:, revision:, input_fingerprint:, evidence_commit: nil, module_roots: [], repository_root: nil, record_path: nil, artifact_payloads: nil, live_capture: nil, final_execution: false)
+def execution_receipt_tool_identity(execution)
+  payload = execution.slice(
+    "executable_realpath", "executable_sha256", "version_argv", "version_stdout", "version_stderr",
+    "verifier_argv", "verifier_executable_realpath", "verifier_executable_sha256", "verifier_attestation_sha256"
+  )
+  "receipt:sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(payload)))}"
+end
+
+def execution_receipt_environment_identity(execution)
+  payload = execution.slice("canonical_workdir", "environment_probe_argv", "environment_probe_stdout", "environment_probe_stderr")
+  "receipt:sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(payload)))}"
+end
+
+def platform_receipt_binding_errors(receipt_bytes, bindings:, expected_scope:)
+  return ["coordinator capture binding set is unavailable"] unless bindings.is_a?(Array)
+  begin
+    receipt = AcceptanceSchemaValidation.parse_json(receipt_bytes, canonical: true)
+    execution_identity = AcceptanceSchemaValidation.execution_identity(receipt)
+  rescue JSON::ParserError, KeyError, TypeError
+    return ["coordinator capture receipt identity cannot be derived"]
+  end
+  matches = bindings.select { |row| row[:execution_identity] == execution_identity }
   errors = []
-  expected_keys = %w[schema_version artifact_id result tested_revision gate_execution_revision revalidation_revision input_manifest input_root tool_environment observations artifact_hashes recorded_at]
+  errors << "coordinator capture binding is not exact and unique" unless matches.length == 1
+  errors << "coordinator capture scope drifted" unless matches.length == 1 && matches.first[:scope] == expected_scope
+  errors
+end
+
+def coordinator_execution_receipt_errors(receipt_bytes, receipt_path:, expected_commands:, tool_identity:, environment_identity:, require_coverage_inventory: false)
+  errors = []
+  unless receipt_bytes
+    return ["coordinator execution receipt is absent"]
+  end
+  begin
+    receipt = AcceptanceSchemaValidation.parse_json(receipt_bytes, canonical: true)
+  rescue JSON::ParserError => e
+    return ["coordinator execution receipt is invalid: #{e.message}"]
+  end
+  errors << "coordinator execution receipt is not an object" unless receipt.is_a?(Hash)
+  return errors unless receipt.is_a?(Hash)
+
+  execution = receipt.merge(
+    "execution_identity" => "sha256:#{'0' * 64}",
+    "execution_receipt_path" => receipt_path,
+    "execution_receipt_sha256" => "sha256:#{Digest::SHA256.hexdigest(receipt_bytes)}",
+    "artifact_payload_binding" => "record.artifact_hashes[path,sha256]"
+  )
+  AcceptanceSchemaValidation.bind_execution_proof!(execution)
+  errors.concat(AcceptanceSchemaValidation.execution_receipt_errors(execution, receipt_bytes))
+  errors << "gate was not captured by the coordinator direct-execution runner" unless
+    receipt["capture_authority"] == "coordinator-owned-execution-runner/v3"
+  producer_argv = receipt["producer_argv"]
+  verifier_argv = receipt["verifier_argv"]
+  errors << "coordinator producer argv is absent or unsafe" unless
+    producer_argv.is_a?(Array) && !producer_argv.empty? && producer_argv.all? { |value| value.is_a?(String) && !value.empty? && !value.include?("\0") }
+  errors << "independent verifier argv is absent or unsafe" unless
+    verifier_argv.is_a?(Array) && !verifier_argv.empty? && verifier_argv.all? { |value| value.is_a?(String) && !value.empty? && !value.include?("\0") }
+  parsed_commands = expected_commands.filter_map do |command|
+    Shellwords.split(command)
+  rescue ArgumentError
+    nil
+  end
+  errors << "coordinator receipt producer argv is not one exact declared gate command" unless
+    producer_argv.is_a?(Array) && parsed_commands.include?(producer_argv)
+  errors << "coordinator receipt executable path is not absolute" unless
+    receipt["executable_realpath"].to_s.start_with?(File::SEPARATOR)
+  errors << "coordinator receipt executable digest is invalid" unless
+    receipt["executable_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+  errors << "coordinator receipt canonical workdir is invalid" unless
+    receipt["canonical_workdir"].to_s.start_with?(File::SEPARATOR)
+  errors << "coordinator receipt verifier executable path is not absolute" unless
+    receipt["verifier_executable_realpath"].to_s.start_with?(File::SEPARATOR)
+  errors << "coordinator receipt verifier executable digest is invalid" unless
+    receipt["verifier_executable_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+  errors << "independent verifier reused the producer argv" if verifier_argv == producer_argv
+  errors << "coordinator receipt lacks a successful producer execution" unless receipt["exit_status"] == 0
+  errors << "coordinator receipt lacks a successful independent verifier execution" unless receipt["verifier_exit_status"] == 0
+  errors << "coordinator receipt verifier attestation is invalid" unless
+    receipt["verifier_attestation_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/) &&
+      receipt["verifier_attestation_sha256"] != "sha256:#{'0' * 64}"
+  errors << "gate tool identity is a caller label rather than receipt-derived" unless
+    tool_identity == execution_receipt_tool_identity(receipt)
+  errors << "gate environment identity is a caller label rather than receipt-derived" unless
+    environment_identity == execution_receipt_environment_identity(receipt)
+  if require_coverage_inventory
+    %w[package_discovery_argv mutation_tool_argv].each do |field|
+      argv = receipt[field]
+      errors << "coordinator receipt lacks independent #{field.tr('_', ' ')}" unless
+        argv.is_a?(Array) && !argv.empty? && argv.all? { |value| value.is_a?(String) && !value.empty? }
+    end
+    %w[mutation_tool_output_sha256 package_manifest_sha256 mutant_manifest_sha256].each do |field|
+      errors << "coordinator receipt lacks independent #{field.tr('_', ' ')}" unless
+        receipt[field].to_s.match?(/\Asha256:[0-9a-f]{64}\z/) && receipt[field] != "sha256:#{'0' * 64}"
+    end
+    if receipt["producer_argv"].is_a?(Array)
+      discovery_argv = receipt.values_at("package_discovery_argv", "mutation_tool_argv")
+      errors << "repository discovery reused the result producer argv" if discovery_argv.include?(receipt["producer_argv"])
+      errors << "repository discovery argv are not independent" unless discovery_argv.compact.uniq.length == 2
+    end
+  end
+  errors
+end
+
+missing_gate_receipt_errors = coordinator_execution_receipt_errors(
+  nil, receipt_path: ".ai/identity-platform/evidence/executions/fixture.json",
+  expected_commands: ["make check MODULES=pkg/identity"], tool_identity: "fixture-tool", environment_identity: "fixture-environment"
+)
+fail_check("static local/external pass record without live coordinator receipt was accepted") if missing_gate_receipt_errors.empty?
+fake_gate_receipt = {
+  "capture_authority" => "producer-self-report", "producer_argv" => ["make", "check", "MODULES=pkg/identity"],
+  "verifier_argv" => ["ruby", "verify.rb"], "executable_realpath" => "/usr/bin/make",
+  "executable_sha256" => "sha256:#{'1' * 64}", "version_argv" => ["make", "--version"],
+  "version_stdout" => "fixture", "version_stderr" => "", "environment_probe_argv" => ["env"],
+  "environment_probe_stdout" => "fixture", "environment_probe_stderr" => "", "verifier_exit_status" => 0,
+  "verifier_stdout" => "", "verifier_stderr" => "", "verifier_attestation_sha256" => "sha256:#{'2' * 64}",
+  "tested_revision" => "0" * 40, "input_root" => "sha256:#{'3' * 64}", "started_at" => "2026-08-12T00:00:00.000000000Z",
+  "completed_at" => "2026-08-12T00:00:01.000000000Z", "exit_status" => 0, "stdout" => "", "stdout_byte_length" => 0,
+  "stdout_sha256" => "sha256:#{Digest::SHA256.hexdigest('')}", "stderr" => "", "stderr_byte_length" => 0,
+  "stderr_sha256" => "sha256:#{Digest::SHA256.hexdigest('')}",
+  "captured_output_sha256" => "sha256:#{Digest::SHA256.hexdigest("\0")}", "raw_capture_sha256" => "sha256:#{'4' * 64}",
+  "output_artifact_path" => ".ai/identity-platform/evidence/gates/fixture.json"
+}
+fake_gate_receipt_bytes = JSON.pretty_generate(fake_gate_receipt) + "\n"
+forged_gate_receipt_errors = coordinator_execution_receipt_errors(
+  fake_gate_receipt_bytes, receipt_path: ".ai/identity-platform/evidence/executions/fixture.json",
+  expected_commands: ["make check MODULES=pkg/identity"], tool_identity: "fixture-tool", environment_identity: "fixture-environment"
+)
+fail_check("producer-authored gate receipt and caller tool labels were accepted") if forged_gate_receipt_errors.empty?
+
+valid_gate_receipt = fake_gate_receipt.merge(
+  "capture_authority" => "coordinator-owned-execution-runner/v3",
+  "canonical_workdir" => REPOSITORY_ROOT,
+  "verifier_executable_realpath" => RbConfig.ruby,
+  "verifier_executable_sha256" => "sha256:#{'7' * 64}",
+  "version_stdout" => "fixture-version\n", "environment_probe_stdout" => "fixture-environment\n",
+  "stdout" => "fixture-pass\n"
+)
+AcceptanceSchemaValidation.bind_execution_proof!(valid_gate_receipt)
+valid_gate_receipt_bytes = AcceptanceSchemaValidation.execution_receipt_bytes(valid_gate_receipt)
+valid_tool_identity = execution_receipt_tool_identity(valid_gate_receipt)
+valid_environment_identity = execution_receipt_environment_identity(valid_gate_receipt)
+valid_receipt_errors = coordinator_execution_receipt_errors(
+  valid_gate_receipt_bytes, receipt_path: ".ai/identity-platform/evidence/executions/fixture.json",
+  expected_commands: ["make check MODULES=pkg/identity"], tool_identity: valid_tool_identity,
+  environment_identity: valid_environment_identity
+)
+fail_check("valid coordinator-owned v3 execution receipt fixture was rejected: #{valid_receipt_errors.join('; ')}") unless valid_receipt_errors.empty?
+
+failed_verifier_receipt = valid_gate_receipt.merge("verifier_exit_status" => 1)
+AcceptanceSchemaValidation.bind_execution_proof!(failed_verifier_receipt)
+failed_verifier_errors = coordinator_execution_receipt_errors(
+  AcceptanceSchemaValidation.execution_receipt_bytes(failed_verifier_receipt),
+  receipt_path: ".ai/identity-platform/evidence/executions/fixture.json",
+  expected_commands: ["make check MODULES=pkg/identity"],
+  tool_identity: execution_receipt_tool_identity(failed_verifier_receipt),
+  environment_identity: execution_receipt_environment_identity(failed_verifier_receipt)
+)
+fail_check("failed independent verifier execution receipt was accepted") if failed_verifier_errors.empty?
+
+coverage_gate_receipt = valid_gate_receipt.merge(
+  "package_discovery_argv" => ["ruby", "discover-packages.rb"],
+  "mutation_tool_argv" => ["ruby", ".ai/identity-platform/acceptance/schema_validation.rb", "mutation-tool", "pkg/identity/reference"],
+  "mutation_tool_output_sha256" => "sha256:#{'8' * 64}",
+  "package_manifest_sha256" => "sha256:#{'5' * 64}",
+  "mutant_manifest_sha256" => "sha256:#{'6' * 64}"
+)
+AcceptanceSchemaValidation.bind_execution_proof!(coverage_gate_receipt)
+coverage_receipt_arguments = {
+  receipt_path: ".ai/identity-platform/evidence/executions/fixture.json",
+  expected_commands: ["make check MODULES=pkg/identity"],
+  tool_identity: execution_receipt_tool_identity(coverage_gate_receipt),
+  environment_identity: execution_receipt_environment_identity(coverage_gate_receipt),
+  require_coverage_inventory: true
+}
+coverage_receipt_errors = coordinator_execution_receipt_errors(
+  AcceptanceSchemaValidation.execution_receipt_bytes(coverage_gate_receipt), **coverage_receipt_arguments
+)
+fail_check("valid independent coverage inventory receipt was rejected: #{coverage_receipt_errors.join('; ')}") unless coverage_receipt_errors.empty?
+%w[package_discovery_argv mutation_tool_argv mutation_tool_output_sha256 package_manifest_sha256 mutant_manifest_sha256].each do |field|
+  omitted_inventory_receipt = coverage_gate_receipt.reject { |key, _value| key == field }
+  AcceptanceSchemaValidation.bind_execution_proof!(omitted_inventory_receipt)
+  omitted_inventory_errors = coordinator_execution_receipt_errors(
+    AcceptanceSchemaValidation.execution_receipt_bytes(omitted_inventory_receipt),
+    **coverage_receipt_arguments.merge(
+      tool_identity: execution_receipt_tool_identity(omitted_inventory_receipt),
+      environment_identity: execution_receipt_environment_identity(omitted_inventory_receipt)
+    )
+  )
+  fail_check("coverage receipt omitted #{field} was accepted") if omitted_inventory_errors.empty?
+end
+
+def acceptance_evidence_errors(document, declaration:, revision:, input_fingerprint:, evidence_commit: nil, module_roots: [], repository_root: nil, record_path: nil, artifact_payloads: nil, live_capture: nil, final_execution: false, platform_capture_bindings: nil)
+  errors = []
+  expected_keys = %w[schema_version artifact_id result tested_revision gate_execution_revision revalidation_revision input_manifest input_root observations artifact_hashes recorded_at]
   errors << "schema fields drifted" unless document.keys == expected_keys
   errors << "schema version drifted" unless document["schema_version"] == 2
   errors << "artifact ID drifted" unless document["artifact_id"] == declaration["id"]
@@ -757,8 +998,6 @@ def acceptance_evidence_errors(document, declaration:, revision:, input_fingerpr
     errors << error
   end
   errors << "input root is stale" unless document["input_root"] == input_fingerprint
-  tool_environment = document["tool_environment"]
-  errors << "tool/environment identity is missing" unless tool_environment.is_a?(Hash) && tool_environment.keys == %w[tool environment] && tool_environment.values.all? { |value| value.is_a?(String) && !value.empty? }
   artifacts_valid = document["artifact_hashes"].is_a?(Array) && document["artifact_hashes"].any? && document["artifact_hashes"].all? do |artifact|
     next false unless artifact.is_a?(Hash) && artifact.keys == %w[path sha256] && artifact["path"].match?(%r{\A\.ai/[a-zA-Z0-9._/-]+\z}) && !artifact["path"].include?("..")
     next true unless repository_root
@@ -807,8 +1046,12 @@ def acceptance_evidence_errors(document, declaration:, revision:, input_fingerpr
           if execution.is_a?(Hash)
             errors << "artifact execution revision is not record-bound" unless execution["tested_revision"] == document["tested_revision"]
             errors << "artifact execution input root is not record-bound" unless execution["input_root"] == document["input_root"]
-            errors << "artifact execution tool is not record-bound" unless execution["tool"] == document.dig("tool_environment", "tool")
-            errors << "artifact execution environment is not record-bound" unless execution["environment"] == document.dig("tool_environment", "environment")
+            receipt_tool_identity = execution_receipt_tool_identity(execution)
+            receipt_environment_identity = execution_receipt_environment_identity(execution)
+            errors << "artifact execution tool identity is not receipt-derived" unless
+              receipt_tool_identity.is_a?(String) && !receipt_tool_identity.empty?
+            errors << "artifact execution environment identity is not receipt-derived" unless
+              receipt_environment_identity.is_a?(String) && !receipt_environment_identity.empty?
             errors << "artifact execution output path is not record-bound" unless execution["output_artifact_path"] == exact_path
             receipt_path = execution["execution_receipt_path"]
             receipt_bound = document.fetch("artifact_hashes", []).find { |entry| entry.is_a?(Hash) && entry["path"] == receipt_path }
@@ -818,7 +1061,22 @@ def acceptance_evidence_errors(document, declaration:, revision:, input_fingerpr
             if receipt_bound && receipt_bytes
               receipt_digest = "sha256:#{Digest::SHA256.hexdigest(receipt_bytes)}"
               errors << "separate execution receipt hash drifted" unless receipt_bound["sha256"] == receipt_digest
-              errors.concat(AcceptanceSchemaValidation.execution_receipt_errors(execution, receipt_bytes))
+              errors.concat(coordinator_execution_receipt_errors(
+                receipt_bytes, receipt_path: receipt_path,
+                expected_commands: [declaration.fetch("gate")],
+                tool_identity: receipt_tool_identity,
+                environment_identity: receipt_environment_identity,
+                require_coverage_inventory: declaration.fetch("id") == "coverage-mutation-report"
+              ))
+              if repository_root
+                errors.concat(platform_receipt_binding_errors(
+                  receipt_bytes, bindings: platform_capture_bindings,
+                  expected_scope: {
+                    "kind" => "acceptance", "unit" => artifact_contract.dig("producer", "unit"),
+                    "artifact_id" => declaration.fetch("id"), "profile_id" => nil, "claim_ids" => claims
+                  }
+                ))
+              end
             end
             errors.concat(AcceptanceExecutionRunner.live_capture_errors(execution, live_capture, artifact_bytes: bytes)) if final_execution
           else
@@ -850,7 +1108,7 @@ def acceptance_evidence_errors(document, declaration:, revision:, input_fingerpr
   errors
 end
 
-def local_gate_evidence_errors(gate, unit:, revision:, fingerprint:, module_roots:, repository_root:, record_path: nil, evidence_commit: nil)
+def local_gate_evidence_errors(gate, unit:, revision:, fingerprint:, module_roots:, repository_root:, record_path: nil, evidence_commit: nil, platform_capture_bindings: nil, canonical_command: nil, receipt_payloads: {})
   errors = []
   keys = %w[schema_version schema unit tested_revision gate_execution_revision revalidation_revision input_manifest input_root evidence_record outcome commands artifacts tool_identity environment_identity record_digest]
   errors << "schema drifted" unless gate.keys == keys && gate["schema_version"] == 2 && gate["schema"] == "identity-platform.local-gate.v2"
@@ -868,12 +1126,17 @@ def local_gate_evidence_errors(gate, unit:, revision:, fingerprint:, module_root
   errors << "evidence record path drifted" if record_path && record_path_value != record_path
   errors << "outcome did not pass" unless gate["outcome"] == "pass"
   errors << "commands missing" unless gate["commands"].is_a?(Array) && gate["commands"].any? && gate["commands"].all? { |command| command.is_a?(String) && !command.empty? }
+  canonical_gate_command = canonical_command || "make check MODULES=#{module_roots.first}"
+  errors << "local gate commands omit the coordinator-derived exact module gate" unless gate.fetch("commands", []).include?(canonical_gate_command)
   artifact_revision = evidence_commit || gate["tested_revision"]
   valid_artifacts = gate["artifacts"].is_a?(Array) && gate["artifacts"].any? && gate["artifacts"].all? do |artifact|
     next false unless artifact.is_a?(Hash) && artifact.keys == %w[path sha256]
     relative = artifact["path"]
     next false unless relative.is_a?(String) && relative.match?(%r{\A\.ai/[a-zA-Z0-9._/-]+\z}) && !relative.include?("..") &&
       artifact["sha256"].is_a?(String) && artifact["sha256"].match?(/\Asha256:[0-9a-f]{64}\z/)
+    if receipt_payloads.key?(relative)
+      next artifact["sha256"] == "sha256:#{Digest::SHA256.hexdigest(receipt_payloads.fetch(relative))}"
+    end
     next true unless repository_root
     absolute = File.expand_path(relative, repository_root)
     committed = git_blob_bytes(artifact_revision, relative, repository: repository_root)
@@ -882,6 +1145,26 @@ def local_gate_evidence_errors(gate, unit:, revision:, fingerprint:, module_root
   end
   errors << "artifact digests invalid" unless valid_artifacts
   errors << "tool/environment identity missing" unless [gate["tool_identity"], gate["environment_identity"]].all? { |identity| identity.is_a?(String) && !identity.empty? }
+  if repository_root
+    receipt_artifacts = gate.fetch("artifacts", []).select do |artifact|
+      artifact.is_a?(Hash) && artifact["path"].to_s.match?(%r{\A\.ai/identity-platform/evidence/executions/[a-zA-Z0-9._/-]+\.json\z})
+    end
+    errors << "local gate must bind exactly one coordinator execution receipt" unless receipt_artifacts.length == 1
+    if receipt_artifacts.length == 1
+      receipt_path = receipt_artifacts.first.fetch("path")
+      receipt_bytes = receipt_payloads[receipt_path] || git_blob_bytes(artifact_revision, receipt_path, repository: repository_root)
+      coordinator_execution_receipt_errors(
+        receipt_bytes, receipt_path: receipt_path, expected_commands: [canonical_gate_command],
+        tool_identity: gate["tool_identity"], environment_identity: gate["environment_identity"]
+      ).each { |error| errors << error }
+      if platform_capture_bindings
+        platform_receipt_binding_errors(
+          receipt_bytes, bindings: platform_capture_bindings,
+          expected_scope: {"kind" => "local", "unit" => unit, "artifact_id" => nil, "profile_id" => nil, "claim_ids" => []}
+        ).each { |error| errors << error }
+      end
+    end
+  end
   if record_path
     committed_record = git_blob_bytes(evidence_commit, record_path, repository: repository_root)
     absolute_record = File.expand_path(record_path, repository_root)
@@ -921,24 +1204,25 @@ end
 def recovery_lifecycle_errors(history)
   statuses = history.map { |row| row.fetch("status") }
   errors = []
-  active_epoch = false
-  previous = nil
-  statuses.each_with_index do |status, index|
+  active_epoch = nil
+  history.each_with_index do |row, index|
+    status = row.fetch("status")
+    epoch = row["epoch"] || index
     case status
     when "authorized"
       errors << "duplicates authorization in one epoch" if active_epoch
-      errors << "later authorization does not follow a terminal epoch" if index.positive? && !%w[superseded completed].include?(previous)
-      active_epoch = true
+      active_epoch = epoch
+    when "effective"
+      errors << "effective lacks active authorization epoch" unless active_epoch == epoch
     when "superseded"
-      errors << "superseded lacks active authorization epoch" unless active_epoch
-      active_epoch = false
+      errors << "superseded lacks effective authorization epoch" unless active_epoch == epoch && statuses[index - 1] == "effective"
+      active_epoch = nil
     when "completed"
-      errors << "completed lacks active authorization epoch" unless active_epoch
-      active_epoch = false
+      errors << "completed lacks effective authorization epoch" unless active_epoch == epoch && statuses[index - 1] == "effective"
+      active_epoch = nil
     else
       errors << "has invalid status #{status}"
     end
-    previous = status
   end
   errors << "lacks initial authorization" unless statuses.first == "authorized"
   errors
@@ -962,16 +1246,63 @@ end
 def recovery_transition_errors(previous_rows, current_rows)
   errors = []
   errors << "recovery history is not append-only" unless current_rows.first(previous_rows.length) == previous_rows
-  current_rows.drop(previous_rows.length).each do |row|
-    next if row[5] == "authorized"
+  appended = current_rows.drop(previous_rows.length)
+  appended.group_by { |row| row[:epoch] || row["epoch"] }.each_value do |rows|
+    errors << "recovery epoch advanced through multiple lifecycle states in one snapshot" if rows.length > 1
+  end
+  appended.each do |row|
+    next if row.fetch(:status) == "authorized"
 
-    identity = row.values_at(7, 0, 1, 2, 3)
+    identity = row.values_at(:epoch, :unit, :generation, :baseline, :input_root, :worker_checkpoint)
     preceding_authorization = previous_rows.any? do |candidate|
-      candidate[5] == "authorized" && candidate.values_at(7, 0, 1, 2, 3) == identity
+      candidate.fetch(:status) == "authorized" &&
+        candidate.values_at(:epoch, :unit, :generation, :baseline, :input_root, :worker_checkpoint) == identity
     end
     errors << "recovery terminal lacks a preceding committed exact authorization" unless preceding_authorization
   end
   errors
+end
+
+def recovery_result_binding_errors(completed, effective, ancestor:, parents:)
+  errors = []
+  errors << "authorization checkpoint drifted" unless completed[:authorization_checkpoint] == effective[:authorization_checkpoint]
+  errors << "result worker commit did not advance beyond authorized checkpoint" if completed[:result_worker] == effective[:worker_checkpoint]
+  errors << "result worker commit excludes effective authorization" unless ancestor.call(effective[:effective_commit], completed[:result_worker])
+  errors << "result worker commit excludes authorized checkpoint" unless ancestor.call(effective[:worker_checkpoint], completed[:result_worker])
+  errors << "result integration checkpoint excludes result worker commit" unless ancestor.call(completed[:result_worker], completed[:result_checkpoint])
+  merge_parents = parents.call(completed[:result_checkpoint])
+  errors << "result integration checkpoint is not a non-fast-forward merge binding" unless
+    merge_parents == [effective[:effective_commit], completed[:result_worker]]
+  errors
+end
+
+recovery_binding_fixture_effective = {
+  authorization_checkpoint: "a" * 40, worker_checkpoint: "b" * 40,
+  effective_commit: "e" * 40
+}
+recovery_binding_fixture_completed = {
+  authorization_checkpoint: "a" * 40, result_worker: "c" * 40, result_checkpoint: "d" * 40
+}
+fixture_ancestor = lambda { |_ancestor, _descendant| true }
+fixture_parents = lambda { |_commit| ["e" * 40, "c" * 40] }
+unless recovery_result_binding_errors(
+  recovery_binding_fixture_completed, recovery_binding_fixture_effective,
+  ancestor: fixture_ancestor, parents: fixture_parents
+).empty?
+  fail_check("valid recovery terminal result-binding fixture was rejected")
+end
+if recovery_result_binding_errors(
+  recovery_binding_fixture_completed.merge(result_worker: "f" * 40), recovery_binding_fixture_effective,
+  ancestor: fixture_ancestor, parents: fixture_parents
+).empty?
+  fail_check("recovery terminal merge-binding negative fixture was accepted")
+end
+wrong_recovery_first_parent = lambda { |_commit| ["f" * 40, "c" * 40] }
+if recovery_result_binding_errors(
+  recovery_binding_fixture_completed, recovery_binding_fixture_effective,
+  ancestor: fixture_ancestor, parents: wrong_recovery_first_parent
+).empty?
+  fail_check("recovery terminal first-parent binding negative fixture was accepted")
 end
 
 def reserved_nested_roots(assigned_root, inventory_roots, modules_document, packages_document)
@@ -993,14 +1324,762 @@ end
 def worker_runtime_attestation_errors(attestation, unit:, generation:, task:)
   errors = []
   errors << "runtime attestation identity drifted" unless attestation.values_at(:unit, :generation, :task) == [unit, generation, task]
-  errors << "runtime attestation agent ID is not immutable" unless attestation[:agent_id].to_s.match?(/\A[a-zA-Z0-9._:\/-]+\z/) && attestation[:agent_id] != "—"
+  errors << "runtime capture agent ID is unsafe" unless attestation[:agent_id].to_s.match?(/\A[a-zA-Z0-9._:\/-]+\z/) && attestation[:agent_id] != "—"
   errors << "runtime attestation model drifted" unless attestation[:model] == "gpt-5.6-sol"
   errors << "runtime attestation reasoning drifted" unless attestation[:reasoning] == "medium"
   errors << "runtime attestation fork policy drifted" unless attestation[:fork_turns] == "none"
   errors << "runtime attestation subagent policy drifted" unless attestation[:subagents] == "false"
-  errors << "runtime attestation is not platform-reported" unless attestation[:source] == "platform-spawn-result"
+  errors << "runtime capture lacks committed tool-visible custody evidence" unless attestation[:platform_verified]
   errors << "runtime attestation timestamp is invalid" unless attestation[:recorded_at].to_s.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/)
   errors
+end
+
+def worker_release_handshake_errors(handshake, attestation:, ledger_entry:)
+  errors = []
+  identity = ledger_entry.values_at(:unit, :generation, :task)
+  errors << "release identity drifted" unless handshake.values_at(:unit, :generation, :task) == identity
+  errors << "release assignment checkpoint is invalid" unless handshake[:assignment_checkpoint].to_s.match?(/\A[0-9a-f]{40}\z/)
+  errors << "release readiness receipt drifted" unless handshake[:receipt] ==
+    "READY-AND-WAITING #{ledger_entry[:unit]} g#{ledger_entry[:generation]} #{handshake[:assignment_checkpoint]}"
+  errors << "release lacks committed readiness capture" unless handshake[:readiness_event]
+  errors << "release lacks committed preparation capture" unless handshake[:release_event]
+  errors << "release runtime identity drifted" unless attestation &&
+    attestation.values_at(:unit, :generation, :task) == identity
+  directive = "PREPARE-RELEASE #{ledger_entry[:unit]} g#{ledger_entry[:generation]} runtime=#{handshake[:runtime_commit]} " \
+    "authorization=#{handshake[:assignment_checkpoint]} branch=#{ledger_entry[:branch]} worktree=#{ledger_entry[:worktree]}"
+  errors << "release directive digest drifted" unless handshake[:directive_digest] ==
+    "sha256:#{Digest::SHA256.hexdigest(directive)}"
+  if handshake[:release_event]
+    errors << "release directive bytes drifted" unless handshake[:release_event]["content"] == directive
+  end
+  if handshake[:readiness_event] && handshake[:release_event]
+    errors << "release turn does not directly follow readiness" unless
+      handshake[:release_event]["turn_ordinal"] == handshake[:readiness_event]["turn_ordinal"] + 1
+  end
+  errors
+end
+
+def worker_assignment_stage_errors(entry, authorization:, runtime_attestation:, handshake:)
+  errors = []
+  work_started = entry[:worker_commit] != "—" || entry[:checkpoint] != "—"
+  unless authorization
+    errors << "worker activity exists before assignment authorization" if runtime_attestation || handshake || work_started
+    return errors
+  end
+
+  errors << "authorized assignment remains pending" if entry[:assignment] == "pending"
+  errors << "release handshake exists before runtime attestation" if handshake && !runtime_attestation
+  errors << "worker work exists before runtime attestation" if work_started && !runtime_attestation
+  errors << "worker work exists before release handshake" if work_started && !handshake
+  errors
+end
+
+preauthorization_stage_entry = {assignment: "pending", worker_commit: "—", checkpoint: "—"}
+unless worker_assignment_stage_errors(
+  preauthorization_stage_entry, authorization: nil, runtime_attestation: nil, handshake: nil
+).empty?
+  fail_check("valid pending pre-authorization assignment stage was rejected")
+end
+finalized_preauthorization_stage_entry = preauthorization_stage_entry.merge(assignment: "a" * 40)
+unless worker_assignment_stage_errors(
+  finalized_preauthorization_stage_entry, authorization: nil, runtime_attestation: nil, handshake: nil
+).empty?
+  fail_check("valid finalized pre-authorization assignment stage was rejected")
+end
+unless worker_assignment_stage_errors(
+  finalized_preauthorization_stage_entry, authorization: {}, runtime_attestation: nil, handshake: nil
+).empty?
+  fail_check("valid authorized pre-spawn assignment stage was rejected")
+end
+unless worker_assignment_stage_errors(
+  finalized_preauthorization_stage_entry, authorization: {}, runtime_attestation: {}, handshake: nil
+).empty?
+  fail_check("valid runtime-attested pre-release assignment stage was rejected")
+end
+if worker_assignment_stage_errors(
+  preauthorization_stage_entry.merge(worker_commit: "b" * 40),
+  authorization: nil, runtime_attestation: nil, handshake: nil
+).empty?
+  fail_check("pre-authorization worker-work negative fixture was accepted")
+end
+if worker_assignment_stage_errors(
+  finalized_preauthorization_stage_entry, authorization: {}, runtime_attestation: nil, handshake: {}
+).empty?
+  fail_check("pre-runtime release-handshake negative fixture was accepted")
+end
+
+def release_preparation_chronology_errors(handshake, attestation, observed_at:)
+  errors = []
+  prepared_at = handshake[:released_at].to_s
+  runtime_at = attestation && attestation[:recorded_at].to_s
+  timestamp = lambda do |value|
+    next unless value.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/)
+
+    Time.iso8601(value)
+  rescue ArgumentError
+    nil
+  end
+  prepared_time = timestamp.call(prepared_at)
+  runtime_time = runtime_at && timestamp.call(runtime_at)
+  return ["release preparation timestamp is invalid"] unless prepared_time
+
+  errors << "release was prepared before its runtime attestation" unless
+    runtime_time && prepared_time >= runtime_time
+  errors << "release preparation timestamp is in the future" if prepared_time > observed_at
+  errors
+end
+
+release_chronology_attestation = {recorded_at: "2026-08-12T00:00:00Z"}
+unless release_preparation_chronology_errors(
+  {released_at: "2026-08-12T00:00:01Z"}, release_chronology_attestation,
+  observed_at: Time.iso8601("2026-08-12T00:00:02Z")
+).empty?
+  fail_check("valid release preparation chronology fixture was rejected")
+end
+if release_preparation_chronology_errors(
+  {released_at: "2999-01-01T00:00:00Z"}, release_chronology_attestation,
+  observed_at: Time.iso8601("2026-08-12T00:00:02Z")
+).empty?
+  fail_check("future release preparation chronology negative fixture was accepted")
+end
+
+def worker_assignment_commit_binding_errors(attestation, authorization_commit:, authorization_parent:, changed_paths:, assignment_exists:, assignment_ancestor:)
+  errors = []
+  errors << "assignment authorization is not committed" unless authorization_commit
+  errors << "assignment authorization does not directly follow its baseline" unless authorization_parent == attestation[:baseline]
+  errors << "assignment commit does not exist" unless assignment_exists
+  errors << "assignment baseline excludes its assignment" unless assignment_ancestor
+  expected_paths = [".ai/identity-platform/PREFLIGHT_EVIDENCE.md", attestation[:prompt_path]].sort
+  errors << "assignment authorization envelope changed unexpected paths" unless changed_paths.sort == expected_paths
+  errors
+end
+
+def manifest_goal_paths(manifest_goal)
+  [File.join(".ai/identity-platform", manifest_goal.fetch("planning_path")), manifest_goal.fetch("canonical_path")]
+end
+
+def active_goal_path_errors(inventory_goal, manifest_goal, revision: nil, repository: REPOSITORY_ROOT, blob_reader: nil)
+  planning, canonical = manifest_goal_paths(manifest_goal)
+  normalized_inventory = inventory_goal.start_with?("goals/") ? File.join(".ai/identity-platform", inventory_goal) : inventory_goal
+  reader = blob_reader || lambda { |path| git_blob_bytes(revision, path, repository: repository) }
+  present = [planning, canonical].select { |path| !reader.call(path).nil? }
+  errors = []
+  errors << "goal is missing or duplicated at its committed revision" unless present.length == 1
+  errors << "inventory goal path drifted from its sole committed manifest location" unless present == [normalized_inventory]
+  [errors, present.first]
+end
+
+fixture_manifest_goal = {"planning_path" => "goals/fixture.md", "canonical_path" => "pkg/fixture/.ai/GOAL.md"}
+fixture_planning_reader = ->(path) { path == ".ai/identity-platform/goals/fixture.md" ? "goal" : nil }
+unless active_goal_path_errors("goals/fixture.md", fixture_manifest_goal, blob_reader: fixture_planning_reader).first.empty?
+  fail_check("valid historical inventory goal-path fixture was rejected")
+end
+fixture_canonical_reader = ->(path) { path == "pkg/fixture/.ai/GOAL.md" ? "goal" : nil }
+unless active_goal_path_errors("pkg/fixture/.ai/GOAL.md", fixture_manifest_goal, blob_reader: fixture_canonical_reader).first.empty?
+  fail_check("valid post-relocation historical goal-path fixture was rejected")
+end
+if active_goal_path_errors("goals/fixture.md", fixture_manifest_goal, blob_reader: fixture_canonical_reader).first.empty?
+  fail_check("stale planning goal-path negative fixture was accepted")
+end
+fixture_duplicate_reader = ->(path) { manifest_goal_paths(fixture_manifest_goal).include?(path) ? "goal" : nil }
+if active_goal_path_errors("goals/fixture.md", fixture_manifest_goal, blob_reader: fixture_duplicate_reader).first.empty?
+  fail_check("duplicated planning and canonical goal-path negative fixture was accepted")
+end
+if active_goal_path_errors("goals/other.md", fixture_manifest_goal, blob_reader: fixture_planning_reader).first.empty?
+  fail_check("historical inventory goal-path negative fixture was accepted")
+end
+
+assignment_binding_fixture = {baseline: "a" * 40, prompt_path: ".ai/identity-platform/prompts/fixture.md"}
+unless worker_assignment_commit_binding_errors(
+  assignment_binding_fixture, authorization_commit: "b" * 40, authorization_parent: "a" * 40,
+  changed_paths: [".ai/identity-platform/PREFLIGHT_EVIDENCE.md", ".ai/identity-platform/prompts/fixture.md"],
+  assignment_exists: true, assignment_ancestor: true
+).empty?
+  fail_check("valid historical assignment commit-binding fixture was rejected")
+end
+if worker_assignment_commit_binding_errors(
+  assignment_binding_fixture, authorization_commit: "b" * 40, authorization_parent: "f" * 40,
+  changed_paths: [".ai/identity-platform/PREFLIGHT_EVIDENCE.md", ".ai/identity-platform/prompts/fixture.md"],
+  assignment_exists: true, assignment_ancestor: true
+).empty?
+  fail_check("historical assignment wrong-baseline negative fixture was accepted")
+end
+
+SEMANTIC_CHANGE_CLASSES = Set.new(%w[
+  acceptance configuration dependency goal lifecycle operation-semantics ownership parity protocol
+  public-api scope security transaction
+]).freeze
+
+def semantic_proposal_root(change_classes, entries, content_key)
+  projection = {
+    "change_classes" => change_classes,
+    "entries" => entries.map do |entry|
+      {
+        "source_path" => entry.fetch("source_path"), "contract_ids" => entry.fetch("contract_ids"),
+        "content_sha256" => entry.fetch(content_key)
+      }
+    end
+  }
+  "sha256:#{Digest::SHA256.hexdigest(JSON.generate(projection))}"
+end
+
+def semantic_proposal_errors(manifest, approval_id:, classes:, previous_root:, proposed_root:, repository_root:,
+                             proposal_commit: nil, canonical_goal_paths: Set.new)
+  errors = []
+  errors << "proposal manifest field order drifted" unless manifest.keys == %w[schema_version schema approval_id change_classes previous_semantic_root proposed_semantic_root entries]
+  errors << "proposal manifest schema drifted" unless manifest["schema_version"] == 1 && manifest["schema"] == "identity-platform.semantic-proposal.v1"
+  errors << "proposal approval identity drifted" unless manifest["approval_id"] == approval_id
+  errors << "proposal change classes drifted" unless manifest["change_classes"] == classes && classes == classes.sort_by(&:b).uniq && classes.all? { |value| SEMANTIC_CHANGE_CLASSES.include?(value) }
+  errors << "proposal semantic roots drifted" unless manifest.values_at("previous_semantic_root", "proposed_semantic_root") == [previous_root, proposed_root]
+  entries = manifest["entries"]
+  unless entries.is_a?(Array) && entries.any?
+    return errors << "proposal entries are absent"
+  end
+  errors << "proposal entries are not sorted and unique" unless entries.map { |entry| entry["source_path"] } == entries.map { |entry| entry["source_path"] }.sort_by(&:b).uniq
+  safe_id = approval_id.delete_prefix("user:")
+  proposal_prefix = ".ai/identity-platform/evidence/semantic-proposals/#{safe_id}/"
+  if proposal_commit
+    proposal_parent = git_output("rev-parse", "#{proposal_commit}^", repository: repository_root)
+    changed_paths = proposal_parent && git_output(
+      "diff", "--name-only", proposal_parent, proposal_commit, repository: repository_root
+    ).to_s.lines.map(&:chomp)
+    errors << "proposal commit mutated authoritative semantic sources" if
+      changed_paths && changed_paths.any? { |path| semantic_source_path?(path, canonical_goal_paths: canonical_goal_paths) }
+  end
+  entries.each do |entry|
+    errors << "proposal entry field order drifted" unless entry.keys == %w[source_path contract_ids previous_content_sha256 proposed_blob_path proposed_content_sha256]
+    source_path = entry["source_path"].to_s
+    blob_path = entry["proposed_blob_path"].to_s
+    errors << "proposal source path is not an authoritative semantic source" unless
+      semantic_source_path?(source_path, canonical_goal_paths: canonical_goal_paths)
+    errors << "proposal blob path escapes its approval directory" unless blob_path.start_with?(proposal_prefix) && !blob_path.include?("..")
+    errors << "proposal contract IDs are not sorted and unique" unless entry["contract_ids"].is_a?(Array) && entry["contract_ids"] == entry["contract_ids"].sort_by(&:b).uniq
+    %w[previous_content_sha256 proposed_content_sha256].each do |field|
+      errors << "proposal #{field} is invalid" unless entry[field].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+    end
+    if proposal_commit
+      proposal_parent = git_output("rev-parse", "#{proposal_commit}^", repository: repository_root)
+      previous_bytes = git_blob_bytes(proposal_parent, source_path, repository: repository_root)
+      proposed_bytes = git_blob_bytes(proposal_commit, blob_path, repository: repository_root)
+      errors << "proposal previous source digest drifted at proposal commit" unless previous_bytes && entry["previous_content_sha256"] == "sha256:#{Digest::SHA256.hexdigest(previous_bytes)}"
+      errors << "proposal blob digest drifted at proposal commit" unless proposed_bytes && entry["proposed_content_sha256"] == "sha256:#{Digest::SHA256.hexdigest(proposed_bytes)}"
+      if source_path.end_with?(".json") && previous_bytes && proposed_bytes
+        begin
+          previous_json = JSON.parse(previous_bytes)
+          proposed_json = JSON.parse(proposed_bytes)
+          named_rows = lambda do |value, rows = {}|
+            case value
+            when Hash
+              identifier = value["contract_id"] || value["id"]
+              rows[identifier] = canonical_json_value(value) if identifier.is_a?(String)
+              value.each_value { |nested| named_rows.call(nested, rows) }
+            when Array
+              value.each { |nested| named_rows.call(nested, rows) }
+            end
+            rows
+          end
+          before_rows = named_rows.call(previous_json)
+          after_rows = named_rows.call(proposed_json)
+          affected_ids = (before_rows.keys | after_rows.keys).select { |id| before_rows[id] != after_rows[id] }.sort_by(&:b)
+          errors << "proposal contract ID closure drifted for #{source_path}" unless entry["contract_ids"] == affected_ids
+        rescue JSON::ParserError
+          errors << "proposal JSON source is invalid at #{source_path}"
+        end
+      end
+    end
+  end
+  errors << "proposal previous semantic root is invalid" unless semantic_proposal_root(classes, entries, "previous_content_sha256") == previous_root
+  errors << "proposal proposed semantic root is invalid" unless semantic_proposal_root(classes, entries, "proposed_content_sha256") == proposed_root
+  errors
+end
+
+def platform_authority_event_errors(event, expected_thread:, expected_role:, expected_content:, seen_event_ids:)
+  errors = []
+  errors << "platform event ID is absent or replayed" unless
+    event[:event_id].to_s.match?(/\A[a-zA-Z0-9._:-]+\z/) && !seen_event_ids.include?(event[:event_id])
+  errors << "platform event thread drifted" unless event[:thread_id] == expected_thread
+  errors << "platform event role drifted" unless event[:role] == expected_role
+  errors << "platform event content drifted" unless event[:content] == expected_content
+  errors << "platform event content length drifted" unless event[:content_length] == expected_content.bytesize
+  errors << "platform event content digest drifted" unless
+    event[:content_sha256] == "sha256:#{Digest::SHA256.hexdigest(expected_content)}"
+  errors
+end
+
+def coordinator_commit_path_errors(changed_paths, allowed_paths:)
+  unexpected = changed_paths.to_set - allowed_paths.to_set
+  unexpected.empty? ? [] : ["coordinator commit changed paths outside its exact envelope: #{unexpected.to_a.sort_by(&:b).join(', ')}"]
+end
+
+def path_within_root?(path, root)
+  path == root || path.start_with?("#{root}/")
+end
+
+def completed_cleanup_handoff?(resources, integration_target: nil)
+  read = lambda { |resource, key| resource[key] || resource[key.to_s] }
+  pending = resources.select do |resource|
+    read.call(resource, :state) == "removal-pending-after-final-commit"
+  end
+  return false unless pending.length == 1
+
+  handoff = pending.first
+  exact_handoff = read.call(handoff, :type) == "worktree" && read.call(handoff, :owner) == "coordinator" &&
+    read.call(handoff, :cleanup_trigger) == "user-authorized-post-report-removal" &&
+    !read.call(handoff, :evidence).to_s.empty? &&
+    (integration_target.nil? || read.call(handoff, :target) == integration_target)
+  exact_handoff && (resources - pending).all? { |resource| read.call(resource, :state) == "removed" }
+end
+
+cleanup_handoff_fixture = [
+  {type: "worktree", owner: "coordinator", target: "/tmp/integration", state: "removal-pending-after-final-commit",
+   cleanup_trigger: "user-authorized-post-report-removal", evidence: "fixture:handoff"},
+  {type: "temporary-directory", owner: "worker", target: "/tmp/removed", state: "removed",
+   cleanup_trigger: "removed", evidence: "fixture:removed"}
+]
+fail_check("valid completed cleanup handoff fixture was rejected") unless
+  completed_cleanup_handoff?(cleanup_handoff_fixture, integration_target: "/tmp/integration")
+{
+  "extra retained resource" => lambda { |rows| rows << rows.last.merge(state: "retained-for-recovery") },
+  "wrong retained resource" => lambda { |rows| rows.first[:type] = "temporary-directory" },
+  "wrong handoff reason" => lambda { |rows| rows.first[:cleanup_trigger] = "later" },
+  "physically removed integration" => lambda { |rows| rows.first[:state] = "removed" }
+}.each do |label, mutate|
+  rows = Marshal.load(Marshal.dump(cleanup_handoff_fixture))
+  mutate.call(rows)
+  fail_check("completed cleanup #{label} negative fixture was accepted") if
+    completed_cleanup_handoff?(rows, integration_target: "/tmp/integration")
+end
+
+def worker_writable_path?(path, module_root, reserved_roots, canonical_goal_paths)
+  path_within_root?(path, module_root) &&
+    reserved_roots.none? { |root| path_within_root?(path, root) } &&
+    !canonical_goal_paths.include?(path)
+end
+
+def assignment_commit_custody_errors(attestation, recorded_base:, module_root:, reserved_roots:, canonical_goal_paths:)
+  errors = []
+  assignment_commit = attestation[:assignment]
+  baseline = attestation[:baseline]
+  assignment_paths = git_output("diff-tree", "--no-commit-id", "--name-only", "-r", assignment_commit).to_s.lines.map(&:strip)
+  errors.concat(coordinator_commit_path_errors(
+    assignment_paths, allowed_paths: %w[.ai/identity-platform/EXECUTION_LEDGER.md .ai/identity-platform/INVENTORY.md]
+  ).map { |error| "assignment-state #{error}" })
+  errors << "assignment finalization does not directly follow assignment state" unless
+    git_output("rev-parse", "#{baseline}^1") == assignment_commit
+  finalization_paths = git_output("diff-tree", "--no-commit-id", "--name-only", "-r", baseline).to_s.lines.map(&:strip)
+  errors.concat(coordinator_commit_path_errors(
+    finalization_paths, allowed_paths: [".ai/identity-platform/EXECUTION_LEDGER.md"]
+  ).map { |error| "assignment finalization #{error}" })
+  if recorded_base && git_commit_exists?(recorded_base)
+    baseline_drift = git_output("diff", "--name-only", recorded_base, baseline, "--", module_root).to_s.lines.map(&:strip).select do |path|
+      worker_writable_path?(path, module_root, reserved_roots, canonical_goal_paths)
+    end
+    errors << "never-integrated assignment baseline changes its package projection from recorded base" unless baseline_drift.empty?
+  end
+  errors
+end
+
+def ordinary_integration_custody_errors(checkpoint, worker_tip:, module_root:, reserved_roots:, canonical_goal_paths:)
+  errors = []
+  parents = git_output("rev-list", "--parents", "-n", "1", checkpoint).to_s.split.drop(1)
+  errors << "ordinary integration is not the exact two-parent worker merge" unless parents.length == 2 && parents[1] == worker_tip
+  return errors unless parents.length == 2
+
+  first_parent = parents.first
+  changed_from_first = git_output("diff", "--name-only", first_parent, checkpoint).to_s.lines.map(&:strip)
+  errors << "ordinary integration changes paths outside the worker writable projection" unless
+    changed_from_first.all? { |path| worker_writable_path?(path, module_root, reserved_roots, canonical_goal_paths) }
+  changed_from_worker = git_output("diff", "--name-only", worker_tip, checkpoint, "--", module_root).to_s.lines.map(&:strip)
+  errors << "ordinary integration assigned projection differs from worker tip" unless
+    changed_from_worker.none? { |path| worker_writable_path?(path, module_root, reserved_roots, canonical_goal_paths) }
+  errors
+end
+
+def byte_identical_goal_relocation?(parent, commit, package_paths, goal_manifest)
+  return false if package_paths.empty?
+
+  package_paths.all? do |path|
+    goal = goal_manifest.fetch("goals", []).find { |entry| entry["canonical_path"] == path }
+    next false unless goal
+
+    planning = File.join(".ai/identity-platform", goal.fetch("planning_path"))
+    before = git_blob_bytes(parent, planning)
+    before && git_blob_bytes(parent, path).nil? && git_blob_bytes(commit, planning).nil? &&
+      git_blob_bytes(commit, path) == before
+  end
+end
+
+def coordinator_package_commit_allowed?(package_paths, integration:, authorized_sources:, byte_identical_goal_relocation:)
+  package_paths.empty? || integration || package_paths.to_set.subset?(authorized_sources) || byte_identical_goal_relocation
+end
+
+def global_package_custody_errors(recorded_base:, package_roots:, integration_commits:, semantic_application_sources:, goal_manifest:)
+  errors = []
+  commits = git_output("rev-list", "--first-parent", "--reverse", "#{recorded_base}..HEAD").to_s.lines.map(&:strip)
+  commits.each do |commit|
+    parent = git_output("rev-parse", "#{commit}^1")
+    next unless parent
+
+    changed = git_output("diff", "--name-only", parent, commit).to_s.lines.map(&:strip)
+    parent_inventory = git_blob_bytes(parent, ".ai/identity-platform/INVENTORY.md").to_s
+    current_inventory = git_blob_bytes(commit, ".ai/identity-platform/INVENTORY.md").to_s
+    historical_roots = [parent_inventory, current_inventory].flat_map do |inventory|
+      inventory.lines.filter_map do |line|
+        next unless line.start_with?("| `")
+        cells = line.split("|").map(&:strip)
+        cells[2][/`([^`]+)`/, 1] if cells.length == 8
+      end
+    end.compact
+    edge_roots = (package_roots + historical_roots).uniq
+    package_paths = changed.select do |path|
+      path.start_with?("pkg/") || edge_roots.any? { |root| path_within_root?(path, root) }
+    end
+    authorized_sources = semantic_application_sources.fetch(commit, Set.new)
+    edge_goal_manifest = revision_goal_manifest(commit) || revision_goal_manifest(parent) || goal_manifest
+    relocation = byte_identical_goal_relocation?(parent, commit, package_paths, edge_goal_manifest)
+    next if coordinator_package_commit_allowed?(
+      package_paths, integration: integration_commits.include?(commit), authorized_sources: authorized_sources,
+      byte_identical_goal_relocation: relocation
+    )
+
+    errors << "coordinator first-parent commit #{commit} launders package paths: #{package_paths.sort_by(&:b).join(', ')}"
+  end
+  errors
+end
+
+def revision_goal_manifest(revision)
+  bytes = git_blob_bytes(revision, ".ai/identity-platform/GOAL_MANIFEST.json")
+  JSON.parse(bytes) if bytes
+rescue JSON::ParserError
+  nil
+end
+
+def revision_semantic_source?(path, parent_manifest, current_manifest)
+  canonical = [parent_manifest, current_manifest].compact.flat_map do |manifest|
+    canonical_goal_semantic_paths(manifest).to_a
+  end.to_set
+  semantic_source_path?(path, canonical_goal_paths: canonical)
+end
+
+def byte_identical_semantic_goal_relocation?(parent, commit, changed_sources, parent_manifest, current_manifest)
+  goals = [parent_manifest, current_manifest].compact.flat_map { |manifest| manifest.fetch("goals", []) }
+    .uniq { |entry| entry["unit"] }
+  remaining = changed_sources.to_set
+  goals.each do |goal|
+    planning, canonical = manifest_goal_paths(goal)
+    next unless remaining.include?(planning) || remaining.include?(canonical)
+
+    before_planning = git_blob_bytes(parent, planning)
+    after_canonical = git_blob_bytes(commit, canonical)
+    return false unless remaining.include?(planning) && remaining.include?(canonical) && before_planning &&
+      git_blob_bytes(parent, canonical).nil? && git_blob_bytes(commit, planning).nil? && after_canonical == before_planning
+    remaining.subtract([planning, canonical])
+  end
+  remaining.empty?
+end
+
+def global_semantic_custody_errors(recorded_base:, semantic_application_sources:)
+  errors = []
+  commits = git_output("rev-list", "--first-parent", "--reverse", "#{recorded_base}..HEAD").to_s.lines.map(&:strip)
+  commits.each do |commit|
+    parent = git_output("rev-parse", "#{commit}^1")
+    next unless parent
+
+    parent_manifest = revision_goal_manifest(parent)
+    current_manifest = revision_goal_manifest(commit)
+    changed = git_output("diff", "--name-only", parent, commit).to_s.lines.map(&:strip)
+    semantic_changes = changed.select { |path| revision_semantic_source?(path, parent_manifest, current_manifest) }.to_set
+    next if semantic_changes.empty?
+
+    authorized = semantic_application_sources.fetch(commit, Set.new)
+    next if semantic_changes == authorized
+    next if byte_identical_semantic_goal_relocation?(parent, commit, semantic_changes, parent_manifest, current_manifest)
+
+    errors << "first-parent commit #{commit} changes semantic sources without exact committed user authority: #{semantic_changes.to_a.sort_by(&:b).join(', ')}"
+  end
+  errors
+end
+
+def table_row_only_change?(parent, commit, path)
+  diff = git_output("diff", "--unified=0", parent, commit, "--", path).to_s.lines
+  changed_content = diff.select { |line| (line.start_with?("+") || line.start_with?("-")) && !line.start_with?("+++") && !line.start_with?("---") }
+  changed_content.any? && changed_content.all? { |line| line[1..].start_with?("|") }
+end
+
+def added_markdown_data_rows(parent, commit, path)
+  output, _error, status = Open3.capture3(
+    "git", "-C", REPOSITORY_ROOT, "diff", "--unified=0", parent, commit, "--", path
+  )
+  return [] unless status.success?
+
+  output.lines.filter_map do |line|
+    next unless line.start_with?("+|") && !line.start_with?("+++")
+    row = line[1..].chomp
+    next if row.match?(/\A\|(?:\s*---\s*\|)+\z/)
+
+    row
+  end
+end
+
+def markdown_row_heading(commit, path, row)
+  bytes = git_blob_bytes(commit, path)
+  return unless bytes
+
+  heading = nil
+  matches = []
+  bytes.each_line do |line|
+    heading = line[/\A## (.+)\s*\z/, 1] if line.start_with?("## ")
+    matches << heading if line.chomp == row
+  end
+  matches.length == 1 ? matches.first : nil
+end
+
+REGISTERED_PREFLIGHT_CONTROL_TABLES = Set[
+  "Platform gate capture bindings", "Final gate bindings", "Blocked audit binding", "No-push coordinator assertion",
+  "Worker assignment authorizations", "Worker runtime attestations", "Worker release handshakes",
+  "Worker return attestations", "Semantic authorization requests", "User semantic authorizations",
+  "Tool and environment lanes", "External evidence lanes", "Existing primitive contracts",
+  "Task-owned resource registry", "Acceptance evidence bindings", "Goal digest revisions",
+  "Conflict-recovery baselines", "Integrated-repair authorizations"
+].freeze
+REGISTERED_LEDGER_CONTROL_TABLES = Set[
+  "Dependency revisions", "Dependency assignment dispositions", "Per-unit verification-gate evidence bindings",
+  "Unit execution ledger"
+].freeze
+
+def coordinator_control_envelope_allowed?(changed_paths, authorized_semantic_sources: Set.new, parent: nil, commit: nil,
+                                          attributed_artifact_paths: Set.new)
+  remaining = changed_paths.to_set - authorized_semantic_sources
+  preflight = ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
+  inventory = ".ai/identity-platform/INVENTORY.md"
+  ledger = ".ai/identity-platform/EXECUTION_LEDGER.md"
+  goal_manifest = ".ai/identity-platform/GOAL_MANIFEST.json"
+  evidence_paths = remaining.select { |path| path.start_with?(".ai/identity-platform/evidence/") }
+  prompt_paths = remaining.select { |path| path.start_with?(".ai/identity-platform/prompts/") }
+  control_paths = remaining - evidence_paths - prompt_paths
+  return false unless parent && commit
+  return false unless evidence_paths.all? { |path| attributed_artifact_paths.include?(path) }
+  return false unless prompt_paths.all? { |path| attributed_artifact_paths.include?(path) }
+  proposal_roots = evidence_paths.filter_map do |path|
+    path[%r{\A(\.ai/identity-platform/evidence/semantic-proposals/[a-zA-Z0-9._-]+)(?:\.json|/)}, 1]
+  end.uniq
+  coherent_proposal = evidence_paths.any? && proposal_roots.length == 1 && evidence_paths.all? do |path|
+    path == "#{proposal_roots.first}.json" || path.start_with?("#{proposal_roots.first}/")
+  end
+  return false if evidence_paths.length > 1 && !coherent_proposal
+  return false if prompt_paths.length > 1
+  added_preflight_rows = control_paths.include?(preflight) ? added_markdown_data_rows(parent, commit, preflight) : []
+  return false if control_paths.include?(preflight) && added_preflight_rows.length != 1
+  preflight_class = added_preflight_rows.any? ? markdown_row_heading(commit, preflight, added_preflight_rows.first) : nil
+  return false if added_preflight_rows.any? && !REGISTERED_PREFLIGHT_CONTROL_TABLES.include?(preflight_class)
+  if control_paths.intersect?(Set[inventory, ledger])
+    return false unless Set[
+      "Semantic authorization requests", "Goal digest revisions", "Conflict-recovery baselines",
+      "Integrated-repair authorizations"
+    ].include?(preflight_class)
+  end
+  return false if control_paths.include?(goal_manifest) && !Set[
+    "Semantic authorization requests", "User semantic authorizations", "Goal digest revisions"
+  ].include?(preflight_class)
+  if evidence_paths.any? || prompt_paths.any?
+    bound_paths = (evidence_paths + prompt_paths).to_set
+    binding_fields_by_class = {
+      "Platform gate capture bindings" => [2, 3, 4], "Final gate bindings" => [2, 3, 4, 5],
+      "Worker assignment authorizations" => [5], "Worker return attestations" => [3, 4],
+      "Semantic authorization requests" => [1, 4], "User semantic authorizations" => [1, 5],
+      "External evidence lanes" => [4], "Task-owned resource registry" => [4],
+      "Acceptance evidence bindings" => [5, 7], "Integrated-repair authorizations" => [8]
+    }
+    indexes = binding_fields_by_class.fetch(preflight_class, [])
+    cells = added_preflight_rows.first.to_s.split("|", -1).drop(1).map(&:strip)
+    exact_binding_fields = indexes.filter_map { |index| cells[index] }
+    return false unless bound_paths.all? do |path|
+      exact_binding_fields.any? { |field| field == path || field.start_with?("#{path}@") }
+    end
+  end
+
+  if control_paths == Set[ledger]
+    rows = added_markdown_data_rows(parent, commit, ledger)
+    return rows.length == 1 && REGISTERED_LEDGER_CONTROL_TABLES.include?(markdown_row_heading(commit, ledger, rows.first))
+  end
+  if control_paths == Set[inventory, ledger]
+    inventory_rows = added_markdown_data_rows(parent, commit, inventory)
+    ledger_rows = added_markdown_data_rows(parent, commit, ledger)
+    return false unless inventory_rows.length == 1 && ledger_rows.length == 1
+    return false unless markdown_row_heading(commit, inventory, inventory_rows.first).nil? &&
+      markdown_row_heading(commit, ledger, ledger_rows.first) == "Unit execution ledger"
+
+    inventory_unit = inventory_rows.first.split("|", -1).fetch(1).strip.delete("`")
+    ledger_unit = ledger_rows.first.split("|", -1).fetch(1).strip.delete("`")
+    return inventory_unit == ledger_unit
+  end
+  if control_paths.include?(preflight) && control_paths.subset?(Set[preflight, inventory, ledger, goal_manifest])
+    return false if control_paths.include?(inventory) && added_markdown_data_rows(parent, commit, inventory).length != 1
+    return false if control_paths.include?(ledger) && added_markdown_data_rows(parent, commit, ledger).length != 1
+    if control_paths.include?(inventory)
+      return false unless markdown_row_heading(commit, inventory, added_markdown_data_rows(parent, commit, inventory).first).nil?
+    end
+    if control_paths.include?(ledger)
+      ledger_row = added_markdown_data_rows(parent, commit, ledger).first
+      ledger_class = markdown_row_heading(commit, ledger, ledger_row)
+      return false unless REGISTERED_LEDGER_CONTROL_TABLES.include?(ledger_class)
+      return false if control_paths.include?(inventory) && ledger_class != "Unit execution ledger"
+      if preflight_class
+        allowed_pair = {
+          "Semantic authorization requests" => Set["Unit execution ledger"],
+          "Conflict-recovery baselines" => Set["Unit execution ledger"],
+          "Integrated-repair authorizations" => Set["Unit execution ledger"]
+        }
+        return false unless allowed_pair.fetch(preflight_class, Set.new).include?(ledger_class)
+      end
+    end
+    return true
+  end
+  return true if control_paths.empty? && (evidence_paths.length == 1 || coherent_proposal)
+
+  false
+end
+
+def global_control_commit_class_errors(recorded_base:, integration_commits:, semantic_application_sources:,
+                                       artifact_commit_paths:)
+  errors = []
+  commits = git_output("rev-list", "--first-parent", "--reverse", "#{recorded_base}..HEAD").to_s.lines.map(&:strip)
+  commits.each do |commit|
+    next if integration_commits.include?(commit)
+    parent = git_output("rev-parse", "#{commit}^1")
+    changed = git_output("diff", "--name-only", parent, commit).to_s.lines.map(&:strip)
+    control = changed.select do |path|
+      path.start_with?(".ai/identity-platform/") || %w[modules.json packages.json].include?(path)
+    end
+    next if control.empty?
+
+    authorized = semantic_application_sources.fetch(commit, Set.new)
+    attributed_artifact_paths = artifact_commit_paths.fetch(commit, Set.new)
+    next if coordinator_control_envelope_allowed?(
+      control, authorized_semantic_sources: authorized, parent: parent, commit: commit,
+      attributed_artifact_paths: attributed_artifact_paths
+    )
+
+    errors << "first-parent commit #{commit} does not match one exact coordinator control envelope: #{control.sort_by(&:b).join(', ')}"
+  end
+  errors
+end
+
+if coordinator_control_envelope_allowed?([
+  ".ai/identity-platform/PREFLIGHT_EVIDENCE.md", ".ai/identity-platform/EXECUTION_LEDGER.md"
+])
+  fail_check("coordinator control custody accepted an unclassified mixed-control fixture")
+end
+if coordinator_control_envelope_allowed?(
+  [".ai/identity-platform/PREFLIGHT_EVIDENCE.md", ".ai/identity-platform/evidence/forged.json"],
+  parent: "fixture-parent", commit: "fixture-commit",
+  attributed_artifact_paths: Set[".ai/identity-platform/evidence/forged.json"]
+)
+  fail_check("coordinator control custody accepted an artifact without an exact row binding")
+end
+
+
+unless coordinator_package_commit_allowed?([], integration: false, authorized_sources: Set.new, byte_identical_goal_relocation: false)
+  fail_check("package custody rejected a package-pure coordinator fixture")
+end
+if coordinator_package_commit_allowed?(["pkg/identity/injected.go"], integration: false, authorized_sources: Set.new, byte_identical_goal_relocation: false)
+  fail_check("package custody accepted coordinator package laundering")
+end
+unless coordinator_package_commit_allowed?(["pkg/identity/.ai/GOAL.md"], integration: false, authorized_sources: Set["pkg/identity/.ai/GOAL.md"], byte_identical_goal_relocation: false)
+  fail_check("package custody rejected an authorized canonical goal application")
+end
+
+semantic_fixture_entries = [{
+  "source_path" => ".ai/identity-platform/END_STATE.md", "contract_ids" => [],
+  "previous_content_sha256" => "sha256:#{'1' * 64}",
+  "proposed_blob_path" => ".ai/identity-platform/evidence/semantic-proposals/fixture/END_STATE.md",
+  "proposed_content_sha256" => "sha256:#{'2' * 64}"
+}]
+semantic_fixture_classes = ["scope"]
+semantic_fixture_manifest = {
+  "schema_version" => 1, "schema" => "identity-platform.semantic-proposal.v1", "approval_id" => "user:fixture",
+  "change_classes" => semantic_fixture_classes,
+  "previous_semantic_root" => semantic_proposal_root(semantic_fixture_classes, semantic_fixture_entries, "previous_content_sha256"),
+  "proposed_semantic_root" => semantic_proposal_root(semantic_fixture_classes, semantic_fixture_entries, "proposed_content_sha256"),
+  "entries" => semantic_fixture_entries
+}
+unless semantic_proposal_errors(
+  semantic_fixture_manifest, approval_id: "user:fixture", classes: semantic_fixture_classes,
+  previous_root: semantic_fixture_manifest["previous_semantic_root"], proposed_root: semantic_fixture_manifest["proposed_semantic_root"],
+  repository_root: REPOSITORY_ROOT
+).empty?
+  fail_check("valid semantic proposal fixture was rejected")
+end
+forged_semantic_fixture = JSON.parse(JSON.generate(semantic_fixture_manifest))
+forged_semantic_fixture["entries"][0]["proposed_content_sha256"] = "sha256:#{'3' * 64}"
+if semantic_proposal_errors(
+  forged_semantic_fixture, approval_id: "user:fixture", classes: semantic_fixture_classes,
+  previous_root: semantic_fixture_manifest["previous_semantic_root"], proposed_root: semantic_fixture_manifest["proposed_semantic_root"],
+  repository_root: REPOSITORY_ROOT
+).empty?
+  fail_check("forged semantic proposal root negative fixture was accepted")
+end
+
+platform_authority_fixture = {
+  event_id: "event-1", thread_id: "thread-1", role: "user",
+  content: "AUTHORIZE fixture", content_length: 17,
+  content_sha256: "sha256:#{Digest::SHA256.hexdigest('AUTHORIZE fixture')}",
+}
+unless platform_authority_event_errors(
+  platform_authority_fixture, expected_thread: "thread-1", expected_role: "user",
+  expected_content: "AUTHORIZE fixture", seen_event_ids: Set.new
+).empty?
+  fail_check("valid committed user-authority capture fixture was rejected")
+end
+if platform_authority_event_errors(
+  platform_authority_fixture.merge(role: "assistant"), expected_thread: "thread-1",
+  expected_role: "user", expected_content: "AUTHORIZE fixture", seen_event_ids: Set.new
+).empty?
+  fail_check("assistant-role semantic authority negative fixture was accepted")
+end
+if platform_authority_event_errors(
+  platform_authority_fixture.merge(content: "AUTHORIZE fixture\n", content_length: 18),
+  expected_thread: "thread-1", expected_role: "user", expected_content: "AUTHORIZE fixture",
+  seen_event_ids: Set.new
+).empty?
+  fail_check("newline-extended semantic authority negative fixture was accepted")
+end
+if platform_authority_event_errors(
+  platform_authority_fixture, expected_thread: "thread-1", expected_role: "user",
+  expected_content: "AUTHORIZE fixture", seen_event_ids: Set["event-1"]
+).empty?
+  fail_check("replayed platform authority event negative fixture was accepted")
+end
+
+custody_fixture_allowed = Set[".ai/identity-platform/INVENTORY.md", ".ai/identity-platform/EXECUTION_LEDGER.md"]
+unless coordinator_commit_path_errors(custody_fixture_allowed.to_a, allowed_paths: custody_fixture_allowed).empty?
+  fail_check("valid coordinator commit custody fixture was rejected")
+end
+if coordinator_commit_path_errors(
+  custody_fixture_allowed.to_a + ["pkg/identity/injected.go"], allowed_paths: custody_fixture_allowed
+).empty?
+  fail_check("package laundering coordinator-commit negative fixture was accepted")
+end
+
+release_fixture_ledger = {
+  unit: "identity", generation: "1", task: "identity-worker", assignment: "a" * 40,
+  branch: "feature/identity", worktree: "/fixture/identity"
+}
+release_fixture_attestation = {unit: "identity", generation: "1", task: "identity-worker"}
+release_fixture_directive = "PREPARE-RELEASE identity g1 runtime=#{'b' * 40} authorization=#{'c' * 40} branch=feature/identity worktree=/fixture/identity"
+release_fixture = {
+  unit: "identity", generation: "1", task: "identity-worker",
+  receipt: "READY-AND-WAITING identity g1 #{'c' * 40}", assignment_checkpoint: "c" * 40,
+  runtime_commit: "b" * 40, directive_digest: "sha256:#{Digest::SHA256.hexdigest(release_fixture_directive)}",
+  readiness_event: {"turn_ordinal" => 1},
+  release_event: {"turn_ordinal" => 2, "content" => release_fixture_directive}
+}
+unless worker_release_handshake_errors(release_fixture, attestation: release_fixture_attestation, ledger_entry: release_fixture_ledger).empty?
+  fail_check("valid worker release handshake fixture was rejected")
+end
+forged_release_fixture = release_fixture.merge(directive_digest: "sha256:#{'0' * 64}")
+if worker_release_handshake_errors(forged_release_fixture, attestation: release_fixture_attestation, ledger_entry: release_fixture_ledger).empty?
+  fail_check("forged worker release directive digest negative fixture was accepted")
 end
 
 reserved_root_fixture = reserved_nested_roots(
@@ -1027,7 +2106,7 @@ end
 runtime_fixture = {
   unit: "identity", generation: "1", task: "identity-worker", agent_id: "agent-immutable-1",
   model: "gpt-5.6-sol", reasoning: "medium", fork_turns: "none", subagents: "false",
-  source: "platform-spawn-result", recorded_at: "2026-08-12T00:00:00Z"
+  platform_verified: true, recorded_at: "2026-08-12T00:00:00Z"
 }
 unless worker_runtime_attestation_errors(runtime_fixture, unit: "identity", generation: "1", task: "identity-worker").empty?
   fail_check("worker runtime-attestation fixture was rejected")
@@ -1046,7 +2125,7 @@ def goal_revision_lifecycle_errors(history)
       (statuses == ["authorized"] || [%w[authorized applied], %w[authorized superseded]].include?(statuses))
     identity = rows.first.values_at(:unit, :previous_digest, :current_digest)
     errors << "goal revision terminal identity drifted" unless rows.all? { |row| row.values_at(:unit, :previous_digest, :current_digest) == identity }
-    errors << "goal revision authorization drifted" unless rows.all? { |row| row[:authorized_by] == "coordinator" }
+    errors << "goal revision authorization drifted" unless rows.all? { |row| row[:authorized_by].to_s.match?(/\Auser:[a-zA-Z0-9._-]+\z/) }
     errors << "goal revision does not change a digest" unless identity[1] != identity[2]
   end
   history.select { |row| row[:status] == "authorized" }.group_by { |row| row[:unit] }.each do |unit, rows|
@@ -1099,6 +2178,202 @@ def parity_closure_errors(document, configuration)
   errors
 end
 
+def provider_oidc_logout_errors(configuration, acceptance_catalog)
+  rows = configuration.dig("provider_matrix", "rows").to_a
+  errors = []
+  errors << "provider OIDC logout inventory drifted" unless rows.map { |row| row["id"] } == configuration.dig("providers", "ids").to_a
+  expected_keys = %w[status end_session_endpoint_source state_correlation one_time_state_recovery post_logout_redirect frontchannel_session_effect evidence_blocker]
+  allowed_blockers = Set[
+    "official-provider-logout-documentation-pin-required", "provider-logout-interoperability-not-run",
+    "selected-provider-profile-has-no-oidc-end-session-contract", "tenant-provider-metadata-pin-required"
+  ]
+  rows.each do |provider|
+    logout = provider["oidc_logout"]
+    unless logout.is_a?(Hash) && logout.keys == expected_keys
+      errors << "provider #{provider['id']} OIDC logout schema drifted"
+      next
+    end
+    status = logout["status"]
+    errors << "provider #{provider['id']} OIDC logout status is not closed" unless %w[supported unsupported unknown].include?(status)
+    source = logout["end_session_endpoint_source"]
+    errors << "provider #{provider['id']} OIDC logout endpoint source is malformed" unless
+      source.is_a?(Hash) && source.keys == %w[kind value] && %w[discovery fixed unsupported].include?(source["kind"])
+    if source.is_a?(Hash)
+      value = source["value"].to_s
+      errors << "provider #{provider['id']} OIDC logout endpoint value is empty" if value.empty?
+      errors << "provider #{provider['id']} unsupported OIDC logout endpoint value drifted" if
+        source["kind"] == "unsupported" && value != "unsupported"
+      errors << "provider #{provider['id']} fixed OIDC logout endpoint is not absolute HTTPS" if
+        source["kind"] == "fixed" && !value.match?(%r{\Ahttps://[^\s]+\z})
+      errors << "provider #{provider['id']} discovery OIDC logout locator is malformed" if
+        source["kind"] == "discovery" && !value.match?(%r{\A(?:https://[^\s]*|\{issuer\}[^\s]*|\{(?:issuer|authority)\|https://[^\}\s]+\}[^\s]*)/\.well-known/openid-configuration#end_session_endpoint\z})
+      if source["kind"] == "discovery"
+        configured_discovery = provider.dig("endpoints", "discovery").to_s
+        direct_locator = configured_discovery.empty? ? nil : "#{configured_discovery}#end_session_endpoint"
+        issuer_template_is_configured = configured_discovery.match?(%r{\A\{issuer(?:\|https://[^\}]+)?\}/\.well-known/openid-configuration\z}) ||
+          (configured_discovery.include?("sandbox equivalent") &&
+           provider.dig("validation", "issuer", "aliases").to_a.all? { |issuer| issuer.match?(%r{\Ahttps://[^\s]+\z}) })
+        configured_issuer_locator = value == "{issuer}/.well-known/openid-configuration#end_session_endpoint" &&
+          issuer_template_is_configured
+        errors << "provider #{provider['id']} discovery OIDC logout locator is not bound to configured provider metadata" unless
+          value == direct_locator || configured_issuer_locator
+      end
+    end
+    blockers = logout["evidence_blocker"]
+    errors << "provider #{provider['id']} OIDC logout evidence blockers are malformed" unless
+      blockers.is_a?(Array) && blockers == blockers.sort_by(&:b).uniq && blockers.all? { |value| value.match?(/\A[a-z0-9][a-z0-9-]+\z/) }
+    errors << "provider #{provider['id']} OIDC logout evidence blockers are not from the closed catalog" unless
+      blockers.is_a?(Array) && blockers.all? { |value| allowed_blockers.include?(value) }
+    if status == "supported"
+      errors << "provider #{provider['id']} supported OIDC logout retains blockers" unless blockers.empty?
+      errors << "provider #{provider['id']} supported OIDC logout lacks endpoint source" if source["kind"] == "unsupported"
+    elsif status == "unknown"
+      documentation_blocker = if source["kind"] == "discovery" && source["value"].to_s.match?(/\{(?:domain|issuer)\}/)
+                                "tenant-provider-metadata-pin-required"
+                              else
+                                "official-provider-logout-documentation-pin-required"
+                              end
+      errors << "provider #{provider['id']} unknown OIDC logout lacks documentation/interoperability blockers" unless
+        blockers.include?(documentation_blocker) && blockers.include?("provider-logout-interoperability-not-run")
+    else
+      errors << "provider #{provider['id']} unsupported OIDC logout lacks closed unsupported reason" unless
+        source == {"kind" => "unsupported", "value" => "unsupported"} && blockers.any?
+    end
+    expected_flow = if %w[supported unknown].include?(status) && %w[discovery fixed].include?(source["kind"])
+                      {
+                        "state_correlation" => "required-single-use-exact",
+                        "one_time_state_recovery" => "provider-and-session-derived-exclusively-from-bound-state",
+                        "post_logout_redirect" => "allowlisted-local-redirect-after-provider-outcome",
+                        "frontchannel_session_effect" => status == "supported" ? "provider-logout-attempt" : "unknown"
+                      }
+                    else
+                      {
+                        "state_correlation" => "not-applicable-local-only",
+                        "one_time_state_recovery" => "not-applicable-local-only",
+                        "post_logout_redirect" => "allowlisted-local-redirect-after-local-revocation",
+                        "frontchannel_session_effect" => "local-only"
+                      }
+                    end
+    errors << "provider #{provider['id']} OIDC logout flow semantics drifted" unless
+      expected_flow.all? { |field, value| logout[field] == value }
+  end
+  unknown_ids = rows.filter_map { |row| row["id"] if row.dig("oidc_logout", "status") == "unknown" }
+  acceptance_catalog.fetch("artifacts").each do |artifact|
+    schema = File.file?(artifact["schema_path"].to_s) ? File.binread(artifact.fetch("schema_path")) : ""
+    unknown_ids.each do |provider_id|
+      if schema.match?(/#{Regexp.escape(provider_id)}[^\n]{0,240}(?:logout|end.session)[^\n]{0,240}(?:supported|pass)/i)
+        errors << "acceptance artifact #{artifact['artifact_id']} claims unknown provider logout support for #{provider_id}"
+      end
+    end
+  end
+  errors
+end
+
+provider_logout_fixture = {
+  "providers" => {"ids" => ["fixture"]},
+  "provider_matrix" => {"rows" => [{"id" => "fixture", "oidc_logout" => {
+    "status" => "unknown", "end_session_endpoint_source" => {"kind" => "unsupported", "value" => "unsupported"},
+    "state_correlation" => "not-applicable-local-only", "one_time_state_recovery" => "not-applicable-local-only",
+    "post_logout_redirect" => "allowlisted-local-redirect-after-local-revocation", "frontchannel_session_effect" => "local-only",
+    "evidence_blocker" => %w[official-provider-logout-documentation-pin-required provider-logout-interoperability-not-run]
+  }}]}
+}
+provider_logout_fixture_catalog = {"artifacts" => []}
+unless provider_oidc_logout_errors(provider_logout_fixture, provider_logout_fixture_catalog).empty?
+  fail_check("valid unknown provider OIDC logout fixture was rejected")
+end
+forged_provider_logout = JSON.parse(JSON.generate(provider_logout_fixture))
+forged_provider_logout.dig("provider_matrix", "rows", 0, "oidc_logout")["evidence_blocker"] = []
+if provider_oidc_logout_errors(forged_provider_logout, provider_logout_fixture_catalog).empty?
+  fail_check("unknown provider OIDC logout without evidence blockers negative fixture was accepted")
+end
+duplicate_provider_logout = JSON.parse(JSON.generate(provider_logout_fixture))
+duplicate_provider_logout["providers"]["ids"] = %w[fixture second]
+duplicate_provider_logout["provider_matrix"]["rows"] << JSON.parse(JSON.generate(duplicate_provider_logout.dig("provider_matrix", "rows", 0)))
+if provider_oidc_logout_errors(duplicate_provider_logout, provider_logout_fixture_catalog).empty?
+  fail_check("duplicate provider OIDC logout identity negative fixture was accepted")
+end
+invalid_static_logout = JSON.parse(JSON.generate(provider_logout_fixture))
+invalid_static_logout.dig("provider_matrix", "rows", 0, "oidc_logout", "end_session_endpoint_source")["kind"] = "static"
+if provider_oidc_logout_errors(invalid_static_logout, provider_logout_fixture_catalog).empty?
+  fail_check("non-contract static provider OIDC logout source negative fixture was accepted")
+end
+invalid_discovery_logout = JSON.parse(JSON.generate(tenant_provider_logout || provider_logout_fixture)) rescue JSON.parse(JSON.generate(provider_logout_fixture))
+invalid_discovery = invalid_discovery_logout.dig("provider_matrix", "rows", 0, "oidc_logout")
+invalid_discovery["end_session_endpoint_source"] = {"kind" => "discovery", "value" => "garbage#end_session_endpoint"}
+invalid_discovery["state_correlation"] = "required-single-use-exact"
+invalid_discovery["one_time_state_recovery"] = "provider-and-session-derived-exclusively-from-bound-state"
+invalid_discovery["post_logout_redirect"] = "allowlisted-local-redirect-after-provider-outcome"
+invalid_discovery["frontchannel_session_effect"] = "unknown"
+if provider_oidc_logout_errors(invalid_discovery_logout, provider_logout_fixture_catalog).empty?
+  fail_check("malformed provider OIDC discovery locator negative fixture was accepted")
+end
+empty_fixed_logout = JSON.parse(JSON.generate(provider_logout_fixture))
+empty_fixed_logout.dig("provider_matrix", "rows", 0, "oidc_logout", "end_session_endpoint_source").replace("kind" => "fixed", "value" => "")
+if provider_oidc_logout_errors(empty_fixed_logout, provider_logout_fixture_catalog).empty?
+  fail_check("empty fixed provider OIDC logout endpoint negative fixture was accepted")
+end
+invented_blocker_logout = JSON.parse(JSON.generate(provider_logout_fixture))
+invented_blocker_logout.dig("provider_matrix", "rows", 0, "oidc_logout", "evidence_blocker") << "invented-blocker"
+invented_blocker_logout.dig("provider_matrix", "rows", 0, "oidc_logout", "evidence_blocker").sort!
+if provider_oidc_logout_errors(invented_blocker_logout, provider_logout_fixture_catalog).empty?
+  fail_check("invented provider OIDC logout blocker negative fixture was accepted")
+end
+supported_provider_logout = JSON.parse(JSON.generate(provider_logout_fixture))
+supported_logout = supported_provider_logout.dig("provider_matrix", "rows", 0, "oidc_logout")
+supported_logout["status"] = "supported"
+supported_logout["end_session_endpoint_source"] = {"kind" => "fixed", "value" => "https://issuer.example/end-session"}
+supported_logout["evidence_blocker"] = []
+supported_logout["state_correlation"] = "required-single-use-exact"
+supported_logout["one_time_state_recovery"] = "provider-and-session-derived-exclusively-from-bound-state"
+supported_logout["post_logout_redirect"] = "allowlisted-local-redirect-after-provider-outcome"
+supported_logout["frontchannel_session_effect"] = "provider-logout-attempt"
+unless provider_oidc_logout_errors(supported_provider_logout, provider_logout_fixture_catalog).empty?
+  fail_check("valid supported provider OIDC logout fixture was rejected")
+end
+tenant_provider_logout = JSON.parse(JSON.generate(provider_logout_fixture))
+tenant_provider_logout.dig("provider_matrix", "rows", 0)["endpoints"] = {
+  "discovery" => "https://{domain}/.well-known/openid-configuration"
+}
+tenant_logout = tenant_provider_logout.dig("provider_matrix", "rows", 0, "oidc_logout")
+tenant_logout["end_session_endpoint_source"] = {
+  "kind" => "discovery", "value" => "https://{domain}/.well-known/openid-configuration#end_session_endpoint"
+}
+tenant_logout["evidence_blocker"] = %w[provider-logout-interoperability-not-run tenant-provider-metadata-pin-required]
+tenant_logout["state_correlation"] = "required-single-use-exact"
+tenant_logout["one_time_state_recovery"] = "provider-and-session-derived-exclusively-from-bound-state"
+tenant_logout["post_logout_redirect"] = "allowlisted-local-redirect-after-provider-outcome"
+tenant_logout["frontchannel_session_effect"] = "unknown"
+unless provider_oidc_logout_errors(tenant_provider_logout, provider_logout_fixture_catalog).empty?
+  fail_check("valid tenant-discovery unknown provider OIDC logout fixture was rejected")
+end
+google_provider_logout = {
+  "providers" => {"ids" => ["google"]},
+  "provider_matrix" => {"rows" => [{
+    "id" => "google",
+    "endpoints" => {"discovery" => "https://accounts.google.com/.well-known/openid-configuration"},
+    "oidc_logout" => JSON.parse(JSON.generate(tenant_logout))
+  }]}
+}
+google_provider_logout.dig("provider_matrix", "rows", 0, "oidc_logout", "end_session_endpoint_source")["value"] =
+  "https://attacker.example/.well-known/openid-configuration#end_session_endpoint"
+if provider_oidc_logout_errors(google_provider_logout, provider_logout_fixture_catalog).empty?
+  fail_check("provider OIDC logout attacker-host discovery negative fixture was accepted")
+end
+google_issuer_template_logout = JSON.parse(JSON.generate(google_provider_logout))
+google_issuer_template_logout.dig("provider_matrix", "rows", 0, "oidc_logout", "end_session_endpoint_source")["value"] =
+  "{issuer}/.well-known/openid-configuration#end_session_endpoint"
+if provider_oidc_logout_errors(google_issuer_template_logout, provider_logout_fixture_catalog).empty?
+  fail_check("fixed-issuer provider OIDC logout generic issuer-template negative fixture was accepted")
+end
+%w[provider-logout-interoperability-not-run tenant-provider-metadata-pin-required].each do |missing_blocker|
+  forged_tenant_logout = JSON.parse(JSON.generate(tenant_provider_logout))
+  forged_tenant_logout.dig("provider_matrix", "rows", 0, "oidc_logout", "evidence_blocker").delete(missing_blocker)
+  if provider_oidc_logout_errors(forged_tenant_logout, provider_logout_fixture_catalog).empty?
+    fail_check("tenant-discovery unknown provider OIDC logout without #{missing_blocker} negative fixture was accepted")
+  end
+end
+
 def username_verification_errors(selectors, goal_body: nil)
   errors = %w[fuzz benchmark].filter_map do |selector|
     "identity/username required #{selector} verification applicability drifted" unless selectors.dig(selector, "status") == "required"
@@ -1127,6 +2402,107 @@ def eligible_frontier_rows(rows, start_gate_blocked_units = Set.new)
     row[:status] == "proposed" && !start_gate_blocked_units.include?(row[:unit]) &&
       row[:requires].all? { |required| rows.find { |candidate| candidate[:unit] == required }[:status] == "verified" }
   end
+end
+
+def semantic_dependency_closure_errors(public_contracts:, rows:, applicability:)
+  row_by_unit = rows.to_h { |row| [row.fetch(:unit), row] }
+  closure = lambda do |unit|
+    seen = Set[unit]
+    pending = row_by_unit.fetch(unit).fetch(:requires).dup
+    until pending.empty?
+      dependency = pending.shift
+      next unless seen.add?(dependency)
+      pending.concat(row_by_unit.fetch(dependency).fetch(:requires)) if row_by_unit.key?(dependency)
+    end
+    seen
+  end
+
+  contract_units = public_contracts.fetch("units")
+  aliases = Hash.new { |hash, key| hash[key] = [] }
+  contract_units.each do |unit|
+    aliases[unit.fetch("unit").delete("/-")] << unit.fetch("unit")
+    aliases[unit.fetch("package_name")] << unit.fetch("unit")
+  end
+  aliases.transform_values!(&:uniq)
+
+  errors = []
+  contract_units.each do |contract|
+    unit = contract.fetch("unit")
+    next unless row_by_unit.key?(unit)
+    reachable = closure.call(unit)
+    constructor_text = contract.fetch("constructors").map { |constructor| constructor.fetch("signature") }.join("\n")
+    constructor_text.scan(/\b([a-z][a-z0-9_]*)\.[A-Z][A-Za-z0-9]*/).flatten.uniq.each do |alias_name|
+      targets = aliases.fetch(alias_name, [])
+      next unless targets.length == 1
+      target = targets.first
+      next if reachable.include?(target)
+      errors << "#{unit} constructor references #{target} through #{alias_name} without dependency closure"
+    end
+    if constructor_text.match?(/\bidentitypostgres\.[A-Z]/) && !reachable.include?("identity/postgres")
+      errors << "#{unit} constructor requires identity/postgres concrete carrier without dependency closure"
+    end
+    if constructor_text.match?(/\bcapabilitypostgres\.[A-Z]/) && !reachable.include?("primitive/capability-postgres-identity-contracts")
+      errors << "#{unit} constructor requires capability/postgres concrete carrier without dependency closure"
+    end
+
+    selectors = applicability.dig(unit, "transaction").to_a
+    concrete_profile = unit.end_with?("/postgres") || unit == "identity/reference"
+    if concrete_profile && selectors.any? { |selector| selector.start_with?("tx.uow.") } && !reachable.include?("identity/postgres")
+      errors << "#{unit} concrete transaction profile selects tx.uow without identity/postgres dependency closure"
+    end
+    if concrete_profile && selectors.any? { |selector| selector.start_with?("tx.capability.") } &&
+       !reachable.include?("primitive/capability-postgres-identity-contracts")
+      errors << "#{unit} concrete transaction profile selects tx.capability without capability/postgres dependency closure"
+    end
+  end
+  errors.uniq
+end
+
+def module_roots_for_unit(rows, unit)
+  by_unit = rows.to_h { |row| [row.fetch(:unit), row] }
+  closure = Set.new
+  pending = [unit]
+  until pending.empty?
+    candidate = pending.shift
+    next unless closure.add?(candidate)
+    pending.concat(by_unit.fetch(candidate).fetch(:requires))
+  end
+  closure.map { |candidate| by_unit.fetch(candidate).fetch(:module) }.sort_by(&:b)
+end
+
+semantic_dependency_fixture_contracts = {"units" => [{
+  "unit" => "sso", "package_name" => "sso",
+  "constructors" => [{"signature" => "New(verifier domainverification.Verifier) (*Service, error)"}]
+}, {
+  "unit" => "sso/domain-verification", "package_name" => "domainverification", "constructors" => []
+}]}
+semantic_dependency_fixture_rows = [
+  {unit: "sso", requires: []}, {unit: "sso/domain-verification", requires: []},
+  {unit: "identity/postgres", requires: []},
+  {unit: "primitive/capability-postgres-identity-contracts", requires: []}
+]
+if semantic_dependency_closure_errors(
+  public_contracts: semantic_dependency_fixture_contracts, rows: semantic_dependency_fixture_rows,
+  applicability: {"sso" => {"transaction" => []}, "sso/domain-verification" => {"transaction" => []}}
+).empty?
+  fail_check("qualified constructor dependency-closure negative fixture was accepted")
+end
+concrete_selector_fixture = {"units" => [{"unit" => "adapter/postgres", "package_name" => "postgres", "constructors" => []}]}
+concrete_selector_rows = semantic_dependency_fixture_rows + [{unit: "adapter/postgres", requires: []}]
+selector_errors = semantic_dependency_closure_errors(
+  public_contracts: concrete_selector_fixture, rows: concrete_selector_rows,
+  applicability: {"adapter/postgres" => {"transaction" => %w[tx.uow.begin tx.capability.reserve]}}
+)
+unless selector_errors.any? { |error| error.include?("tx.uow") } && selector_errors.any? { |error| error.include?("tx.capability") }
+  fail_check("concrete transaction selector dependency-closure negative fixture was accepted")
+end
+storage_neutral_selector_errors = semantic_dependency_closure_errors(
+  public_contracts: {"units" => [{"unit" => "identity/risk", "package_name" => "risk", "constructors" => []}]},
+  rows: semantic_dependency_fixture_rows + [{unit: "identity/risk", requires: []}],
+  applicability: {"identity/risk" => {"transaction" => %w[tx.uow.begin tx.capability.reserve]}}
+)
+unless storage_neutral_selector_errors.empty?
+  fail_check("storage-neutral injected transaction contract fixture was rejected")
 end
 
 def semantic_manifest_errors(document, kind:, collections:, known_owners:, digest_resolver: method(:semantic_row_digest), schema_version: 1)
@@ -1160,10 +2536,10 @@ end
 
 def operation_semantics_errors(document, contracts)
   errors = []
-  errors << "operation semantics schema drifted" unless document.keys == %w[schema_version authority closed_fields operations]
+  errors << "operation semantics schema drifted" unless document.keys == %w[authority closed_fields operations schema_version]
   errors << "operation semantics version drifted" unless document["schema_version"] == 2
   errors << "operation semantics authority drifted" unless document["authority"] == "API_OPERATIONS.md#complete-operation-catalog"
-  required_fields = %w[owners exposure access authorization csrf_origin risk_class rate_policy idempotency event_semantics http_method http_path openapi_operation_id]
+  required_fields = %w[owners exposure access authorization csrf_origin risk_class rate_policy idempotency event_semantics http_method http_path openapi_operation_id idempotency_transport]
   errors << "operation semantics closed fields drifted" unless document["closed_fields"] == required_fields
   rows = document["operations"]
   unless rows.is_a?(Array)
@@ -1181,7 +2557,15 @@ def operation_semantics_errors(document, contracts)
     explicit_authorization = row["authorization"]
     errors << "operation authorization is not explicit for #{row['id']}" unless explicit_authorization.is_a?(String) && !explicit_authorization.empty? && explicit_authorization != row["access"]
     errors << "operation authorization incorrectly absent for #{row['id']}" if explicit_authorization == "none" && row["access"] != "public"
-    expected_row = expected.merge("authorization" => explicit_authorization)
+    idempotency_transport = row["idempotency_transport"]
+    expected_transport = if row["idempotency"] == "keyed"
+                           row["http_path"].nil? ? "required request.IdempotencyKey" :
+                             "exactly one Idempotency-Key header -> required request.IdempotencyKey"
+                         else
+                           "Idempotency-Key and request.IdempotencyKey forbidden"
+                         end
+    errors << "operation idempotency transport drifted for #{row['id']}" unless idempotency_transport == expected_transport
+    expected_row = expected.merge("authorization" => explicit_authorization, "idempotency_transport" => idempotency_transport)
     unless expected_row == row
       drifted_fields = (expected_row.keys | row.keys).select { |field| expected_row[field] != row[field] }
       errors << "operation semantics drifted for #{row['id']}: #{drifted_fields.join(', ')}"
@@ -1572,6 +2956,14 @@ def protocol_semantic_errors(configuration:, protocol:, conformance:, oauth_goal
   ].each do |required|
     errors << "SAML HTTP-Redirect signing contract drifted: #{required}" unless redirect_contract.include?(required)
   end
+  rsa_pss_uri = "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1"
+  rsa_pss_export = "SignatureAlgorithmRSAPSSSHA256 = #{rsa_pss_uri}"
+  unless protocol.include?(rsa_pss_uri) && saml_goal.include?(rsa_pss_uri) && public_contracts.include?(rsa_pss_export)
+    errors << "SAML RSA-PSS SHA-256 exact public constant drifted"
+  end
+  if [protocol, saml_goal, public_contracts].any? { |document| document.include?("https://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1") }
+    errors << "SAML RSA-PSS SHA-256 URI incorrectly uses HTTPS"
+  end
   errors << "OAuth scope contract is absent from the oauth-server goal" unless oauth_goal.include?("oauth_server.scopes")
   required_registration_selection = "RFC 7591 registration is selected only when `oauth_server.dynamic_registration.enabled=true`"
   required_management_selection = "RFC 7592 management remains an unselected future profile"
@@ -1604,9 +2996,12 @@ def protocol_semantic_errors(configuration:, protocol:, conformance:, oauth_goal
 
   apple = operation.call("identity.oauth.callback-form-post")
   apple_fields = apple.fetch("request").fetch("fields").map { |candidate| candidate.fetch("name") }
-  unless %w[Code IDToken State].all? { |name| apple_fields.include?(name) } &&
-         apple.fetch("semantics").include?("front-channel ID token") &&
-         apple.fetch("semantics").include?("issuer, audience, `azp`, nonce, `c_hash`, time and subject")
+  apple_semantics = apple.fetch("semantics")
+  unless %w[Code IDToken State Issuer Error ErrorDescription].all? { |name| apple_fields.include?(name) } &&
+         apple_semantics.include?("success requires code and ID token") &&
+         apple_semantics.include?("error requires error and permits error_description") &&
+         apple_semantics.include?("Both variants require state and RFC 9207 issuer") &&
+         apple_semantics.include?("issuer, audience, `azp`, nonce, `c_hash`, time and subject")
     errors << "Apple form-post callback contract omits the bound code, ID token, state or front-channel validation"
   end
 
@@ -2499,7 +3894,7 @@ def risk_evidence_contract_errors(transaction_contract:, api_operations:, risk_g
     tx.risk_evidence.issue tx.risk_evidence.recover tx.risk_evidence.release
     tx.risk_evidence.reserve
     tx.uow.begin tx.uow.commit tx.uow.contributor tx.uow.enlist tx.uow.locks
-    tx.uow.query tx.uow.reserve tx.uow.rollback
+    tx.uow.query tx.uow.recover tx.uow.reserve tx.uow.rollback
   ]
   reference_roles = applicability.fetch("identity/reference").fetch("transaction")
   errors << "identity/reference phone recovery transaction applicability drifted" unless reference_roles == expected_reference_roles
@@ -2548,7 +3943,7 @@ def risk_evidence_contract_errors(transaction_contract:, api_operations:, risk_g
     tx.captcha.issue tx.captcha.reconcile tx.command.aborted tx.command.committed
     tx.command.conflict tx.command.expired tx.command.first tx.command.live tx.foundation tx.risk_evidence.issue
     tx.uow.begin tx.uow.commit tx.uow.contributor tx.uow.enlist tx.uow.locks
-    tx.uow.query tx.uow.reserve tx.uow.rollback
+    tx.uow.query tx.uow.recover tx.uow.reserve tx.uow.rollback
   ]
   unless applicability.fetch("identity/risk").fetch("transaction") == expected_risk_issuance_roles
     errors << "identity/risk issuance transaction applicability drifted"
@@ -3155,8 +4550,15 @@ def primitive_extension_inventory_errors(public_contracts:, rows:, goal_bodies:,
     expected_module = expected_modules.min_by { |candidate| [candidate.count("/"), candidate.b] }
     errors << "primitive extension canonical module drifted for #{extension_unit}" unless row[:module] == expected_module
     expected_requires = requirements.flat_map { |requirement| requirement["depends_on"] }
-      .filter_map { |authority| authority_to_extension[authority] }
-      .reject { |dependency| dependency == extension_unit }.sort_by(&:b).uniq
+      .filter_map { |dependency| authority_to_extension[dependency] || (rows.any? { |candidate| candidate[:unit] == dependency } && dependency) }
+      .reject { |dependency| dependency == extension_unit }.uniq
+    concrete_carrier_dependencies = requirements.filter_map do |requirement|
+      external = external_by_owner[requirement["unit"]]
+      next unless external && JSON.generate(external).match?(/\bidentitypostgres\.[A-Z]/)
+
+      "identity/postgres"
+    end
+    expected_requires = (expected_requires + concrete_carrier_dependencies.sort_by(&:b)).uniq
     errors << "primitive extension prerequisite closure drifted for #{extension_unit}" unless row[:requires] == expected_requires
 
     expected_consumers = requirements.flat_map { |requirement| derived_consumers_by_authority.fetch(requirement["unit"], []) }.sort_by(&:b).uniq
@@ -3330,6 +4732,7 @@ def parse_execution_ledger(body, expected_header)
     fail_check("execution ledger row has wrong column count") unless cells.length == 12
     unit, generation, task, branch, worktree, assignment, worker_commit, checkpoint, gate_revision, fingerprint, external, transition = cells
     fail_check("execution ledger unit cell is invalid") unless unit.match?(/\A`[^`]+`\z/)
+    fail_check("execution ledger generation is invalid") unless plain_cell(generation).match?(/\A\d+\z/)
     {
       unit: plain_cell(unit), generation: generation, task: task, branch: branch,
       worktree: worktree, assignment: assignment, worker_commit: worker_commit,
@@ -4215,7 +5618,7 @@ if ledger_transition_errors(progress_fixture_row, repair_progress_entry, blocked
   fail_check("descendant repair-checkpoint replacement fixture was rejected")
 end
 
-def external_evidence_record_errors(record, profile:, claims:, consumers:, recorded_after:, evidence_commit: nil, module_roots: [], repository_root: nil, record_path: nil)
+def external_evidence_record_errors(record, profile:, claims:, consumers:, recorded_after:, evidence_commit: nil, module_roots: [], repository_root: nil, record_path: nil, platform_capture_bindings: nil)
   errors = []
   errors << "record schema keys drifted" unless record.keys == %w[schema_version recorded_at profiles]
   errors << "schema version is not 2" unless record["schema_version"] == 2
@@ -4238,11 +5641,19 @@ def external_evidence_record_errors(record, profile:, claims:, consumers:, recor
   end
   errors << "profile schema keys drifted" unless entry.keys.sort == %w[claim_ids profile_id unit_results]
   errors << "claim attribution drifted" unless entry["claim_ids"] == claims
+  external_receipt_path_counts = profiles.flat_map { |candidate| candidate.fetch("unit_results", []) }.flat_map do |candidate|
+    candidate.fetch("artifacts", []).filter_map do |artifact|
+      path = artifact["path"] if artifact.is_a?(Hash)
+      path if path.to_s.match?(%r{\A\.ai/identity-platform/evidence/executions/[a-zA-Z0-9._/-]+\.json\z})
+    end
+  end.tally
   results = entry["unit_results"]
   unless results.is_a?(Array) && results.map { |result| result["unit"] } == consumers
     errors << "unit attribution drifted"
     return errors
   end
+  external_execution_identities = Set.new
+  external_receipt_paths = Set.new
   results.each do |result|
     expected_result_keys = %w[unit outcome tested_revision gate_execution_revision revalidation_revision input_manifest input_root tool_environment artifacts]
     errors << "#{result['unit']} result schema keys drifted" unless result.keys == expected_result_keys
@@ -4271,6 +5682,43 @@ def external_evidence_record_errors(record, profile:, claims:, consumers:, recor
         File.binread(absolute) == committed && digest == "sha256:#{Digest::SHA256.hexdigest(committed)}"
     end
     errors << "#{result['unit']} artifacts are invalid" unless valid_artifacts
+    if repository_root
+      declared_external_commands = ["make check MODULES=pkg/#{result['unit']}"]
+      declared_external_commands.concat(JSON.parse(File.read(File.join(ROOT, "ACCEPTANCE_ARTIFACTS.json"))).fetch("artifacts").filter_map do |artifact|
+        artifact_claims = artifact.fetch("claim_ids", [])
+        if artifact.dig("producer", "unit") == result["unit"] && !(artifact_claims & claims).empty?
+          artifact.dig("producer", "operation")
+        end
+      end).uniq!
+      receipt_artifacts = result.fetch("artifacts", []).select do |artifact|
+        artifact.is_a?(Hash) && artifact["path"].to_s.match?(%r{\A\.ai/identity-platform/evidence/executions/[a-zA-Z0-9._/-]+\.json\z})
+      end
+      errors << "#{result['unit']} external gate must bind exactly one coordinator execution receipt" unless receipt_artifacts.length == 1
+      if receipt_artifacts.length == 1
+        receipt_path = receipt_artifacts.first.fetch("path")
+        receipt_bytes = git_blob_bytes(evidence_commit, receipt_path, repository: repository_root)
+        errors << "#{result['unit']} external execution receipt is shared across profile or unit results" unless external_receipt_path_counts[receipt_path] == 1
+        errors << "#{result['unit']} reuses an external execution receipt path" unless external_receipt_paths.add?(receipt_path)
+        begin
+          parsed_receipt = AcceptanceSchemaValidation.parse_json(receipt_bytes, canonical: true) if receipt_bytes
+          receipt_identity = parsed_receipt && AcceptanceSchemaValidation.execution_identity(parsed_receipt)
+          errors << "#{result['unit']} reuses an external execution identity" unless receipt_identity && external_execution_identities.add?(receipt_identity)
+        rescue JSON::ParserError, KeyError, TypeError
+          errors << "#{result['unit']} external execution identity cannot be derived"
+        end
+        coordinator_execution_receipt_errors(
+          receipt_bytes, receipt_path: receipt_path, expected_commands: declared_external_commands,
+          tool_identity: result.dig("tool_environment", "tool"),
+          environment_identity: result.dig("tool_environment", "environment")
+        ).each { |error| errors << "#{result['unit']} #{error}" }
+        if platform_capture_bindings
+          platform_receipt_binding_errors(
+            receipt_bytes, bindings: platform_capture_bindings,
+            expected_scope: {"kind" => "external", "unit" => result["unit"], "artifact_id" => nil, "profile_id" => profile, "claim_ids" => claims}
+          ).each { |error| errors << "#{result['unit']} #{error}" }
+        end
+      end
+    end
     if repository_root && evidence_commit.to_s.match?(/\A[0-9a-f]{40}\z/)
       errors << "#{result['unit']} gate execution revision does not exist" unless git_commit_exists?(gate_revision)
       errors << "#{result['unit']} evidence commit does not descend from gate execution revision" unless git_commit_exists?(gate_revision) && git_ancestor?(gate_revision, evidence_commit)
@@ -4295,8 +5743,126 @@ def external_result_ledger_errors(result, gate_revision:, input_fingerprint:)
   errors
 end
 
+def derived_external_evidence_lanes(configuration:, protocol_manifest:, verification:, artifact_catalog:, repository_root:)
+  required_units = verification.fetch("units").filter_map do |row|
+    row.fetch("unit") if row.dig("selectors", "provider_interoperability", "status") == "required"
+  end.to_set
+  profiles = []
+  configuration.dig("provider_matrix", "rows").to_a.each do |row|
+    profiles << {profile: "social-#{row.fetch('id')}", source_id: row.fetch("id"), consumers: ["identity/oauth/providers"]}
+  end
+  configuration.dig("captcha", "profile_consumers").to_h.each do |id, binding|
+    profiles << {
+      profile: "captcha-#{id}", source_id: id, consumers: [binding.fetch("unit")],
+      artifact_id: binding.fetch("artifact_id")
+    }
+  end
+  profiles << {profile: "hibp-pwned-passwords", source_id: "hibp", consumers: ["identity/risk/hibp"]}
+  %w[sources tools].each do |collection|
+    protocol_manifest.fetch(collection).each do |row|
+      consumers = row.fetch("consumers").select { |unit| required_units.include?(unit) }
+      profiles << {profile: "protocol-#{row.fetch('id')}", source_id: row.fetch("id"), consumers: consumers} if consumers.any?
+    end
+  end
+
+  profiles.map do |profile|
+    consumers = profile.fetch(:consumers).select { |unit| required_units.include?(unit) }.sort.uniq
+    claims = Set.new
+    artifact_catalog.fetch("artifacts").each do |artifact|
+      schema_path = File.expand_path(artifact.fetch("schema_path"), repository_root)
+      next unless File.file?(schema_path)
+      schema = JSON.parse(File.binread(schema_path))
+      contains_profile = lambda do |value|
+        case value
+        when Hash then value.any? { |key, nested| key == profile.fetch(:source_id) || contains_profile.call(nested) }
+        when Array then value.any? { |nested| contains_profile.call(nested) }
+        else value == profile.fetch(:source_id)
+        end
+      end
+      next unless contains_profile.call(schema)
+      if profile[:artifact_id]
+        next unless artifact.fetch("artifact_id") == profile.fetch(:artifact_id)
+
+        claims.merge(artifact.fetch("claim_ids"))
+        next
+      end
+      covered_consumers = artifact.fetch("covered_operations").flat_map { |operation| operation.fetch("owners") }.to_set
+      next if (covered_consumers & consumers.to_set).empty? && !consumers.include?(artifact.dig("producer", "unit"))
+      claims.merge(artifact.fetch("claim_ids"))
+    end
+    {
+      profile: profile.fetch(:profile), consumers: consumers,
+      claims: claims.to_a.sort_by(&:b)
+    }
+  end.sort_by { |row| row.fetch(:profile).b }
+end
+
+def external_lane_closure_errors(expected, actual)
+  errors = []
+  errors << "derived external evidence lane has no exact acceptance claims" if expected.any? { |row| row.fetch(:claims).empty? }
+  expected_shape = expected.map { |row| row.slice(:profile, :consumers, :claims) }
+  actual_shape = actual.map { |row| row.slice(:profile, :consumers, :claims) }.sort_by { |row| row.fetch(:profile).b }
+  errors << "external evidence lane closure drifted from authoritative catalogs" unless actual_shape == expected_shape
+  errors
+end
+
+Dir.mktmpdir("identity-platform-captcha-profile-binding-") do |fixture_root|
+  File.write(File.join(fixture_root, "captcha.schema.json"), JSON.generate({"provider" => {"const" => "recaptcha"}}))
+  captcha_binding_fixture = derived_external_evidence_lanes(
+    configuration: {
+      "provider_matrix" => {"rows" => []},
+      "captcha" => {
+        "owners" => {"recaptcha" => "identity/risk/captcha/recaptcha"},
+        "profile_consumers" => {
+          "recaptcha" => {
+            "unit" => "identity/risk/captcha/recaptcha",
+            "artifact_id" => "captcha-four-provider-report"
+          }
+        }
+      }
+    },
+    protocol_manifest: {"sources" => [], "tools" => []},
+    verification: {
+      "units" => [{
+        "unit" => "identity/risk/captcha/recaptcha",
+        "selectors" => {"provider_interoperability" => {"status" => "required"}}
+      }]
+    },
+    artifact_catalog: {
+      "artifacts" => [{
+        "artifact_id" => "captcha-four-provider-report",
+        "schema_path" => "captcha.schema.json",
+        "producer" => {"unit" => "identity/reference"},
+        "covered_operations" => [{"owners" => ["identity/risk/captcha"]}],
+        "claim_ids" => ["journey.abuse-controls.v1"]
+      }]
+    },
+    repository_root: fixture_root
+  )
+  expected_captcha_binding_fixture = {
+    profile: "captcha-recaptcha",
+    consumers: ["identity/risk/captcha/recaptcha"],
+    claims: ["journey.abuse-controls.v1"]
+  }
+  unless captcha_binding_fixture.find { |row| row.fetch(:profile) == "captcha-recaptcha" } == expected_captcha_binding_fixture
+    fail_check("explicit CAPTCHA profile-consumer binding fixture was rejected")
+  end
+end
+
+external_lane_fixture_expected = [{profile: "provider-a", consumers: ["identity/oauth/providers"], claims: ["identity.oauth.callback"]}]
+if external_lane_closure_errors(external_lane_fixture_expected, external_lane_fixture_expected).any?
+  fail_check("valid derived external evidence lane fixture was rejected")
+end
+if external_lane_closure_errors(external_lane_fixture_expected, [external_lane_fixture_expected.first.merge(consumers: ["identity/reference"])]).empty?
+  fail_check("user-authored external evidence consumer negative fixture was accepted")
+end
+if external_lane_closure_errors([external_lane_fixture_expected.first.merge(claims: [])], []).none? { |error| error.include?("no exact acceptance claims") }
+  fail_check("unmapped external evidence claim negative fixture was accepted")
+end
+
 def orchestration_policy_errors(orchestrator, worker)
   coordinator_section = orchestrator[/^## Coordinator-only role\n.*?(?=^## |\z)/m].to_s
+  worker_model_section = orchestrator[/^## Worker model and isolation\n.*?(?=^## |\z)/m].to_s
   dependency_revision_section = orchestrator[/^## Dependency revision ownership\n.*?(?=^## |\z)/m].to_s
   worker_assignment = worker[/```text\n(.*?)```/m, 1].to_s
   required_orchestrator = "The coordinator MUST orchestrate and MUST NOT implement package production code, package tests, package migrations, provider adapters, or package-local documentation."
@@ -4309,9 +5875,10 @@ def orchestration_policy_errors(orchestrator, worker)
     "do not edit another package, root manifests, root catalogs, global inventory, dependency graph, program documents, or another worktree;"
   ]
   errors = []
-  errors << "coordinator-only policy digest drifted" unless Digest::SHA256.hexdigest(coordinator_section) == "bc9277b2d53aee15339a6d53394a5197412233e9c4ce1b3a3b71ffbf0eec6140"
-  errors << "dependency-revision policy digest drifted" unless Digest::SHA256.hexdigest(dependency_revision_section) == "564cb53e19c5de9ee04cde3788fae20b812d7873a656ea8b086cbfb848ddea28"
-  errors << "worker assignment policy digest drifted" unless Digest::SHA256.hexdigest(worker_assignment) == "cd8bfc86788aab30ff101c90dce000adce31569cce5838f30b832d69caf99e6b"
+  errors << "coordinator-only policy digest drifted" unless Digest::SHA256.hexdigest(coordinator_section) == "3d4bac06698d4fccb760cae3c6c15be1e552fd880ad510082a0f4ffe6c740789"
+  errors << "worker model and isolation policy digest drifted" unless Digest::SHA256.hexdigest(worker_model_section) == "ccf74fd56bd40023caa628eee4506c06485c07b101dccf2ba7e6f0a9536f320b"
+  errors << "dependency-revision policy digest drifted" unless Digest::SHA256.hexdigest(dependency_revision_section) == "0e2415a272eef2176d934497fc54a91859c2f337be9abdc784ced807e60e8028"
+  errors << "worker assignment policy digest drifted" unless Digest::SHA256.hexdigest(worker_assignment) == "3de8522559177aec3e373282955c121f773248cf25f53d24a34f0608b2d27f61"
   errors << "coordinator implementation prohibition drifted" unless orchestrator.gsub(/\s+/, " ").include?(required_orchestrator)
   required_worker.each do |required|
     errors << "worker ownership restriction drifted: #{required}" unless worker.gsub(/\s+/, " ").include?(required)
@@ -4409,26 +5976,714 @@ def git_ancestor?(ancestor, descendant)
   status.success?
 end
 
+def git_first_parent_ancestor?(ancestor, descendant)
+  return false unless ancestor.to_s.match?(/\A[0-9a-f]{40}\z/) && descendant.to_s.match?(/\A[0-9a-f]{40}\z/)
+
+  git_output("rev-list", "--first-parent", descendant).to_s.lines.map(&:chomp).include?(ancestor)
+end
+
 def git_output(*arguments, repository: REPOSITORY_ROOT)
   output, _error, status = Open3.capture3("git", "-C", repository, *arguments)
   status.success? ? output.strip : nil
 end
 
 def git_blob_bytes(revision, path, repository: REPOSITORY_ROOT)
-  return unless revision&.match?(/\A(?:[0-9a-f]{40}|HEAD)\z/) && path&.match?(%r{\A\.ai/[a-zA-Z0-9._/-]+\z}) && !path.include?("..")
+  allowed = path&.match?(%r{\A\.ai/[a-zA-Z0-9._/-]+\z}) ||
+    path&.match?(%r{\Apkg/[a-zA-Z0-9._/-]+/\.ai/(?:GOAL|GOAL_IDENTITY_CONTRACTS)\.md\z})
+  return unless revision&.match?(/\A(?:[0-9a-f]{40}|HEAD)\z/) && allowed && !path.include?("..")
 
   output, _error, status = Open3.capture3("git", "-C", repository, "show", "#{revision}:#{path}")
   status.success? ? output : nil
+end
+
+def git_worker_blob_bytes(revision, path, repository: REPOSITORY_ROOT)
+  allowed = path&.match?(%r{\A[a-zA-Z0-9._/-]+\z}) && !path.start_with?("/") && !path.split("/").include?("..")
+  return unless revision&.match?(/\A(?:[0-9a-f]{40}|HEAD)\z/) && allowed
+
+  output, _error, status = Open3.capture3("git", "-C", repository, "show", "#{revision}:#{path}")
+  status.success? ? output : nil
+end
+
+def git_repository_blob_bytes(revision, path, repository: REPOSITORY_ROOT)
+  allowed = path.match?(%r{\A\.ai/[a-zA-Z0-9._/-]+\z}) ||
+    path.match?(%r{\Apkg/[a-zA-Z0-9._/-]+/\.ai/(?:GOAL|GOAL_IDENTITY_CONTRACTS)\.md\z}) ||
+    %w[modules.json packages.json].include?(path)
+  return unless revision&.match?(/\A(?:[0-9a-f]{40}|HEAD)\z/) && allowed && !path.include?("..")
+
+  output, _error, status = Open3.capture3("git", "-C", repository, "show", "#{revision}:#{path}")
+  status.success? ? output : nil
+end
+
+PLATFORM_TRUST_KEYS = %w[schema_version schema capture_source limitations required_controls].freeze
+PLATFORM_EVENT_KEYS = %w[
+  schema_version schema capture_source thread_id event_id event_type role actor_id task_id agent_id
+  turn_ordinal recorded_at content content_length content_sha256 claims
+].freeze
+
+def platform_trust_errors(document)
+  errors = []
+  errors << "platform trust field order drifted" unless document.is_a?(Hash) && document.keys == PLATFORM_TRUST_KEYS
+  return errors unless document.is_a?(Hash)
+
+  errors << "platform capture policy schema drifted" unless document["schema_version"] == 1 &&
+    document["schema"] == "identity-platform.evidence-capture-policy.v1"
+  errors << "platform capture source is invalid" unless document["capture_source"] == "collaboration-tool-visible-output"
+  expected_limitations = [
+    "capture-is-coordinator-authored-not-platform-signed",
+    "capture-proves-committed-bytes-and-custody-not-platform-authenticity"
+  ]
+  errors << "platform capture limitations drifted" unless document["limitations"] == expected_limitations
+  expected_controls = %w[
+    append-only-first-exact-commit branch-and-worktree-custody coordinator-reverification
+    exact-byte-digests independent-package-worker explicit-user-semantic-authority
+  ].sort_by(&:b)
+  errors << "platform capture controls drifted" unless document["required_controls"] == expected_controls
+  errors
+end
+
+def platform_event_binding(value)
+  match = value.to_s.match(%r{\A(\.ai/identity-platform/evidence/platform-events/[a-zA-Z0-9._/-]+\.json)@([0-9a-f]{40})@(sha256:[0-9a-f]{64})\z})
+  match&.captures
+end
+
+def platform_event_envelope_errors(event, bytes, trust)
+  errors = []
+  errors << "platform event is not canonical compact JSON" unless bytes == JSON.generate(event)
+  errors << "platform event field order drifted" unless event.keys == PLATFORM_EVENT_KEYS
+  errors << "platform capture schema drifted" unless event["schema_version"] == 1 && event["schema"] == "identity-platform.tool-visible-capture.v1"
+  errors << "platform capture source drifted" unless event["capture_source"] == trust["capture_source"]
+  errors << "platform event identity is unsafe" unless
+    %w[thread_id event_id event_type role actor_id task_id agent_id].all? { |field| event[field].to_s.match?(/\A[a-zA-Z0-9._:\/-]+\z/) }
+  content = event["content"].to_s
+  errors << "platform event content length drifted" unless event["content_length"] == content.bytesize
+  errors << "platform event content digest drifted" unless event["content_sha256"] == "sha256:#{Digest::SHA256.hexdigest(content)}"
+  errors << "platform event claims are not a canonical sorted object" unless event["claims"].is_a?(Hash) && event["claims"].keys == event["claims"].keys.sort_by(&:b)
+  errors << "platform event turn ordinal is invalid" unless event["turn_ordinal"].is_a?(Integer) && event["turn_ordinal"].positive?
+  errors << "platform event timestamp is invalid" unless event["recorded_at"].to_s.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/)
+  errors
+end
+
+def verified_platform_event(binding, trust:, repository: REPOSITORY_ROOT)
+  path, commit, digest = platform_event_binding(binding)
+  return [nil, ["platform event binding is invalid"]] unless path
+  bytes = git_blob_bytes(commit, path, repository: repository)
+  errors = []
+  errors << "platform event artifact is missing" unless bytes
+  errors << "platform event artifact digest drifted" unless bytes && digest == "sha256:#{Digest::SHA256.hexdigest(bytes)}"
+  begin
+    event = JSON.parse(bytes)
+  rescue JSON::ParserError, TypeError
+    return [nil, errors << "platform event artifact is invalid JSON"]
+  end
+  errors.concat(platform_event_envelope_errors(event, bytes, trust))
+  first = bytes && first_parent_commit_with_blob(path, bytes)
+  errors << "platform event binding does not name first exact artifact commit" unless first == commit
+  [event, errors]
+end
+
+def verified_platform_event_by_id(event_id, trust:, repository: REPOSITORY_ROOT)
+  paths = git_output(
+    "ls-tree", "-r", "--name-only", "HEAD", "--", ".ai/identity-platform/evidence/platform-events",
+    repository: repository
+  ).to_s.lines.map(&:strip).reject(&:empty?)
+  matches = paths.filter_map do |path|
+    bytes = git_blob_bytes("HEAD", path, repository: repository)
+    next unless bytes
+    begin
+      event = JSON.parse(bytes)
+    rescue JSON::ParserError
+      next
+    end
+    next unless event["event_id"] == event_id
+
+    [path, bytes, event]
+  end
+  return [nil, ["blocked observation event #{event_id} is not exact and unique"], nil] unless matches.length == 1
+
+  path, bytes, event = matches.first
+  errors = platform_event_envelope_errors(event, bytes, trust)
+  first = first_parent_commit_with_blob(path, bytes)
+  errors << "blocked observation event #{event_id} lacks an immutable first commit" unless first
+  errors << "blocked observation event #{event_id} is not integrated" unless first && git_ancestor?(first, "HEAD")
+  [event, errors, first]
+end
+
+def blocked_observation_sequence_errors(observations, audit_event:, audit_commit:, final_input_revision:, ancestor:)
+  errors = []
+  events = observations.map(&:first).compact
+  errors << "fewer than #{BLOCKED_OBSERVATION_REQUIRED_COUNT} verified observations" unless
+    events.length >= BLOCKED_OBSERVATION_REQUIRED_COUNT
+  ordinals = events.map { |event| event["turn_ordinal"] }
+  errors << "observations are not consecutive" unless ordinals.each_cons(2).all? { |left, right| right == left + 1 }
+  errors << "observations do not precede the terminal audit" unless audit_event && events.all? do |event|
+    event["turn_ordinal"] < audit_event["turn_ordinal"] && event["recorded_at"] <= audit_event["recorded_at"]
+  end
+  observation_commits = observations.map(&:last)
+  errors << "observations predate the final input revision" unless
+    final_input_revision && observation_commits.all? do |commit|
+      commit && commit != final_input_revision && ancestor.call(final_input_revision, commit)
+    end
+  errors << "observation commits do not preserve turn order" unless
+    observation_commits.each_cons(2).all? do |left, right|
+      left && right && left != right && ancestor.call(left, right)
+    end
+  errors << "observations were committed after the terminal audit" unless
+    audit_commit && observations.all? do |_event, commit|
+      commit && commit != audit_commit && ancestor.call(commit, audit_commit)
+    end
+  errors
+end
+
+def blocked_threshold_errors(threshold)
+  errors = []
+  required_count = threshold["required_count"]
+  observed_count = threshold["observed_count"]
+  history_event_ids = threshold["history_event_ids"]
+  errors << "required observation count must equal #{BLOCKED_OBSERVATION_REQUIRED_COUNT}" unless
+    required_count == BLOCKED_OBSERVATION_REQUIRED_COUNT
+  errors << "observation count does not equal committed capture history" unless
+    observed_count.is_a?(Integer) && history_event_ids.is_a?(Array) && observed_count == history_event_ids.length
+  errors << "blocked observation threshold is unsatisfied" unless
+    observed_count.is_a?(Integer) && observed_count >= BLOCKED_OBSERVATION_REQUIRED_COUNT
+  errors
+end
+
+def blocked_audit_commit_errors(audit_commit, final_input_revision:, head:, ancestor:)
+  errors = []
+  errors << "terminal event is not integrated" unless audit_commit && ancestor.call(audit_commit, head)
+  errors << "terminal event predates its final input revision" unless
+    audit_commit && ancestor.call(final_input_revision, audit_commit)
+  errors
+end
+
+def blocked_audit_projection_errors(binding, current_blocker_identities:, current_assignment_ids:,
+                                    current_resource_ids:, current_assignments_root:, current_resources_root:,
+                                    expected_input_root:, bookkeeping_valid:)
+  threshold = binding.fetch(:threshold)
+  errors = blocked_threshold_errors(threshold)
+  errors << "persistent goal ID drifted" unless binding[:goal_id] == "identity-platform"
+  blocker_identities = threshold.fetch("blockers", []).filter_map do |blocker|
+    [blocker["id"], blocker["unit"]] if blocker.is_a?(Hash)
+  end.sort_by { |identity| identity.map { |value| value.to_s.b } }
+  errors << "blocker projection drifted" unless blocker_identities == current_blocker_identities
+  errors << "assignment reconciliation drifted" unless threshold["reconciled_assignment_ids"] == current_assignment_ids
+  errors << "resource reconciliation drifted" unless threshold["reconciled_resource_ids"] == current_resource_ids
+  errors << "assignment state projection drifted" unless threshold["reconciled_assignments_root"] == current_assignments_root
+  errors << "resource state projection drifted" unless threshold["reconciled_resources_root"] == current_resources_root
+  errors << "frontier is not exhausted" unless threshold["exhausted_frontier"] == true
+  errors << "input root is stale or belongs to another input" unless threshold["input_root"] == expected_input_root
+  errors << "final input revision is stale" unless bookkeeping_valid
+  expected_execution_identity = "sha256:#{Digest::SHA256.hexdigest("#{threshold['final_input_revision']}\0#{expected_input_root}")}"
+  errors << "execution identity does not bind the final input" unless binding[:execution_identity] == expected_execution_identity
+  errors
+end
+
+def blocked_state_root(rows)
+  "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(rows)))}"
+end
+
+def live_assignment_rows(ledger_rows, inventory_rows)
+  statuses = inventory_rows.to_h { |row| [row.fetch(:unit), row.fetch(:status)] }
+  ledger_rows.select { |entry| statuses.fetch(entry.fetch(:unit)) == "in-progress" }
+end
+
+blocked_sequence_fixture = [
+  [{"turn_ordinal" => 2, "recorded_at" => "2026-08-12T00:00:00Z"}, "observation-commit"]
+]
+blocked_audit_fixture = {"turn_ordinal" => 3, "recorded_at" => "2026-08-12T00:00:01Z"}
+if blocked_observation_sequence_errors(
+  blocked_sequence_fixture, audit_event: blocked_audit_fixture, audit_commit: "audit-commit",
+  final_input_revision: "final-input",
+  ancestor: ->(_ancestor, _descendant) { false }
+).none? { |error| error.include?("committed after") }
+  fail_check("blocked observation reversed commit-order fixture was accepted")
+end
+if blocked_audit_commit_errors(
+  "side-audit", final_input_revision: "input", head: "head",
+  ancestor: ->(left, right) { [left, right] == %w[input side-audit] }
+).none? { |error| error.include?("not integrated") }
+  fail_check("unintegrated blocked terminal-audit fixture was accepted")
+end
+blocked_threshold_fixture = {
+  "required_count" => 3, "observed_count" => 3,
+  "history_event_ids" => %w[blocked-1 blocked-2 blocked-3]
+}
+unless blocked_threshold_errors(blocked_threshold_fixture).empty?
+  fail_check("valid three-observation blocked threshold fixture was rejected")
+end
+[1, 2].each do |count|
+  fixture = blocked_threshold_fixture.merge(
+    "required_count" => count, "observed_count" => count,
+    "history_event_ids" => blocked_threshold_fixture.fetch("history_event_ids").first(count)
+  )
+  if blocked_threshold_errors(fixture).empty?
+    fail_check("#{count}-observation blocked threshold fixture was accepted")
+  end
+end
+nonconsecutive_blocked_fixture = [
+  [{"turn_ordinal" => 1, "recorded_at" => "2026-08-12T00:00:00Z"}, "observation-1"],
+  [{"turn_ordinal" => 3, "recorded_at" => "2026-08-12T00:00:01Z"}, "observation-2"],
+  [{"turn_ordinal" => 4, "recorded_at" => "2026-08-12T00:00:02Z"}, "observation-3"]
+]
+if blocked_observation_sequence_errors(
+  nonconsecutive_blocked_fixture,
+  audit_event: {"turn_ordinal" => 5, "recorded_at" => "2026-08-12T00:00:03Z"},
+  audit_commit: "audit-commit", final_input_revision: "final-input",
+  ancestor: ->(_ancestor, _descendant) { true }
+).none? { |error| error.include?("not consecutive") }
+  fail_check("nonconsecutive blocked observation fixture was accepted")
+end
+ordered_blocked_fixture = [
+  [{"turn_ordinal" => 1, "recorded_at" => "2026-08-12T00:00:00Z"}, "observation-1"],
+  [{"turn_ordinal" => 2, "recorded_at" => "2026-08-12T00:00:01Z"}, "observation-2"],
+  [{"turn_ordinal" => 3, "recorded_at" => "2026-08-12T00:00:02Z"}, "observation-3"]
+]
+if blocked_observation_sequence_errors(
+  ordered_blocked_fixture,
+  audit_event: {"turn_ordinal" => 4, "recorded_at" => "2026-08-12T00:00:03Z"},
+  audit_commit: "audit-commit", final_input_revision: "final-input",
+  ancestor: ->(left, right) do
+    left == "final-input" || right == "audit-commit" || [left, right] == %w[observation-2 observation-3]
+  end
+).none? { |error| error.include?("preserve turn order") }
+  fail_check("reversed blocked observation commit-order fixture was accepted")
+end
+if blocked_observation_sequence_errors(
+  ordered_blocked_fixture,
+  audit_event: {"turn_ordinal" => 4, "recorded_at" => "2026-08-12T00:00:03Z"},
+  audit_commit: "audit-commit", final_input_revision: "final-input",
+  ancestor: ->(left, right) do
+    right == "final-input" || right == "audit-commit" || [left, right] == %w[observation-1 observation-2] ||
+      [left, right] == %w[observation-2 observation-3]
+  end
+).none? { |error| error.include?("predate the final input") }
+  fail_check("pre-final-input blocked observations fixture was accepted")
+end
+blocked_projection_fixture = {
+  goal_id: "identity-platform", threshold: blocked_threshold_fixture.merge(
+    "final_input_revision" => "a" * 40, "input_root" => "sha256:#{'b' * 64}", "blockers" => [],
+    "reconciled_assignment_ids" => [], "reconciled_resource_ids" => [],
+    "reconciled_assignments_root" => blocked_state_root([]),
+    "reconciled_resources_root" => blocked_state_root([]), "exhausted_frontier" => true
+  ),
+  execution_identity: "sha256:#{Digest::SHA256.hexdigest("#{'a' * 40}\0sha256:#{'b' * 64}")}"
+}
+blocked_projection_args = {
+  current_blocker_identities: [], current_assignment_ids: [], current_resource_ids: [],
+  current_assignments_root: blocked_state_root([]), current_resources_root: blocked_state_root([]),
+  expected_input_root: "sha256:#{'b' * 64}", bookkeeping_valid: true
+}
+unless blocked_audit_projection_errors(blocked_projection_fixture, **blocked_projection_args).empty?
+  fail_check("valid blocked audit projection fixture was rejected")
+end
+{
+  "wrong goal" => blocked_projection_fixture.merge(goal_id: "another-goal"),
+  "wrong input" => blocked_projection_fixture.merge(
+    threshold: blocked_projection_fixture.fetch(:threshold).merge("input_root" => "sha256:#{'c' * 64}")
+  )
+}.each do |label, fixture|
+  if blocked_audit_projection_errors(fixture, **blocked_projection_args).empty?
+    fail_check("blocked audit #{label} fixture was accepted")
+  end
+end
+if blocked_audit_projection_errors(
+  blocked_projection_fixture, **blocked_projection_args.merge(bookkeeping_valid: false)
+).empty?
+  fail_check("stale blocked audit fixture was accepted")
+end
+if blocked_audit_projection_errors(
+  blocked_projection_fixture,
+  **blocked_projection_args.merge(current_resources_root: blocked_state_root([{"id" => "resource", "state" => "removed"}]))
+).empty?
+  fail_check("stale blocked resource-state fixture was accepted")
+end
+if blocked_audit_projection_errors(
+  blocked_projection_fixture,
+  **blocked_projection_args.merge(current_assignments_root: blocked_state_root([{"unit" => "identity", "status" => "blocked"}]))
+).empty?
+  fail_check("stale blocked assignment-state fixture was accepted")
+end
+live_assignment_fixture = [
+  {unit: "active", task: "worker-active"}, {unit: "blocked", task: "worker-blocked"}
+]
+unless live_assignment_rows(
+  live_assignment_fixture,
+  [{unit: "active", status: "in-progress"}, {unit: "blocked", status: "blocked"}]
+) == [live_assignment_fixture.first]
+  fail_check("blocked ledger history was treated as a live assignment")
+end
+
+platform_fixture_trust_document = {
+  "schema_version" => 1, "schema" => "identity-platform.evidence-capture-policy.v1",
+  "capture_source" => "collaboration-tool-visible-output",
+  "limitations" => ["capture-is-coordinator-authored-not-platform-signed", "capture-proves-committed-bytes-and-custody-not-platform-authenticity"],
+  "required_controls" => %w[append-only-first-exact-commit branch-and-worktree-custody coordinator-reverification exact-byte-digests independent-package-worker explicit-user-semantic-authority].sort_by(&:b)
+}
+unless platform_trust_errors(platform_fixture_trust_document).empty?
+  fail_check("valid platform capture policy fixture was rejected")
+end
+platform_fixture_trust = platform_fixture_trust_document
+platform_fixture_content = "AUTHORIZE fixture"
+platform_fixture_event = {
+  "schema_version" => 1, "schema" => "identity-platform.tool-visible-capture.v1",
+  "capture_source" => "collaboration-tool-visible-output", "thread_id" => "thread-1",
+  "event_id" => "event-capture-1", "event_type" => "conversation-message", "role" => "user",
+  "actor_id" => "user-1", "task_id" => "root", "agent_id" => "user-1", "turn_ordinal" => 1,
+  "recorded_at" => "2026-08-12T00:00:00Z", "content" => platform_fixture_content,
+  "content_length" => platform_fixture_content.bytesize,
+  "content_sha256" => "sha256:#{Digest::SHA256.hexdigest(platform_fixture_content)}",
+  "claims" => {"approval_id" => "user:fixture"}
+}
+platform_fixture_bytes = JSON.generate(platform_fixture_event)
+unless platform_event_envelope_errors(platform_fixture_event, platform_fixture_bytes, platform_fixture_trust).empty?
+  fail_check("valid tool-visible capture fixture was rejected")
+end
+forged_platform_event = JSON.parse(platform_fixture_bytes)
+forged_platform_event["content"] = "AUTHORIZE forged"
+if platform_event_envelope_errors(forged_platform_event, JSON.generate(forged_platform_event), platform_fixture_trust).empty?
+  fail_check("content-drifted tool-visible capture fixture was accepted")
+end
+wrong_source_platform_event = JSON.parse(platform_fixture_bytes)
+wrong_source_platform_event["capture_source"] = "caller-assertion"
+if platform_event_envelope_errors(wrong_source_platform_event, JSON.generate(wrong_source_platform_event), platform_fixture_trust).empty?
+  fail_check("wrong-source tool-visible capture fixture was accepted")
+end
+
+def verified_platform_capture_event(binding, trust:, expected_event_type:, expected_claims:, expected_content:,
+                                    seen_event_ids:, expected_thread: nil, repository: REPOSITORY_ROOT)
+  event, errors = verified_platform_event(binding, trust: trust, repository: repository)
+  return [event, errors] unless event
+
+  errors << "platform capture event type drifted" unless event["event_type"] == expected_event_type
+  errors << "platform capture event role drifted" unless event["role"] == "platform"
+  errors << "platform capture event thread drifted" if expected_thread && event["thread_id"] != expected_thread
+  errors << "platform capture event content drifted" unless expected_content.nil? || event["content"] == expected_content
+  errors << "platform capture event claims drifted" unless event["claims"] == expected_claims
+  errors << "platform capture event ID is replayed" unless seen_event_ids.add?(event["event_id"])
+  [event, errors]
+end
+
+def platform_gate_capture_binding_errors(row, trust:, seen_event_ids:, expected_thread:, repository: REPOSITORY_ROOT)
+  errors = []
+  receipt_bytes, _receipt_commit, receipt_errors = verified_evidence_artifact(row[:receipt_binding], repository: repository)
+  errors.concat(receipt_errors)
+  begin
+    receipt = JSON.parse(receipt_bytes)
+  rescue JSON::ParserError, TypeError
+    return errors << "platform gate capture receipt is invalid JSON"
+  end
+  receipt_digest = "sha256:#{Digest::SHA256.hexdigest(receipt_bytes)}"
+  errors << "platform gate capture receipt binding drifted" unless row[:receipt_binding].end_with?("@#{receipt_digest}")
+  receipt_path = row[:receipt_binding].split("@", 2).first
+  reconstructed_identity = AcceptanceSchemaValidation.execution_identity(receipt)
+  errors << "platform gate capture execution identity drifted" unless row[:execution_identity] == reconstructed_identity
+  scope = row[:scope]
+  claim_fields = %w[
+    capture_authority producer_argv verifier_argv tested_revision input_root canonical_workdir executable_realpath
+    executable_sha256 verifier_executable_realpath verifier_executable_sha256 version_argv version_stdout version_stderr
+    environment_probe_argv environment_probe_stdout environment_probe_stderr verifier_exit_status verifier_stdout verifier_stderr
+    verifier_attestation_sha256 started_at completed_at exit_status stdout stdout_byte_length stdout_sha256 stderr
+    stderr_byte_length stderr_sha256 captured_output_sha256 raw_capture_sha256 output_artifact_path artifact_payload_binding
+  ]
+  claims = claim_fields.to_h { |field| [field, receipt[field]] }.merge(
+    "execution_receipt_path" => receipt_path, "execution_receipt_sha256" => receipt_digest,
+    "execution_identity" => row[:execution_identity],
+    "artifact_payload_binding" => "record.artifact_hashes[path,sha256]", "scope" => scope
+  )
+  %w[package_discovery_argv mutation_tool_argv mutation_tool_output_sha256 package_manifest_sha256 mutant_manifest_sha256].each do |field|
+    claims[field] = receipt[field] if receipt.key?(field)
+  end
+  claims = claims.sort_by { |key, _value| key.b }.to_h
+  producer_event, producer_errors = verified_platform_capture_event(
+    row[:producer_event_binding], trust: trust, expected_event_type: "coordinator-gate-capture",
+    expected_claims: claims, expected_content: receipt_bytes, seen_event_ids: seen_event_ids,
+    expected_thread: expected_thread, repository: repository
+  )
+  errors.concat(producer_errors)
+  verifier_event, verifier_errors = verified_platform_capture_event(
+    row[:verifier_event_binding], trust: trust, expected_event_type: "coordinator-verifier-capture",
+    expected_claims: claims, expected_content: nil, seen_event_ids: seen_event_ids,
+    expected_thread: expected_thread, repository: repository
+  )
+  errors.concat(verifier_errors)
+  errors << "platform verifier capture attestation digest drifted" unless verifier_event &&
+    "sha256:#{Digest::SHA256.hexdigest(verifier_event["content"])}" == receipt["verifier_attestation_sha256"]
+  errors << "platform gate capture events are not distinct" if producer_event && verifier_event && producer_event["event_id"] == verifier_event["event_id"]
+  errors
+end
+
+def verified_evidence_artifact(binding, repository: REPOSITORY_ROOT)
+  match = binding.to_s.match(%r{\A(\.ai/identity-platform/evidence/[a-zA-Z0-9._/-]+)@([0-9a-f]{40})@(sha256:[0-9a-f]{64})\z})
+  return [nil, nil, ["evidence artifact binding is invalid"]] unless match
+
+  path, commit, digest = match.captures
+  bytes = git_blob_bytes(commit, path, repository: repository)
+  errors = []
+  errors << "evidence artifact is missing" unless bytes
+  errors << "evidence artifact digest drifted" unless bytes && digest == "sha256:#{Digest::SHA256.hexdigest(bytes)}"
+  first = bytes && first_parent_commit_with_blob(path, bytes)
+  errors << "evidence artifact binding does not name first exact commit" unless first == commit
+  [bytes, commit, errors]
+end
+
+def worker_return_attestation_errors(returned, runtime:, release:, ledger_entry:)
+  errors = []
+  identity = ledger_entry.values_at(:unit, :generation, :task)
+  errors << "worker return identity drifted" unless returned.values_at(:unit, :generation, :task) == identity
+  errors << "worker return lacks runtime evidence" unless runtime&.dig(:platform_event)
+  errors << "worker return lacks release evidence" unless release&.dig(:release_event)
+  errors << "worker return tip is invalid" unless returned[:worker_tip].to_s.match?(/\A[0-9a-f]{40}\z/)
+  errors << "worker return commit list is empty or invalid" unless
+    returned[:ordered_commits].is_a?(Array) && returned[:ordered_commits].any? &&
+      returned[:ordered_commits].all? { |commit| commit.match?(/\A[0-9a-f]{40}\z/) } &&
+      returned[:ordered_commits].uniq == returned[:ordered_commits]
+  errors << "worker return tip differs from ordered commit tail" unless returned[:ordered_commits]&.last == returned[:worker_tip]
+  if returned[:return_event] && release&.dig(:release_event)
+    errors << "worker return turn does not follow the recorded preparation turn" unless
+      returned[:return_event]["turn_ordinal"] > release[:release_event]["turn_ordinal"]
+  end
+  errors
+end
+
+WORKER_RETURN_KEYS = %w[
+  schema_version schema unit canonical_module branch worktree generation assignment_state_commit
+  release_handshake_commit worker_tip ordered_worker_commits changed_paths requirements reports checks
+  coverage_mutation specialized_outcomes external_boundaries review coordinator_work
+].freeze
+
+def normative_goal_requirement_ids(unit, goal_body)
+  section = "document"
+  section_ordinals = Hash.new(0)
+  blocks = []
+  current = []
+  flush = lambda do
+    unless current.empty?
+      normalized = current.join(" ").gsub(/\s+/, " ").strip
+      blocks << [section, normalized] unless normalized.empty?
+      current.clear
+    end
+  end
+  goal_body.to_s.each_line do |line|
+    stripped = line.strip
+    if (heading = stripped.match(/\A##+\s+(.+)\z/))
+      flush.call
+      section = heading[1].downcase.gsub(/[^a-z0-9]+/, "-").gsub(/\A-|\z/, "")
+    elsif stripped.empty?
+      flush.call
+    elsif stripped.start_with?("- ")
+      flush.call
+      current << stripped.delete_prefix("- ")
+    else
+      current << stripped
+    end
+  end
+  flush.call
+  namespace = unit.tr("/", ".")
+  blocks.filter_map do |block_section, text|
+    next unless text.match?(/\b(?:MUST|MUST NOT|REQUIRED|SHOULD|SHOULD NOT|MAY)\b/)
+
+    section_ordinals[block_section] += 1
+    digest = Digest::SHA256.hexdigest(text)
+    "goal.#{namespace}.#{block_section}.#{format('%03d', section_ordinals[block_section])}.sha256-#{digest}"
+  end.sort_by(&:b)
+end
+
+def worker_required_requirement_ids(revision:, unit:, goal_path:)
+  goal_body = git_blob_bytes(revision, goal_path)
+  operations_bytes = git_blob_bytes(revision, ".ai/identity-platform/OPERATION_SEMANTICS.json")
+  artifacts_bytes = git_blob_bytes(revision, ".ai/identity-platform/ACCEPTANCE_ARTIFACTS.json")
+  return unless goal_body && operations_bytes && artifacts_bytes
+
+  operations = JSON.parse(operations_bytes).fetch("operations")
+  artifacts = JSON.parse(artifacts_bytes).fetch("artifacts")
+  owned_operation_ids = operations.select { |row| row.fetch("owners", []).include?(unit) }.map { |row| row.fetch("id") }
+  owned_artifacts = artifacts.select do |artifact|
+    artifact.dig("producer", "unit") == unit || artifact.fetch("covered_operations", []).any? do |operation|
+      operation.fetch("owners", []).include?(unit)
+    end
+  end
+  catalog_ids = owned_operation_ids.map { |id| "catalog.operation.#{id}" }
+  owned_artifacts.each do |artifact|
+    catalog_ids << "catalog.artifact.#{artifact.fetch('artifact_id')}"
+    artifact.fetch("claim_ids", []).each do |claim_id|
+      catalog_ids << "catalog.artifact.#{artifact.fetch('artifact_id')}.claim.#{claim_id}"
+    end
+  end
+  (normative_goal_requirement_ids(unit, goal_body) + catalog_ids).sort_by(&:b).uniq
+rescue JSON::ParserError, KeyError
+  nil
+end
+
+def worker_return_manifest_errors(bytes, returned:, ledger_entry:, canonical_module: nil, goal_path: nil, release_commit: nil, changed_paths: nil,
+                                  expected_environment_identities: nil)
+  document = JSON.parse(bytes)
+  errors = []
+  errors << "worker return manifest is not canonical compact JSON" unless bytes == JSON.generate(document)
+  errors << "worker return manifest field order drifted" unless document.keys == WORKER_RETURN_KEYS
+  errors << "worker return manifest schema drifted" unless
+    document.values_at("schema_version", "schema") == [1, "identity-platform.worker-return.v1"]
+  errors << "worker return manifest identity drifted" unless
+    document.values_at("unit", "canonical_module", "branch", "worktree", "generation", "assignment_state_commit", "release_handshake_commit", "worker_tip") ==
+      [ledger_entry[:unit], canonical_module, ledger_entry[:branch], ledger_entry[:worktree], ledger_entry[:generation], ledger_entry[:assignment], release_commit, returned[:worker_tip]]
+  errors << "worker return manifest commits drifted" unless document["ordered_worker_commits"] == returned[:ordered_commits]
+  errors << "worker return manifest changed paths drifted" unless changed_paths.nil? || document["changed_paths"] == changed_paths
+  %w[changed_paths requirements reports checks specialized_outcomes external_boundaries].each do |field|
+    values = document[field]
+    errors << "worker return manifest #{field} is not a duplicate-free array" unless values.is_a?(Array) && values.uniq == values
+  end
+  errors << "worker return requirements are empty" if document.fetch("requirements", []).empty?
+  errors << "worker return checks are empty" if document.fetch("checks", []).empty?
+  errors << "worker return reports are empty" if document.fetch("reports", []).empty?
+  document.fetch("requirements", []).each do |requirement|
+    errors << "worker return requirement mapping is invalid" unless requirement.is_a?(Hash) &&
+      requirement.keys == %w[requirement_id evidence_ids] && requirement["requirement_id"].is_a?(String) &&
+      !requirement["requirement_id"].empty? && requirement["evidence_ids"].is_a?(Array) && requirement["evidence_ids"].any? &&
+      requirement["evidence_ids"].all? { |value| value.is_a?(String) && !value.empty? } &&
+      requirement["evidence_ids"] == requirement["evidence_ids"].sort_by(&:b).uniq
+  end
+  unit_namespace = ledger_entry[:unit].to_s.tr("/", ".")
+  document.fetch("reports", []).each do |report|
+    errors << "worker return report is not exact-tip bound" unless
+      report.is_a?(Hash) && report.keys == %w[artifact_id observations tested_revision gate_execution_revision revalidation_revision input_manifest input_root artifact_hashes] &&
+      report["artifact_id"].to_s.match?(/\Aartifact\.#{Regexp.escape(unit_namespace)}\.[a-z0-9][a-z0-9.-]*\z/) && report["observations"].is_a?(Array) && report["observations"].any? &&
+      report["observations"].all? { |value| value.is_a?(Hash) && value.keys == %w[observation_id expected_outcome actual_outcome result artifact_path artifact_sha256] && value["observation_id"].to_s.match?(/\Aobservation\.#{Regexp.escape(unit_namespace)}\.[a-zA-Z0-9._-]+\z/) && value["expected_outcome"].is_a?(String) && !value["expected_outcome"].empty? && value["actual_outcome"].is_a?(String) && value["result"] == "pass" && value["actual_outcome"] == value["expected_outcome"] && value["artifact_path"].is_a?(String) && value["artifact_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/) } &&
+      report["tested_revision"] == returned[:worker_tip] && report["gate_execution_revision"] == returned[:worker_tip] &&
+      report["revalidation_revision"].nil? &&
+      report["input_manifest"].is_a?(Array) && report["input_manifest"].any? &&
+      report["input_manifest"].all? { |value| value.is_a?(Hash) && value.keys == %w[path_or_environment_id kind content_identity owner reason] && value.values.all? { |field| field.is_a?(String) && !field.empty? } } &&
+      report["input_manifest"] == report["input_manifest"].sort_by { |value| JSON.generate(value).b }.uniq &&
+      report["input_root"] == "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(report["input_manifest"])))}" &&
+      report["artifact_hashes"].is_a?(Array) && report["artifact_hashes"].any? &&
+      report["artifact_hashes"].all? { |value| value.is_a?(Hash) && value.keys == %w[path sha256] && value["path"].to_s.match?(%r{\A[a-zA-Z0-9._/-]+\z}) && !value["path"].split("/").include?("..") && value["sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/) } &&
+      report["artifact_hashes"] == report["artifact_hashes"].sort_by { |value| JSON.generate(value).b }.uniq
+    if canonical_module && report.is_a?(Hash) && report["tested_revision"] == returned[:worker_tip]
+      errors.concat(behavior_input_manifest_errors(report["input_manifest"], revision: returned[:worker_tip], module_roots: [canonical_module]))
+      if expected_environment_identities
+        environment_input_attestation_errors(report["input_manifest"], expected_environment_identities).each do |error|
+          errors << "worker return report #{error}"
+        end
+      end
+      artifact_rows = report.fetch("artifact_hashes", [])
+      artifact_by_path = artifact_rows.to_h { |artifact| [artifact["path"], artifact["sha256"]] }
+      report.fetch("artifact_hashes", []).each do |artifact|
+        errors << "worker return artifact path escapes changed package projection" unless
+          path_within_root?(artifact["path"], canonical_module) && changed_paths&.include?(artifact["path"])
+        committed = git_worker_blob_bytes(returned[:worker_tip], artifact["path"])
+        errors << "worker return artifact hash does not bind worker tip" unless committed && artifact["sha256"] == "sha256:#{Digest::SHA256.hexdigest(committed)}"
+      end
+      report.fetch("observations", []).each do |observation|
+        errors << "worker return observation does not bind an exact returned artifact" unless
+          artifact_by_path[observation["artifact_path"]] == observation["artifact_sha256"]
+      end
+    end
+  end
+  document.fetch("checks", []).each do |check|
+    errors << "worker return check is not exact-tip bound" unless
+      check.is_a?(Hash) && check.keys == %w[check_id argv outcome tested_revision] && check["check_id"].to_s.match?(/\Acheck\.#{Regexp.escape(unit_namespace)}\.[a-zA-Z0-9._-]+\z/) &&
+      check["argv"].is_a?(Array) && check["argv"].any? && check["argv"].all? { |value| value.is_a?(String) && !value.empty? } &&
+      %w[passed failed blocked].include?(check["outcome"]) && check["tested_revision"] == returned[:worker_tip]
+  end
+  errors << "worker return coverage/mutation is not a closed object" unless
+    document["coverage_mutation"].is_a?(Hash) && document["coverage_mutation"].keys == %w[statement_coverage mutation_efficacy mutant_coverage] &&
+    document["coverage_mutation"].values.all? { |value| value.is_a?(Numeric) && value.between?(0, 100) }
+  errors << "worker return review is not a closed object" unless
+    document["review"].is_a?(Hash) && document["review"].keys == %w[outcome findings] &&
+    %w[passed findings].include?(document["review"]["outcome"]) && document["review"]["findings"].is_a?(Array) &&
+    document["review"]["findings"].all? { |value| value.is_a?(String) }
+  errors << "worker return coordinator work is not a duplicate-free array" unless
+    document["coordinator_work"].is_a?(Array) && document["coordinator_work"].uniq == document["coordinator_work"] &&
+    document["coordinator_work"].all? { |value| value.is_a?(String) }
+  %w[specialized_outcomes external_boundaries].each do |field|
+    values = document.fetch(field, [])
+    errors << "worker return #{field} is not sorted typed closure" unless
+      values.all? { |value| value.is_a?(String) } && values == values.sort_by(&:b).uniq
+  end
+  errors << "worker return requirements are not canonical sorted closure" unless
+    document.fetch("requirements", []) == document.fetch("requirements", []).sort_by { |value| JSON.generate(value).b }.uniq
+  evidence_ids = document.fetch("reports", []).flat_map do |report|
+    [report["artifact_id"], *report.fetch("observations", []).filter_map { |observation| observation["observation_id"] }]
+  end + document.fetch("checks", []).filter_map { |check| check["check_id"] }
+  errors << "worker return evidence IDs are not globally unique" unless evidence_ids == evidence_ids.uniq
+  if goal_path
+    required_ids = worker_required_requirement_ids(revision: returned[:worker_tip], unit: ledger_entry[:unit], goal_path: goal_path)
+    actual_ids = document.fetch("requirements", []).filter_map { |requirement| requirement["requirement_id"] }
+    errors << "worker return requirement closure drifted" unless required_ids && actual_ids == required_ids
+  else
+    errors << "worker return goal path is absent"
+  end
+  document.fetch("requirements", []).each do |requirement|
+    errors << "worker return requirement references missing evidence" unless
+      requirement.fetch("evidence_ids", []).all? { |evidence_id| evidence_ids.include?(evidence_id) }
+  end
+  %w[reports checks].each do |field|
+    values = document.fetch(field, [])
+    errors << "worker return #{field} is not canonical sorted closure" unless values == values.sort_by { |value| JSON.generate(value).b }.uniq
+  end
+  errors << "worker return changed paths are unsafe" unless document.fetch("changed_paths", []).all? { |value| value.is_a?(String) && !value.include?("..") }
+  errors
+rescue JSON::ParserError
+  ["worker return manifest is invalid JSON"]
+end
+
+def worker_range_custody_errors(scope_checkpoint:, worker_tip:, module_root:, reserved_roots:, ordered_commits:)
+  errors = []
+  return ["worker range checkpoint or tip is invalid"] unless
+    [scope_checkpoint, worker_tip].all? { |commit| commit.to_s.match?(/\A[0-9a-f]{40}\z/) && git_commit_exists?(commit) }
+  errors << "worker tip excludes its release checkpoint" unless git_ancestor?(scope_checkpoint, worker_tip)
+  reachable = git_output("rev-list", "#{scope_checkpoint}..#{worker_tip}").to_s.lines.map(&:strip)
+  errors << "worker tip imports commits that do not contain its release checkpoint" unless
+    reachable.all? { |commit| git_ancestor?(scope_checkpoint, commit) }
+  range = git_output("rev-list", "--reverse", "--ancestry-path", "#{scope_checkpoint}..#{worker_tip}").to_s.lines.map(&:strip)
+  exact_worker_commits = []
+  range.each do |commit|
+    parents = git_output("rev-list", "--parents", "-n", "1", commit).to_s.split.drop(1)
+    imports_checkpoint = parents.drop(1).include?(scope_checkpoint)
+    if imports_checkpoint
+      changed = git_output("diff", "--name-only", parents.first, commit).to_s.lines.map(&:strip)
+      errors << "release checkpoint merge has unexpected parents" unless parents.length == 2 && parents[1] == scope_checkpoint
+      errors << "release checkpoint merge contains non-preflight changes" unless changed == [".ai/identity-platform/PREFLIGHT_EVIDENCE.md"]
+      next
+    end
+    parent_path_sets = parents.map do |parent|
+      git_output("diff", "--name-only", parent, commit).to_s.lines.map(&:strip)
+    end
+    in_scope = parent_path_sets.flatten.all? do |path|
+      path_within_root?(path, module_root) && reserved_roots.none? { |root| path_within_root?(path, root) }
+    end
+    errors << "worker-authored commit #{commit} escapes assigned package scope" unless in_scope
+    exact_worker_commits << commit
+  end
+  errors << "worker return capture omits or reorders worker commits" unless ordered_commits == exact_worker_commits
+  errors
+end
+
+def committed_shared_contract_render(revision, unit, units)
+  names = [
+    SharedContractApplicability::FILE,
+    *SharedContractApplicability::SOURCES.values,
+    "CONFIGURATION_CATALOGS.json", "VERIFICATION_APPLICABILITY.json"
+  ].uniq
+  sources = names.to_h do |name|
+    path = ".ai/identity-platform/#{name}"
+    [name, git_repository_blob_bytes(revision, path)]
+  end
+  return if sources.values.any?(&:nil?)
+
+  Dir.mktmpdir("identity-platform-historical-contracts-") do |directory|
+    sources.each { |name, bytes| File.binwrite(File.join(directory, name), bytes) }
+    document = JSON.parse(sources.fetch(SharedContractApplicability::FILE))
+    SharedContractApplicability.load_and_validate!(root: directory, units: units, document: document)
+    SharedContractApplicability.render(document: document, root: directory, unit: unit).rstrip
+  end
+rescue JSON::ParserError, ArgumentError
+  nil
 end
 
 def tracked_behavior_input_manifest(revision, module_roots, repository: REPOSITORY_ROOT)
   return unless revision&.match?(/\A[0-9a-f]{40}\z/)
   return unless git_output("cat-file", "-e", "#{revision}^{commit}", repository: repository)
 
-  roots = [
-    ".ai/identity-platform", "AGENTS.md", "Makefile", "modules.json", "packages.json",
-    "go.work", "go.work.sum", "scripts"
-  ] + module_roots
+  roots = REPOSITORY_GATE_INPUT_ROOTS + module_roots
   listing = git_output("ls-tree", "-r", "--full-tree", revision, "--", *roots.uniq.sort_by(&:b), repository: repository)
   return unless listing
 
@@ -4479,6 +6734,245 @@ def behavior_input_fingerprint(manifest)
   "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(manifest)))}"
 end
 
+def pinned_upstream_repository_evidence_errors(evidence)
+  return ["pinned upstream repository is unavailable"] unless evidence.is_a?(Hash)
+
+  errors = []
+  errors << "pinned upstream remote drifted" unless evidence["repository"] == "https://github.com/better-auth/better-auth.git"
+  errors << "pinned upstream revision is unavailable" unless evidence["revision"] == BASELINE
+  errors << "pinned upstream object format drifted" unless evidence["object_format"] == "git-sha1"
+  expected_sources = EXPECTED_UPSTREAM_SOURCES.keys.sort_by(&:b).map do |source_path|
+    kind, object_id, _section, enumeration = EXPECTED_UPSTREAM_SOURCES.fetch(source_path)
+    {"path" => source_path, "kind" => kind, "object_id" => object_id, "enumeration" => enumeration}
+  end
+  errors << "pinned upstream source objects drifted" unless evidence["source_objects"] == expected_sources
+  errors
+end
+
+def pinned_upstream_repository_evidence(path)
+  return unless path.is_a?(String) && path.start_with?("/") && !path.empty?
+
+  repository = File.realpath(path)
+  return unless File.directory?(repository)
+  return unless git_output("rev-parse", "--git-dir", repository: repository)
+
+  origin = git_output("config", "--get", "remote.origin.url", repository: repository)
+  revision = git_output("rev-parse", "#{BASELINE}^{commit}", repository: repository)
+  object_format = git_output("rev-parse", "--show-object-format", repository: repository)
+
+  source_objects = EXPECTED_UPSTREAM_SOURCES.keys.sort_by(&:b).map do |source_path|
+    _expected_kind, _expected_object_id, _section, enumeration = EXPECTED_UPSTREAM_SOURCES.fetch(source_path)
+    actual_object_id = git_output("rev-parse", "#{BASELINE}:#{source_path}", repository: repository)
+    actual_kind = actual_object_id && git_output("cat-file", "-t", actual_object_id, repository: repository)
+
+    {
+      "path" => source_path, "kind" => actual_kind,
+      "object_id" => actual_object_id, "enumeration" => enumeration
+    }
+  end
+  evidence = {
+    "repository" => origin, "revision" => revision,
+    "object_format" => object_format && "git-#{object_format}", "source_objects" => source_objects
+  }
+  evidence if pinned_upstream_repository_evidence_errors(evidence).empty?
+rescue Errno::ENOENT, Errno::EACCES
+  nil
+end
+
+
+pinned_upstream_fixture = {
+  "repository" => "https://github.com/better-auth/better-auth.git", "revision" => BASELINE,
+  "object_format" => "git-sha1",
+  "source_objects" => EXPECTED_UPSTREAM_SOURCES.keys.sort_by(&:b).map do |source_path|
+    kind, object_id, _section, enumeration = EXPECTED_UPSTREAM_SOURCES.fetch(source_path)
+    {"path" => source_path, "kind" => kind, "object_id" => object_id, "enumeration" => enumeration}
+  end
+}
+fail_check("valid pinned upstream fixture was rejected") unless pinned_upstream_repository_evidence_errors(pinned_upstream_fixture).empty?
+{
+  "absent repository" => nil,
+  "wrong remote" => pinned_upstream_fixture.merge("repository" => "https://example.invalid/better-auth.git"),
+  "wrong revision" => pinned_upstream_fixture.merge("revision" => "0" * 40),
+  "wrong object format" => pinned_upstream_fixture.merge("object_format" => "git-sha256"),
+  "wrong source object" => pinned_upstream_fixture.merge(
+    "source_objects" => pinned_upstream_fixture.fetch("source_objects").map.with_index do |row, index|
+      index.zero? ? row.merge("object_id" => "0" * 40) : row
+    end
+  )
+}.each do |name, evidence|
+  fail_check("#{name} pinned upstream fixture was accepted") if pinned_upstream_repository_evidence_errors(evidence).empty?
+end
+
+tracked_gate_fixture_manifest = tracked_behavior_input_manifest(
+  git_output("rev-parse", "HEAD"), ["pkg/identity"]
+)
+tracked_gate_fixture_root = behavior_input_fingerprint(tracked_gate_fixture_manifest)
+tracked_gate_fixture_paths = tracked_gate_fixture_manifest&.map { |entry| entry.fetch("path_or_environment_id") }
+tracked_gate_listing = git_output(
+  "ls-tree", "-r", "--name-only", "HEAD", "--", *REPOSITORY_GATE_INPUT_ROOTS.sort_by(&:b)
+)
+expected_tracked_gate_paths = tracked_gate_listing&.lines&.map(&:strip)&.reject do |path|
+  NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS.any? do |excluded|
+    excluded.end_with?("/") ? path.start_with?(excluded) : path == excluded
+  end
+end&.sort_by(&:b)
+unless tracked_gate_fixture_paths && expected_tracked_gate_paths &&
+    (expected_tracked_gate_paths - tracked_gate_fixture_paths).empty?
+  fail_check("tracked behavior input manifest omitted repository gate-input closure")
+end
+required_direct_gate_inputs = %w[
+  .github/workflows/ci.yml .gitleaks.toml .go-version .golib/cohesion.json
+  .golib/mutation-history-migrations.json .golib/mutation-zero-inventory.json
+  .golib/versions.env LICENSE Makefile benchmarks.json cmd/golib/main.go
+  code-documentation.json go.mod go.work go.work.sum scripts/gate-input-digest.sh
+]
+required_direct_gate_inputs.each do |path|
+  entry_index = tracked_gate_fixture_manifest&.index { |entry| entry.fetch("path_or_environment_id") == path }
+  unless entry_index
+    fail_check("tracked behavior input manifest omitted direct gate input #{path}")
+    next
+  end
+
+  missing_input_manifest = tracked_gate_fixture_manifest.reject do |entry|
+    entry.fetch("path_or_environment_id") == path
+  end
+  if behavior_input_manifest_errors(
+    missing_input_manifest, revision: git_output("rev-parse", "HEAD"), module_roots: ["pkg/identity"]
+  ).empty?
+    fail_check("tracked behavior input manifest accepted missing direct gate input #{path}")
+  end
+
+  distinct_gate_state = JSON.parse(JSON.generate(tracked_gate_fixture_manifest))
+  distinct_gate_state.fetch(entry_index)["content_identity"] = "git-sha1:#{'f' * 40}"
+  if behavior_input_fingerprint(distinct_gate_state) == tracked_gate_fixture_root
+    fail_check("distinct #{path} gate states shared a tracked behavior input root")
+  end
+end
+
+def expected_environment_input_identities(external_lanes:, tool_lanes:, environment: ENV)
+  behavior_keys = %w[CGO_ENABLED GOEXPERIMENT GOFLAGS GOPROXY GOSUMDB GOTOOLCHAIN GOWORK TZ]
+  behavior_variables = behavior_keys.to_h { |key| [key, environment.fetch(key, "<unset>")] }
+  go_identity, _go_error, go_status = Open3.capture3("go", "env", "GOVERSION", "GOOS", "GOARCH", "CGO_ENABLED", "GOTOOLCHAIN")
+  go_identity = "unavailable" unless go_status.success?
+  service_lanes = tool_lanes.map { |row| row.slice(:requirement, :required_by, :classification, :identity) }
+  upstream = pinned_upstream_repository_evidence(environment["BETTER_AUTH_REPOSITORY"]) || {
+    "status" => "unavailable", "required_environment" => "BETTER_AUTH_REPOSITORY"
+  }
+  sources = {
+    "environment:behavior-variables" => behavior_variables,
+    "environment:external-profiles" => external_lanes.map { |row| row.slice(:profile, :consumers, :claims, :classification) },
+    "environment:go-toolchain" => go_identity.lines.map(&:chomp),
+    "environment:os-architecture" => {"host_os" => RbConfig::CONFIG.fetch("host_os"), "host_cpu" => RbConfig::CONFIG.fetch("host_cpu")},
+    "environment:pinned-upstream-repository" => upstream,
+    "environment:service-images" => service_lanes
+  }
+  sources.transform_values do |source|
+    "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(source)))}"
+  end
+end
+
+def environment_input_attestation_errors(manifest, expected_identities)
+  entries = manifest.to_a.select { |entry| entry["path_or_environment_id"].to_s.start_with?("environment:") }
+  actual = entries.to_h { |entry| [entry.fetch("path_or_environment_id"), entry.fetch("content_identity")] }
+  errors = []
+  errors << "environment input attestation closure drifted" unless actual.keys == expected_identities.keys
+  expected_identities.each do |identity, digest|
+    errors << "#{identity} was not recomputed from current attested inputs" unless actual[identity] == digest
+  end
+  errors << "environment input attestation metadata drifted" unless entries == attested_environment_manifest(expected_identities)
+  errors
+end
+
+def attested_environment_manifest(expected_identities)
+  expected_identities.map do |identity, digest|
+    {
+      "path_or_environment_id" => identity, "kind" => "environment", "content_identity" => digest,
+      "owner" => "coordinator", "reason" => "recomputed identity-platform execution environment input"
+    }
+  end.sort_by { |entry| entry.fetch("path_or_environment_id").b }
+end
+
+environment_attestation_fixture = REQUIRED_ENVIRONMENT_INPUT_IDS.to_h { |id| [id, "sha256:#{Digest::SHA256.hexdigest(id)}"] }
+environment_manifest_fixture = attested_environment_manifest(environment_attestation_fixture)
+unless environment_input_attestation_errors(environment_manifest_fixture, environment_attestation_fixture).empty?
+  fail_check("valid environment attestation fixture was rejected")
+end
+forged_environment_manifest = JSON.parse(JSON.generate(environment_manifest_fixture))
+forged_environment_manifest.first["content_identity"] = "sha256:#{'0' * 64}"
+if environment_input_attestation_errors(forged_environment_manifest, environment_attestation_fixture).empty?
+  fail_check("hash-shaped forged environment attestation negative fixture was accepted")
+end
+
+worker_return_fixture_tip = git_output("rev-parse", "HEAD")
+worker_return_fixture_unit = "identity"
+worker_return_fixture_module = ".ai/identity-platform"
+worker_return_fixture_goal = ".ai/identity-platform/goals/identity.md"
+worker_return_fixture_artifact_path = ".ai/identity-platform/README.md"
+worker_return_fixture_artifact_bytes = git_blob_bytes(worker_return_fixture_tip, worker_return_fixture_artifact_path)
+worker_return_fixture_artifact_digest = "sha256:#{Digest::SHA256.hexdigest(worker_return_fixture_artifact_bytes)}"
+worker_return_fixture_manifest = (
+  tracked_behavior_input_manifest(worker_return_fixture_tip, [worker_return_fixture_module]) + environment_manifest_fixture
+).sort_by { |entry| entry.fetch("path_or_environment_id").b }
+worker_return_fixture_observation_id = "observation.identity.readme-contract"
+worker_return_fixture_requirements = worker_required_requirement_ids(
+  revision: worker_return_fixture_tip, unit: worker_return_fixture_unit, goal_path: worker_return_fixture_goal
+).map do |requirement_id|
+  {"requirement_id" => requirement_id, "evidence_ids" => [worker_return_fixture_observation_id]}
+end.sort_by { |row| JSON.generate(row).b }
+worker_return_fixture_ledger = {
+  unit: worker_return_fixture_unit, generation: "1", task: "worker:identity", branch: "feature/identity-fixture",
+  worktree: "/tmp/identity-fixture", assignment: worker_return_fixture_tip
+}
+worker_return_fixture = {
+  "schema_version" => 1, "schema" => "identity-platform.worker-return.v1", "unit" => worker_return_fixture_unit,
+  "canonical_module" => worker_return_fixture_module, "branch" => worker_return_fixture_ledger[:branch],
+  "worktree" => worker_return_fixture_ledger[:worktree], "generation" => "1",
+  "assignment_state_commit" => worker_return_fixture_tip, "release_handshake_commit" => worker_return_fixture_tip,
+  "worker_tip" => worker_return_fixture_tip, "ordered_worker_commits" => [worker_return_fixture_tip],
+  "changed_paths" => [worker_return_fixture_artifact_path], "requirements" => worker_return_fixture_requirements,
+  "reports" => [{
+    "artifact_id" => "artifact.identity.readme-contract",
+    "observations" => [{
+      "observation_id" => worker_return_fixture_observation_id, "expected_outcome" => "documented",
+      "actual_outcome" => "documented", "result" => "pass", "artifact_path" => worker_return_fixture_artifact_path,
+      "artifact_sha256" => worker_return_fixture_artifact_digest
+    }],
+    "tested_revision" => worker_return_fixture_tip, "gate_execution_revision" => worker_return_fixture_tip,
+    "revalidation_revision" => nil, "input_manifest" => worker_return_fixture_manifest,
+    "input_root" => behavior_input_fingerprint(worker_return_fixture_manifest),
+    "artifact_hashes" => [{"path" => worker_return_fixture_artifact_path, "sha256" => worker_return_fixture_artifact_digest}]
+  }],
+  "checks" => [{"check_id" => "check.identity.readme-contract", "argv" => ["fixture"], "outcome" => "passed", "tested_revision" => worker_return_fixture_tip}],
+  "coverage_mutation" => {"statement_coverage" => 100, "mutation_efficacy" => 100, "mutant_coverage" => 100},
+  "specialized_outcomes" => [], "external_boundaries" => [], "review" => {"outcome" => "passed", "findings" => []},
+  "coordinator_work" => []
+}
+worker_return_fixture_args = {
+  returned: {worker_tip: worker_return_fixture_tip, ordered_commits: [worker_return_fixture_tip]},
+  ledger_entry: worker_return_fixture_ledger, canonical_module: worker_return_fixture_module,
+  goal_path: worker_return_fixture_goal, release_commit: worker_return_fixture_tip,
+  changed_paths: [worker_return_fixture_artifact_path],
+  expected_environment_identities: environment_attestation_fixture
+}
+unless worker_return_manifest_errors(JSON.generate(worker_return_fixture), **worker_return_fixture_args).empty?
+  fail_check("valid worker return manifest fixture was rejected")
+end
+{
+  "missing requirement" => lambda { |fixture| fixture["requirements"].shift },
+  "invented requirement" => lambda { |fixture| fixture["requirements"] << {"requirement_id" => "goal.identity.invented.001.sha256-#{'0' * 64}", "evidence_ids" => [worker_return_fixture_observation_id]}; fixture["requirements"].sort_by! { |row| JSON.generate(row).b } },
+  "foreign evidence namespace" => lambda { |fixture| fixture["reports"][0]["artifact_id"] = "artifact.other.readme-contract" },
+  "duplicate evidence ID" => lambda { |fixture| duplicate = JSON.parse(JSON.generate(fixture["reports"][0])); duplicate["artifact_id"] = "artifact.identity.second-report"; fixture["reports"] << duplicate; fixture["reports"].sort_by! { |row| JSON.generate(row).b } },
+  "missing environment input" => lambda { |fixture| fixture["reports"][0]["input_manifest"].reject! { |row| row["path_or_environment_id"] == REQUIRED_ENVIRONMENT_INPUT_IDS.first }; fixture["reports"][0]["input_root"] = behavior_input_fingerprint(fixture["reports"][0]["input_manifest"]) },
+  "forged environment identity" => lambda { |fixture| row = fixture["reports"][0]["input_manifest"].find { |entry| entry["path_or_environment_id"] == REQUIRED_ENVIRONMENT_INPUT_IDS.first }; row["content_identity"] = "sha256:#{'0' * 64}"; fixture["reports"][0]["input_root"] = behavior_input_fingerprint(fixture["reports"][0]["input_manifest"]) },
+  "unbound observation digest" => lambda { |fixture| fixture["reports"][0]["observations"][0]["artifact_sha256"] = "sha256:#{'0' * 64}" },
+  "artifact outside package projection" => lambda { |fixture| fixture["reports"][0]["artifact_hashes"][0] = {"path" => "Makefile", "sha256" => "sha256:#{Digest::SHA256.hexdigest(git_worker_blob_bytes(worker_return_fixture_tip, 'Makefile'))}"}; fixture["reports"][0]["observations"][0]["artifact_path"] = "Makefile"; fixture["reports"][0]["observations"][0]["artifact_sha256"] = fixture["reports"][0]["artifact_hashes"][0]["sha256"]; fixture["changed_paths"] = ["Makefile"] }
+}.each do |label, mutate|
+  fixture = JSON.parse(JSON.generate(worker_return_fixture))
+  mutate.call(fixture)
+  fail_check("worker return #{label} negative fixture was accepted") if
+    worker_return_manifest_errors(JSON.generate(fixture), **worker_return_fixture_args).empty?
+end
+
 def identity_platform_base_tree(base)
   object = git_output("rev-parse", "#{base}:.ai/identity-platform")
   listing = git_output("ls-tree", "-r", "--full-tree", base, "--", ".ai/identity-platform")
@@ -4507,12 +7001,611 @@ def integration_cleanliness_errors(status_output:, status_success:, current_root
 end
 
 def completion_mode_errors(execution_mode:, fixture_mode:, all_verified:, clean_integration_mode:)
-  return [] unless execution_mode && !fixture_mode && all_verified
+  return [] if fixture_mode || !all_verified
+  return ["all-verified state requires --execution final validation"] unless execution_mode
 
   clean_integration_mode ? [] : ["all-verified execution requires --clean-integration"]
 end
 
-def execution_identity_errors(identity_rows, require_clean: false)
+def final_report_integration_errors(require_report:, report_path:, runner: nil)
+  runner ||= lambda do |*arguments|
+    output, error, status = Open3.capture3(*arguments, chdir: REPOSITORY_ROOT)
+    [output, error, status.success?]
+  end
+  errors = []
+  executable = File.join(ROOT, "final_report.rb")
+  schema = File.join(ROOT, "FINAL_REPORT.schema.json")
+  errors << "final report validator is missing" unless File.file?(executable)
+  errors << "final report schema is missing" unless File.file?(schema)
+  return errors unless errors.empty?
+
+  _output, error, success = runner.call(RbConfig.ruby, executable, "--check")
+  errors << "final report contract self-check failed: #{error.to_s.strip}" unless success
+  if require_report
+    errors << "PROGRAM-COMPLETE final report is missing" unless File.file?(report_path)
+    if File.file?(report_path)
+      begin
+        source = File.binread(report_path)
+        report = IdentityPlatformFinalReport.parse_json_bytes(source, report_path)
+        errors << "PROGRAM-COMPLETE final report is not canonical JSON" unless source == JSON.pretty_generate(report) + "\n"
+        IdentityPlatformFinalReport.validate_report(report)
+      rescue IdentityPlatformFinalReport::Error, JSON::ParserError => e
+        errors << "PROGRAM-COMPLETE final report predicate failed: #{e.message}"
+      end
+    end
+  end
+  errors
+end
+
+def terminal_evidence_candidate_matches_row?(candidate, row)
+  %w[kind subject_id claim_ids command_or_profile record_path record_commit record_sha256 receipt_path receipt_commit receipt_sha256 tested_revision gate_execution_revision input_root].all? do |field|
+    candidate[field.to_sym] == row[field]
+  end
+end
+
+def terminal_evidence_id(candidate)
+  candidate.fetch(:evidence_id)
+end
+
+def authorization_evidence_claim_ids
+  [
+    "structural-validation", "program-authorizations", "program-complete.7",
+    *IdentityPlatformFinalReport.catalogs.fetch(:authorization_boundaries).map { |boundary| boundary.fetch("id") }
+  ].sort_by(&:b)
+end
+
+def terminal_evidence_candidate_authority_errors(candidate, capture_bindings: [], repository: REPOSITORY_ROOT)
+  errors = []
+  artifact_bytes = {}
+  %i[record receipt].each do |artifact|
+    path = candidate[:"#{artifact}_path"]
+    commit = candidate[:"#{artifact}_commit"]
+    expected_digest = candidate[:"#{artifact}_sha256"]
+    bytes = path && commit && git_blob_bytes(commit, path, repository: repository)
+    errors << "#{artifact} artifact is not committed at its declared commit" unless bytes
+    errors << "#{artifact} artifact digest is not authoritative" unless
+      bytes && expected_digest == Digest::SHA256.hexdigest(bytes)
+    errors << "#{artifact} artifact commit is not the first exact commit" unless
+      bytes && first_parent_commit_with_blob(path, bytes) == commit
+    artifact_bytes[artifact] = bytes
+  end
+  tested_revision = candidate[:tested_revision]
+  gate_revision = candidate[:gate_execution_revision]
+  errors << "tested revision is not an ancestor of gate execution" unless
+    tested_revision.to_s.match?(/\A[0-9a-f]{40}\z/) && gate_revision.to_s.match?(/\A[0-9a-f]{40}\z/) &&
+    git_ancestor?(tested_revision, gate_revision)
+  errors << "gate execution is not an ancestor of the evidence record" unless
+    gate_revision.to_s.match?(/\A[0-9a-f]{40}\z/) && candidate[:record_commit].to_s.match?(/\A[0-9a-f]{40}\z/) &&
+    git_ancestor?(gate_revision, candidate[:record_commit])
+  errors << "candidate input root is invalid" unless candidate[:input_root].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+  if candidate[:kind] == "final-gate" && artifact_bytes.values.all?
+    begin
+      record = AcceptanceSchemaValidation.parse_json(artifact_bytes.fetch(:record), canonical: true)
+      receipt = AcceptanceSchemaValidation.parse_json(artifact_bytes.fetch(:receipt), canonical: true)
+      record_without_digest = record.reject { |key, _value| key == "record_digest" }
+      errors << "final-gate record digest drifted" unless
+        record["record_digest"] == "sha256:#{Digest::SHA256.hexdigest(JSON.generate(record_without_digest))}"
+      errors << "final-gate candidate metadata was not derived from its record" unless
+        record.values_at("schema", "gate_id", "outcome", "tested_revision", "gate_execution_revision", "input_root") == [
+          "identity-platform.final-gate.v1", candidate[:subject_id], "passed", candidate[:tested_revision],
+          candidate[:gate_execution_revision], candidate[:input_root]
+        ]
+      errors << "final-gate record is not bound to its committed receipt" unless
+        record.values_at("receipt_path", "receipt_sha256") == [
+          candidate[:receipt_path], "sha256:#{candidate[:receipt_sha256]}"
+        ]
+      errors << "final-gate receipt execution was not derived from the record" unless
+        receipt.values_at("producer_argv", "tested_revision", "input_root") ==
+          record.values_at("resolved_argv", "tested_revision", "input_root")
+      errors << "final-gate receipt was not independently captured and verified" unless
+        receipt["capture_authority"] == "coordinator-owned-execution-runner/v3" &&
+        receipt["exit_status"] == 0 && receipt["verifier_exit_status"] == 0 &&
+        receipt["verifier_argv"].is_a?(Array) && receipt["verifier_argv"] != receipt["producer_argv"] &&
+        receipt["raw_capture_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/) &&
+        receipt["verifier_attestation_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+      errors << "final-gate execution identity drifted" unless
+        AcceptanceSchemaValidation.execution_identity(receipt) == record["execution_identity"]
+      receipt_binding = "#{candidate[:receipt_path]}@#{candidate[:receipt_commit]}@sha256:#{candidate[:receipt_sha256]}"
+      exact_capture = capture_bindings.select do |binding|
+        binding[:execution_identity] == record["execution_identity"] && binding[:receipt_binding] == receipt_binding &&
+          binding.dig(:scope, "kind") == "final-gate" && binding.dig(:scope, "artifact_id") == record["gate_id"] &&
+          binding.dig(:scope, "unit").nil? && binding.dig(:scope, "profile_id").nil? &&
+          binding.dig(:scope, "claim_ids") == [record["gate_id"]]
+      end
+      errors << "final-gate receipt lacks one exact independently validated capture binding" unless exact_capture.length == 1
+    rescue JSON::ParserError, KeyError, TypeError
+      errors << "final-gate committed record or receipt is invalid"
+    end
+  end
+  errors
+end
+
+def terminal_authorization_reference_errors(candidate, claim:, capture_bindings: [], repository: REPOSITORY_ROOT)
+  errors = terminal_evidence_reference_errors(
+    candidate, allowed_kinds: ["final-gate"], claim: claim,
+    expected_subject: "structural-validation"
+  )
+  return errors unless candidate
+
+  errors.concat(terminal_evidence_candidate_authority_errors(
+    candidate, capture_bindings: capture_bindings, repository: repository
+  ))
+  errors << "authorization evidence does not come from the structural validator" unless
+    candidate[:subject_id] == "structural-validation"
+  errors << "authorization evidence claim projection is not the exact validator-owned set" unless
+    candidate[:claim_ids] == authorization_evidence_claim_ids
+  errors
+end
+
+def terminal_evidence_reference_errors(candidate, allowed_kinds:, claim:, expected_subject: nil, subject_kinds: allowed_kinds)
+  errors = []
+  return ["#{claim}: evidence reference is unknown"] unless candidate
+
+  errors << "#{claim}: evidence kind #{candidate[:kind]} is not allowed" unless allowed_kinds.include?(candidate[:kind])
+  errors << "#{claim}: evidence does not include the claim" unless candidate[:claim_ids].include?(claim)
+  errors << "#{claim}: evidence subject is not exact" if
+    expected_subject && subject_kinds.include?(candidate[:kind]) && candidate[:subject_id] != expected_subject
+  errors
+end
+
+def terminal_program_reference_errors(reference, claim:, program_evidence:, allow_program:)
+  return nil unless reference.start_with?("program:#{claim}@")
+
+  errors = []
+  errors << "program evidence is not allowed for #{claim}" unless allow_program
+  errors << "program claim #{claim} is not bound to the exact validator input" unless
+    allow_program && reference == program_evidence[claim]
+  errors
+end
+
+def final_input_bookkeeping_valid?(final_input_revision, head: "HEAD", repository: REPOSITORY_ROOT)
+  return false unless final_input_revision.to_s.match?(/\A[0-9a-f]{40}\z/)
+  return false unless git_output("cat-file", "-e", "#{final_input_revision}^{commit}", repository: repository)
+  return false unless git_output("merge-base", "--is-ancestor", final_input_revision, head, repository: repository) == ""
+
+  paths = git_output("diff", "--name-only", "#{final_input_revision}..#{head}", repository: repository).to_s.lines.map(&:strip).reject(&:empty?)
+  IdentityPlatformFinalReport.post_input_paths_valid?(paths)
+end
+
+def terminal_history_root(revision = "HEAD", repository: REPOSITORY_ROOT)
+  paths = %w[
+    .ai/identity-platform/EXECUTION_LEDGER.md
+    .ai/identity-platform/INVENTORY.md
+    .ai/identity-platform/PREFLIGHT_EVIDENCE.md
+  ]
+  evidence_paths = git_output(
+    "ls-tree", "-r", "--name-only", revision, "--", ".ai/identity-platform/evidence",
+    repository: repository
+  ).to_s.lines.map(&:strip).reject(&:empty?).reject do |path|
+    path == ".ai/identity-platform/evidence/final-report.json"
+  end
+  entries = (paths + evidence_paths).sort_by(&:b).filter_map do |path|
+    bytes = git_blob_bytes(revision, path, repository: repository)
+    next unless bytes
+
+    "#{path}\0#{Digest::SHA256.hexdigest(bytes)}"
+  end
+  "sha256:#{Digest::SHA256.hexdigest(entries.join("\n"))}"
+end
+
+def evidence_artifact_binding_parts(binding)
+  binding.to_s.match(%r{\A(\.ai/identity-platform/evidence/[a-zA-Z0-9._/-]+)@([0-9a-f]{40})@(sha256:[0-9a-f]{64})\z})&.captures
+end
+
+def canonical_final_gate_argv?(gate_id, argv, recorded_base:)
+  return false unless argv.is_a?(Array) && argv.all? { |value| value.is_a?(String) && !value.empty? }
+
+  executable = argv.first
+  return false unless executable.start_with?("/") && File.file?(executable) && File.executable?(executable)
+
+  executable_realpath = File.realpath(executable)
+  tool_realpath = lambda do |tool|
+    output, _error, status = Open3.capture3("which", tool)
+    status.success? ? File.realpath(output.strip) : nil
+  end
+  expected_make = tool_realpath.call("make")
+  expected_ruby = File.realpath(RbConfig.ruby)
+  case gate_id
+  when "affected-release-gates"
+    executable_realpath == expected_make && argv.drop(1) == ["ci-changed", "BASE=#{recorded_base}"]
+  when "complete-repository-gate"
+    executable_realpath == expected_make && argv.drop(1) == ["ci"]
+  when "inventory-validation"
+    executable_realpath == expected_make && argv.drop(1) == ["inventory"]
+  when "pinned-upstream-validation"
+    configured_repository = ENV["BETTER_AUTH_REPOSITORY"]
+    configured_realpath = configured_repository && File.realpath(configured_repository)
+    repository_argument = argv.fetch(3, nil)
+    executable_realpath == expected_ruby && argv[1, 2] == [
+      File.join(ROOT, "generate_upstream_leaves.rb"), "--check"
+    ] && argv.length == 4 && repository_argument == configured_realpath &&
+      !pinned_upstream_repository_evidence(repository_argument).nil?
+  when "program-final-input-acceptance"
+    executable_realpath == expected_ruby && argv.drop(1) == [
+      File.join(ROOT, "validate.rb"), "--execution", "--clean-integration"
+    ]
+  when "structural-validation"
+    executable_realpath == expected_ruby && argv.drop(1) == [File.join(ROOT, "validate.rb")]
+  when "final-complete-diff-review"
+    executable_realpath == expected_ruby && argv.drop(1) == [File.join(ROOT, "final_review_gate.rb"), recorded_base]
+  else
+    false
+  end
+rescue Errno::ENOENT
+  false
+end
+
+def canonical_final_gate_command(gate_id, recorded_base:)
+  return "make ci-changed BASE=#{recorded_base}" if gate_id == "affected-release-gates"
+  return "ruby .ai/identity-platform/final_review_gate.rb #{recorded_base}" if gate_id == "final-complete-diff-review"
+
+  IdentityPlatformFinalReport::FINAL_GATE_COMMANDS.fetch(gate_id)
+end
+
+if canonical_final_gate_argv?("complete-repository-gate", ["/bin/true"], recorded_base: "0" * 40)
+  fail_check("final gate canonical-command fixture accepted /bin/true")
+end
+begin
+  IdentityPlatformFinalReviewVerifier.verify('{"critical":[{"message":"fixture"}],"important":[]}')
+  fail_check("final review verifier accepted a Critical finding fixture")
+rescue RuntimeError
+  nil
+end
+begin
+  IdentityPlatformFinalReviewVerifier.verify('{"critical":[],"important":[{"message":"fixture"}]}')
+  fail_check("final review verifier accepted an Important finding fixture")
+rescue RuntimeError
+  nil
+end
+fixture_make, fixture_make_status = Open3.capture2("which", "make")
+unless fixture_make_status.success? && canonical_final_gate_argv?(
+  "complete-repository-gate", [fixture_make.strip, "ci"], recorded_base: "0" * 40
+)
+  fail_check("final gate canonical make-command fixture was rejected")
+end
+
+def terminal_report_validation_errors(report_path:, evidence_candidates:, terminal_facts:, require_report:, capture_bindings: [])
+  return require_report ? ["terminal final report is missing"] : [] unless File.file?(report_path)
+
+  errors = []
+  begin
+    source = File.binread(report_path)
+    report = IdentityPlatformFinalReport.parse_json_bytes(source, report_path)
+    errors << "terminal final report is not canonical JSON" unless source == JSON.pretty_generate(report) + "\n"
+    IdentityPlatformFinalReport.validate_report(report)
+    registry = {}
+    report.fetch("evidence_records").each do |row|
+      candidates = evidence_candidates.select { |candidate| terminal_evidence_candidate_matches_row?(candidate, row) }
+      errors << "#{row['id']}: authoritative evidence candidate is not exact and unique" unless candidates.length == 1
+      next unless candidates.length == 1
+
+      terminal_evidence_candidate_authority_errors(
+        candidates.first, capture_bindings: capture_bindings
+      ).each do |error|
+        errors << "#{row['id']}: #{error}"
+      end
+      errors << "#{row['id']}: evidence ID is not validator-derived" unless row.fetch("id") == terminal_evidence_id(candidates.first)
+      registry[row.fetch("id")] = candidates.first
+    end
+    final_input_revision = report.dig("integration", "final_input_revision")
+    bookkeeping_valid = final_input_bookkeeping_valid?(final_input_revision)
+    errors << "terminal final-input bookkeeping is not current" unless bookkeeping_valid
+    errors << "terminal final-input revision is not validator-derived" unless
+      final_input_revision == terminal_facts.fetch(:final_input_revision)
+    errors << "terminal integration branch is not current" unless
+      report.dig("integration", "branch") == git_output("branch", "--show-current")
+    errors << "terminal push boundary is not validator-derived" unless
+      report.fetch("push_boundary") == terminal_facts.fetch(:push_boundary)
+    errors << "terminal push boundary overclaims independent verification" unless
+      report.dig("push_boundary", "assertion_verified") == false &&
+      report.dig("push_boundary", "limitation") == "no-complete-command-audit-or-remote-non-delivery-proof"
+    expected_terminal = if terminal_facts.fetch(:complete_terminal_claimed)
+                          "PROGRAM-COMPLETE"
+                        elsif terminal_facts.fetch(:blocked_terminal_claimed)
+                          "PROGRAM-BLOCKED"
+                        end
+    errors << "terminal predicate is not validator-derived" unless report.fetch("terminal_predicate") == expected_terminal
+    errors << "terminal evidence registry is not exact" unless registry.length == report.fetch("evidence_records").length
+    expected_blockers = terminal_facts.fetch(:blockers)
+    errors << "terminal blocker details are not validator-derived" unless report.fetch("blockers") == expected_blockers
+
+    referenced = []
+    report.fetch("units").each { |row| referenced.concat(row.fetch("evidence_bindings")) }
+    report.fetch("parity").each { |row| referenced.concat(row.fetch("evidence")) }
+    %w[journeys cross_cutting].each { |key| report.fetch(key).each { |row| referenced.concat(row.fetch("evidence_bindings")) } }
+    report.fetch("artifacts").each { |row| referenced << row.fetch("evidence_binding") if row.fetch("evidence_binding") }
+    %w[final_gates provider_boundaries deployment_boundaries terminal_requirements].each do |key|
+      report.fetch(key).each { |row| referenced.concat(row.fetch("evidence")) }
+    end
+    referenced.concat(report.dig("authorizations", "evidence"))
+    report.dig("cleanup", "entries").each { |row| referenced << row.fetch("evidence") }
+    report.fetch("blockers").each { |row| referenced << row.fetch("evidence") }
+    program_claims = terminal_facts.fetch(:program_claims)
+    program_evidence = terminal_facts.fetch(:program_evidence)
+    platform_references = referenced.grep(/\Aplatform-blocked-audit:/)
+    expected_audit = terminal_facts.fetch(:blocked_audit_binding)
+    errors << "blocked-audit reference is not exact" unless platform_references.uniq == Array(expected_audit).compact
+    record_references = referenced.reject { |id| id.start_with?("program:", "platform-blocked-audit:") }
+    errors << "terminal report references unknown evidence" unless record_references.all? { |id| registry.key?(id) }
+    errors << "terminal evidence registry contains unreferenced evidence" unless (registry.keys - record_references).empty?
+
+    check_references = lambda do |references, allowed_kinds, claim, expected_subject: nil, subject_kinds: allowed_kinds,
+                                   allow_program: true|
+      references.each do |reference|
+        program_errors = terminal_program_reference_errors(
+          reference, claim: claim, program_evidence: program_evidence, allow_program: allow_program
+        )
+        if program_errors
+          errors.concat(program_errors)
+          next
+        end
+        if reference.start_with?("platform-blocked-audit:")
+          errors << "blocked audit is not allowed for #{claim}" unless
+            claim == IdentityPlatformFinalReport::BLOCKED_REQUIREMENTS.last && reference == expected_audit
+          next
+        end
+        errors.concat(terminal_evidence_reference_errors(
+          registry[reference], allowed_kinds: allowed_kinds, claim: claim,
+          expected_subject: expected_subject, subject_kinds: subject_kinds
+        ))
+      end
+    end
+    report.fetch("units").each do |row|
+      check_references.call(row.fetch("evidence_bindings"), %w[unit-gate external-evidence], row.fetch("unit"),
+                            expected_subject: row.fetch("unit"), subject_kinds: ["unit-gate"])
+    end
+    report.fetch("parity").each do |row|
+      check_references.call(row.fetch("evidence"), ["program-validation"], row.fetch("id"))
+    end
+    %w[journeys cross_cutting].each do |key|
+      report.fetch(key).each do |row|
+        check_references.call(row.fetch("evidence_bindings"), %w[acceptance-artifact program-validation], row.fetch("id"))
+      end
+    end
+    report.fetch("artifacts").each do |row|
+      check_references.call([row.fetch("evidence_binding")].compact, ["acceptance-artifact"], row.fetch("id"),
+                            expected_subject: row.fetch("id"))
+    end
+    report.fetch("final_gates").each do |row|
+      check_references.call(row.fetch("evidence"), ["final-gate"], row.fetch("id"),
+                            expected_subject: row.fetch("id"), allow_program: false)
+    end
+    report.fetch("provider_boundaries").each do |row|
+      check_references.call(row.fetch("evidence"), ["external-evidence"], row.fetch("id"), expected_subject: row.fetch("id"))
+    end
+    report.fetch("deployment_boundaries").each do |row|
+      check_references.call(row.fetch("evidence"), ["program-validation"], row.fetch("id"))
+    end
+    report.fetch("terminal_requirements").each do |row|
+      next if row.fetch("outcome") == "not-applicable"
+      claim = row.fetch("id")
+      if claim == "program-complete.7"
+        row.fetch("evidence").each do |reference|
+          program_errors = terminal_program_reference_errors(
+            reference, claim: claim, program_evidence: program_evidence, allow_program: false
+          )
+          if program_errors
+            errors.concat(program_errors)
+          else
+            errors.concat(terminal_authorization_reference_errors(
+              registry[reference], claim: claim, capture_bindings: capture_bindings
+            ))
+          end
+        end
+      else
+        check_references.call(row.fetch("evidence"), ["final-gate"], claim)
+      end
+    end
+    report.dig("authorizations", "evidence").each do |reference|
+      program_errors = terminal_program_reference_errors(
+        reference, claim: "program-authorizations", program_evidence: program_evidence, allow_program: false
+      )
+      if program_errors
+        errors.concat(program_errors)
+      else
+        errors.concat(terminal_authorization_reference_errors(
+          registry[reference], claim: "program-authorizations", capture_bindings: capture_bindings
+        ))
+      end
+    end
+    report.dig("authorizations", "boundaries").each do |row|
+      boundary_claim = row.fetch("id")
+      reference = row.fetch("evidence")
+      program_errors = terminal_program_reference_errors(
+        reference, claim: boundary_claim, program_evidence: program_evidence, allow_program: false
+      )
+      if program_errors
+        errors.concat(program_errors)
+      else
+        errors.concat(terminal_authorization_reference_errors(
+          registry[reference], claim: boundary_claim, capture_bindings: capture_bindings
+        ))
+      end
+    end
+    report.dig("cleanup", "entries").each do |row|
+      check_references.call([row.fetch("evidence")], ["program-validation"], "cleanup:#{row.fetch('resource_id')}")
+    end
+    report.fetch("blockers").each do |row|
+      check_references.call([row.fetch("evidence")], ["program-validation"], "blocker:#{row.fetch('id')}")
+    end
+
+    expected_outcome = lambda do |claim, passed, unavailable|
+      program_claims[claim] == true ? passed : unavailable
+    end
+    report.fetch("parity").each do |row|
+      expected = expected_outcome.call(row.fetch("id"), "pinned-disposition-matched", "unavailable")
+      errors << "#{row.fetch('id')}: parity outcome is not validator-derived" unless row.fetch("outcome") == expected
+    end
+    %w[journeys cross_cutting].each do |key|
+      report.fetch(key).each do |row|
+        expected = expected_outcome.call(row.fetch("id"), "passed", "unavailable")
+        errors << "#{row.fetch('id')}: #{key} outcome is not validator-derived" unless row.fetch("outcome") == expected
+      end
+    end
+    report.fetch("artifacts").each do |row|
+      passed = registry.values.any? { |candidate| candidate[:kind] == "acceptance-artifact" && candidate[:subject_id] == row.fetch("id") }
+      errors << "#{row.fetch('id')}: artifact outcome is not validator-derived" unless row.fetch("outcome") == (passed ? "passed" : "unavailable")
+    end
+    report.fetch("final_gates").each do |row|
+      candidate = registry.values.find { |item| item[:kind] == "final-gate" && item[:subject_id] == row.fetch("id") }
+      passed = !candidate.nil?
+      errors << "#{row.fetch('id')}: final-gate outcome is not validator-derived" unless row.fetch("outcome") == (passed ? "passed" : "unavailable")
+      errors << "#{row.fetch('id')}: final-gate tested revision is not validator-derived" unless
+        row.fetch("tested_revision") == (candidate && candidate[:tested_revision])
+    end
+    report.fetch("provider_boundaries").each do |row|
+      passed = registry.values.any? { |candidate| candidate[:kind] == "external-evidence" && candidate[:subject_id] == row.fetch("id") }
+      errors << "#{row.fetch('id')}: provider outcome is not validator-derived" unless row.fetch("outcome") == (passed ? "proven" : "unproven")
+      errors << "#{row.fetch('id')}: provider blocker is not validator-derived" unless row.fetch("blocker") == (passed ? nil : "not-run")
+    end
+    report.fetch("deployment_boundaries").each do |row|
+      passed = program_claims[row.fetch("id")] == true
+      errors << "#{row.fetch('id')}: deployment outcome is not validator-derived" unless
+        row.fetch("outcome") == (passed ? "pinned-disposition-matched" : "unproven")
+      errors << "#{row.fetch('id')}: deployment blocker is not validator-derived" unless
+        row.fetch("blocker") == (passed ? nil : "not-run")
+    end
+    authorization = report.fetch("authorizations")
+    errors << "authorization summary is not validator-derived" unless
+      authorization.fetch("unauthorized_semantic_changes") == 0 &&
+      authorization.fetch("authorization_history_valid") == terminal_facts.fetch(:authorization_history) &&
+      authorization.fetch("transition_history_valid") == terminal_facts.fetch(:authorization_history) &&
+      authorization.fetch("assignment_topology_valid") == terminal_facts.fetch(:topology_history)
+    expected_resources = IdentityPlatformFinalReport.catalogs.fetch(:resources)
+    cleanup = report.fetch("cleanup")
+    errors << "cleanup entries are not validator-derived" unless cleanup.fetch("entries") == expected_resources
+    expected_resources_reconciled = if expected_terminal == "PROGRAM-COMPLETE"
+      completed_cleanup_handoff?(expected_resources)
+    else
+      expected_resources.all? do |resource|
+        resource.fetch("state") == "removed" ||
+          (resource.fetch("state") == "retained-for-recovery" && !resource.fetch("evidence").to_s.empty?)
+      end
+    end
+    errors << "cleanup reconciliation is not validator-derived" unless
+      cleanup.fetch("resources_reconciled") == expected_resources_reconciled
+    integration_resources = expected_resources.select do |resource|
+      resource.fetch("type") == "worktree" && resource.fetch("owner") == "coordinator"
+    end
+    expected_integration_removed = integration_resources.any? &&
+      integration_resources.all? { |resource| resource.fetch("state") == "removed" }
+    errors << "integration-worktree cleanup is not validator-derived" unless
+      cleanup.fetch("integration_worktree_removed") == expected_integration_removed
+
+    terminal_rows = report.fetch("terminal_requirements").to_h { |row| [row.fetch("id"), row] }
+    IdentityPlatformFinalReport::COMPLETE_REQUIREMENTS.each do |claim|
+      expected = expected_terminal == "PROGRAM-COMPLETE" ? "passed" : (program_claims[claim] ? "passed" : "failed")
+      errors << "#{claim}: terminal outcome is not validator-derived" unless terminal_rows.fetch(claim).fetch("outcome") == expected
+    end
+    IdentityPlatformFinalReport::BLOCKED_REQUIREMENTS.each do |claim|
+      expected = expected_terminal == "PROGRAM-BLOCKED" ? "passed" : "not-applicable"
+      errors << "#{claim}: terminal outcome is not validator-derived" unless terminal_rows.fetch(claim).fetch("outcome") == expected
+    end
+  rescue IdentityPlatformFinalReport::Error, JSON::ParserError, KeyError, TypeError => e
+    errors << "terminal final report predicate failed: #{e.message}"
+  end
+  errors
+end
+
+terminal_registry_fixture_row = {
+  "id" => "fixture-unit", "kind" => "unit-gate", "subject_id" => "identity", "claim_ids" => ["identity"],
+  "command_or_profile" => "make check MODULES=pkg/identity", "outcome" => "passed",
+  "record_path" => ".ai/identity-platform/evidence/gates/identity.json", "record_commit" => "1" * 40,
+  "record_sha256" => "2" * 64, "receipt_path" => ".ai/identity-platform/evidence/executions/identity.json",
+  "receipt_commit" => "1" * 40, "receipt_sha256" => "3" * 64, "tested_revision" => "1" * 40,
+  "gate_execution_revision" => "1" * 40, "input_root" => "sha256:#{'4' * 64}"
+}
+terminal_registry_fixture_candidate = terminal_registry_fixture_row.transform_keys(&:to_sym).merge(
+  evidence_id: "unit-gate:identity", verified: true, local_gate_schema: "identity-platform.local-gate.v2"
+).reject { |key, _value| %i[id outcome].include?(key) }
+fail_check("valid terminal evidence registry fixture was rejected") unless
+  terminal_evidence_candidate_matches_row?(terminal_registry_fixture_candidate, terminal_registry_fixture_row)
+fail_check("terminal evidence ID derivation drifted") unless
+  terminal_evidence_id(terminal_registry_fixture_candidate) == "unit-gate:identity"
+if terminal_evidence_reference_errors(
+  terminal_registry_fixture_candidate, allowed_kinds: ["final-gate"], claim: "identity", expected_subject: "identity"
+).empty?
+  fail_check("terminal evidence reference accepted cross-kind reuse")
+end
+if terminal_program_reference_errors(
+  "program:structural-validation@#{'1' * 40}@sha256:#{'2' * 64}@sha256:#{'3' * 64}", claim: "structural-validation",
+  program_evidence: {
+    "structural-validation" => "program:structural-validation@#{'1' * 40}@sha256:#{'2' * 64}@sha256:#{'3' * 64}"
+  },
+  allow_program: false
+).empty?
+  fail_check("terminal final-gate reference accepted program pseudo-evidence")
+end
+%w[program-authorizations program-complete.7].each do |claim|
+  reference = "program:#{claim}@#{'1' * 40}@sha256:#{'2' * 64}@sha256:#{'3' * 64}"
+  if terminal_program_reference_errors(
+    reference, claim: claim, program_evidence: { claim => reference }, allow_program: false
+  ).empty?
+    fail_check("terminal #{claim} accepted synthetic program pseudo-evidence")
+  end
+end
+authorization_gate_fixture = terminal_registry_fixture_candidate.merge(
+  evidence_id: "final-gate:structural-validation", kind: "final-gate",
+  subject_id: "structural-validation", claim_ids: authorization_evidence_claim_ids
+)
+%w[program-authorizations program-complete.7].each do |claim|
+  forged_claims = authorization_gate_fixture.merge(claim_ids: ["structural-validation"])
+  if terminal_authorization_reference_errors(forged_claims, claim: claim).empty?
+    fail_check("terminal #{claim} accepted structural-validation evidence without an exact claim binding")
+  end
+  forged_artifacts = authorization_gate_fixture.merge(
+    record_sha256: Digest::SHA256.hexdigest("forged record"),
+    receipt_sha256: Digest::SHA256.hexdigest("forged receipt")
+  )
+  if terminal_authorization_reference_errors(forged_artifacts, claim: claim).empty?
+    fail_check("terminal #{claim} accepted caller-forged record and receipt authority")
+  end
+  grafted_metadata = authorization_gate_fixture.merge(
+    subject_id: "structural-validation", claim_ids: authorization_gate_fixture.fetch(:claim_ids),
+    verified: true, platform_capture_valid: true
+  )
+  if terminal_authorization_reference_errors(grafted_metadata, claim: claim).empty?
+    fail_check("terminal #{claim} accepted caller-grafted authority metadata over unverified artifacts")
+  end
+end
+%i[record_sha256 receipt_sha256 gate_execution_revision input_root].each do |field|
+  forged = terminal_registry_fixture_candidate.merge(field => "f" * (field == :gate_execution_revision ? 40 : 64))
+  fail_check("terminal evidence registry accepted forged #{field}") if terminal_evidence_candidate_matches_row?(forged, terminal_registry_fixture_row)
+end
+fail_check("terminal final-input revision drift fixture was accepted") if final_input_bookkeeping_valid?("0" * 40)
+if IdentityPlatformFinalReport.const_defined?(:TrustedState, false) ||
+   IdentityPlatformFinalReport.respond_to?(:build_trusted_state) ||
+   IdentityPlatformFinalReport.method(:validate_report).parameters.any? do |_kind, name|
+     %i[trusted_state validate_terminal_shape].include?(name)
+   end
+  fail_check("final report helper exposes a caller-forgeable trusted-state path")
+end
+missing_terminal_report = File.join(Dir.tmpdir, "identity-platform-missing-terminal-report-#{Process.pid}.json")
+if terminal_report_validation_errors(
+  report_path: missing_terminal_report, evidence_candidates: [],
+  terminal_facts: { complete_terminal_claimed: true, blocked_terminal_claimed: false }, require_report: true
+).empty?
+  fail_check("false terminal state without a final report was accepted")
+end
+
+final_report_runner_fixture = lambda do |*_arguments|
+  ["contract valid", "", true]
+end
+unless final_report_integration_errors(
+  require_report: false, report_path: File.join(ROOT, "FINAL_REPORT.json"), runner: final_report_runner_fixture
+).empty?
+  fail_check("valid pre-terminal final-report integration fixture was rejected")
+end
+failed_final_report_runner_fixture = lambda do |*_arguments|
+  ["", "missing canonical unit", false]
+end
+unless final_report_integration_errors(
+  require_report: false, report_path: File.join(ROOT, "FINAL_REPORT.json"), runner: failed_final_report_runner_fixture
+).any? { |error| error.include?("self-check failed") }
+  fail_check("final-report omitted-unit/self-check negative fixture was accepted")
+end
+
+def execution_identity_errors(identity_rows, require_clean: false, allow_removed_integration: false)
   errors = []
   base = plain_cell(identity_rows.fetch("Recorded committed `main` base", ""))
   input_revision = plain_cell(identity_rows.fetch("Preflight input revision before the record commit", ""))
@@ -4530,15 +7623,23 @@ def execution_identity_errors(identity_rows, require_clean: false)
   return errors unless errors.grep(/base|input|branch|worktree/).empty?
 
   branch_head = git_output("rev-parse", "refs/heads/#{branch}")
-  worktree_head = git_output("rev-parse", "HEAD", repository: integration_worktree)
-  worktree_branch = git_output("symbolic-ref", "--short", "HEAD", repository: integration_worktree)
+  if allow_removed_integration && !File.exist?(integration_worktree)
+    registered_paths = git_output("worktree", "list", "--porcelain").to_s.lines.grep(/^worktree /).map { |line| line.delete_prefix("worktree ").strip }
+    errors << "removed integration worktree remains registered" if registered_paths.include?(integration_worktree)
+    errors << "terminal validation is not running from the primary repository" unless File.realpath(REPOSITORY_ROOT) == PRIMARY_WORKTREE_ROOT
+    worktree_head = branch_head
+    worktree_branch = branch
+  else
+    worktree_head = git_output("rev-parse", "HEAD", repository: integration_worktree)
+    worktree_branch = git_output("symbolic-ref", "--short", "HEAD", repository: integration_worktree)
+  end
   errors << "execution integration branch is not registered" unless branch_head&.match?(/\A[0-9a-f]{40}\z/)
   errors << "execution integration worktree branch identity drifted" unless worktree_branch == branch
   errors << "execution integration branch/worktree HEAD drifted" unless branch_head && worktree_head == branch_head
   errors << "execution integration HEAD does not descend from exact base" unless worktree_head && git_ancestor?(base, worktree_head)
   errors << "execution preflight input does not descend from exact base" unless git_ancestor?(base, input_revision)
   errors << "execution preflight input is not on integration history" unless worktree_head && git_ancestor?(input_revision, worktree_head)
-  if require_clean
+  if require_clean && !(allow_removed_integration && !File.exist?(integration_worktree))
     status_output, _status_error, status = Open3.capture3(
       "git", "-C", integration_worktree, "status", "--porcelain", "--untracked-files=all"
     )
@@ -4580,6 +7681,9 @@ if integration_cleanliness_errors(status_output: "", status_success: true, curre
 end
 if completion_mode_errors(execution_mode: true, fixture_mode: false, all_verified: true, clean_integration_mode: false).empty?
   fail_check("all-verified execution without clean integration mode was accepted")
+end
+if completion_mode_errors(execution_mode: false, fixture_mode: false, all_verified: true, clean_integration_mode: false).empty?
+  fail_check("all-verified non-execution validation negative fixture was accepted")
 end
 unless completion_mode_errors(execution_mode: true, fixture_mode: false, all_verified: true, clean_integration_mode: true).empty?
   fail_check("all-verified clean integration fixture was rejected")
@@ -4746,12 +7850,19 @@ expect_phone_recovery_journey_fixture_rejection!(
   phone_recovery_journey_errors(missing_journey_session_closure)
 end
 recovery_rows_for_validation = []
+worker_release_handshakes = []
+tool_lane_attestations = []
+user_semantic_authorizations = []
 repair_rows_for_validation = []
 worktree_resource_rows = []
 task_owned_resource_rows = []
 previous_task_owned_resource_rows = []
 external_lanes = []
 external_records = {}
+platform_gate_capture_bindings = nil
+final_gate_bindings = []
+blocked_audit_bindings = []
+verified_evidence_candidates = []
 worker_attestations = []
 worker_runtime_attestations = []
 acceptance_evidence_bindings = []
@@ -5129,6 +8240,10 @@ rows.each do |row|
   unknown = row[:requires].reject { |unit| known.include?(unit) }
   fail_check("#{row[:unit]} has unknown dependencies: #{unknown.join(', ')}") unless unknown.empty?
 end
+semantic_dependency_closure_errors(
+  public_contracts: public_contracts, rows: rows,
+  applicability: applicability_document.fetch("units")
+).each { |error| fail_check(error) }
 
 http_row = rows.find { |row| row[:unit] == "identity/http" }
 reference_row = rows.find { |row| row[:unit] == "identity/reference" }
@@ -5169,6 +8284,7 @@ goal_manifest_path = goal_manifest_fixture_path || File.join(ROOT, "GOAL_MANIFES
 fail_check("missing goal manifest") unless File.file?(goal_manifest_path)
 goal_manifest_source = File.read(goal_manifest_path)
 goal_manifest = JSON.parse(goal_manifest_source)
+canonical_goal_paths = canonical_goal_semantic_paths(goal_manifest)
 unless goal_manifest_fixture_path
   fail_check("goal manifest is not canonical JSON") unless goal_manifest_source == JSON.pretty_generate(goal_manifest) + "\n"
 end
@@ -5387,6 +8503,10 @@ COORDINATOR_ARTIFACTS.grep(/\.json\z/).each do |artifact|
   document = JSON.parse(artifacts.fetch(artifact))
   fail_check("#{artifact} is not canonical JSON") unless artifacts.fetch(artifact) == JSON.pretty_generate(document) + "\n"
 end
+provider_oidc_logout_errors(
+  JSON.parse(artifacts.fetch("CONFIGURATION_CATALOGS.json")),
+  JSON.parse(artifacts.fetch("ACCEPTANCE_ARTIFACTS.json"))
+).each { |error| fail_check(error) }
 
 semantic_owners = identity_units.to_set | EXISTING_OWNERS | Set["audit"]
 end_state_acceptance = JSON.parse(artifacts.fetch("END_STATE_ACCEPTANCE.json"))
@@ -5394,7 +8514,7 @@ fail_check("end-state acceptance authority drifted") unless end_state_acceptance
 expected_acceptance_keys = %w[schema_version authority digest_algorithm digest_input evidence_record_contract artifact_observation_contract input_identity_contract journeys cross_cutting artifact_catalog]
 fail_check("end-state acceptance top-level schema drifted") unless end_state_acceptance.keys == expected_acceptance_keys
 evidence_contract = end_state_acceptance.fetch("evidence_record_contract")
-expected_payload_fields = %w[schema_version artifact_id result tested_revision gate_execution_revision revalidation_revision input_manifest input_root tool_environment observations artifact_hashes recorded_at]
+expected_payload_fields = %w[schema_version artifact_id result tested_revision gate_execution_revision revalidation_revision input_manifest input_root observations artifact_hashes recorded_at]
 fail_check("end-state evidence payload contract drifted") unless evidence_contract.fetch("required_payload_fields") == expected_payload_fields
 observation_contract = end_state_acceptance.fetch("artifact_observation_contract")
 expected_observation_fields = %w[observation_id claim_id contract_reference scenario preconditions stimulus expected_outcome actual_outcome result artifact_sha256]
@@ -5443,8 +8563,8 @@ artifact_catalog.each do |artifact|
   fail_check("end-state artifact #{id} observation-ID closure drifted") unless artifact.fetch("observation_ids") == expected_observation_ids
   fail_check("end-state artifact #{id} gate/producer module drifted") unless artifact.fetch("gate") == "make check MODULES=#{producer_row[:module]}"
   if id == "audit-retention-plan-confirm-report"
-    expected_operations = %w[identity.audit-retention.deletion.plan identity.audit-retention.deletion.confirm]
-    fail_check("audit-retention acceptance artifact omits plan/confirm operations") unless artifact.fetch("operation_claims") == expected_operations
+    required_operations = %w[identity.audit-retention.deletion.plan identity.audit-retention.deletion.confirm]
+    fail_check("audit-retention acceptance artifact omits plan/confirm operations") unless (required_operations - artifact.fetch("operation_claims")).empty?
   elsif id == "phone-reset-risk-evidence-report"
     expected_operations = %w[
       identity.phone.password-reset-request identity.phone.password-reset-complete identity.risk.evaluate
@@ -5680,7 +8800,10 @@ end
 fixture_execution = fixture_artifact_payload.fetch("execution")
 fixture_execution.merge!(
   "tested_revision" => fixture_revision, "input_root" => fixture_input,
-  "tool" => "fixture-tool@1", "environment" => "fixture-environment",
+  "canonical_workdir" => REPOSITORY_ROOT,
+  "executable_realpath" => "/fixture/bin/make",
+  "verifier_executable_realpath" => "/fixture/bin/ruby",
+  "verifier_driver_realpath" => "/fixture/acceptance/schema_validation.rb",
   "started_at" => "2026-08-11T00:00:00Z", "completed_at" => "2026-08-11T00:00:01Z",
   "stdout" => "affected acceptance gate completed with attributable evidence\n", "stderr" => ""
 )
@@ -5698,7 +8821,6 @@ fixture_evidence = {
   "tested_revision" => fixture_revision, "gate_execution_revision" => fixture_revision,
   "revalidation_revision" => nil,
   "input_manifest" => fixture_manifest, "input_root" => fixture_input,
-  "tool_environment" => {"tool" => "fixture-tool@1", "environment" => "fixture-environment"},
   "observations" => fixture_acceptance_contract.fetch("required_observations").map do |observation|
     observation.merge("artifact_sha256" => fixture_artifact_digest)
   end,
@@ -5714,7 +8836,9 @@ fixture_acceptance_errors = lambda do |evidence, payloads = fixture_artifact_pay
     input_fingerprint: fixture_input, artifact_payloads: payloads
   )
 end
-fail_check("valid acceptance evidence fixture was rejected") unless fixture_acceptance_errors.call(fixture_evidence).empty?
+fixture_acceptance_validation_errors = fixture_acceptance_errors.call(fixture_evidence)
+fail_check("valid acceptance evidence fixture was rejected: #{fixture_acceptance_validation_errors.join('; ')}") unless
+  fixture_acceptance_validation_errors.empty?
 acceptance_reuse_fixture = JSON.parse(JSON.generate(fixture_evidence))
 acceptance_reuse_fixture["gate_execution_revision"] = "1" * 40
 acceptance_reuse_fixture["revalidation_revision"] = "1" * 40
@@ -5832,9 +8956,11 @@ working_only_acceptance = JSON.parse(JSON.generate(fixture_evidence))
 fail_check("working-tree-only acceptance artifact was accepted") if acceptance_evidence_errors(working_only_acceptance, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input, repository_root: REPOSITORY_ROOT).empty?
 
 gate_fixture_revision = git_output("rev-parse", "HEAD")
-gate_fixture_artifact = ".ai/identity-platform/COMMON_REQUIREMENTS.md"
+gate_fixture_artifact = ".ai/identity-platform/fixtures/fake-execution-identity.md"
 gate_fixture_manifest = (tracked_behavior_input_manifest(gate_fixture_revision, ["pkg/identity"]) + fixture_environment_inputs).sort_by { |entry| entry.fetch("path_or_environment_id").b }
 gate_fixture_root = behavior_input_fingerprint(gate_fixture_manifest)
+gate_fixture_receipt_path = ".ai/identity-platform/evidence/executions/fixture.json"
+gate_fixture_receipt_bytes = valid_gate_receipt_bytes
 excluded_gate_inputs = gate_fixture_manifest.select do |entry|
   NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS.any? do |excluded|
     path = entry.fetch("path_or_environment_id")
@@ -5855,15 +8981,23 @@ gate_fixture = {
   "revalidation_revision" => nil, "input_manifest" => gate_fixture_manifest, "input_root" => gate_fixture_root,
   "evidence_record" => {"path" => ".ai/identity-platform/evidence/gates/identity.json"},
   "outcome" => "pass", "commands" => ["make check MODULES=pkg/identity"],
-  "artifacts" => [{"path" => gate_fixture_artifact, "sha256" => "sha256:#{Digest::SHA256.file(File.join(REPOSITORY_ROOT, gate_fixture_artifact)).hexdigest}"}],
-  "tool_identity" => "go1.fixture", "environment_identity" => "fixture-environment", "record_digest" => nil
+  "artifacts" => [
+    {"path" => gate_fixture_artifact, "sha256" => "sha256:#{Digest::SHA256.file(File.join(REPOSITORY_ROOT, gate_fixture_artifact)).hexdigest}"},
+    {"path" => gate_fixture_receipt_path, "sha256" => "sha256:#{Digest::SHA256.hexdigest(gate_fixture_receipt_bytes)}"}
+  ],
+  "tool_identity" => valid_tool_identity, "environment_identity" => valid_environment_identity, "record_digest" => nil
 }
 gate_fixture["record_digest"] = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(gate_fixture.reject { |key, _| key == 'record_digest' })))}"
 refresh_gate_fixture_digest = lambda do |record|
   record["record_digest"] = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(record.reject { |key, _| key == 'record_digest' })))}"
 end
-gate_fixture_args = {unit: "identity", revision: gate_fixture_revision, fingerprint: gate_fixture_root, module_roots: ["pkg/identity"], repository_root: REPOSITORY_ROOT}
-fail_check("valid local gate evidence fixture was rejected") unless local_gate_evidence_errors(gate_fixture, **gate_fixture_args).empty?
+gate_fixture_args = {
+  unit: "identity", revision: gate_fixture_revision, fingerprint: gate_fixture_root,
+  module_roots: ["pkg/identity"], repository_root: REPOSITORY_ROOT,
+  receipt_payloads: {gate_fixture_receipt_path => gate_fixture_receipt_bytes}
+}
+gate_fixture_errors = local_gate_evidence_errors(gate_fixture, **gate_fixture_args)
+fail_check("valid local gate evidence fixture was rejected: #{gate_fixture_errors.join('; ')}") unless gate_fixture_errors.empty?
 %w[outcome tested_revision gate_execution_revision revalidation_revision input_manifest input_root evidence_record record_digest].each do |field|
   mutation = JSON.parse(JSON.generate(gate_fixture)); mutation[field] = "invalid"
   refresh_gate_fixture_digest.call(mutation) unless field == "record_digest"
@@ -5899,12 +9033,11 @@ if local_gate_binding_errors(forged_binding, ledger_entry: forged_ledger_entry, 
   fail_check("hash-only verified ledger evidence negative fixture was accepted")
 end
 [
-  [{"status" => "authorized"}, {"status" => "completed"}],
-  [{"status" => "authorized"}, {"status" => "superseded"}, {"status" => "authorized"}],
-  [{"status" => "authorized"}, {"status" => "superseded"}, {"status" => "authorized"}, {"status" => "completed"}],
-  [{"status" => "authorized"}, {"status" => "completed"}, {"status" => "authorized"}, {"status" => "completed"}]
+  [{"status" => "authorized", "epoch" => 1}, {"status" => "effective", "epoch" => 1}],
+  [{"status" => "authorized", "epoch" => 1}, {"status" => "effective", "epoch" => 1}, {"status" => "superseded", "epoch" => 1}, {"status" => "authorized", "epoch" => 2}],
+  [{"status" => "authorized", "epoch" => 1}, {"status" => "effective", "epoch" => 1}, {"status" => "completed", "epoch" => 1}]
 ].each { |fixture| fail_check("valid recovery lifecycle fixture was rejected") unless recovery_lifecycle_errors(fixture).empty? }
-[[{"status" => "completed"}], [{"status" => "authorized"}, {"status" => "superseded"}, {"status" => "completed"}]].each do |mutation|
+[[{"status" => "completed", "epoch" => 1}], [{"status" => "authorized", "epoch" => 1}, {"status" => "completed", "epoch" => 1}]].each do |mutation|
   fail_check("invalid recovery lifecycle fixture was accepted") if recovery_lifecycle_errors(mutation).empty?
 end
 refreshed_recovery_fixture = [
@@ -5917,18 +9050,18 @@ fail_check("refreshed recovery epoch fixture was rejected") unless recovery_epoc
 drifted_recovery_fixture = JSON.parse(JSON.generate(refreshed_recovery_fixture))
 drifted_recovery_fixture.last["identity"] = %w[unit 1 integration-a checkpoint-a]
 fail_check("recovery terminal from a prior epoch was accepted") if recovery_epoch_identity_errors(drifted_recovery_fixture).empty?
-recovery_authorized_row = ["identity", "1", "a" * 40, "b" * 40, ".ai/evidence/recovery.json", "authorized", "2026-08-11T00:00:00Z", "recovery:identity:g1:e1"]
-recovery_completed_row = recovery_authorized_row.dup.tap { |row| row[5] = "completed"; row[6] = "2026-08-11T00:00:01Z" }
-if recovery_transition_errors([], [recovery_authorized_row, recovery_completed_row]).empty?
+recovery_authorized_row = {unit: "identity", generation: "1", baseline: "a" * 40, input_root: "sha256:#{'c' * 64}", worker_checkpoint: "b" * 40, epoch: "recovery:identity:g1:e1", status: "authorized"}
+recovery_effective_row = recovery_authorized_row.merge(status: "effective", authorization_checkpoint: "d" * 40)
+if recovery_transition_errors([], [recovery_authorized_row, recovery_effective_row]).empty?
   fail_check("same-snapshot recovery authorization and terminal negative fixture was accepted")
 end
-unless recovery_transition_errors([recovery_authorized_row], [recovery_authorized_row, recovery_completed_row]).empty?
-  fail_check("preceded recovery terminal fixture was rejected")
+unless recovery_transition_errors([recovery_authorized_row], [recovery_authorized_row, recovery_effective_row]).empty?
+  fail_check("preceded recovery effective fixture was rejected")
 end
 goal_revision_authorized = {
   revision_id: "goal:identity-username:g1", unit: "identity/username",
   previous_digest: "sha256:#{'1' * 64}", current_digest: "sha256:#{'2' * 64}",
-  status: "authorized", authorized_by: "coordinator"
+  status: "authorized", authorized_by: "user:fixture"
 }
 goal_revision_applied = goal_revision_authorized.merge(status: "applied")
 fail_check("valid goal revision lifecycle fixture was rejected") unless goal_revision_lifecycle_errors([goal_revision_authorized, goal_revision_applied]).empty?
@@ -5957,9 +9090,15 @@ unless eligible_frontier_rows(frontier_fixture, Set["b"]).empty?
   fail_check("primitive-blocked frontier fixture was promoted")
 end
 
+all_units_verified = rows.all? { |row| row[:status] == "verified" }
+final_report_integration_errors(
+  require_report: false,
+  report_path: File.join(ROOT, "evidence", "final-report.json")
+).each { |error| fail_check(error) }
+
 completion_mode_errors(
   execution_mode: execution_mode, fixture_mode: !execution_fixture_path.nil?,
-  all_verified: rows.all? { |row| row[:status] == "verified" },
+  all_verified: all_units_verified,
   clean_integration_mode: clean_integration_mode
 ).each { |error| fail_check(error) }
 
@@ -5983,23 +9122,55 @@ if execution_mode && rows.all? { |row| row[:status] == "verified" }
       document["input_manifest"], revision: final_validation_revision,
       module_roots: modules, repository: REPOSITORY_ROOT
     ).each { |error| fail_check("acceptance evidence #{declaration.fetch('id')} current-input #{error}") }
+    environment_input_attestation_errors(document["input_manifest"], expected_environment_identities).each do |error|
+      fail_check("acceptance evidence #{declaration.fetch('id')} #{error}")
+    end
     acceptance_execution_revisions << document["gate_execution_revision"]
     artifact_contract = IdentityPlatformAcceptance.catalog_document.fetch("artifacts").find { |row| row.fetch("artifact_id") == declaration.fetch("id") }
     Dir.mktmpdir("identity-acceptance-execution-") do |directory|
+      producer_argv = Shellwords.split(declaration.fetch("gate"))
+      plan_arguments = {
+        producer_argv: producer_argv,
+        verifier_argv: ["ruby", ".ai/identity-platform/acceptance/schema_validation.rb", "verify", declaration.fetch("id")],
+        version_argv: [producer_argv.first, "--version"],
+        environment_probe_argv: ["uname", "-a"]
+      }
+      if declaration.fetch("id") == "coverage-mutation-report"
+        plan_arguments[:package_discovery_argv] = ["ruby", ".ai/identity-platform/acceptance/schema_validation.rb", "discover-packages", declaration.fetch("id")]
+        plan_arguments[:mutation_tool_argv] = ["ruby", ".ai/identity-platform/acceptance/schema_validation.rb", "mutation-tool", "pkg/identity/reference"]
+      end
+      execution_plan = AcceptanceExecutionRunner.plan(**plan_arguments)
       live_capture = AcceptanceExecutionRunner.run(
-        command: declaration.fetch("gate"), chdir: REPOSITORY_ROOT,
+        plan: execution_plan, chdir: REPOSITORY_ROOT,
         receipt_path: File.join(directory, "execution-receipt.json"),
         artifact_capture_path: File.join(directory, "artifact.json"), artifact_id: declaration.fetch("id"),
-        tested_revision: tested_revision, input_root: tested_input,
-        tool: document.dig("tool_environment", "tool"), environment: document.dig("tool_environment", "environment"),
+        input_manifest: document.fetch("input_manifest"),
         output_artifact_path: artifact_contract.fetch("artifact_evidence_output_path")
       )
       acceptance_evidence_errors(
         document, declaration: declaration, revision: tested_revision, input_fingerprint: tested_input,
         evidence_commit: binding[:commit], module_roots: modules, repository_root: REPOSITORY_ROOT,
-        record_path: declaration.fetch("path"), live_capture: live_capture, final_execution: true
+        record_path: declaration.fetch("path"), live_capture: live_capture, final_execution: true,
+        platform_capture_bindings: platform_gate_capture_bindings
       ).each do |error|
         fail_check("acceptance evidence #{declaration.fetch('id')} #{error}")
+      end
+      receipt_entry = document.fetch("artifact_hashes").find do |artifact|
+        artifact.fetch("path").match?(%r{\A\.ai/identity-platform/evidence/executions/.+\.json\z})
+      end
+      fail_check("acceptance evidence #{declaration.fetch('id')} lacks receipt registry identity") unless receipt_entry
+      if receipt_entry
+        verified_evidence_candidates << {
+          evidence_id: "acceptance-artifact:#{declaration.fetch('id')}",
+          kind: "acceptance-artifact", subject_id: declaration.fetch("id"),
+          claim_ids: ([declaration.fetch("id")] + declaration.fetch("claims") + declaration.fetch("operation_claims", [])).uniq.sort_by(&:b),
+          command_or_profile: declaration.fetch("gate"), record_path: declaration.fetch("path"), record_commit: binding[:commit],
+          record_sha256: binding[:digest].delete_prefix("sha256:"), receipt_path: receipt_entry.fetch("path"),
+          receipt_commit: binding[:commit], receipt_sha256: receipt_entry.fetch("sha256").delete_prefix("sha256:"),
+          tested_revision: document.fetch("tested_revision"), gate_execution_revision: document.fetch("gate_execution_revision"),
+          input_root: document.fetch("input_root"), verified: true,
+          artifact_schema: declaration.fetch("schema"), artifact_schema_valid: true
+        }
       end
     end
   end
@@ -6040,9 +9211,9 @@ transaction_contract_normalized = transaction_contract.gsub(/\s+/, " ")
   "The `reserved` to `revoked` transition additionally requires a lifecycle invalidation",
   "`finalized`, `released`, `expired`, and `revoked` are terminal and MUST NOT return to `issued` or `reserved`",
   "The parent checkpoint persists the failed count and `cutoff_active=true`",
-  "a failed dependency transitions the child to durable `failed`",
-  "a successful dependency transitions it to `skipped-fail-on-errors` when the cutoff is already active",
-  "Such a child MUST NOT enter `in-progress` after the cutoff",
+  "a failed dependency transitions the child to durable `Status=failed`",
+  "a successful dependency transitions it to `Status=skipped` with `SkipReason=fail-on-errors` when the cutoff is already active",
+  "Such a child MUST NOT enter `running` after the cutoff",
   "cannot emit a terminal Bulk response while any child is blocked",
   "Ciphertext MUST exist only while an effect is `planned`, `submitted`, `retry-wait`, or `outcome-unknown`, and only until the bearer/operation expiry bound",
   "Every terminal state (`confirmed`, `rejected`, `expired`, `cancelled`, `exhausted`, or `superseded`) MUST erase it atomically with the terminal checkpoint",
@@ -6156,11 +9327,21 @@ lifecycle_consumers_contract = artifacts.fetch("LIFECYCLE_CONSUMERS.md").gsub(/\
 ].each do |required|
   fail_check("lifecycle consumer contract lacks capability cleanup: #{required}") unless lifecycle_consumers_contract.include?(required)
 end
-privacy_persistence_binding = "When the reference PostgreSQL profile is selected, `identity/postgres` MUST persist the %s anonymization/deletion checkpoint and privacy-export fragment for the exact tenant, subject, snapshot ID, policy version, contributor version, content digest, and terminal outcome in the owning coordinator transaction"
+privacy_persistence_bindings = {
+  "email" => [
+    "The public contract MUST define an injected storage-neutral `LifecycleCheckpointContributor` with exactly `ContributeLifecycle(context.Context, LifecycleCheckpointCommand) (LifecycleCheckpointResult, error)`",
+    "It MUST persist the email anonymization/deletion checkpoint and privacy-export fragment for the exact tenant, subject, snapshot ID, policy version, contributor version, content digest, and terminal outcome in the owning coordinator transaction",
+    "The core MUST NOT import or name a persistence adapter; reference PostgreSQL composition supplies the contributor backed by `identity/postgres`"
+  ],
+  "phone" => [
+    "When the reference PostgreSQL profile is selected, `identity/postgres` MUST persist the phone anonymization/deletion checkpoint and privacy-export fragment for the exact tenant, subject, snapshot ID, policy version, contributor version, content digest, and terminal outcome in the owning coordinator transaction"
+  ]
+}
 privacy_applicability = JSON.parse(File.read(File.join(ROOT, SharedContractApplicability::FILE))).fetch("units")
 %w[email phone].each do |kind|
   unit = "identity/#{kind}"
-  fail_check("#{unit} lacks exact privacy persistence binding") unless goal_bodies.fetch(unit).gsub(/\s+/, " ").include?(format(privacy_persistence_binding, kind))
+  normalized_goal = goal_bodies.fetch(unit).gsub(/\s+/, " ")
+  fail_check("#{unit} lacks exact privacy persistence binding") unless privacy_persistence_bindings.fetch(kind).all? { |binding| normalized_goal.include?(binding) }
   selections = privacy_applicability.fetch(unit).fetch("lifecycle")
   fail_check("#{unit} omits privacy-export artifact applicability") unless selections.include?("lifecycle.artifact.privacy_export")
 end
@@ -6168,16 +9349,42 @@ end
 if execution_mode
   preflight = execution_fixture_path ? File.read(execution_fixture_path) : artifacts.fetch("PREFLIGHT_EVIDENCE.md")
   identity_rows = markdown_table(preflight, "Execution identity", "| Field | Value |").to_h
-  execution_identity_errors(identity_rows, require_clean: clean_integration_mode).each { |error| fail_check(error) }
+  allow_removed_integration = clean_integration_mode && !File.exist?(plain_cell(identity_rows.fetch("Integration worktree", "")))
+  execution_identity_errors(
+    identity_rows, require_clean: clean_integration_mode, allow_removed_integration: allow_removed_integration
+  ).each { |error| fail_check(error) }
   branch = plain_cell(identity_rows.fetch("Integration branch", ""))
   integration_worktree = plain_cell(identity_rows.fetch("Integration worktree", ""))
   worktree_parent = plain_cell(identity_rows.fetch("Task-owned worktree parent", ""))
   recorded_at = plain_cell(identity_rows.fetch("Preflight recorded at (RFC3339)", ""))
+  recorded_base = plain_cell(identity_rows.fetch("Recorded committed `main` base", ""))
+
+  trust_rows = markdown_table(preflight, "Platform evidence trust", "| Field | Value |").to_h
+  trust_path = plain_cell(trust_rows.fetch("Trust document path", ""))
+  trust_commit = plain_cell(trust_rows.fetch("Trust document commit", ""))
+  trust_digest = plain_cell(trust_rows.fetch("Trust document digest", ""))
+  platform_thread_id = plain_cell(trust_rows.fetch("Platform thread ID", ""))
+  trust_classification = plain_cell(trust_rows.fetch("Classification", ""))
+  fail_check("platform trust must be available before execution") unless trust_classification == "available"
+  fail_check("platform trust path drifted") unless trust_path == ".ai/identity-platform/PLATFORM_EVIDENCE_TRUST.json"
+  fail_check("platform trust was not pinned on the recorded base") unless trust_commit == recorded_base
+  trust_bytes = git_blob_bytes(recorded_base, trust_path)
+  fail_check("recorded base lacks platform trust document") unless trust_bytes
+  fail_check("platform trust digest drifted") unless trust_bytes && trust_digest == "sha256:#{Digest::SHA256.hexdigest(trust_bytes)}"
+  begin
+    platform_trust = JSON.parse(trust_bytes)
+  rescue JSON::ParserError, TypeError
+    fail_check("platform trust document is invalid JSON")
+  end
+  fail_check("platform trust document is not canonical compact JSON") unless trust_bytes == JSON.generate(platform_trust)
+  platform_trust_errors(platform_trust).each { |error| fail_check(error) }
+  fail_check("platform thread ID is unsafe") unless platform_thread_id.match?(/\A[a-zA-Z0-9._:-]+\z/)
 
   worker_attestation_header = "| Unit | Generation | Integration baseline | Assignment commit | Assignment goal path | Rendered prompt | Prompt digest | Model | Reasoning | Fork turns | Subagents | Package scope | Reserved descendants | Goal digest | Authorized by | Status |"
   worker_attestations = markdown_table(preflight, "Worker assignment authorizations", worker_attestation_header).map do |cells|
     fail_check("worker assignment authorization row has wrong column count") unless cells.length == 16
     unit, generation, baseline, assignment, goal_path, prompt_path, prompt_digest, model, reasoning, fork_turns, subagents, package_scope, reserved, goal_digest, authorized_by, status = cells
+    fail_check("worker assignment authorization generation is invalid") unless plain_cell(generation).match?(/\A\d+\z/)
     {
       unit: plain_cell(unit), generation: plain_cell(generation), baseline: plain_cell(baseline),
       assignment: plain_cell(assignment), goal_path: plain_cell(goal_path),
@@ -6191,22 +9398,729 @@ if execution_mode
   end
   attestation_keys = worker_attestations.map { |row| [row[:unit], row[:generation]] }
   fail_check("worker assignment authorizations contain duplicate unit/generation rows") unless attestation_keys == attestation_keys.uniq
+  worker_attestations.each do |attestation|
+    fail_check("historical worker assignment authorization has unknown unit") unless known.include?(attestation[:unit])
+    fail_check("historical worker assignment authorization settings drifted") unless
+      attestation.values_at(:model, :reasoning, :fork_turns, :subagents, :authorized_by, :status) ==
+        ["gpt-5.6-sol", "medium", "none", "false", "coordinator", "authorized"]
+    fail_check("historical worker assignment prompt path is unsafe") unless repository_evidence_path?(attestation[:prompt_path])
+    authorization_commit = first_parent_commit_adding_line(attestation[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    fail_check("historical worker assignment authorization is not committed") unless authorization_commit
+    committed_prompt = authorization_commit && git_blob_bytes(authorization_commit, attestation[:prompt_path])
+    fail_check("historical worker assignment prompt digest drifted") unless
+      committed_prompt && attestation[:prompt_digest] == "sha256:#{Digest::SHA256.hexdigest(committed_prompt)}"
+    next unless authorization_commit && committed_prompt
 
-  runtime_header = "| Unit | Generation | Worker task | Agent ID | Model | Reasoning | Fork turns | Subagents | Platform source | Recorded at |"
+    authorization_parent = git_output("rev-parse", "#{authorization_commit}^1")
+    historical_changed_paths = git_output(
+      "diff-tree", "--no-commit-id", "--name-only", "-r", authorization_commit
+    ).to_s.lines.map(&:strip)
+    assignment_exists = git_commit_exists?(attestation[:assignment])
+    worker_assignment_commit_binding_errors(
+      attestation, authorization_commit: authorization_commit, authorization_parent: authorization_parent,
+      changed_paths: historical_changed_paths, assignment_exists: assignment_exists,
+      assignment_ancestor: assignment_exists && git_ancestor?(attestation[:assignment], attestation[:baseline])
+    ).each do |error|
+      fail_check("historical #{attestation[:unit]} generation #{attestation[:generation]} #{error}")
+    end
+    fail_check("historical worker assignment baseline does not exist") unless git_commit_exists?(attestation[:baseline])
+
+    historical_inventory = git_blob_bytes(authorization_commit, ".ai/identity-platform/INVENTORY.md")
+    historical_ledger = git_blob_bytes(authorization_commit, ".ai/identity-platform/EXECUTION_LEDGER.md")
+    historical_goal_manifest_source = git_blob_bytes(authorization_commit, ".ai/identity-platform/GOAL_MANIFEST.json")
+    historical_worker_template = git_blob_bytes(authorization_commit, ".ai/identity-platform/WORKER_PROMPT.md")
+    historical_modules_source = git_repository_blob_bytes(authorization_commit, "modules.json")
+    historical_packages_source = git_repository_blob_bytes(authorization_commit, "packages.json")
+    fail_check("historical worker assignment authorization lacks committed provenance inputs") unless
+      [historical_inventory, historical_ledger, historical_goal_manifest_source, historical_worker_template,
+       historical_modules_source, historical_packages_source].all?
+    next unless [historical_inventory, historical_ledger, historical_goal_manifest_source, historical_worker_template,
+                 historical_modules_source, historical_packages_source].all?
+
+    historical_rows = historical_inventory.lines.filter_map do |line|
+      next unless line.start_with?("| `")
+
+      cells = line.split("|").map(&:strip)
+      unit = cells.length == 8 && cells[1]&.match(/\A`([^`]+)`\z/)&.[](1)
+      next unless unit
+
+      {
+        unit: unit, module: cells[2][/`([^`]+)`/, 1], requires: cells[3].scan(/`([^`]+)`/).flatten,
+        status: cells[4], owner: cells[5], goal: cells[6][/`([^`]+)`/, 1]
+      }
+    end
+    historical_row = historical_rows.find { |candidate| candidate[:unit] == attestation[:unit] }
+    fail_check("historical worker assignment authorization lacks its committed inventory row") unless historical_row
+    next unless historical_row
+
+    historical_ledger_rows = parse_execution_ledger(historical_ledger, "| Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate execution revision | Gate fingerprint | External evidence | Last transition |")
+    historical_entry = historical_ledger_rows.find do |candidate|
+      candidate[:unit] == attestation[:unit] && candidate[:generation] == attestation[:generation]
+    end
+    fail_check("historical worker assignment authorization lacks its committed ledger generation") unless historical_entry
+    next unless historical_entry
+    fail_check("historical worker assignment committed ledger assignment drifted") unless
+      historical_entry[:assignment] == attestation[:assignment] && historical_entry[:task] != "—"
+
+    historical_goal_manifest = JSON.parse(historical_goal_manifest_source)
+    historical_goal = historical_goal_manifest.fetch("goals").find { |candidate| candidate.fetch("unit") == attestation[:unit] }
+    fail_check("historical worker assignment authorization lacks its committed goal manifest row") unless historical_goal
+    next unless historical_goal
+    historical_goal_errors, expected_goal_path = active_goal_path_errors(
+      historical_row[:goal], historical_goal, revision: authorization_commit
+    )
+    historical_goal_errors.each do |error|
+      fail_check("historical worker assignment #{error}")
+    end
+    committed_goal = git_blob_bytes(authorization_commit, expected_goal_path)
+    fail_check("historical worker assignment authorization lacks committed goal bytes") unless committed_goal
+
+    historical_modules = JSON.parse(historical_modules_source)
+    historical_packages = JSON.parse(historical_packages_source)
+    expected_reserved = reserved_nested_roots(
+      historical_row[:module], historical_rows.map { |candidate| candidate[:module] },
+      historical_modules, historical_packages
+    )
+    attestation[:historical_ledger_entry] = historical_entry
+    attestation[:historical_module_root] = historical_row[:module]
+    attestation[:historical_reserved_roots] = expected_reserved
+    attestation[:historical_canonical_goal_paths] = canonical_goal_semantic_paths(historical_goal_manifest)
+    shared_contract = committed_shared_contract_render(authorization_commit, attestation[:unit], historical_rows.map { |candidate| candidate[:unit] })
+    fail_check("historical worker assignment shared-contract rendering is unavailable") unless shared_contract
+    next unless committed_goal && shared_contract
+
+    prerequisite_lines = historical_row[:requires].map do |required|
+      prerequisite = historical_ledger_rows.find { |candidate| candidate[:unit] == required }
+      fail_check("historical worker assignment prerequisite #{required} lacks a committed checkpoint") unless
+        prerequisite && prerequisite[:checkpoint].match?(/\A[0-9a-f]{40}\z/)
+      "- `#{required}` at `#{prerequisite && prerequisite[:checkpoint]}`"
+    end
+    values = {
+      "unit" => attestation[:unit], "canonical-module" => historical_row[:module],
+      "absolute-worktree-path" => historical_entry[:worktree], "worker-branch" => historical_entry[:branch],
+      "integration-commit" => attestation[:baseline],
+      "absolute-goal-path" => File.join(historical_entry[:worktree], expected_goal_path),
+      "verified-prerequisite-list" => (prerequisite_lines.empty? ? "none" : prerequisite_lines.join("\n")),
+      "canonical-module-directory" => historical_row[:module],
+      "reserved-descendant-module-directories" => (expected_reserved.empty? ? "none" : expected_reserved.map { |path| "- `#{path}`" }.join("\n")),
+      "assignment-generation" => attestation[:generation], "assignment-commit" => attestation[:assignment],
+      "shared-contract-applicability" => shared_contract
+    }
+    expected_prompt = historical_worker_template.dup
+    values.each { |placeholder, value| expected_prompt.gsub!("<#{placeholder}>", value) }
+    expected = {
+      unit: attestation[:unit], generation: attestation[:generation], baseline: attestation[:baseline],
+      assignment: historical_entry[:assignment], package_scope: historical_row[:module], reserved: expected_reserved,
+      goal_digest: "sha256:#{Digest::SHA256.hexdigest(committed_goal)}", goal_path: expected_goal_path
+    }
+    worker_assignment_envelope_errors(attestation, expected, committed_prompt, expected_prompt).each do |error|
+      fail_check("historical #{attestation[:unit]} generation #{attestation[:generation]} #{error}")
+    end
+  end
+
+  seen_platform_event_ids = Set.new
+  gate_capture_header = "| Execution identity | Scope | Receipt binding | Producer capture event binding | Verifier capture event binding | Recorded at |"
+  platform_gate_capture_bindings = markdown_table(preflight, "Platform gate capture bindings", gate_capture_header).map do |cells|
+    fail_check("platform gate capture row has wrong column count") unless cells.length == 6
+    execution_identity, scope_source, receipt_binding, producer_binding, verifier_binding, recorded_at = cells.map { |value| plain_cell(value) }
+    begin
+      scope = JSON.parse(scope_source)
+    rescue JSON::ParserError
+      fail_check("platform gate capture scope is invalid JSON")
+    end
+    fail_check("platform gate capture scope is not canonical compact JSON") unless scope_source == JSON.generate(scope)
+    fail_check("platform gate capture scope field order drifted") unless scope.keys == %w[kind unit artifact_id profile_id claim_ids]
+    fail_check("platform gate capture scope kind is invalid") unless %w[acceptance external final-gate local].include?(scope["kind"])
+    fail_check("platform gate capture scope claim IDs are not sorted and unique") unless
+      scope["claim_ids"].is_a?(Array) && scope["claim_ids"] == scope["claim_ids"].sort_by(&:b).uniq
+    fail_check("platform gate capture timestamp is invalid") unless rfc3339?(recorded_at)
+    row = {
+      execution_identity: execution_identity, scope: scope, receipt_binding: receipt_binding,
+      producer_event_binding: producer_binding, verifier_event_binding: verifier_binding,
+      recorded_at: recorded_at, row_line: "| #{cells.join(' | ')} |"
+    }
+    platform_gate_capture_binding_errors(
+      row, trust: platform_trust, seen_event_ids: seen_platform_event_ids,
+      expected_thread: platform_thread_id
+    ).each { |error| fail_check("platform gate capture #{execution_identity} #{error}") }
+    row
+  end
+  capture_execution_ids = platform_gate_capture_bindings.map { |row| row[:execution_identity] }
+  fail_check("platform gate capture bindings contain duplicate execution identities") unless
+    capture_execution_ids == capture_execution_ids.uniq
+  final_gate_header = "| Gate ID | Resolved argv | Evidence record binding | Runner receipt binding | Producer capture event binding | Verifier capture event binding | Final input revision | Input root | Recorded at |"
+  final_gate_bindings = markdown_table(preflight, "Final gate bindings", final_gate_header).map do |cells|
+    fail_check("final gate binding row has wrong column count") unless cells.length == 9
+    gate_id, argv_source, evidence_binding, receipt_binding, producer_binding, verifier_binding,
+      final_input_revision, input_root, recorded_at = cells.map { |value| plain_cell(value) }
+    begin
+      argv = JSON.parse(argv_source)
+    rescue JSON::ParserError
+      fail_check("final gate #{gate_id} resolved argv is invalid JSON")
+    end
+    fail_check("final gate #{gate_id} resolved argv is not canonical compact JSON") unless argv_source == JSON.generate(argv)
+    fail_check("final gate #{gate_id} resolved argv is invalid") unless argv.is_a?(Array) && argv.any? &&
+      argv.all? { |value| value.is_a?(String) && !value.empty? } && argv.first.start_with?("/")
+    fail_check("final gate #{gate_id} resolved argv is not its canonical command") unless
+      canonical_final_gate_argv?(gate_id, argv, recorded_base: recorded_base)
+    fail_check("final gate #{gate_id} retains an unresolved base") if argv.any? { |value| value.include?("<") || value.include?("BASE=") && !value.match?(/BASE=[0-9a-f]{40}/) }
+    if gate_id == "affected-release-gates"
+      fail_check("affected-release gate does not resolve the exact recorded base") unless argv.include?("BASE=#{recorded_base}")
+    end
+    fail_check("final gate #{gate_id} input revision is invalid") unless final_input_revision.match?(/\A[0-9a-f]{40}\z/)
+    fail_check("final gate #{gate_id} input root is invalid") unless input_root.match?(/\Asha256:[0-9a-f]{64}\z/)
+    fail_check("final gate #{gate_id} timestamp is invalid") unless rfc3339?(recorded_at)
+    record_bytes, record_commit, record_errors = verified_evidence_artifact(evidence_binding)
+    record_errors.each { |error| fail_check("final gate #{gate_id} #{error}") }
+    capture = platform_gate_capture_bindings.find do |row|
+      row[:receipt_binding] == receipt_binding && row[:producer_event_binding] == producer_binding &&
+        row[:verifier_event_binding] == verifier_binding && row.dig(:scope, "kind") == "final-gate" &&
+        row.dig(:scope, "unit").nil? && row.dig(:scope, "profile_id").nil? &&
+        row.dig(:scope, "artifact_id") == gate_id && row.dig(:scope, "claim_ids") == [gate_id]
+    end
+    fail_check("final gate #{gate_id} lacks its exact coordinator capture scope") unless capture
+    receipt_bytes, _receipt_commit, receipt_errors = verified_evidence_artifact(receipt_binding)
+    receipt_errors.each { |error| fail_check("final gate #{gate_id} #{error}") }
+    begin
+      receipt = JSON.parse(receipt_bytes)
+    rescue JSON::ParserError, TypeError
+      fail_check("final gate #{gate_id} receipt is invalid JSON")
+    end
+    fail_check("final gate #{gate_id} receipt execution drifted") unless
+      receipt.values_at("producer_argv", "tested_revision", "input_root") == [argv, final_input_revision, input_root]
+    begin
+      record = JSON.parse(record_bytes)
+    rescue JSON::ParserError, TypeError
+      fail_check("final gate #{gate_id} evidence record is invalid JSON")
+    end
+    expected_record_keys = %w[
+      schema_version schema gate_id outcome resolved_argv tested_revision gate_execution_revision input_root
+      execution_identity receipt_path receipt_sha256 record_digest
+    ]
+    fail_check("final gate #{gate_id} record is not canonical compact JSON") unless record_bytes == JSON.generate(record)
+    fail_check("final gate #{gate_id} record field order drifted") unless record.keys == expected_record_keys
+    fail_check("final gate #{gate_id} record schema or outcome drifted") unless
+      record.values_at("schema_version", "schema", "gate_id", "outcome") ==
+        [1, "identity-platform.final-gate.v1", gate_id, "passed"]
+    receipt_path, _receipt_commit, receipt_digest = receipt_binding.split("@", 3)
+    fail_check("final gate #{gate_id} record identity drifted") unless
+      record.values_at("resolved_argv", "tested_revision", "input_root", "execution_identity", "receipt_path", "receipt_sha256") ==
+        [argv, final_input_revision, input_root, capture&.dig(:execution_identity), receipt_path, receipt_digest]
+    fail_check("final gate #{gate_id} gate execution revision is invalid") unless
+      record["gate_execution_revision"].to_s.match?(/\A[0-9a-f]{40}\z/)
+    fail_check("final gate #{gate_id} execution revision does not follow its tested input") unless
+      record["gate_execution_revision"].to_s.match?(/\A[0-9a-f]{40}\z/) &&
+      git_ancestor?(final_input_revision, record["gate_execution_revision"])
+    fail_check("final gate #{gate_id} evidence predates gate execution") unless
+      record_commit && git_ancestor?(record["gate_execution_revision"], record_commit)
+    expected_record_digest = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(record.reject { |key, _value| key == 'record_digest' }))}"
+    fail_check("final gate #{gate_id} record digest drifted") unless record["record_digest"] == expected_record_digest
+    {
+      gate_id: gate_id, argv: argv, evidence_binding: evidence_binding, receipt_binding: receipt_binding,
+      producer_event_binding: producer_binding, verifier_event_binding: verifier_binding,
+      final_input_revision: final_input_revision, input_root: input_root, recorded_at: recorded_at,
+      execution_identity: capture&.dig(:execution_identity), row_line: "| #{cells.join(' | ')} |"
+    }
+  end
+  final_gate_ids = final_gate_bindings.map { |row| row[:gate_id] }
+  fail_check("final gate bindings contain duplicate gate IDs") unless final_gate_ids == final_gate_ids.uniq
+expected_final_gate_ids = %w[
+    affected-release-gates complete-repository-gate final-complete-diff-review inventory-validation
+    pinned-upstream-validation program-final-input-acceptance structural-validation
+  ]
+  fail_check("final gate binding catalog closure drifted") unless final_gate_ids.empty? || final_gate_ids == expected_final_gate_ids
+
+  blocked_audit_header = "| Persistent goal ID | Platform event binding | Threshold state | Execution identity | Recorded at |"
+  blocked_audit_bindings = markdown_table(preflight, "Blocked audit binding", blocked_audit_header).map do |cells|
+    fail_check("blocked audit binding row has wrong column count") unless cells.length == 5
+    goal_id, event_binding, threshold_source, execution_identity, recorded_at = cells.map { |value| plain_cell(value) }
+    begin
+      threshold = JSON.parse(threshold_source)
+    rescue JSON::ParserError
+      fail_check("blocked audit threshold state is invalid JSON")
+    end
+    fail_check("blocked audit threshold state is not canonical compact JSON") unless threshold_source == JSON.generate(threshold)
+    fail_check("blocked audit threshold state field order drifted") unless threshold.keys == %w[required_count observed_count history_event_ids final_input_revision input_root blockers reconciled_assignment_ids reconciled_resource_ids reconciled_assignments_root reconciled_resources_root exhausted_frontier]
+    blocked_threshold_errors(threshold).each { |error| fail_check("blocked audit #{error}") }
+    fail_check("blocked audit persistent goal ID drifted") unless goal_id == "identity-platform"
+    fail_check("blocked audit execution identity is invalid") unless execution_identity.match?(/\Asha256:[0-9a-f]{64}\z/)
+    fail_check("blocked audit final input revision is invalid") unless threshold["final_input_revision"].to_s.match?(/\A[0-9a-f]{40}\z/) && git_commit_exists?(threshold["final_input_revision"])
+    fail_check("blocked audit input root is invalid") unless threshold["input_root"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+    %w[reconciled_assignment_ids reconciled_resource_ids].each do |field|
+      values = threshold[field]
+      fail_check("blocked audit #{field} are not sorted and unique") unless values.is_a?(Array) && values == values.sort_by(&:b).uniq
+    end
+    %w[reconciled_assignments_root reconciled_resources_root].each do |field|
+      fail_check("blocked audit #{field} is invalid") unless threshold[field].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+    end
+    history_event_ids = threshold["history_event_ids"]
+    fail_check("blocked audit history event IDs are not ordered and unique") unless
+      history_event_ids.is_a?(Array) && history_event_ids.any? && history_event_ids.uniq == history_event_ids &&
+      history_event_ids.all? { |value| value.to_s.match?(/\A[a-zA-Z0-9._:-]+\z/) }
+    blockers = threshold["blockers"]
+    blocker_keys = %w[id category unit evidence required_user_action]
+    fail_check("blocked audit blockers are not canonical sorted and unique") unless blockers.is_a?(Array) &&
+      blockers == blockers.sort_by { |row| JSON.generate(row).b }.uniq
+    blockers.to_a.each do |blocker|
+      fail_check("blocked audit blocker schema drifted") unless blocker.is_a?(Hash) && blocker.keys == blocker_keys
+      fail_check("blocked audit blocker ID is unsafe") unless blocker["id"].to_s.match?(/\A[a-zA-Z0-9._-]+\z/)
+      fail_check("blocked audit blocker category is invalid") unless
+        %w[credential external-infrastructure product-decision user-authority].include?(blocker["category"])
+      fail_check("blocked audit blocker unit is unknown") unless known.include?(blocker["unit"])
+      %w[evidence required_user_action].each do |field|
+        value = blocker[field]
+        fail_check("blocked audit blocker #{field} is invalid") unless
+          value.is_a?(String) && !value.empty? && !value.match?(/[\r\n]/)
+      end
+    end
+    event, event_errors = verified_platform_event(event_binding, trust: platform_trust)
+    event_errors.each { |error| fail_check("blocked audit #{goal_id} #{error}") }
+    expected_claims = {"execution_identity" => execution_identity, "persistent_goal_id" => goal_id, "threshold_state" => threshold}
+    fail_check("blocked audit #{goal_id} capture drifted") unless event &&
+      event.values_at("thread_id", "event_type", "role") == [platform_thread_id, "persistent-goal-blocked-audit", "platform"] &&
+      event["claims"] == expected_claims && event["content"] == threshold_source && event["recorded_at"] == recorded_at
+    fail_check("blocked audit #{goal_id} event ID is replayed") unless event && seen_platform_event_ids.add?(event["event_id"])
+    audit_event_commit = platform_event_binding(event_binding)&.fetch(1)
+    blocked_audit_commit_errors(
+      audit_event_commit, final_input_revision: threshold["final_input_revision"], head: "HEAD",
+      ancestor: method(:git_ancestor?)
+    ).each { |error| fail_check("blocked audit #{goal_id} #{error}") }
+    observation_state = threshold.reject { |key, _value| %w[required_count observed_count history_event_ids].include?(key) }
+    observations = history_event_ids.to_a.map do |history_event_id|
+      observation, observation_errors, observation_commit = verified_platform_event_by_id(history_event_id, trust: platform_trust)
+      observation_errors.each { |error| fail_check("blocked audit #{goal_id} #{error}") }
+      expected_observation_claims = {
+        "blocked_state" => observation_state, "execution_identity" => execution_identity,
+        "persistent_goal_id" => goal_id
+      }
+      fail_check("blocked audit #{goal_id} observation #{history_event_id} drifted") unless observation &&
+        observation.values_at("thread_id", "event_type", "role") ==
+          [platform_thread_id, "persistent-goal-blocked-observation", "platform"] &&
+        observation["claims"] == expected_observation_claims && observation["content"] == JSON.generate(observation_state)
+      fail_check("blocked audit #{goal_id} observation #{history_event_id} replays another platform event") unless
+        observation && seen_platform_event_ids.add?(observation["event_id"])
+      [observation, observation_commit]
+    end
+    blocked_observation_sequence_errors(
+      observations, audit_event: event, audit_commit: audit_event_commit,
+      final_input_revision: threshold["final_input_revision"], ancestor: method(:git_ancestor?)
+    ).each { |error| fail_check("blocked audit #{goal_id} #{error}") }
+    {goal_id: goal_id, event_binding: event_binding, threshold: threshold, observations: observations,
+     execution_identity: execution_identity, recorded_at: recorded_at, row_line: "| #{cells.join(' | ')} |"}
+  end
+  fail_check("blocked audit binding contains duplicate persistent goals") unless
+    blocked_audit_bindings.map { |row| row[:goal_id] }.uniq.length == blocked_audit_bindings.length
+  no_push_header = "| Program base | Final input revision | Git-observable scope | Coordinator event binding | Outcome | Recorded at |"
+  no_push_assertions = markdown_table(preflight, "No-push coordinator assertion", no_push_header).map do |cells|
+    fail_check("no-push coordinator assertion row has wrong column count") unless cells.length == 6
+    program_base, final_input_revision, scope_source, event_binding, outcome, recorded_at = cells.map { |value| plain_cell(value) }
+    begin
+      scope = JSON.parse(scope_source)
+    rescue JSON::ParserError
+      fail_check("no-push coordinator assertion scope is invalid JSON")
+    end
+    fail_check("no-push coordinator assertion scope is not canonical compact JSON") unless scope_source == JSON.generate(scope)
+    fail_check("no-push coordinator assertion scope schema drifted") unless scope.keys == %w[remote_names refspecs observed_local_branch observed_local_head]
+    %w[remote_names refspecs].each do |field|
+      fail_check("no-push coordinator assertion #{field} are not sorted, unique, and nonempty") unless
+        scope[field].is_a?(Array) && scope[field].any? && scope[field] == scope[field].sort_by(&:b).uniq
+    end
+    configured_remotes = git_output("remote").to_s.lines.map(&:strip).reject(&:empty?).sort_by(&:b)
+    fail_check("no-push coordinator assertion remote closure drifted") unless scope["remote_names"] == configured_remotes
+    fail_check("no-push coordinator assertion ref closure is not all refs") unless scope["refspecs"] == ["refs/*"]
+    fail_check("no-push coordinator assertion local branch drifted") unless scope["observed_local_branch"] == git_output("branch", "--show-current")
+    fail_check("no-push coordinator assertion local head drifted") unless scope["observed_local_head"] == git_output("rev-parse", "HEAD")
+    fail_check("no-push coordinator assertion base drifted") unless program_base == recorded_base
+    fail_check("no-push coordinator assertion final input revision is invalid") unless
+      final_input_revision.match?(/\A[0-9a-f]{40}\z/) && git_commit_exists?(final_input_revision) &&
+      git_ancestor?(program_base, final_input_revision)
+    fail_check("no-push coordinator assertion outcome drifted") unless outcome == "coordinator-asserts-no-push"
+    event, event_errors = verified_platform_event(event_binding, trust: platform_trust)
+    event_errors.each { |error| fail_check("no-push coordinator assertion #{error}") }
+    expected_claims = {
+      "assertion_verified" => false,
+      "git_observable_scope" => scope,
+      "limitation" => "no-complete-command-audit-or-remote-non-delivery-proof",
+      "program_interval" => {"from_revision" => program_base, "through_revision" => final_input_revision}
+    }
+    fail_check("no-push coordinator assertion capture drifted") unless event &&
+      event.values_at("thread_id", "event_type", "role", "recorded_at") ==
+        [platform_thread_id, "coordinator-assertion", "coordinator", recorded_at] &&
+      event["claims"] == expected_claims && event["content"] == outcome
+    fail_check("no-push coordinator assertion event ID is replayed") unless event && seen_platform_event_ids.add?(event["event_id"])
+    {program_base: program_base, final_input_revision: final_input_revision, scope: scope, event_binding: event_binding, outcome: outcome, recorded_at: recorded_at}
+  end
+  fail_check("no-push coordinator assertion contains duplicate rows") if no_push_assertions.length > 1
+  runtime_header = "| Unit | Generation | Worker task | Agent ID | Model | Reasoning | Fork turns | Subagents | Platform event binding | Recorded at |"
   worker_runtime_attestations = markdown_table(preflight, "Worker runtime attestations", runtime_header).map do |cells|
     fail_check("worker runtime attestation row has wrong column count") unless cells.length == 10
-    unit, generation, task, agent_id, model, reasoning, fork_turns, subagents, source, recorded_at = cells
+    unit, generation, task, agent_id, model, reasoning, fork_turns, subagents, source, recorded_at = cells.map { |value| plain_cell(value) }
+    event, event_errors = verified_platform_event(source, trust: platform_trust)
+    event_errors.each { |error| fail_check("worker runtime #{unit} #{error}") }
+    expected_claims = {
+      "unit" => unit, "generation" => generation, "worker_task" => task, "agent_id" => agent_id,
+      "model" => model, "reasoning" => reasoning, "fork_turns" => fork_turns, "subagents" => subagents
+    }
+    fail_check("worker runtime event type or identity drifted") unless event &&
+      event.values_at("thread_id", "event_type", "role", "task_id", "agent_id") ==
+        [platform_thread_id, "worker-spawned", "platform", task, agent_id] && event["claims"] == expected_claims
+    fail_check("worker runtime event ID is replayed") unless event && seen_platform_event_ids.add?(event["event_id"])
+    fail_check("worker runtime timestamp drifted from event") unless event && event["recorded_at"] == recorded_at
     {
       unit: plain_cell(unit), generation: plain_cell(generation), task: plain_cell(task), agent_id: plain_cell(agent_id),
       model: plain_cell(model), reasoning: plain_cell(reasoning), fork_turns: plain_cell(fork_turns),
       subagents: plain_cell(subagents), source: plain_cell(source), recorded_at: plain_cell(recorded_at),
+      platform_verified: event_errors.empty? && !event.nil?, platform_event: event,
       row_line: "| #{cells.join(' | ')} |"
     }
   end
   runtime_keys = worker_runtime_attestations.map { |row| [row[:unit], row[:generation]] }
   fail_check("worker runtime attestations contain duplicate unit/generation rows") unless runtime_keys == runtime_keys.uniq
   runtime_agent_ids = worker_runtime_attestations.map { |row| row[:agent_id] }
-  fail_check("worker runtime attestations reuse an immutable agent ID") unless runtime_agent_ids == runtime_agent_ids.uniq
+  fail_check("worker runtime captures reuse an agent ID") unless runtime_agent_ids == runtime_agent_ids.uniq
+
+  release_header = "| Unit | Generation | Worker task | Readiness event binding | Assignment authorization checkpoint | Runtime-attestation commit | Release event binding | Released at |"
+  worker_release_handshakes = markdown_table(preflight, "Worker release handshakes", release_header).map do |cells|
+    fail_check("worker release handshake row has wrong column count") unless cells.length == 8
+    unit, generation, task, receipt_binding, assignment_checkpoint, runtime_commit, release_binding, released_at = cells.map { |value| plain_cell(value) }
+    fail_check("worker release handshake has unknown unit") unless known.include?(unit)
+    fail_check("worker release handshake generation is invalid") unless generation.match?(/\A\d+\z/)
+    fail_check("worker release handshake task is unsafe") unless task.match?(/\A[a-zA-Z0-9._:\/-]+\z/)
+    expected_receipt = "READY-AND-WAITING #{unit} g#{generation} #{assignment_checkpoint}"
+    fail_check("worker release handshake assignment checkpoint is invalid") unless assignment_checkpoint.match?(/\A[0-9a-f]{40}\z/)
+    fail_check("worker release handshake runtime commit is invalid") unless runtime_commit.match?(/\A[0-9a-f]{40}\z/)
+    fail_check("worker release handshake timestamp is invalid") unless rfc3339?(released_at)
+    readiness_event, readiness_errors = verified_platform_event(receipt_binding, trust: platform_trust)
+    readiness_errors.each { |error| fail_check("worker readiness #{unit} #{error}") }
+    runtime_row = worker_runtime_attestations.find do |candidate|
+      candidate.values_at(:unit, :generation, :task) == [unit, generation, task]
+    end
+    expected_readiness_claims = {
+      "agent_id" => runtime_row&.dig(:agent_id), "assignment_authorization_checkpoint" => assignment_checkpoint,
+      "generation" => generation, "spawn_event_id" => runtime_row&.dig(:platform_event, "event_id"),
+      "unit" => unit, "worker_task" => task
+    }
+    fail_check("worker readiness event drifted") unless readiness_event &&
+      readiness_event.values_at("thread_id", "event_type", "role", "actor_id", "task_id", "agent_id", "content") ==
+        [platform_thread_id, "worker-message", "assistant", runtime_row&.dig(:agent_id), task, runtime_row&.dig(:agent_id), expected_receipt] &&
+      readiness_event["claims"] == expected_readiness_claims
+    fail_check("worker readiness event ID is replayed") unless readiness_event && seen_platform_event_ids.add?(readiness_event["event_id"])
+    release_event, release_errors = verified_platform_event(release_binding, trust: platform_trust)
+    release_errors.each { |error| fail_check("worker release #{unit} #{error}") }
+    expected_release_claims = {
+      "agent_id" => runtime_row&.dig(:agent_id), "assignment_authorization_checkpoint" => assignment_checkpoint,
+      "generation" => generation, "readiness_event_id" => readiness_event&.dig("event_id"),
+      "runtime_commit" => runtime_commit, "runtime_event_id" => runtime_row&.dig(:platform_event, "event_id"),
+      "unit" => unit, "worker_task" => task
+    }
+    fail_check("worker release delivery event drifted") unless release_event &&
+      release_event.values_at("thread_id", "event_type", "role", "task_id", "agent_id") ==
+        [platform_thread_id, "coordinator-send-result", "coordinator", task, runtime_row&.dig(:agent_id)] &&
+      release_event["claims"] == expected_release_claims
+    fail_check("worker release event ID is replayed") unless release_event && seen_platform_event_ids.add?(release_event["event_id"])
+    fail_check("worker release timestamp drifted from event") unless release_event && release_event["recorded_at"] == released_at
+    runtime_event = runtime_row&.dig(:platform_event)
+    fail_check("worker readiness turn does not directly follow spawn") unless runtime_event && readiness_event &&
+      readiness_event["turn_ordinal"] == runtime_event["turn_ordinal"] + 1
+    {
+      unit: unit, generation: generation, task: task, receipt: expected_receipt,
+      assignment_checkpoint: assignment_checkpoint, runtime_commit: runtime_commit,
+      directive_digest: release_event["content_sha256"], released_at: released_at,
+      readiness_event: readiness_event, release_event: release_event, row_line: "| #{cells.join(' | ')} |"
+    }
+  end
+  release_keys = worker_release_handshakes.map { |row| row.values_at(:unit, :generation, :task) }
+  fail_check("worker release handshakes contain duplicate assignment identities") unless release_keys == release_keys.uniq
+  worker_release_handshakes.each do |handshake|
+    runtime_attestation = worker_runtime_attestations.find do |candidate|
+      candidate.values_at(:unit, :generation, :task) == handshake.values_at(:unit, :generation, :task)
+    end
+    release_preparation_chronology_errors(handshake, runtime_attestation, observed_at: Time.now.utc).each do |error|
+      fail_check("historical #{handshake[:unit]} generation #{handshake[:generation]} #{error}")
+    end
+  end
+
+  return_header = "| Unit | Generation | Worker task | Return event binding | Report binding | Worker tip | Ordered worker commits | Recorded at |"
+  worker_return_attestations = markdown_table(preflight, "Worker return attestations", return_header).map do |cells|
+    fail_check("worker return attestation row has wrong column count") unless cells.length == 8
+    unit, generation, task, event_binding, report_binding, worker_tip, commits_cell, recorded_at = cells.map { |value| plain_cell(value) }
+    ordered_commits = commits_cell.scan(/`([0-9a-f]{40})`/).flatten
+    runtime = worker_runtime_attestations.find { |row| row.values_at(:unit, :generation, :task) == [unit, generation, task] }
+    release = worker_release_handshakes.find { |row| row.values_at(:unit, :generation, :task) == [unit, generation, task] }
+    report_bytes, report_commit, report_errors = verified_evidence_artifact(report_binding)
+    report_errors.each { |error| fail_check("worker return #{unit} #{error}") }
+    historical_entry = ledger_rows.find do |entry|
+      entry.values_at(:unit, :generation, :task) == [unit, generation, task]
+    end
+    historical_authorization = worker_attestations.find do |entry|
+      entry.values_at(:unit, :generation, :task) == [unit, generation, task]
+    end
+    worker_return_manifest_errors(
+      report_bytes, returned: {worker_tip: worker_tip, ordered_commits: ordered_commits},
+      ledger_entry: historical_entry || {},
+      canonical_module: rows.find { |row| row[:unit] == unit }&.dig(:module),
+      goal_path: historical_authorization&.dig(:goal_path),
+      release_commit: release && first_parent_commit_adding_line(release[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"),
+      changed_paths: if historical_entry
+                       module_root = rows.find { |row| row[:unit] == unit }&.dig(:module)
+                       git_output("diff", "--name-only", release && first_parent_commit_adding_line(release[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"), worker_tip)
+                         .to_s.lines.map(&:strip).reject(&:empty?).select { |path| module_root && path_within_root?(path, module_root) }.sort_by(&:b)
+                     end
+    ).each { |error| fail_check("worker return #{unit} #{error}") } if report_bytes
+    return_event, return_errors = verified_platform_event(event_binding, trust: platform_trust)
+    return_errors.each { |error| fail_check("worker return #{unit} #{error}") }
+    expected_claims = {
+      "unit" => unit, "generation" => generation, "worker_task" => task,
+      "agent_id" => runtime&.dig(:agent_id),
+      "assignment_authorization_checkpoint" => release&.dig(:assignment_checkpoint),
+      "runtime_event_id" => runtime&.dig(:platform_event, "event_id"),
+      "release_event_id" => release&.dig(:release_event, "event_id"),
+      "report_binding" => report_binding, "worker_tip" => worker_tip, "ordered_worker_commits" => ordered_commits
+    }
+    fail_check("worker return #{unit} capture drifted") unless return_event &&
+      return_event.values_at("thread_id", "event_type", "role", "task_id", "agent_id") ==
+        [platform_thread_id, "worker-message", "assistant", task, runtime&.dig(:agent_id)] &&
+      return_event["claims"] == expected_claims && return_event["content"] == report_bytes
+    fail_check("worker return #{unit} event ID is replayed") unless return_event && seen_platform_event_ids.add?(return_event["event_id"])
+    fail_check("worker return #{unit} timestamp drifted from event") unless return_event && return_event["recorded_at"] == recorded_at
+    fail_check("worker return #{unit} report was recorded before its capture") unless
+      report_commit && platform_event_binding(event_binding) &&
+      git_ancestor?(platform_event_binding(event_binding).fetch(1), report_commit)
+    {
+      unit: unit, generation: generation, task: task, event_binding: event_binding, report_binding: report_binding,
+      report_bytes: report_bytes, report_commit: report_commit, worker_tip: worker_tip, ordered_commits: ordered_commits, recorded_at: recorded_at,
+      return_event: return_event, row_line: "| #{cells.join(' | ')} |"
+    }
+  end
+  return_keys = worker_return_attestations.map { |row| row.values_at(:unit, :generation, :task) }
+  fail_check("worker return attestations contain duplicate assignment identities") unless return_keys == return_keys.uniq
+  worker_release_handshakes.each do |release|
+    runtime = worker_runtime_attestations.find { |row| row.values_at(:unit, :generation, :task) == release.values_at(:unit, :generation, :task) }
+    authorization = worker_attestations.find { |row| row.values_at(:unit, :generation) == release.values_at(:unit, :generation) }
+    historical_entry = authorization&.dig(:historical_ledger_entry)
+    fail_check("historical worker release #{release[:unit]} g#{release[:generation]} lacks its committed ledger identity") unless historical_entry
+    next unless historical_entry
+
+    worker_release_handshake_errors(release, attestation: runtime, ledger_entry: historical_entry).each do |error|
+      fail_check("historical worker release #{release[:unit]} g#{release[:generation]} #{error}")
+    end
+    release_preparation_chronology_errors(release, runtime, observed_at: Time.now.utc).each do |error|
+      fail_check("historical worker release #{release[:unit]} g#{release[:generation]} #{error}")
+    end
+    returned = worker_return_attestations.find { |row| row.values_at(:unit, :generation, :task) == release.values_at(:unit, :generation, :task) }
+    next unless returned
+
+    worker_return_attestation_errors(returned, runtime: runtime, release: release, ledger_entry: historical_entry).each do |error|
+      fail_check("historical worker return #{release[:unit]} g#{release[:generation]} #{error}")
+    end
+    release_commit = first_parent_commit_adding_line(release[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    worker_range_custody_errors(
+      scope_checkpoint: release_commit, worker_tip: returned[:worker_tip],
+      module_root: authorization[:historical_module_root], reserved_roots: authorization[:historical_reserved_roots],
+      ordered_commits: returned[:ordered_commits]
+    ).each { |error| fail_check("historical worker return #{release[:unit]} g#{release[:generation]} #{error}") }
+  end
+
+  semantic_request_header = "| Approval ID | Proposal manifest binding | Affected closure | Status | User message event binding | Blocker or action | Recorded at |"
+  semantic_authorization_requests = markdown_table(preflight, "Semantic authorization requests", semantic_request_header).map do |cells|
+    fail_check("semantic authorization request row has wrong column count") unless cells.length == 7
+    approval_id, binding, affected_closure, status, user_event_binding, blocker_or_action, recorded_at = cells.map { |value| plain_cell(value) }
+    fail_check("semantic authorization request approval ID is unsafe") unless approval_id.match?(/\Auser:[a-zA-Z0-9._-]+\z/)
+    fail_check("semantic authorization request status is invalid") unless %w[awaiting-user authorized applied superseded].include?(status)
+    begin
+      affected = JSON.parse(affected_closure)
+    rescue JSON::ParserError
+      fail_check("semantic authorization request affected closure is invalid JSON")
+    end
+    fail_check("semantic authorization request affected closure is not canonical compact JSON") unless affected_closure == JSON.generate(affected)
+    fail_check("semantic authorization request affected closure schema drifted") unless
+      affected.keys == %w[units contract_ids claim_ids artifact_ids source_paths]
+    affected.each do |key, values|
+      fail_check("semantic authorization request affected #{key} are not sorted and unique") unless
+        values.is_a?(Array) && values == values.sort_by(&:b).uniq
+    end
+    fail_check("semantic authorization request affected units are unknown") unless affected["units"].all? { |unit| known.include?(unit) }
+    binding_match = binding.match(%r{\A(\.ai/identity-platform/evidence/semantic-proposals/([a-zA-Z0-9._-]+)\.json)@([0-9a-f]{40})@(sha256:[0-9a-f]{64})\z})
+    if binding_match
+      manifest_bytes = git_blob_bytes(binding_match[3], binding_match[1])
+      manifest = JSON.parse(manifest_bytes) if manifest_bytes
+      if manifest
+        expected_sources = manifest.fetch("entries").map { |entry| entry.fetch("source_path") }.sort_by(&:b)
+        expected_contracts = manifest.fetch("entries").flat_map { |entry| entry.fetch("contract_ids") }.sort_by(&:b).uniq
+        fail_check("semantic authorization request source closure drifted") unless affected["source_paths"] == expected_sources
+        fail_check("semantic authorization request contract closure drifted") unless affected["contract_ids"] == expected_contracts
+        fail_check("semantic authorization request unit closure is not conservative and complete") unless affected["units"] == known.sort_by(&:b)
+      end
+    end
+    fail_check("semantic authorization request timestamp is invalid") unless rfc3339?(recorded_at)
+    if status == "awaiting-user"
+      fail_check("awaiting semantic authorization request has user authority") unless user_event_binding == "—"
+      fail_check("awaiting semantic authorization request lacks its blocker") unless blocker_or_action == "blocker:platform-user-authority"
+    else
+      fail_check("terminal semantic authorization request lacks a platform user event") unless platform_event_binding(user_event_binding)
+    end
+    {
+      approval_id: approval_id, binding: binding, affected_closure: affected_closure, affected: affected, status: status,
+      user_event_binding: user_event_binding, blocker_or_action: blocker_or_action, recorded_at: recorded_at,
+      row_line: "| #{cells.join(' | ')} |"
+    }
+  end
+  semantic_authorization_requests.group_by { |row| row[:approval_id] }.each do |approval_id, history|
+    statuses = history.map { |row| row[:status] }
+    fail_check("semantic authorization request #{approval_id} lacks awaiting-user origin") unless statuses.first == "awaiting-user"
+    fail_check("semantic authorization request #{approval_id} lifecycle drifted") unless
+      statuses == ["awaiting-user"] || statuses == %w[awaiting-user authorized] ||
+      statuses == %w[awaiting-user authorized applied] || statuses == %w[awaiting-user superseded]
+    identity = history.first.values_at(:binding, :affected_closure)
+    fail_check("semantic authorization request #{approval_id} identity drifted") unless
+      history.all? { |row| row.values_at(:binding, :affected_closure) == identity }
+  end
+
+  semantic_authorization_header = "| Approval ID | Proposal manifest binding | Change classes | Previous semantic root | Proposed semantic root | User message event binding | Status | Recorded at |"
+  user_semantic_authorizations = markdown_table(preflight, "User semantic authorizations", semantic_authorization_header).map do |cells|
+    fail_check("user semantic authorization row has wrong column count") unless cells.length == 8
+    approval_id, binding, classes_cell, previous_root, proposed_root, user_event_binding, status, recorded_at = cells.map { |value| plain_cell(value) }
+    fail_check("user semantic authorization approval ID is unsafe") unless approval_id.match?(/\Auser:[a-zA-Z0-9._-]+\z/)
+    binding_match = binding.match(%r{\A(\.ai/identity-platform/evidence/semantic-proposals/([a-zA-Z0-9._-]+)\.json)@([0-9a-f]{40})@(sha256:[0-9a-f]{64})\z})
+    fail_check("user semantic authorization proposal binding is invalid") unless binding_match && "user:#{binding_match[2]}" == approval_id
+    classes = classes_cell.split(",")
+    fail_check("user semantic authorization classes are invalid") unless classes.any? && classes == classes.sort_by(&:b).uniq && classes.all? { |value| SEMANTIC_CHANGE_CLASSES.include?(value) }
+    fail_check("user semantic authorization root is invalid") unless [previous_root, proposed_root].all? { |root| root.match?(/\Asha256:[0-9a-f]{64}\z/) }
+    fail_check("user semantic authorization lacks a platform user event binding") unless platform_event_binding(user_event_binding)
+    fail_check("user semantic authorization status is invalid") unless %w[authorized applied superseded].include?(status)
+    fail_check("user semantic authorization timestamp is invalid") unless rfc3339?(recorded_at)
+    if binding_match
+      path, _safe_id, proposal_commit, manifest_digest = binding_match.captures
+      manifest_bytes = git_blob_bytes(proposal_commit, path)
+      fail_check("user semantic authorization proposal commit is invalid or unintegrated") unless manifest_bytes && git_ancestor?(proposal_commit, "HEAD")
+      fail_check("user semantic authorization proposal binding digest drifted") unless manifest_bytes && manifest_digest == "sha256:#{Digest::SHA256.hexdigest(manifest_bytes)}"
+      fail_check("semantic proposal is not canonical compact JSON") unless manifest_bytes && begin
+        parsed = JSON.parse(manifest_bytes)
+        manifest_bytes == JSON.generate(parsed)
+      rescue JSON::ParserError
+        false
+      end
+      manifest = JSON.parse(manifest_bytes) if manifest_bytes
+      semantic_proposal_errors(
+        manifest, approval_id: approval_id, classes: classes, previous_root: previous_root,
+        proposed_root: proposed_root, repository_root: REPOSITORY_ROOT, proposal_commit: proposal_commit,
+        canonical_goal_paths: canonical_goal_paths
+      ).each { |error| fail_check("user semantic authorization #{approval_id} #{error}") } if manifest
+      first_commit = first_parent_commit_with_blob(path, manifest_bytes) if manifest_bytes
+      fail_check("user semantic authorization does not bind first exact proposal commit") unless first_commit == proposal_commit
+      statement = "AUTHORIZE identity-platform #{approval_id.delete_prefix('user:')} proposal=#{path}@#{manifest_digest} previous=#{previous_root} proposed=#{proposed_root} classes=#{classes.join(',')}"
+      user_event, user_event_errors = verified_platform_event(user_event_binding, trust: platform_trust)
+      user_event_errors.each { |error| fail_check("user semantic authorization #{approval_id} #{error}") }
+      authority_event = user_event ? user_event.transform_keys(&:to_sym).merge(signature_valid: user_event_errors.empty?, key_role_valid: user_event_errors.empty?) : {}
+      platform_authority_event_errors(
+        authority_event, expected_thread: platform_thread_id, expected_role: "user",
+        expected_content: statement, seen_event_ids: seen_platform_event_ids
+      ).each { |error| fail_check("user semantic authorization #{approval_id} #{error}") }
+      fail_check("user semantic authorization #{approval_id} event type drifted") unless
+        user_event && user_event["event_type"] == "conversation-message"
+      fail_check("user semantic authorization #{approval_id} event claims drifted") unless
+        user_event && user_event["claims"] == {"approval_id" => approval_id, "proposal_binding" => binding}
+      fail_check("user semantic authorization #{approval_id} event ID is replayed") unless
+        user_event && seen_platform_event_ids.add?(user_event["event_id"])
+      fail_check("user semantic authorization #{approval_id} timestamp drifted from capture") unless
+        user_event && user_event["recorded_at"] == recorded_at
+      {
+        approval_id: approval_id, binding: binding, path: path, proposal_commit: proposal_commit,
+        manifest: manifest, classes: classes, previous_root: previous_root, proposed_root: proposed_root,
+        user_event_binding: user_event_binding, user_event: user_event, status: status, recorded_at: recorded_at,
+        row_line: "| #{cells.join(' | ')} |"
+      }
+    end
+  end.compact
+  semantic_application_sources = {}
+  latest_applied_authorization_by_source = {}
+  user_semantic_authorizations.select { |row| row[:status] == "applied" }.each do |row|
+    row[:manifest].fetch("entries").each { |entry| latest_applied_authorization_by_source[entry.fetch("source_path")] = row }
+  end
+  user_semantic_authorizations.group_by { |row| row[:approval_id] }.each do |approval_id, history|
+    statuses = history.map { |row| row[:status] }
+    fail_check("user semantic authorization #{approval_id} lacks prior authorization") unless statuses.first == "authorized"
+    fail_check("user semantic authorization #{approval_id} lifecycle drifted") unless
+      statuses == ["authorized"] || statuses == %w[authorized applied] || statuses == %w[authorized superseded]
+    identity_keys = %i[binding classes previous_root proposed_root user_event_binding]
+    fail_check("user semantic authorization #{approval_id} terminal identity drifted") unless
+      history.all? { |row| row.values_at(*identity_keys) == history.first.values_at(*identity_keys) }
+    authorization_commit = first_parent_commit_adding_line(history.first[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    authorization_parent = authorization_commit && git_output("rev-parse", "#{authorization_commit}^1")
+    fail_check("user semantic authorization #{approval_id} lacks an exact authorization commit") unless authorization_commit && authorization_parent
+    fail_check("user semantic authorization #{approval_id} was recorded before its proposal") unless
+      authorization_commit && git_ancestor?(history.first[:proposal_commit], authorization_commit)
+    user_event_commit = platform_event_binding(history.first[:user_event_binding])&.fetch(1)
+    fail_check("user semantic authorization #{approval_id} was recorded before its committed user-message capture") unless
+      user_event_commit && authorization_commit && git_ancestor?(user_event_commit, authorization_commit)
+    proposal_to_authorization = git_output(
+      "rev-list", "--first-parent", "--reverse", "#{history.first[:proposal_commit]}..#{authorization_commit}"
+    ).to_s.lines.map(&:strip)
+    proposal_to_authorization.each do |commit|
+      parent = git_output("rev-parse", "#{commit}^1")
+      changed_semantic = git_output("diff", "--name-only", parent, commit).to_s.lines.map(&:chomp).select do |path|
+        semantic_source_path?(path, canonical_goal_paths: canonical_goal_paths)
+      end
+      fail_check("user semantic authorization #{approval_id} mutated semantic sources before authorization") unless changed_semantic.empty?
+    end
+    history.first[:manifest].fetch("entries").each do |entry|
+      prior = authorization_parent && git_blob_bytes(authorization_parent, entry.fetch("source_path"))
+      fail_check("user semantic authorization #{approval_id} previous source was not current at authorization") unless
+        prior && "sha256:#{Digest::SHA256.hexdigest(prior)}" == entry.fetch("previous_content_sha256")
+    end
+    if history.last[:status] == "applied"
+      applied_commit = first_parent_commit_adding_line(history.last[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+      fail_check("applied user semantic authorization #{approval_id} lacks a later exact commit") unless
+        applied_commit && authorization_commit && applied_commit != authorization_commit && git_ancestor?(authorization_commit, applied_commit)
+      history.last[:manifest].fetch("entries").each do |entry|
+        proposed = git_blob_bytes(history.last[:proposal_commit], entry.fetch("proposed_blob_path"))
+        committed = applied_commit && git_blob_bytes(applied_commit, entry.fetch("source_path"))
+        fail_check("applied user semantic authorization #{approval_id} source was not committed with application") unless
+          proposed && committed == proposed
+        if latest_applied_authorization_by_source[entry.fetch("source_path")] == history.last
+          current = File.expand_path(entry.fetch("source_path"), REPOSITORY_ROOT)
+          fail_check("latest applied user semantic authorization #{approval_id} source bytes differ from proposal") unless
+            proposed && File.file?(current) && File.binread(current) == proposed
+        end
+      end
+      changed_semantic_sources = git_output("diff", "--name-only", authorization_parent, applied_commit).to_s.lines.map(&:chomp).select do |path|
+        semantic_source_path?(path, canonical_goal_paths: canonical_goal_paths)
+      end.sort_by(&:b)
+      authorized_sources = history.last[:manifest].fetch("entries").map { |entry| entry.fetch("source_path") }.sort_by(&:b)
+      semantic_application_sources[applied_commit] = authorized_sources.to_set if applied_commit
+      fail_check("applied user semantic authorization #{approval_id} contains unlisted semantic source changes") unless
+        changed_semantic_sources == authorized_sources
+      intermediate_commits = git_output(
+        "rev-list", "--first-parent", "--reverse", "#{authorization_commit}..#{applied_commit}"
+      ).to_s.lines.map(&:strip).reject { |commit| commit == applied_commit }
+      intermediate_commits.each do |commit|
+        parent = git_output("rev-parse", "#{commit}^1")
+        changed = git_output("diff", "--name-only", parent, commit).to_s.lines.map(&:chomp)
+        fail_check("applied user semantic authorization #{approval_id} changed an authorized source before application") unless
+          (changed & authorized_sources).empty?
+        transient_semantic_sources = changed.select do |path|
+          semantic_source_path?(path, canonical_goal_paths: canonical_goal_paths) &&
+            !%w[.ai/identity-platform/PREFLIGHT_EVIDENCE.md .ai/identity-platform/EXECUTION_LEDGER.md].include?(path)
+        end
+        fail_check("applied user semantic authorization #{approval_id} contains transient unlisted semantic source changes") unless
+          transient_semantic_sources.empty?
+      end
+    end
+  end
+  user_semantic_authorizations.group_by { |row| row[:approval_id] }.each do |approval_id, authorization_history|
+    request_history = semantic_authorization_requests.select { |row| row[:approval_id] == approval_id }
+    fail_check("user semantic authorization #{approval_id} lacks its awaiting-user request lifecycle") if request_history.empty?
+    next if request_history.empty?
+
+    terminal_request = request_history.last
+    terminal_authorization = authorization_history.last
+    fail_check("user semantic authorization #{approval_id} request proposal binding drifted") unless
+      terminal_request[:binding] == terminal_authorization[:binding]
+    fail_check("user semantic authorization #{approval_id} request event binding drifted") unless
+      terminal_request[:user_event_binding] == terminal_authorization[:user_event_binding]
+    fail_check("user semantic authorization #{approval_id} request status drifted") unless
+      terminal_request[:status] == terminal_authorization[:status]
+  end
 
   tool_rows = markdown_table(
     preflight,
@@ -6214,12 +10128,22 @@ if execution_mode
     "| Requirement/profile | Required by units or claims | Classification | Version/environment identity | Evidence path or blocking claim |"
   )
   fail_check("execution preflight has no tool/environment lanes") if tool_rows.empty?
+  expected_tool_requirements = [
+    "Go toolchain and repository gate tools", "PostgreSQL profile", "Valkey profile",
+    "race, fuzz, leak, and mutation tooling", "browser and interoperability harnesses"
+  ]
+  fail_check("tool/environment lane requirement closure drifted") unless
+    tool_rows.map { |row| plain_cell(row.fetch(0)) } == expected_tool_requirements
   classifications = Set["available", "unavailable", "not-yet-needed"]
   tool_rows.each do |requirement, required_by, classification, identity, evidence|
     fail_check("tool/environment lane has an empty field") if [requirement, required_by, classification, identity, evidence].any?(&:empty?)
     fail_check("tool/environment lane #{requirement} has invalid classification") unless classifications.include?(plain_cell(classification))
     fail_check("unavailable tool/environment lane #{requirement} lacks blocking claims") if plain_cell(classification) == "unavailable" && plain_cell(evidence).match?(/\A(?:—|not-needed)\z/)
     fail_check("tool/environment lane #{requirement} has unsafe evidence or blocker") unless safe_preflight_evidence_or_blocker?(plain_cell(evidence))
+    tool_lane_attestations << {
+      requirement: plain_cell(requirement), required_by: plain_cell(required_by),
+      classification: plain_cell(classification), identity: plain_cell(identity), evidence: plain_cell(evidence)
+    }
   end
 
   external_rows = markdown_table(
@@ -6269,19 +10193,72 @@ if execution_mode
   end
   external_profiles = external_lanes.map { |lane| lane[:profile] }
   fail_check("execution preflight contains duplicate external profiles") unless external_profiles == external_profiles.uniq
+  expected_external_lanes = derived_external_evidence_lanes(
+    configuration: JSON.parse(artifacts.fetch("CONFIGURATION_CATALOGS.json")),
+    protocol_manifest: JSON.parse(artifacts.fetch("PROTOCOL_CONFORMANCE_MANIFEST.json")),
+    verification: JSON.parse(artifacts.fetch("VERIFICATION_APPLICABILITY.json")),
+    artifact_catalog: JSON.parse(artifacts.fetch("ACCEPTANCE_ARTIFACTS.json")),
+    repository_root: REPOSITORY_ROOT
+  )
+  external_lane_closure_errors(expected_external_lanes, external_lanes).each { |error| fail_check(error) }
+  expected_environment_identities = expected_environment_input_identities(
+    external_lanes: external_lanes, tool_lanes: tool_lane_attestations
+  )
+  worker_return_attestations.each do |returned|
+    begin
+      return_document = JSON.parse(returned.fetch(:report_bytes))
+      return_document.fetch("reports", []).each do |report|
+        environment_input_attestation_errors(report.fetch("input_manifest", []), expected_environment_identities).each do |error|
+          fail_check("worker return #{returned[:unit]} #{error}")
+        end
+      end
+    rescue JSON::ParserError, KeyError
+      fail_check("worker return #{returned[:unit]} environment manifest is unavailable")
+    end
+  end
   preflight_recorded_at = Time.iso8601(plain_cell(identity_rows.fetch("Preflight recorded at (RFC3339)")))
   external_lanes.select { |lane| external_records.key?(lane[:evidence]) }.each do |lane|
     errors = external_evidence_record_errors(
       external_records.fetch(lane[:evidence]), profile: lane[:profile], claims: lane[:claims], consumers: lane[:consumers],
       recorded_after: preflight_recorded_at, evidence_commit: lane[:evidence_commit],
-      module_roots: modules, repository_root: REPOSITORY_ROOT, record_path: lane[:evidence]
+      module_roots: modules, repository_root: REPOSITORY_ROOT, record_path: lane[:evidence],
+      platform_capture_bindings: platform_gate_capture_bindings
     )
     fail_check("external evidence profile #{lane[:profile]} record invalid: #{errors.join('; ')}") unless errors.empty?
+    if errors.empty?
+      record = external_records.fetch(lane[:evidence])
+      profile_record = record.fetch("profiles").find { |candidate| candidate.fetch("profile_id") == lane[:profile] }
+      profile_record.fetch("unit_results").each do |result|
+        receipt_artifact = result.fetch("artifacts").find do |artifact|
+          artifact.fetch("path").match?(%r{\A\.ai/identity-platform/evidence/executions/.+\.json\z})
+        end
+        next unless receipt_artifact
+
+        verified_evidence_candidates << {
+          evidence_id: "external-evidence:#{result.fetch('unit').tr('/', '-')}",
+          kind: "external-evidence", subject_id: lane[:profile],
+          claim_ids: ([lane[:profile], result.fetch("unit")] + lane[:claims]).uniq.sort_by(&:b),
+          command_or_profile: lane[:profile], record_path: lane[:evidence], record_commit: lane[:evidence_commit],
+          record_sha256: Digest::SHA256.hexdigest(git_blob_bytes(lane[:evidence_commit], lane[:evidence])),
+          receipt_path: receipt_artifact.fetch("path"), receipt_commit: lane[:evidence_commit],
+          receipt_sha256: receipt_artifact.fetch("sha256").delete_prefix("sha256:"),
+          tested_revision: result.fetch("tested_revision"), gate_execution_revision: result.fetch("gate_execution_revision"),
+          input_root: result.fetch("input_root"), verified: true, profile_id: lane[:profile], blockers: []
+        }
+      end
+    end
   end
   external_records.each do |path, record|
     expected_profiles = external_lanes.select { |lane| lane[:evidence] == path }.map { |lane| lane[:profile] }.sort
     actual_profiles = record.fetch("profiles").map { |profile| profile["profile_id"] }
     fail_check("external evidence bundle #{path} profile attribution drifted") unless actual_profiles == expected_profiles && actual_profiles == actual_profiles.uniq
+    record.fetch("profiles").each do |profile|
+      profile.fetch("unit_results").each do |result|
+        environment_input_attestation_errors(result.fetch("input_manifest"), expected_environment_identities).each do |error|
+          fail_check("external evidence bundle #{path} #{profile.fetch('profile_id')} #{result.fetch('unit')} #{error}")
+        end
+      end
+    end
   end
 
   acceptance_evidence_bindings = markdown_table(
@@ -6364,6 +10341,7 @@ if execution_mode
     owner = plain_cell(owner)
     target = plain_cell(target)
     state = plain_cell(state)
+    cleanup_trigger = plain_cell(cleanup_trigger)
     cleanup_evidence = plain_cell(cleanup_evidence)
     fail_check("resource ID is unsafe") unless resource_id.match?(/\A[a-zA-Z0-9._-]+\z/)
     fail_check("resource #{resource_id} has incomplete ownership") if type.empty? || owner.empty?
@@ -6436,8 +10414,10 @@ if execution_mode
       integration_pending = type == "worktree" && worktree_resource_rows.last&.fetch(:target) == target &&
         worktree_resource_rows.last.fetch(:integration)
       fail_check("only the integration worktree may be removal-pending") unless integration_pending
+      fail_check("integration worktree removal-pending cleanup trigger drifted") unless
+        cleanup_trigger == "user-authorized-post-report-removal"
     end
-    fail_check("resource #{resource_id} lacks cleanup trigger") if cleanup_trigger.empty? || plain_cell(cleanup_trigger) == "—"
+    fail_check("resource #{resource_id} lacks cleanup trigger") if cleanup_trigger.empty? || cleanup_trigger == "—"
     fail_check("resource #{resource_id} reconciliation timestamp is invalid") unless rfc3339?(plain_cell(reconciled_at))
     if type == "worktree"
       evidence_ok = if state == "removed"
@@ -6463,7 +10443,7 @@ if execution_mode
     end
     task_owned_resource_rows << {
       id: resource_id, type: type, owner: owner, state: state, target: target,
-      evidence: cleanup_evidence, clean: worktree_clean, head: worktree_head
+      cleanup_trigger: cleanup_trigger, evidence: cleanup_evidence, clean: worktree_clean, head: worktree_head
     }
   end
   resource_ids = task_owned_resource_rows.map { |resource| resource[:id] }
@@ -6471,9 +10451,13 @@ if execution_mode
   live_worktree_targets = worktree_resource_rows.map { |resource| resource[:target] }
   fail_check("task-owned resource registry contains duplicate live worktrees") unless live_worktree_targets.uniq == live_worktree_targets
   integration_resources = worktree_resource_rows.select { |resource| resource[:integration] }
-  unless integration_resources.length == 1 && integration_resources.first[:owner] == "coordinator" && integration_resources.first[:state] != "removed"
-    fail_check("integration worktree requires exactly one live coordinator-owned worktree resource")
-  end
+  terminal_cleanup_state = rows.all? { |row| row[:status] == "verified" } &&
+    completed_cleanup_handoff?(task_owned_resource_rows, integration_target: integration_worktree)
+  normal_integration_state = !rows.all? { |row| row[:status] == "verified" } &&
+    integration_resources.length == 1 && integration_resources.first[:owner] == "coordinator" &&
+    integration_resources.first[:state] != "removed"
+  fail_check("integration worktree requires one exact live or terminal-removed coordinator resource") unless
+    normal_integration_state || terminal_cleanup_state
   if rows.all? { |row| row[:status] == "verified" }
     incomplete_cleanup = task_owned_resource_rows.reject do |resource|
       resource[:state] == "removed" ||
@@ -6505,40 +10489,82 @@ if execution_mode
     row
   end
   goal_revision_lifecycle_errors(goal_revision_rows).each { |error| fail_check(error) }
+  goal_revision_rows.each do |revision|
+    approval = user_semantic_authorizations.find do |row|
+      row[:approval_id] == revision[:authorized_by] && row[:status] == "authorized" && row[:classes].include?("goal") &&
+        row[:manifest].fetch("entries").any? do |entry|
+          entry.fetch("source_path") == rows.find { |candidate| candidate[:unit] == revision[:unit] }.fetch(:goal)
+        end
+    end
+    fail_check("goal revision #{revision[:revision_id]} lacks prior exact user semantic authorization") unless approval
+  end
 
   recovery_rows = markdown_table(
     preflight,
     "Conflict-recovery baselines",
-    "| Recovery epoch | Unit | Generation | Integration commit | Worker checkpoint | Conflict evidence path | Status | Recorded at |"
+    "| Recovery epoch | Unit | Generation | Integration baseline | Authorization input root | Worker checkpoint | Authorization checkpoint | Conflict evidence path | Result worker commit | Result integration checkpoint | Status | Recorded at |"
   )
-  recovery_statuses = Set["authorized", "superseded", "completed"]
-  normalized_recovery_rows = recovery_rows.map do |epoch, unit, generation, integration_commit, worker_checkpoint, evidence, status, recorded_at|
-    unit = plain_cell(unit)
-    epoch = plain_cell(epoch)
-    generation = plain_cell(generation)
+  recovery_statuses = Set["authorized", "effective", "superseded", "completed"]
+  normalized_recovery_rows = recovery_rows.map do |cells|
+    fail_check("conflict-recovery row has wrong column count") unless cells.length == 12
+    epoch, unit, generation, baseline, input_root, worker_checkpoint, authorization_checkpoint,
+      evidence, result_worker, result_checkpoint, status, recorded_at = cells.map { |value| plain_cell(value) }
     expected_epoch_prefix = "recovery:#{unit.tr('/', '-')}:g#{generation}:e"
     fail_check("conflict-recovery row for #{unit} has invalid epoch") unless epoch.match?(/\A#{Regexp.escape(expected_epoch_prefix)}[1-9]\d*\z/)
     fail_check("conflict-recovery row has unknown unit") unless known.include?(unit)
     fail_check("conflict-recovery row for #{unit} has invalid generation") unless generation.match?(/\A\d+\z/)
-    fail_check("conflict-recovery row for #{unit} has invalid integration parent") unless plain_cell(integration_commit).match?(/\A[0-9a-f]{40}\z/)
-    fail_check("conflict-recovery row for #{unit} has invalid worker checkpoint") unless plain_cell(worker_checkpoint).match?(/\A[0-9a-f]{40}\z/)
-    fail_check("conflict-recovery row for #{unit} has unsafe or missing evidence path") unless repository_evidence_path?(plain_cell(evidence))
-    fail_check("conflict-recovery row for #{unit} has invalid status") unless recovery_statuses.include?(plain_cell(status))
-    fail_check("conflict-recovery row for #{unit} has invalid timestamp") unless rfc3339?(plain_cell(recorded_at))
-    [unit, generation, plain_cell(integration_commit), plain_cell(worker_checkpoint), plain_cell(evidence), plain_cell(status), plain_cell(recorded_at), epoch]
+    fail_check("conflict-recovery row for #{unit} has invalid integration baseline") unless baseline.match?(/\A[0-9a-f]{40}\z/)
+    fail_check("conflict-recovery row for #{unit} has invalid authorization input root") unless input_root.match?(/\Asha256:[0-9a-f]{64}\z/)
+    fail_check("conflict-recovery row for #{unit} has invalid worker checkpoint") unless worker_checkpoint.match?(/\A[0-9a-f]{40}\z/)
+    fail_check("conflict-recovery row for #{unit} has unsafe or missing evidence path") unless repository_evidence_path?(evidence)
+    fail_check("conflict-recovery row for #{unit} has invalid status") unless recovery_statuses.include?(status)
+    fail_check("conflict-recovery row for #{unit} has invalid timestamp") unless rfc3339?(recorded_at)
+    if status == "authorized"
+      fail_check("authorized conflict-recovery row for #{unit} predicts its authorization checkpoint") unless authorization_checkpoint == "pending"
+      fail_check("authorized conflict-recovery row for #{unit} predicts result commits") unless [result_worker, result_checkpoint].all? { |value| value == "—" }
+    elsif status == "effective"
+      fail_check("effective conflict-recovery row for #{unit} has invalid authorization checkpoint") unless authorization_checkpoint.match?(/\A[0-9a-f]{40}\z/)
+      fail_check("effective conflict-recovery row for #{unit} predicts result commits") unless [result_worker, result_checkpoint].all? { |value| value == "—" }
+    elsif status == "completed"
+      fail_check("completed conflict-recovery row for #{unit} has invalid authorization checkpoint") unless authorization_checkpoint.match?(/\A[0-9a-f]{40}\z/)
+      fail_check("completed conflict-recovery row for #{unit} lacks exact result bindings") unless [result_worker, result_checkpoint].all? { |value| value.match?(/\A[0-9a-f]{40}\z/) }
+    else
+      fail_check("superseded conflict-recovery row for #{unit} has invalid authorization checkpoint") unless authorization_checkpoint.match?(/\A[0-9a-f]{40}\z/)
+      fail_check("superseded conflict-recovery row for #{unit} retains result bindings") unless [result_worker, result_checkpoint].all? { |value| value == "—" }
+    end
+    {
+      unit: unit, generation: generation, baseline: baseline, input_root: input_root,
+      worker_checkpoint: worker_checkpoint, authorization_checkpoint: authorization_checkpoint,
+      evidence: evidence, result_worker: result_worker, result_checkpoint: result_checkpoint,
+      status: status, recorded_at: recorded_at, epoch: epoch, row_line: "| #{cells.join(' | ')} |"
+    }
   end
-  normalized_recovery_rows.group_by { |row| row.values_at(0, 1) }.each do |(unit, generation), history|
+  normalized_recovery_rows.group_by { |row| row.values_at(:unit, :generation) }.each do |(unit, generation), history|
+    lifecycle_history = history.map { |row| {"status" => row[:status], "epoch" => row[:epoch]} }
+    recovery_lifecycle_errors(lifecycle_history).each do |error|
+      fail_check("recovery #{unit} generation #{generation} #{error}")
+    end
     expected_sequence = 0
     active_epoch = nil
     history.each do |row|
-      epoch_number = row[7][/:e(\d+)\z/, 1].to_i
-      if row[5] == "authorized"
+      epoch_number = row[:epoch][/:e(\d+)\z/, 1].to_i
+      if row[:status] == "authorized"
         expected_sequence += 1
         fail_check("recovery #{unit} generation #{generation} epoch sequence drifted") unless epoch_number == expected_sequence
         active_epoch = epoch_number
-      else
+      elsif row[:status] == "effective"
         fail_check("recovery #{unit} generation #{generation} terminal epoch drifted") unless epoch_number == active_epoch
       end
+    end
+    history.group_by { |row| row[:epoch] }.each_value do |epoch_rows|
+      authorization = epoch_rows.find { |row| row[:status] == "authorized" }
+      fail_check("recovery #{unit} generation #{generation} epoch lacks authorization") unless authorization
+      next unless authorization
+      identity_keys = %i[epoch unit generation baseline input_root worker_checkpoint evidence]
+      fail_check("recovery #{unit} generation #{generation} epoch identity drifted") unless
+        epoch_rows.all? { |row| row.values_at(*identity_keys) == authorization.values_at(*identity_keys) }
+      fail_check("recovery #{unit} generation #{generation} epoch duplicates a status") unless
+        epoch_rows.map { |row| row[:status] }.uniq.length == epoch_rows.length
     end
   end
   recovery_rows_for_validation = normalized_recovery_rows
@@ -6693,7 +10719,7 @@ expected_rate_override_policies = Set[
 ]
 fail_check("rate override policy closure drifted") unless rate_override_rows.map(&:first).to_set == expected_rate_override_policies
 rate_override_pairs = rate_override_rows.flat_map { |policy_id, operation_ids| operation_ids.map { |operation_id| [operation_id, policy_id] } }
-fail_check("rate override operation closure drifted") unless rate_override_pairs.length == 46 && rate_override_pairs.map(&:first).uniq.length == 46
+fail_check("rate override operation closure drifted") unless rate_override_pairs.length == 47 && rate_override_pairs.map(&:first).uniq.length == 47
 rate_overrides = rate_override_pairs.to_h
 unknown_rate_override_operations = rate_overrides.keys - operation_ids
 fail_check("rate overrides name unknown operations: #{unknown_rate_override_operations}") unless unknown_rate_override_operations.empty?
@@ -6830,7 +10856,7 @@ fail_check("operation contract inventory fields drifted") unless contract_invent
 fail_check("operation contract inventory count drifted") unless contract_inventory.fetch("count") == contract_lines.length
 fail_check("operation contract inventory digest drifted") unless contract_inventory.fetch("sha256") == canonical_inventory_digest(contract_lines)
 
-%w[owners access csrf_origin risk_class rate_policy idempotency http_path].each do |field|
+%w[owners access csrf_origin risk_class rate_policy idempotency idempotency_transport http_path].each do |field|
   mutated = JSON.parse(JSON.generate(operation_semantics_document))
   row = mutated.fetch("operations").find { |candidate| candidate.fetch("exposure") == "both" }
   row[field] = if field == "http_path"
@@ -8431,7 +12457,7 @@ clause_pins.each do |pin|
 end
 expected_protocol_decisions = {
   "oidc.implicit-unsupported" => ["oidc-core-1.0-errata-2", "Sections 3.2 and 15.1 implicit flow", "unsupported"],
-  "oidc.hybrid-unsupported" => ["oidc-core-1.0-errata-2", "Sections 3.3 and 15.1 hybrid flow", "unsupported"],
+  "oidc.hybrid-unsupported" => ["oidc-core-1.0-errata-2", "Sections 3.3 and 15.1 hybrid flow; unsupported except the separately pinned Apple code id_token response", "unsupported"],
   "oidc.jarm-unsupported" => ["oauth-jarm-1.0-final", "Sections 2 and 3 response mode and client metadata; Section 4 authorization-server metadata; Section 5 security considerations", "unsupported"],
   "oidc.request-objects-unsupported" => ["oidc-core-1.0-errata-2", "Section 6 Request Object and request_uri parameters", "unsupported"],
   "oidc.encrypted-id-token-unsupported" => ["oidc-core-1.0-errata-2", "Sections 10.2 and 10.2.1 encrypted ID Tokens", "unsupported"],
@@ -8678,6 +12704,13 @@ unsupported_redirect_sigalg = semantic_inputs.fetch(:configuration).sub(
 expect_protocol_fixture_rejection!("unsupported SAML Redirect SigAlg", "SAML HTTP-Redirect SigAlg policy is missing or unsupported") do
   protocol_semantic_errors(**semantic_inputs.merge(configuration: unsupported_redirect_sigalg))
 end
+https_rsa_pss_constant = semantic_inputs.fetch(:public_contracts).sub(
+  "SignatureAlgorithmRSAPSSSHA256 = http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1",
+  "SignatureAlgorithmRSAPSSSHA256 = https://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1"
+)
+expect_protocol_fixture_rejection!("HTTPS-substituted SAML RSA-PSS URI", "SAML RSA-PSS SHA-256 exact public constant drifted") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: https_rsa_pss_constant))
+end
 
 mutate_public_contract = lambda do |id, &mutation|
   fixture = JSON.parse(semantic_inputs.fetch(:public_contracts))
@@ -8866,8 +12899,15 @@ preflight = artifacts.fetch("PREFLIGHT_EVIDENCE.md")
   "| Safe profile ID | Consuming units | Exact acceptance claim IDs | Classification | Credential source metadata | Evidence path or blocker | Evidence record commit | Evidence digest or blocker |",
   "| Primitive | Consuming units | Registered module/package | API input fingerprint | Gate fingerprint and result | Evidence path |",
   "| Resource ID | Type | Owning unit/task | Exact path or safe external ID | State | Cleanup trigger | Last reconciled at | Cleanup evidence or attestation |",
+  "| Unit | Generation | Worker task | Agent ID | Model | Reasoning | Fork turns | Subagents | Platform event binding | Recorded at |",
+  "| Unit | Generation | Worker task | Readiness event binding | Assignment authorization checkpoint | Runtime-attestation commit | Release event binding | Released at |",
+  "| Unit | Generation | Worker task | Return event binding | Report binding | Worker tip | Ordered worker commits | Recorded at |",
+  "| Gate ID | Resolved argv | Evidence record binding | Runner receipt binding | Producer capture event binding | Verifier capture event binding | Final input revision | Input root | Recorded at |",
+  "| Persistent goal ID | Platform event binding | Threshold state | Execution identity | Recorded at |",
+  "| Approval ID | Proposal manifest binding | Affected closure | Status | User message event binding | Blocker or action | Recorded at |",
+  "| Approval ID | Proposal manifest binding | Change classes | Previous semantic root | Proposed semantic root | User message event binding | Status | Recorded at |",
   "| Revision ID | Unit | Previous goal digest | Current goal digest | Status | Authorized by | Recorded at |",
-  "| Recovery epoch | Unit | Generation | Integration commit | Worker checkpoint | Conflict evidence path | Status | Recorded at |"
+  "| Recovery epoch | Unit | Generation | Integration baseline | Authorization input root | Worker checkpoint | Authorization checkpoint | Conflict evidence path | Result worker commit | Result integration checkpoint | Status | Recorded at |"
 ].each do |header|
   fail_check("preflight evidence schema missing: #{header}") unless preflight.lines.any? { |line| line.chomp == header }
 end
@@ -9001,7 +13041,17 @@ closure_rows.each do |record|
   end
 end
 
-fail_check("upstream leaf inventory schema drifted") unless upstream_leaves_manifest.fetch("schema_version") == 1
+fail_check("upstream leaf inventory schema drifted") unless upstream_leaves_manifest.fetch("schema_version") == 2
+expected_leaf_manifest_keys = %w[
+  schema_version upstream canonical_leaf_policy package_export_policy source_count leaf_count export_count
+  non_provider_path_classification_count non_provider_path_classifications_sha256 sha256 sources
+  leaf_dispositions export_dispositions package_summaries
+]
+fail_check("upstream leaf inventory top-level schema drifted") unless upstream_leaves_manifest.keys == expected_leaf_manifest_keys
+fail_check("upstream canonical leaf policy drifted") unless upstream_leaves_manifest.fetch("canonical_leaf_policy") ==
+  "one disposition per unique physical blob path; when declared sources overlap, select the source with the longest path, breaking equal lengths by bytewise source-path order"
+fail_check("upstream package export policy drifted") unless upstream_leaves_manifest.fetch("package_export_policy") ==
+  "enumerate every key in exports and bin from every packages/*/package.json blob; bind each disposition to the declaring manifest blob object ID"
 fail_check("upstream leaf inventory revision drifted") unless upstream_leaves_manifest.fetch("upstream") == upstream
 leaf_sources = upstream_leaves_manifest.fetch("sources")
 fail_check("upstream leaf source count drifted") unless upstream_leaves_manifest.fetch("source_count") == upstream_sources.length && leaf_sources.length == upstream_sources.length
@@ -9040,7 +13090,7 @@ tree_id_for = lambda do |root_path, entries, recursive|
   computed.fetch(root_path)
 end
 
-expected_leaf_identities = []
+expected_leaf_by_path = {}
 canonical_source_lines = []
 leaf_sources.each do |source|
   path = source.fetch("path")
@@ -9075,31 +13125,52 @@ leaf_sources.each do |source|
              else
                entries
              end
-  expected_leaf_identities.concat(selected.map { |entry| [path, entry.fetch("path"), entry.fetch("kind"), entry.fetch("object_id")] })
+  selected.each do |entry|
+    identity = [path, entry.fetch("path"), entry.fetch("kind"), entry.fetch("object_id")]
+    current = expected_leaf_by_path[entry.fetch("path")]
+    if current.nil? || ([path.length, path.b] <=> [current.fetch(0).length, current.fetch(0).b]) == 1
+      expected_leaf_by_path[entry.fetch("path")] = identity
+    end
+  end
 end
 
+expected_leaf_identities = expected_leaf_by_path.values
 leaf_dispositions = upstream_leaves_manifest.fetch("leaf_dispositions")
+leaf_disposition_keys = %w[
+  exact_disposition_id classification_rule_id path kind object_id source_path disposition_row_id
+  classification capability_ids operation_ids classification_basis
+]
 fail_check("upstream leaf count drifted") unless upstream_leaves_manifest.fetch("leaf_count") == expected_leaf_identities.length && leaf_dispositions.length == expected_leaf_identities.length
 actual_leaf_identities = leaf_dispositions.map { |leaf| [leaf.fetch("source_path"), leaf.fetch("path"), leaf.fetch("kind"), leaf.fetch("object_id")] }
-fail_check("upstream leaf identities are not sorted and unique") unless actual_leaf_identities == actual_leaf_identities.sort_by { |identity| [identity.fetch(1).b, identity.fetch(0).b] }.uniq
+fail_check("upstream leaf identities are not sorted and unique") unless actual_leaf_identities == actual_leaf_identities.sort_by { |identity| identity.fetch(1).b }.uniq
 fail_check("upstream leaf set drifted") unless actual_leaf_identities.to_set == expected_leaf_identities.to_set
 
-leaf_dispositions.combination(2) do |left, right|
-  ancestor, descendant = [left, right].sort_by { |leaf| leaf.fetch("path").length }
-  next unless descendant.fetch("path").start_with?("#{ancestor.fetch('path')}/")
-  catalog_containment = ancestor.fetch("source_path") == "packages" && ancestor.fetch("kind") == "tree" && descendant.fetch("source_path") != "packages"
-  fail_check("unexpected ancestor-overlapping upstream leaves: #{ancestor.fetch('path')} and #{descendant.fetch('path')}") unless catalog_containment
-end
+allowed_exact_classifications = Set[
+  "in-scope", "provider-capability", "non-capability", "non-capability-tooling", "client-surface",
+  "deployment-profile-divergence", "security-divergence", "superseded-contract", "product-exclusion",
+  "in-scope+non-capability", "in-scope+deployment-profile-divergence", "in-scope+security-divergence",
+  "in-scope+product-exclusion"
+].freeze
 
 semantic_by_id = closure_rows.to_h { |row| [row.fetch("disposition_row_id"), row] }
 leaf_dispositions.each do |leaf|
   path = leaf.fetch("path")
+  fail_check("upstream leaf schema drifted: #{path}") unless leaf.keys == leaf_disposition_keys
   disposition_row_id = leaf.fetch("disposition_row_id")
   semantic = semantic_by_id[disposition_row_id]
   fail_check("upstream leaf has unknown disposition row: #{path}") unless semantic
-  fail_check("upstream leaf classification drifted: #{path}") unless leaf.fetch("classification") == semantic.fetch("classification")
-  fail_check("upstream leaf capability closure drifted: #{path}") unless leaf.fetch("capability_ids") == semantic.fetch("capability_ids")
-  fail_check("upstream leaf operation closure drifted: #{path}") unless leaf.fetch("operation_ids") == semantic.fetch("operation_ids")
+  fail_check("upstream leaf exact disposition ID drifted: #{path}") unless leaf.fetch("exact_disposition_id") == "blob/#{path}"
+  fail_check("upstream leaf classifier rule ID is invalid: #{path}") unless leaf.fetch("classification_rule_id").match?(/\A[a-zA-Z0-9._\/-]+\/.+\z/)
+  fail_check("upstream leaf classification basis is absent: #{path}") unless leaf.fetch("classification_basis").is_a?(String) && !leaf.fetch("classification_basis").empty?
+  classification = leaf.fetch("classification")
+  fail_check("upstream leaf classification is invalid: #{path}") unless allowed_exact_classifications.include?(classification)
+  fail_check("upstream leaf capabilities are not sorted and unique: #{path}") unless leaf.fetch("capability_ids") == leaf.fetch("capability_ids").sort_by(&:b).uniq
+  fail_check("upstream leaf operations are not sorted and unique: #{path}") unless leaf.fetch("operation_ids") == leaf.fetch("operation_ids").sort_by(&:b).uniq
+  in_scope_component = classification == "in-scope" || classification.start_with?("in-scope+")
+  if in_scope_component
+    fail_check("in-scope upstream leaf lacks capability closure: #{path}") if leaf.fetch("capability_ids").empty?
+    fail_check("in-scope upstream leaf lacks operation closure: #{path}") if leaf.fetch("operation_ids").empty?
+  end
   provider_implementation_path = if leaf.fetch("source_path") == "packages/core/src/social-providers" && path != "packages/core/src/social-providers/index.ts"
                                    path.sub(/\.test\.ts\z/, ".ts")
                                  elsif path.start_with?("packages/better-auth/src/plugins/generic-oauth/providers/") && !path.end_with?("/index.ts")
@@ -9113,16 +13184,111 @@ leaf_dispositions.each do |leaf|
 end
 
 leaf_identity_set = actual_leaf_identities.map { |source_path, path, kind, object_id| [source_path, path, kind, object_id] }.to_set
+enumerated_tree_identity_set = leaf_sources.flat_map do |source|
+  identities = source.fetch("entries").filter_map do |entry|
+    next unless entry.fetch("kind") == "tree"
+
+    [source.fetch("path"), entry.fetch("path"), entry.fetch("kind"), entry.fetch("object_id")]
+  end
+  if source.fetch("kind") == "tree"
+    identities << [source.fetch("path"), source.fetch("path"), source.fetch("kind"), source.fetch("object_id")]
+  end
+  identities
+end.to_set
 closure_rows.each do |record|
   locator_identity = [record.fetch("source_path"), record.fetch("source_locator"), record.fetch("source_kind"), record.fetch("source_object_id")]
-  fail_check("upstream closure locator is not one exact enumerated leaf: #{record.fetch('disposition_row_id')}") unless leaf_identity_set.include?(locator_identity)
+  enumerated_identities = record.fetch("source_kind") == "tree" ? enumerated_tree_identity_set : leaf_identity_set
+  fail_check("upstream closure locator is not one exact enumerated object: #{record.fetch('disposition_row_id')}") unless enumerated_identities.include?(locator_identity)
 end
 
 canonical_leaf_lines = leaf_dispositions.map do |leaf|
-  ["leaf", leaf.fetch("source_path"), leaf.fetch("path"), leaf.fetch("kind"), leaf.fetch("object_id"), leaf.fetch("disposition_row_id"), leaf.fetch("classification"), leaf.fetch("capability_ids").join(","), leaf.fetch("operation_ids").join(",")].join("\t")
+  ["leaf", leaf.fetch("source_path"), leaf.fetch("path"), leaf.fetch("kind"), leaf.fetch("object_id"), leaf.fetch("exact_disposition_id"), leaf.fetch("classification_rule_id"), leaf.fetch("disposition_row_id"), leaf.fetch("classification"), leaf.fetch("capability_ids").join(","), leaf.fetch("operation_ids").join(",")].join("\t")
 end
-leaf_digest = canonical_inventory_digest(canonical_source_lines + canonical_leaf_lines)
+export_dispositions = upstream_leaves_manifest.fetch("export_dispositions")
+export_disposition_keys = %w[
+  exact_disposition_id classification_rule_id package export kind target manifest_path manifest_object_id
+  disposition_row_id classification capability_ids operation_ids classification_basis
+]
+fail_check("upstream export count drifted") unless upstream_leaves_manifest.fetch("export_count") == 104 && export_dispositions.length == 104
+export_keys = export_dispositions.map { |row| [row.fetch("package"), row.fetch("kind"), row.fetch("export")] }
+fail_check("upstream export dispositions are not sorted and unique") unless export_keys == export_keys.sort_by { |key| key.map(&:b) }.uniq
+export_dispositions.each do |row|
+  expected_id = "export/#{row.fetch('package')}/#{row.fetch('kind')}/#{row.fetch('export')}"
+  fail_check("upstream export schema drifted: #{expected_id}") unless row.keys == export_disposition_keys
+  fail_check("upstream export kind is invalid: #{expected_id}") unless %w[library-export command-bin].include?(row.fetch("kind"))
+  fail_check("upstream export target is invalid: #{expected_id}") unless row.fetch("target").is_a?(String) && !row.fetch("target").empty?
+  fail_check("upstream export exact disposition ID drifted") unless row.fetch("exact_disposition_id") == expected_id
+  manifest = leaf_dispositions.find { |leaf| leaf.fetch("path") == row.fetch("manifest_path") }
+  fail_check("upstream export manifest is not an exact pinned leaf: #{expected_id}") unless manifest && manifest.fetch("object_id") == row.fetch("manifest_object_id")
+  fail_check("upstream export classifier rule ID is invalid: #{expected_id}") unless row.fetch("classification_rule_id").match?(/\A[a-zA-Z0-9._\/-]+\/.+\z/)
+  fail_check("upstream export has unknown disposition row: #{expected_id}") unless semantic_by_id.key?(row.fetch("disposition_row_id"))
+  fail_check("upstream export classification is invalid: #{expected_id}") unless allowed_exact_classifications.include?(row.fetch("classification"))
+  fail_check("upstream export capabilities are not sorted and unique: #{expected_id}") unless row.fetch("capability_ids") == row.fetch("capability_ids").sort_by(&:b).uniq
+  fail_check("upstream export operations are not sorted and unique: #{expected_id}") unless row.fetch("operation_ids") == row.fetch("operation_ids").sort_by(&:b).uniq
+  fail_check("upstream export classification basis is absent: #{expected_id}") unless row.fetch("classification_basis").is_a?(String) && !row.fetch("classification_basis").empty?
+  if row.fetch("classification").split("+").include?("in-scope")
+    fail_check("in-scope upstream export lacks operation closure: #{expected_id}") if row.fetch("operation_ids").empty?
+  end
+end
+all_exact_ids = (leaf_dispositions + export_dispositions).map { |row| row.fetch("exact_disposition_id") }
+fail_check("upstream exact blob/export disposition IDs are not unique") unless all_exact_ids == all_exact_ids.uniq
+classification_basis_lines = (leaf_dispositions + export_dispositions).map do |row|
+  [row.fetch("exact_disposition_id"), row.fetch("classification_basis")].join("\t")
+end.sort_by(&:b)
+fail_check("upstream exact classification bases digest drifted") unless
+  Digest::SHA256.hexdigest(classification_basis_lines.join("\n") + "\n") == EXPECTED_UPSTREAM_CLASSIFICATION_BASES_SHA256
+canonical_export_lines = export_dispositions.map do |row|
+  ["export", row.fetch("package"), row.fetch("kind"), row.fetch("export"), row.fetch("target"), row.fetch("manifest_object_id"), row.fetch("exact_disposition_id"), row.fetch("classification_rule_id"), row.fetch("disposition_row_id"), row.fetch("classification"), row.fetch("capability_ids").join(","), row.fetch("operation_ids").join(",")].join("\t")
+end
+leaf_digest = canonical_inventory_digest(canonical_source_lines + canonical_leaf_lines + canonical_export_lines)
 fail_check("upstream leaf inventory digest drifted") unless upstream_leaves_manifest.fetch("sha256") == EXPECTED_UPSTREAM_LEAVES_SHA256 && leaf_digest == EXPECTED_UPSTREAM_LEAVES_SHA256
+
+non_provider_lines = leaf_dispositions.filter_map do |leaf|
+  next if leaf.fetch("disposition_row_id").start_with?("Provider catalog disposition\t")
+  [leaf.fetch("source_path"), leaf.fetch("path"), leaf.fetch("exact_disposition_id"), leaf.fetch("classification_rule_id"), leaf.fetch("disposition_row_id"), leaf.fetch("classification")].join("\t")
+end
+fail_check("upstream non-provider path classification count drifted") unless
+  upstream_leaves_manifest.fetch("non_provider_path_classification_count") == 1029 && non_provider_lines.length == 1029
+non_provider_digest = Digest::SHA256.hexdigest(non_provider_lines.join("\n") + "\n")
+fail_check("upstream non-provider path classification digest drifted") unless
+  upstream_leaves_manifest.fetch("non_provider_path_classifications_sha256") == non_provider_digest &&
+    non_provider_digest == "f04ba7017f756b71f64f260d97662c5960bbe3989fb86a6191ba53b97a5b7db1"
+
+package_summaries = upstream_leaves_manifest.fetch("package_summaries")
+package_summary_keys = %w[
+  package disposition_row_id declared_classification tree_object_id blob_count export_count
+  exact_dispositions_sha256 derived_classifications capability_ids operation_ids
+]
+fail_check("upstream package summaries are not sorted and unique") unless
+  package_summaries.map { |row| row.fetch("package") } == package_summaries.map { |row| row.fetch("package") }.sort_by(&:b).uniq
+expected_summary_packages = closure_rows.filter_map do |row|
+  section, package = row.fetch("disposition_row_id").split("\t", 2)
+  package if section == "Official top-level packages"
+end.sort_by(&:b)
+fail_check("upstream package summary set drifted") unless
+  package_summaries.length == expected_summary_packages.length &&
+    package_summaries.map { |row| row.fetch("package") } == expected_summary_packages
+fail_check("upstream package summaries aggregate digest drifted") unless
+  Digest::SHA256.hexdigest(JSON.generate(package_summaries)) == EXPECTED_UPSTREAM_PACKAGE_SUMMARIES_SHA256
+package_summaries.each do |summary|
+  package = summary.fetch("package")
+  fail_check("upstream package summary schema drifted: #{package}") unless summary.keys == package_summary_keys
+  semantic = semantic_by_id[summary.fetch("disposition_row_id")]
+  fail_check("upstream package summary has unknown disposition row: #{package}") unless semantic
+  fail_check("upstream package summary declared classification drifted: #{package}") unless semantic && summary.fetch("declared_classification") == semantic.fetch("classification")
+  fail_check("upstream package summary tree object drifted: #{package}") unless semantic && summary.fetch("tree_object_id") == semantic.fetch("source_object_id")
+  items = leaf_dispositions.select { |leaf| leaf.fetch("path").start_with?("packages/#{package}/") } +
+    export_dispositions.select { |row| row.fetch("package") == package }
+  exact_lines = items.map do |item|
+    [item.fetch("exact_disposition_id"), item.fetch("classification_rule_id"), item.fetch("disposition_row_id"), item.fetch("classification"), item.fetch("capability_ids").join(","), item.fetch("operation_ids").join(",")].join("\t")
+  end.sort_by(&:b)
+  fail_check("upstream package summary digest drifted: #{package}") unless summary.fetch("exact_dispositions_sha256") == Digest::SHA256.hexdigest(exact_lines.join("\n") + "\n")
+  fail_check("upstream package summary blob count drifted: #{package}") unless summary.fetch("blob_count") == items.count { |item| item.fetch("exact_disposition_id").start_with?("blob/") }
+  fail_check("upstream package summary export count drifted: #{package}") unless summary.fetch("export_count") == items.count { |item| item.fetch("exact_disposition_id").start_with?("export/") }
+  fail_check("upstream package summary classifications drifted: #{package}") unless summary.fetch("derived_classifications") == items.map { |item| item.fetch("classification") }.uniq.sort_by(&:b)
+  fail_check("upstream package summary capabilities drifted: #{package}") unless summary.fetch("capability_ids") == items.flat_map { |item| item.fetch("capability_ids") }.uniq.sort_by(&:b)
+  fail_check("upstream package summary operations drifted: #{package}") unless summary.fetch("operation_ids") == items.flat_map { |item| item.fetch("operation_ids") }.uniq.sort_by(&:b)
+end
 
 capability_operations = item_closure.fetch("capability_operations")
 referenced_capabilities = closure_rows.flat_map { |record| record.fetch("capability_ids") }.uniq.sort
@@ -9197,11 +13363,13 @@ missing_operation_owners = parity_operation_owners.reject { |owner| operation_ow
 fail_check("in-scope parity owners lack API operation closure: #{missing_operation_owners.to_a}") unless missing_operation_owners.empty?
 
 orchestrator = File.read(File.join(ROOT, "ORCHESTRATOR_GOAL.md"))
-fail_check("orchestrator contains unresolved placeholder") if orchestrator.match?(/<[^>]+>/)
+orchestrator_metavariables = orchestrator.scan(/<([^>]+)>/).flatten.to_set
+fail_check("orchestrator metavariable closure drifted") unless orchestrator_metavariables == ALLOWED_ORCHESTRATOR_METAVARIABLES
 readme_prompt = readme[/^## Give one goal to one orchestrator.*?```text\n(.*?)```/m, 1]
 orchestrator_prompt = orchestrator[/^## Invocation.*?```text\n(.*?)```/m, 1]
 fail_check("README lacks the exact orchestrator prompt") unless readme_prompt
 fail_check("orchestrator lacks its canonical invocation") unless orchestrator_prompt
+fail_check("orchestrator invocation contains unresolved placeholder") if orchestrator_prompt&.match?(/<[^>]+>/)
 fail_check("README orchestrator prompt drifted") unless readme_prompt == orchestrator_prompt
 fail_check("README permits per-package prompts") unless readme.include?("MUST NOT\ncreate, paste, or run per-package prompts")
 
@@ -9222,9 +13390,13 @@ end
   "gpt-5.6-sol", "reasoning effort `medium`", "fork_turns: \"none\"",
   "git merge --no-ff", "implemented-unverified", "REFERENCE_PROFILE.md",
   "Interruption and worker-failure recovery", "A unit MUST NOT jump directly",
-  "validate.rb --execution", "resume/authorization commit"
+  "validate.rb --execution"
 ].each do |required|
   fail_check("orchestrator missing required operation: #{required}") unless orchestrator.include?(required)
+end
+orchestrator_normalized = orchestrator.gsub(/\s+/, " ")
+unless orchestrator_normalized.include?("The effective checkpoint, not the uncommitted row or authorization commit alone, is the resume authority.")
+  fail_check("orchestrator omits effective recovery resume authority")
 end
 worker = File.read(File.join(ROOT, "WORKER_PROMPT.md"))
 policy_errors = orchestration_policy_errors(orchestrator, worker)
@@ -9379,7 +13551,7 @@ dependency_dispositions.each do |disposition|
 end
 local_gate_binding_header = "| Unit | Generation | Gate execution revision | Evidence path | Evidence record commit | Evidence blob digest | Bound at |"
 parse_local_gate_bindings = lambda do |body|
-  markdown_table(body, "Local gate evidence bindings", local_gate_binding_header).map do |unit, generation, gate_revision, path, commit, digest, bound_at|
+  markdown_table(body, "Per-unit verification-gate evidence bindings", local_gate_binding_header).map do |unit, generation, gate_revision, path, commit, digest, bound_at|
     binding = {
       unit: plain_cell(unit), generation: plain_cell(generation), gate_revision: plain_cell(gate_revision), path: plain_cell(path),
       commit: plain_cell(commit), digest: plain_cell(digest), bound_at: plain_cell(bound_at)
@@ -9405,14 +13577,167 @@ local_gate_binding_keys = local_gate_evidence_bindings.map { |binding| [binding[
 fail_check("local gate evidence bindings contain duplicate unit/generation/revision rows") unless local_gate_binding_keys == local_gate_binding_keys.uniq
 ledger_header = "| Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate execution revision | Gate fingerprint | External evidence | Last transition |"
 ledger_rows = parse_execution_ledger(ledger, ledger_header)
+if execution_mode
+  integration_commits = ledger_rows.filter_map { |entry| entry[:checkpoint] unless entry[:checkpoint] == "—" }.to_set
+  integration_commits.merge(repair_rows_for_validation.filter_map { |row| row[:result_checkpoint] if row[:status] == "completed" })
+  integration_commits.merge(recovery_rows_for_validation.filter_map { |row| row[:result_checkpoint] if row[:status] == "completed" })
+  first_parent_commits = git_output("rev-list", "--first-parent", "--reverse", "#{recorded_base}..HEAD").to_s.lines.map(&:strip)
+  worker_return_attestations.each do |returned|
+    matching_integrations = first_parent_commits.select do |commit|
+      git_output("rev-list", "--parents", "-n", "1", commit).to_s.split.drop(1)[1] == returned[:worker_tip]
+    end
+    next if matching_integrations.empty?
+
+    fail_check("historical worker return #{returned[:unit]} g#{returned[:generation]} has multiple integration merges") unless matching_integrations.length == 1
+    integration_commit = matching_integrations.first
+    integration_commits.add(integration_commit)
+    authorization = worker_attestations.find { |row| row.values_at(:unit, :generation) == returned.values_at(:unit, :generation) }
+    ordinary_integration_custody_errors(
+      integration_commit, worker_tip: returned[:worker_tip], module_root: authorization[:historical_module_root],
+      reserved_roots: authorization[:historical_reserved_roots],
+      canonical_goal_paths: authorization[:historical_canonical_goal_paths]
+    ).each { |error| fail_check("historical integration #{returned[:unit]} g#{returned[:generation]} #{error}") }
+  end
+  global_package_custody_errors(
+    recorded_base: recorded_base, package_roots: rows.map { |row| row[:module] },
+    integration_commits: integration_commits, semantic_application_sources: semantic_application_sources,
+    goal_manifest: goal_manifest
+  ).each { |error| fail_check(error) }
+  global_semantic_custody_errors(
+    recorded_base: recorded_base, semantic_application_sources: semantic_application_sources
+  ).each { |error| fail_check(error) }
+  artifact_commit_paths = Hash.new { |hash, key| hash[key] = Set.new }
+  [preflight, ledger].join("\n").scan(%r{(\.ai/identity-platform/(?:evidence|prompts)/[a-zA-Z0-9._/-]+)@([0-9a-f]{40})@(sha256:[0-9a-f]{64})}) do |path, commit, digest|
+    bytes = git_blob_bytes(commit, path)
+    next unless bytes && digest == "sha256:#{Digest::SHA256.hexdigest(bytes)}"
+
+    artifact_commit_paths[commit].add(path)
+  end
+  user_semantic_authorizations.each do |authorization|
+    authorization.fetch(:manifest).fetch("entries").each do |entry|
+      path = entry.fetch("proposed_blob_path")
+      commit = authorization.fetch(:proposal_commit)
+      bytes = git_blob_bytes(commit, path)
+      artifact_commit_paths[commit].add(path) if bytes &&
+        entry.fetch("proposed_content_sha256") == "sha256:#{Digest::SHA256.hexdigest(bytes)}"
+    end
+  end
+  worker_attestations.each do |authorization|
+    commit = first_parent_commit_adding_line(authorization.fetch(:row_line), ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    artifact_commit_paths[commit].add(authorization.fetch(:prompt_path)) if commit
+  end
+  repair_rows_for_validation.each do |repair|
+    commit = first_parent_commit_adding_line(repair.fetch(:row_line), ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    artifact_commit_paths[commit].add(repair.fetch(:prompt_path)) if commit
+  end
+  global_control_commit_class_errors(
+    recorded_base: recorded_base, integration_commits: integration_commits,
+    semantic_application_sources: semantic_application_sources, artifact_commit_paths: artifact_commit_paths
+  ).each { |error| fail_check(error) }
+  assigned_ledger_rows = ledger_rows.reject { |entry| entry[:task] == "—" }
+  assigned_ledger_rows.each do |entry|
+    awaiting_authorizations = semantic_authorization_requests.select do |request|
+      request[:status] == "awaiting-user" && request.dig(:affected, "units").include?(entry[:unit])
+    end
+    awaiting_authorizations.each do |request|
+      request_commit = first_parent_commit_adding_line(request[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+      assignment_authorization = worker_attestations.find do |row|
+        row.values_at(:unit, :generation) == entry.values_at(:unit, :generation)
+      end
+      assignment_commit = assignment_authorization && first_parent_commit_adding_line(
+        assignment_authorization[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
+      )
+      advanced_commits = [assignment_commit, entry[:checkpoint]].compact.reject { |commit| commit == "—" }
+      gate_binding = local_gate_evidence_bindings.find do |binding|
+        binding[:unit] == entry[:unit] && binding[:generation] == entry[:generation]
+      end
+      advanced_commits.concat([entry[:gate_revision], gate_binding&.dig(:commit)].compact.reject { |commit| commit == "—" })
+      fail_check("#{entry[:unit]} advanced while affected semantic authorization is awaiting user authority") if
+        request_commit && advanced_commits.any? { |commit| git_ancestor?(request_commit, commit) }
+    end
+    handshake = worker_release_handshakes.find do |row|
+      row.values_at(:unit, :generation, :task) == entry.values_at(:unit, :generation, :task)
+    end
+    attestation = worker_runtime_attestations.find do |row|
+      row.values_at(:unit, :generation, :task) == entry.values_at(:unit, :generation, :task)
+    end
+    assignment_authorization = worker_attestations.find do |row|
+      row.values_at(:unit, :generation) == entry.values_at(:unit, :generation)
+    end
+    worker_assignment_stage_errors(
+      entry, authorization: assignment_authorization, runtime_attestation: attestation, handshake: handshake
+    ).each { |error| fail_check("#{entry[:unit]} #{error}") }
+    unless handshake
+      fail_check("#{entry[:unit]} began worker work before release handshake") unless
+        entry[:worker_commit] == "—" && entry[:checkpoint] == "—"
+      next
+    end
+    returned = worker_return_attestations.find do |row|
+      row.values_at(:unit, :generation, :task) == entry.values_at(:unit, :generation, :task)
+    end
+    work_exists = entry[:worker_commit] != "—" || entry[:checkpoint] != "—"
+    fail_check("#{entry[:unit]} worker work lacks a committed return capture") if work_exists && !returned
+    if returned
+      worker_return_attestation_errors(returned, runtime: attestation, release: handshake, ledger_entry: entry).each do |error|
+        fail_check("#{entry[:unit]} #{error}")
+      end
+      fail_check("#{entry[:unit]} worker return tip drifted from ledger") unless entry[:worker_commit] == returned[:worker_tip]
+      return_commit = first_parent_commit_adding_line(returned[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+      fail_check("#{entry[:unit]} worker return row is not committed") unless return_commit
+      fail_check("#{entry[:unit]} worker return row predates its platform event artifact") unless
+        return_commit && platform_event_binding(returned[:event_binding]) &&
+        git_ancestor?(platform_event_binding(returned[:event_binding]).fetch(1), return_commit)
+      fail_check("#{entry[:unit]} integration checkpoint predates worker return custody") unless
+        entry[:checkpoint] == "—" || (return_commit && git_ancestor?(return_commit, entry[:checkpoint]))
+    end
+    worker_release_handshake_errors(handshake, attestation: attestation, ledger_entry: entry).each do |error|
+      fail_check("#{entry[:unit]} #{error}")
+    end
+    release_preparation_chronology_errors(handshake, attestation, observed_at: Time.now.utc).each do |error|
+      fail_check("#{entry[:unit]} #{error}")
+    end
+    runtime_bytes = git_blob_bytes(handshake[:runtime_commit], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    fail_check("#{entry[:unit]} release runtime checkpoint lacks committed preflight") unless runtime_bytes
+    fail_check("#{entry[:unit]} release runtime checkpoint does not contain exact attestation") unless
+      runtime_bytes && attestation && runtime_bytes.lines.any? { |line| line.chomp == attestation[:row_line] }
+    exact_runtime_commit = attestation && first_parent_commit_adding_line(attestation[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    fail_check("#{entry[:unit]} release runtime checkpoint is not the exact attestation commit") unless
+      exact_runtime_commit == handshake[:runtime_commit]
+    fail_check("#{entry[:unit]} assignment authorization checkpoint excludes assignment") unless
+      git_ancestor?(entry[:assignment], handshake[:assignment_checkpoint])
+    exact_assignment_authorization_commit = assignment_authorization && first_parent_commit_adding_line(
+      assignment_authorization[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
+    )
+    fail_check("#{entry[:unit]} readiness checkpoint is not the exact assignment authorization commit") unless
+      handshake[:assignment_checkpoint] == exact_assignment_authorization_commit
+    handshake_commit = first_parent_commit_adding_line(handshake[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    fail_check("#{entry[:unit]} release handshake has no first-parent commit") unless handshake_commit
+    fail_check("#{entry[:unit]} release handshake precedes runtime attestation") unless
+      handshake_commit && git_ancestor?(handshake[:runtime_commit], handshake_commit)
+    handshake_parent = handshake_commit && git_output("rev-parse", "#{handshake_commit}^1")
+    fail_check("#{entry[:unit]} release handshake is not committed directly after runtime attestation") unless
+      handshake_parent == handshake[:runtime_commit]
+    if entry[:worker_commit] != "—"
+      fail_check("#{entry[:unit]} worker-authored commit precedes release handshake") unless
+        handshake_commit && git_first_parent_ancestor?(handshake_commit, entry[:worker_commit])
+    end
+  end
+  current_handshakes = worker_release_handshakes.select do |row|
+    assigned_ledger_rows.any? { |entry| row.values_at(:unit, :generation, :task) == entry.values_at(:unit, :generation, :task) }
+  end
+  current_released_rows = assigned_ledger_rows.select { |entry| entry[:worker_commit] != "—" || entry[:checkpoint] != "—" }
+  fail_check("worker release handshake closure omits or duplicates released assignments") unless
+    current_handshakes.length == current_released_rows.length
+end
 worker_runtime_attestations.each do |runtime_attestation|
   ledger_entry = ledger_rows.find do |entry|
-    entry[:unit] == runtime_attestation[:unit] && entry[:generation] == runtime_attestation[:generation]
+    entry[:unit] == runtime_attestation[:unit]
   end
-  fail_check("worker runtime attestation has no matching ledger assignment") unless ledger_entry && ledger_entry[:task] != "—"
+  current_generation = ledger_entry && ledger_entry[:generation] == runtime_attestation[:generation]
+  fail_check("worker runtime attestation generation is invalid") unless runtime_attestation[:generation].match?(/\A\d+\z/)
   worker_runtime_attestation_errors(
     runtime_attestation, unit: runtime_attestation[:unit], generation: runtime_attestation[:generation],
-    task: ledger_entry&.fetch(:task, "—")
+    task: current_generation ? ledger_entry.fetch(:task) : runtime_attestation[:task]
   ).each { |error| fail_check("#{runtime_attestation[:unit]} #{error}") }
   assignment_authorization = worker_attestations.find do |authorization|
     authorization[:unit] == runtime_attestation[:unit] && authorization[:generation] == runtime_attestation[:generation]
@@ -9425,7 +13750,7 @@ worker_runtime_attestations.each do |runtime_attestation|
   fail_check("#{runtime_attestation[:unit]} runtime attestation lacks exact assignment authorization ancestry") unless
     runtime_commit && authorization_commit && git_output("rev-parse", "#{runtime_commit}^1") == authorization_commit
   fail_check("#{runtime_attestation[:unit]} worker branch excludes runtime attestation") unless
-    runtime_commit && ledger_entry && git_ancestor?(runtime_commit, "refs/heads/#{ledger_entry[:branch]}")
+    !current_generation || (runtime_commit && ledger_entry && git_ancestor?(runtime_commit, "refs/heads/#{ledger_entry[:branch]}"))
   runtime_paths = runtime_commit ? git_output("diff-tree", "--no-commit-id", "--name-only", "-r", runtime_commit).to_s.lines.map(&:strip) : []
   fail_check("#{runtime_attestation[:unit]} runtime attestation commit changed unexpected paths") unless
     runtime_paths == [".ai/identity-platform/PREFLIGHT_EVIDENCE.md"]
@@ -9435,6 +13760,11 @@ if execution_mode
   ledger_rows.reject { |entry| entry[:task] == "—" }.each do |entry|
     row = rows.find { |candidate| candidate[:unit] == entry[:unit] }
     attestation = worker_attestations.find { |candidate| candidate[:unit] == entry[:unit] && candidate[:generation] == entry[:generation] }
+    unless attestation
+      fail_check("#{entry[:unit]} began worker work before assignment authorization") unless
+        entry[:worker_commit] == "—" && entry[:checkpoint] == "—"
+      next
+    end
     fail_check("#{entry[:unit]} assignment lacks an authorized rendered-prompt envelope") unless attestation
     fail_check("#{entry[:unit]} assignment remains pending and MUST NOT spawn") if entry[:assignment] == "pending"
     fail_check("#{entry[:unit]} worker assignment is not authorized") unless attestation[:status] == "authorized"
@@ -9447,9 +13777,18 @@ if execution_mode
     fail_check("#{entry[:unit]} worker attestation package scope drifted") unless attestation[:package_scope] == row[:module]
     reserved = reserved_nested_roots(row[:module], modules, modules_manifest, packages_manifest)
     fail_check("#{entry[:unit]} worker attestation reserved descendants drifted") unless attestation[:reserved] == reserved
+    if entry[:generation] == "1"
+      assignment_commit_custody_errors(
+        attestation, recorded_base: recorded_base, module_root: row[:module], reserved_roots: reserved,
+        canonical_goal_paths: canonical_goal_paths
+      ).each { |error| fail_check("#{entry[:unit]} #{error}") }
+    end
     manifest_goal = goal_manifest.fetch("goals").find { |candidate| candidate.fetch("unit") == entry[:unit] }
-    assignment_goal_path = File.join(".ai/identity-platform", manifest_goal.fetch("planning_path"))
-    fail_check("#{entry[:unit]} worker assignment did not preserve its planning goal path") unless attestation[:goal_path] == assignment_goal_path
+    current_manifest_goal_errors, assignment_goal_path = active_goal_path_errors(
+      attestation[:goal_path], manifest_goal, revision: attestation[:baseline]
+    )
+    current_manifest_goal_errors.each { |error| fail_check("#{entry[:unit]} worker assignment #{error}") }
+    fail_check("#{entry[:unit]} worker assignment did not preserve its active goal path") unless attestation[:goal_path] == assignment_goal_path
     fail_check("#{entry[:unit]} worker attestation baseline commit is missing") unless git_commit_exists?(attestation[:baseline])
     fail_check("#{entry[:unit]} worker attestation assignment is not in its baseline") unless git_ancestor?(entry[:assignment], attestation[:baseline])
     fail_check("#{entry[:unit]} worker attestation baseline is not on integration history") unless git_ancestor?(attestation[:baseline], "HEAD")
@@ -9515,12 +13854,33 @@ if execution_mode
         repair_authorization = repair_rows_for_validation.reverse.find do |repair|
           repair[:unit] == entry[:unit] && repair[:generation] == entry[:generation] && repair[:status] == "authorized"
         end
+        conflict_recovery_effective = recovery_rows_for_validation.reverse.find do |recovery|
+          recovery[:unit] == entry[:unit] && recovery[:generation] == entry[:generation] && recovery[:status] == "effective"
+        end
         scope_checkpoint = if repair_authorization && entry[:worker_commit] != repair_authorization[:worker_checkpoint]
                              first_parent_commit_adding_line(
                                repair_authorization[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
                              )
                            end
-        scope_checkpoint ||= runtime_commit
+        if !repair_authorization && conflict_recovery_effective && entry[:worker_commit] != conflict_recovery_effective[:worker_checkpoint]
+          scope_checkpoint = first_parent_commit_adding_line(
+            conflict_recovery_effective[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
+          )
+        end
+        unless repair_authorization || conflict_recovery_effective
+          release_handshake = worker_release_handshakes.find do |candidate|
+            candidate.values_at(:unit, :generation, :task) == entry.values_at(:unit, :generation, :task)
+          end
+          scope_checkpoint = release_handshake && first_parent_commit_adding_line(
+            release_handshake[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
+          )
+        end
+        if entry[:checkpoint] != "—" && !repair_authorization && !conflict_recovery_effective
+          ordinary_integration_custody_errors(
+            entry[:checkpoint], worker_tip: entry[:worker_commit], module_root: row[:module],
+            reserved_roots: reserved, canonical_goal_paths: canonical_goal_paths
+          ).each { |error| fail_check("#{entry[:unit]} #{error}") }
+        end
         if scope_checkpoint && git_commit_exists?(entry[:worker_commit])
           fail_check("#{entry[:unit]} worker commit excludes its current authorization checkpoint") unless git_ancestor?(scope_checkpoint, entry[:worker_commit])
           returned_paths = git_output("diff", "--name-only", scope_checkpoint, entry[:worker_commit]).to_s.lines.map(&:strip).reject(&:empty?)
@@ -9530,6 +13890,10 @@ if execution_mode
           end
           fail_check("#{entry[:unit]} authorization-checkpoint-to-worker-tip diff escapes assigned package scope") unless permitted_paths
           worker_range = git_output("rev-list", "--reverse", "--ancestry-path", "#{scope_checkpoint}..#{entry[:worker_commit]}").to_s.lines.map(&:strip)
+          reachable_range = git_output("rev-list", "#{scope_checkpoint}..#{entry[:worker_commit]}").to_s.lines.map(&:strip)
+          unauthorized_ancestors = reachable_range.reject { |commit| git_ancestor?(scope_checkpoint, commit) }
+          fail_check("#{entry[:unit]} worker tip imports commits that do not contain its authorization checkpoint") unless unauthorized_ancestors.empty?
+          exact_worker_commits = []
           worker_range.each do |commit|
             parents = git_output("rev-list", "--parents", "-n", "1", commit).to_s.split.drop(1)
             first_parent = parents.first
@@ -9552,20 +13916,42 @@ if execution_mode
                 reserved.none? { |nested| path == nested || path.start_with?("#{nested}/") }
             end
             fail_check("#{entry[:unit]} worker-authored commit #{commit} escapes assigned package scope") unless commit_in_scope
+            exact_worker_commits << commit
           end
+          returned = worker_return_attestations.find do |candidate|
+            candidate.values_at(:unit, :generation, :task) == entry.values_at(:unit, :generation, :task)
+          end
+          fail_check("#{entry[:unit]} worker return capture omits or reorders worker commits") unless
+            returned && returned[:ordered_commits] == exact_worker_commits
         end
       end
     end
     fail_check("#{entry[:unit]} rendered worker prompt retains an unresolved marker") if prompt_bytes.match?(/<[^>]+>/)
   end
   orphan_attestations = worker_attestations.reject do |attestation|
-    ledger_rows.any? { |entry| entry[:task] != "—" && entry[:unit] == attestation[:unit] && entry[:generation] == attestation[:generation] }
+    ledger_rows.any? do |entry|
+      entry[:unit] == attestation[:unit] &&
+        (attestation[:generation].to_i < entry[:generation].to_i ||
+         (entry[:task] != "—" && entry[:generation] == attestation[:generation]))
+    end
   end
   fail_check("worker assignment attestation rows are orphaned") unless orphan_attestations.empty?
   orphan_runtime_attestations = worker_runtime_attestations.reject do |attestation|
-    ledger_rows.any? { |entry| entry[:task] != "—" && entry[:unit] == attestation[:unit] && entry[:generation] == attestation[:generation] && entry[:task] == attestation[:task] }
+    ledger_rows.any? do |entry|
+      entry[:unit] == attestation[:unit] &&
+        (attestation[:generation].to_i < entry[:generation].to_i ||
+         (entry[:task] != "—" && entry[:generation] == attestation[:generation] && entry[:task] == attestation[:task]))
+    end
   end
   fail_check("worker runtime attestation rows are orphaned") unless orphan_runtime_attestations.empty?
+  orphan_return_attestations = worker_return_attestations.reject do |returned|
+    ledger_rows.any? do |entry|
+      entry[:unit] == returned[:unit] &&
+        (returned[:generation].to_i < entry[:generation].to_i ||
+         (entry[:task] != "—" && entry.values_at(:generation, :task) == returned.values_at(:generation, :task)))
+    end
+  end
+  fail_check("worker return attestation rows are orphaned") unless orphan_return_attestations.empty?
 end
 ledger_parser_fixture = <<~MARKDOWN
   ## Dependency revisions
@@ -9614,31 +14000,110 @@ previous_snapshot_binding_errors(
 ).each { |error| fail_check(error) }
 
 effective_recoveries = recovery_rows_for_validation.each_with_object({}) do |row, latest|
-  key = row.values_at(0, 1, 2, 3).map { |value| plain_cell(value) }
+  key = row.values_at(:unit, :generation, :epoch)
   latest[key] = row
 end.values
-authorized_recoveries = effective_recoveries.select { |row| plain_cell(row[5]) == "authorized" }
+authorized_recoveries = recovery_rows_for_validation.select { |row| row[:status] == "effective" }
 authorized_recoveries.each do |source_row|
-  unit_cell, generation, integration_parent, worker_checkpoint, = source_row
-  unit = plain_cell(unit_cell)
-  integration_parent = plain_cell(integration_parent)
-  worker_checkpoint = plain_cell(worker_checkpoint)
+  unit = source_row[:unit]
+  generation = source_row[:generation]
+  integration_parent = source_row[:baseline]
+  worker_checkpoint = source_row[:worker_checkpoint]
   inventory_row = rows.find { |row| row[:unit] == unit }
   ledger_entry = ledger_rows.find { |row| row[:unit] == unit }
-  fail_check("authorized recovery #{unit} does not mirror in-progress state") unless inventory_row[:status] == "in-progress"
-  fail_check("authorized recovery #{unit} generation does not match ledger") unless plain_cell(generation) == ledger_entry[:generation]
-  fail_check("authorized recovery #{unit} checkpoint does not match ledger") unless worker_checkpoint == ledger_entry[:worker_commit]
+  recovery_assignment = worker_attestations.find do |row|
+    row[:unit] == unit && row[:generation] == generation
+  end
+  assignment_commit = recovery_assignment && recovery_assignment[:assignment]
+  active_epoch = effective_recoveries.include?(source_row)
+  fail_check("authorized recovery #{unit} does not mirror in-progress state") if active_epoch && inventory_row[:status] != "in-progress"
+  fail_check("authorized recovery #{unit} generation does not match ledger") if active_epoch && generation != ledger_entry[:generation]
+  fail_check("authorized recovery #{unit} checkpoint does not match ledger") if active_epoch && worker_checkpoint != ledger_entry[:worker_commit]
   fail_check("authorized recovery #{unit} integration parent does not exist") unless git_commit_exists?(integration_parent)
-  fail_check("authorized recovery #{unit} worker checkpoint does not exist") unless git_commit_exists?(worker_checkpoint)
-  fail_check("authorized recovery #{unit} assignment commit does not exist") unless git_commit_exists?(ledger_entry[:assignment])
-  fail_check("authorized recovery #{unit} checkpoint excludes its assignment") unless git_ancestor?(ledger_entry[:assignment], worker_checkpoint)
-  row_line = "| #{([source_row[7]] + source_row[0, 7]).join(' | ')} |"
-  resume_commit = first_parent_commit_adding_line(row_line, ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+    fail_check("authorized recovery #{unit} worker checkpoint does not exist") unless git_commit_exists?(worker_checkpoint)
+  fail_check("authorized recovery #{unit} lacks its generation assignment authorization") unless recovery_assignment
+  fail_check("authorized recovery #{unit} assignment commit does not exist") unless assignment_commit && git_commit_exists?(assignment_commit)
+  fail_check("authorized recovery #{unit} checkpoint excludes its assignment") unless assignment_commit && git_ancestor?(assignment_commit, worker_checkpoint)
+  if active_epoch
+    fail_check("authorized recovery #{unit} worker branch excludes its checkpoint") unless
+      ledger_entry[:branch] != "—" && git_ancestor?(worker_checkpoint, "refs/heads/#{ledger_entry[:branch]}")
+  end
+  recovery_module_roots = module_roots_for_unit(rows, unit)
+  recovery_manifest = active_epoch && tracked_behavior_input_manifest(integration_parent, recovery_module_roots)
+  fail_check("authorized recovery #{unit} cannot recompute baseline input manifest") if active_epoch && !recovery_manifest
+  if active_epoch && recovery_manifest
+    recovery_manifest = (recovery_manifest + attested_environment_manifest(expected_environment_identities))
+      .sort_by { |entry| entry.fetch("path_or_environment_id").b }
+    behavior_input_manifest_errors(
+      recovery_manifest, revision: integration_parent, module_roots: recovery_module_roots, repository: REPOSITORY_ROOT
+    ).each { |error| fail_check("authorized recovery #{unit} baseline input #{error}") }
+    fail_check("authorized recovery #{unit} authorization input root was not recomputed") unless
+      source_row[:input_root] == behavior_input_fingerprint(recovery_manifest)
+    current_recovery_revision = git_output("rev-parse", "HEAD")
+    current_recovery_manifest = active_epoch && tracked_behavior_input_manifest(current_recovery_revision, recovery_module_roots)
+    if active_epoch && current_recovery_manifest
+      current_recovery_manifest = (current_recovery_manifest + attested_environment_manifest(expected_environment_identities))
+        .sort_by { |entry| entry.fetch("path_or_environment_id").b }
+      fail_check("authorized recovery #{unit} scope advanced without superseding the epoch") unless
+        behavior_input_fingerprint(current_recovery_manifest) == source_row[:input_root]
+    end
+  end
+  authorization = recovery_rows_for_validation.find do |row|
+    row[:epoch] == source_row[:epoch] && row[:status] == "authorized"
+  end
+  fail_check("effective recovery #{unit} lacks preceding exact authorization row") unless authorization
+  resume_commit = authorization && first_parent_commit_adding_line(authorization[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
   fail_check("authorized recovery #{unit} has no first-parent authorization commit") unless resume_commit
+  fail_check("effective recovery #{unit} authorization checkpoint drifted") unless resume_commit == source_row[:authorization_checkpoint]
+  effective_commit = first_parent_commit_adding_line(source_row[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  fail_check("effective recovery #{unit} has no first-parent effectuation commit") unless effective_commit
+  fail_check("effective recovery #{unit} is not committed immediately after its authorization checkpoint") unless
+    effective_commit && resume_commit && git_output("rev-parse", "#{effective_commit}^1") == resume_commit
   resume_parent, resume_parent_status = Open3.capture2("git", "-C", REPOSITORY_ROOT, "rev-parse", "#{resume_commit}^1")
   fail_check("authorized recovery #{unit} cannot resolve resume first parent") unless resume_parent_status.success?
   fail_check("authorized recovery #{unit} pins the wrong resume first parent") unless resume_parent.strip == integration_parent
-  fail_check("authorized recovery #{unit} resume commit is not on current first-parent history") unless git_ancestor?(resume_commit, "HEAD")
+  fail_check("authorized recovery #{unit} resume commit is not on current first-parent history") unless effective_commit && git_ancestor?(effective_commit, "HEAD")
+end
+
+recovery_rows_for_validation.select { |row| row[:status] == "completed" }.each do |completed|
+  effective = recovery_rows_for_validation.find { |row| row[:epoch] == completed[:epoch] && row[:status] == "effective" }
+  fail_check("completed recovery #{completed[:unit]} lacks effective authorization") unless effective
+  next unless effective
+  fail_check("completed recovery #{completed[:unit]} authorization checkpoint drifted") unless
+    completed[:authorization_checkpoint] == effective[:authorization_checkpoint]
+  effective_commit = first_parent_commit_adding_line(effective[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  recovery_result_binding_errors(
+    completed, effective.merge(effective_commit: effective_commit), ancestor: method(:git_ancestor?),
+    parents: ->(commit) { git_output("show", "-s", "--format=%P", commit).to_s.split }
+  ).each { |error| fail_check("completed recovery #{completed[:unit]} #{error}") }
+  recovery_inventory_row = rows.find { |row| row[:unit] == completed[:unit] }
+  recovery_reserved = reserved_nested_roots(
+    recovery_inventory_row[:module], modules, modules_manifest, packages_manifest
+  )
+  ordinary_integration_custody_errors(
+    completed[:result_checkpoint], worker_tip: completed[:result_worker],
+    module_root: recovery_inventory_row[:module], reserved_roots: recovery_reserved,
+    canonical_goal_paths: canonical_goal_paths
+  ).each { |error| fail_check("completed recovery #{completed[:unit]} #{error}") }
+  completed_commit = first_parent_commit_adding_line(completed[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  completed_parent = completed_commit && git_output("rev-parse", "#{completed_commit}^1")
+  fail_check("completed recovery #{completed[:unit]} result binding is not committed directly after integration") unless
+    completed_parent == completed[:result_checkpoint]
+  fail_check("completed recovery #{completed[:unit]} shares a snapshot with effectuation") unless
+    effective_commit && completed_commit && effective_commit != completed_commit
+  terminal_ledger = completed_commit && git_blob_bytes(completed_commit, ".ai/identity-platform/EXECUTION_LEDGER.md")
+  ledger_entry = terminal_ledger && parse_execution_ledger(terminal_ledger, ledger_header).find do |row|
+    row[:unit] == completed[:unit] && row[:generation] == completed[:generation]
+  end
+  fail_check("completed recovery #{completed[:unit]} does not mirror its result in the execution ledger") unless
+    ledger_entry && ledger_entry[:worker_commit] == completed[:result_worker] &&
+      ledger_entry[:checkpoint] == completed[:result_checkpoint]
+end
+recovery_rows_for_validation.select { |row| row[:status] == "superseded" }.each do |superseded|
+  effective = recovery_rows_for_validation.find { |row| row[:epoch] == superseded[:epoch] && row[:status] == "effective" }
+  fail_check("superseded recovery #{superseded[:unit]} lacks effective authorization") unless effective
+  fail_check("superseded recovery #{superseded[:unit]} authorization checkpoint drifted") unless
+    effective && superseded[:authorization_checkpoint] == effective[:authorization_checkpoint]
 end
 
 active_repairs = repair_rows_for_validation.group_by { |row| row[:epoch] }.filter_map do |_epoch, history|
@@ -9669,6 +14134,15 @@ completed_repairs.each do |authorization, terminal|
   fail_check("completed integrated repair #{terminal[:unit]} integration checkpoint excludes repaired worker commit") unless git_ancestor?(terminal[:result_worker], terminal[:result_checkpoint])
   integration_parents = git_output("rev-list", "--parents", "-n", "1", terminal[:result_checkpoint]).to_s.split.drop(1)
   fail_check("completed integrated repair #{terminal[:unit]} result is not the exact authorized non-fast-forward merge") unless integration_parents == [authorization_commit, terminal[:result_worker]]
+  repair_inventory_row = rows.find { |row| row[:unit] == terminal[:unit] }
+  repair_reserved = reserved_nested_roots(
+    repair_inventory_row[:module], modules, modules_manifest, packages_manifest
+  )
+  ordinary_integration_custody_errors(
+    terminal[:result_checkpoint], worker_tip: terminal[:result_worker],
+    module_root: repair_inventory_row[:module], reserved_roots: repair_reserved,
+    canonical_goal_paths: canonical_goal_paths
+  ).each { |error| fail_check("completed integrated repair #{terminal[:unit]} #{error}") }
   terminal_commit = first_parent_commit_adding_line(terminal[:row_line], ".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
   fail_check("completed integrated repair #{terminal[:unit]} terminal commit does not directly follow its integration checkpoint") unless terminal_commit && git_output("rev-parse", "#{terminal_commit}^1") == terminal[:result_checkpoint]
   ledger_blob, _ledger_error, ledger_status = Open3.capture3("git", "-C", REPOSITORY_ROOT, "show", "#{terminal_commit}:.ai/identity-platform/EXECUTION_LEDGER.md") if terminal_commit
@@ -9756,9 +14230,41 @@ if previous_inventory_path
   unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Worker assignment authorizations", assignment_authorization_header)
     fail_check("worker assignment authorization history rows are not preserved exactly")
   end
-  runtime_attestation_header = "| Unit | Generation | Worker task | Agent ID | Model | Reasoning | Fork turns | Subagents | Platform source | Recorded at |"
+  gate_capture_header = "| Execution identity | Scope | Receipt binding | Producer capture event binding | Verifier capture event binding | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Platform gate capture bindings", gate_capture_header)
+    fail_check("platform gate capture binding history rows are not preserved exactly")
+  end
+  final_gate_header = "| Gate ID | Resolved argv | Evidence record binding | Runner receipt binding | Producer capture event binding | Verifier capture event binding | Final input revision | Input root | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Final gate bindings", final_gate_header)
+    fail_check("final gate binding history rows are not preserved exactly")
+  end
+  blocked_audit_header = "| Persistent goal ID | Platform event binding | Threshold state | Execution identity | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Blocked audit binding", blocked_audit_header)
+    fail_check("blocked audit binding history rows are not preserved exactly")
+  end
+  no_push_header = "| Program base | Final input revision | Git-observable scope | Coordinator event binding | Outcome | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "No-push coordinator assertion", no_push_header)
+    fail_check("no-push coordinator assertion history rows are not preserved exactly")
+  end
+  runtime_attestation_header = "| Unit | Generation | Worker task | Agent ID | Model | Reasoning | Fork turns | Subagents | Platform event binding | Recorded at |"
   unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Worker runtime attestations", runtime_attestation_header)
     fail_check("worker runtime attestation history rows are not preserved exactly")
+  end
+  release_header = "| Unit | Generation | Worker task | Readiness event binding | Assignment authorization checkpoint | Runtime-attestation commit | Release event binding | Released at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Worker release handshakes", release_header)
+    fail_check("worker release handshake history rows are not preserved exactly")
+  end
+  return_header = "| Unit | Generation | Worker task | Return event binding | Report binding | Worker tip | Ordered worker commits | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Worker return attestations", return_header)
+    fail_check("worker return attestation history rows are not preserved exactly")
+  end
+  semantic_request_header = "| Approval ID | Proposal manifest binding | Affected closure | Status | User message event binding | Blocker or action | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Semantic authorization requests", semantic_request_header)
+    fail_check("semantic authorization request history rows are not preserved exactly")
+  end
+  semantic_authorization_header = "| Approval ID | Proposal manifest binding | Change classes | Previous semantic root | Proposed semantic root | User message event binding | Status | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "User semantic authorizations", semantic_authorization_header)
+    fail_check("user semantic authorization history rows are not preserved exactly")
   end
   goal_revision_header = "| Revision ID | Unit | Previous goal digest | Current goal digest | Status | Authorized by | Recorded at |"
   unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Goal digest revisions", goal_revision_header)
@@ -9775,20 +14281,27 @@ if previous_inventory_path
   goal_digest_change_errors(previous_goal_manifest, goal_manifest, previous_goal_revisions, goal_revision_rows).each do |error|
     fail_check(error)
   end
-  recovery_header = "| Recovery epoch | Unit | Generation | Integration commit | Worker checkpoint | Conflict evidence path | Status | Recorded at |"
+  recovery_header = "| Recovery epoch | Unit | Generation | Integration baseline | Authorization input root | Worker checkpoint | Authorization checkpoint | Conflict evidence path | Result worker commit | Result integration checkpoint | Status | Recorded at |"
   unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Conflict-recovery baselines", recovery_header)
     fail_check("conflict-recovery history rows are not preserved exactly")
   end
-  previous_recoveries = markdown_table(previous_preflight, "Conflict-recovery baselines", recovery_header).map do |epoch, unit, generation, integration_commit, worker_checkpoint, evidence, status, recorded_at|
-    [plain_cell(unit), plain_cell(generation), plain_cell(integration_commit), plain_cell(worker_checkpoint),
-     plain_cell(evidence), plain_cell(status), plain_cell(recorded_at), plain_cell(epoch)]
+  previous_recoveries = markdown_table(previous_preflight, "Conflict-recovery baselines", recovery_header).map do |cells|
+    epoch, unit, generation, baseline, input_root, worker_checkpoint, authorization_checkpoint,
+      evidence, result_worker, result_checkpoint, status, recorded_at = cells.map { |value| plain_cell(value) }
+    {
+      epoch: epoch, unit: unit, generation: generation, baseline: baseline, input_root: input_root,
+      worker_checkpoint: worker_checkpoint, authorization_checkpoint: authorization_checkpoint,
+      evidence: evidence, result_worker: result_worker, result_checkpoint: result_checkpoint,
+      status: status, recorded_at: recorded_at, row_line: "| #{cells.join(' | ')} |"
+    }
   end
   recovery_transition_errors(previous_recoveries, recovery_rows_for_validation).each { |error| fail_check(error) }
   previous_recovery_raw_rows = markdown_table_raw_rows(previous_preflight, "Conflict-recovery baselines", recovery_header)
-  recovery_rows_for_validation.drop(previous_recoveries.length).reject { |row| row[5] == "authorized" }.each do |terminal|
-    identity = terminal.values_at(7, 0, 1, 2, 3)
+  recovery_rows_for_validation.drop(previous_recoveries.length).reject { |row| row[:status] == "authorized" }.each do |terminal|
+    identity = terminal.values_at(:epoch, :unit, :generation, :baseline, :input_root, :worker_checkpoint)
     authorization_index = previous_recoveries.index do |candidate|
-      candidate[5] == "authorized" && candidate.values_at(7, 0, 1, 2, 3) == identity
+      candidate[:status] == "authorized" &&
+        candidate.values_at(:epoch, :unit, :generation, :baseline, :input_root, :worker_checkpoint) == identity
     end
     next unless authorization_index
 
@@ -9837,7 +14350,7 @@ if previous_inventory_path
   new_dependency_dispositions = new_assignment_dispositions.reject { |disposition| disposition[:ordinary_abandonment] }
   new_ordinary_abandonments = new_assignment_dispositions.select { |disposition| disposition[:ordinary_abandonment] }
   previous_local_gate_bindings = parse_local_gate_bindings.call(previous_ledger)
-  unless markdown_table_append_only?(previous_ledger, ledger, "Local gate evidence bindings", local_gate_binding_header)
+  unless markdown_table_append_only?(previous_ledger, ledger, "Per-unit verification-gate evidence bindings", local_gate_binding_header)
     fail_check("local gate evidence binding history rows are not preserved exactly")
   end
   unless local_gate_evidence_bindings.first(previous_local_gate_bindings.length) == previous_local_gate_bindings
@@ -9953,20 +14466,17 @@ eligible_proposed = eligible_frontier_rows(rows, start_gate_blocked_units)
 fail_check("eligible proposed units were not promoted to ready: #{eligible_proposed.map { |row| row[:unit] }.join(', ')}") unless eligible_proposed.empty?
 
 if execution_mode
-  recovery_rows_for_validation.group_by { |row| row.values_at(0, 1) }.each do |(unit, generation), history|
-    statuses = history.map { |row| plain_cell(row[5]) }
-    recovery_lifecycle_errors(statuses.map { |status| {"status" => status} }).each { |error| fail_check("recovery #{unit} generation #{generation} #{error}") }
+  recovery_rows_for_validation.group_by { |row| row.values_at(:unit, :generation) }.each do |(unit, generation), history|
+    lifecycle = history.map { |row| {"status" => row[:status], "epoch" => row[:epoch]} }
+    recovery_lifecycle_errors(lifecycle).each { |error| fail_check("recovery #{unit} generation #{generation} #{error}") }
     epoch_history = history.map do |row|
-      {"status" => plain_cell(row[5]), "identity" => row.values_at(7, 0, 1, 2, 3).map { |value| plain_cell(value) }}
+      {"status" => row[:status], "identity" => row.values_at(:epoch, :unit, :generation, :baseline, :input_root, :worker_checkpoint)}
     end
     recovery_epoch_identity_errors(epoch_history).each { |error| fail_check("recovery #{unit} generation #{generation} #{error}") }
   end
 end
 
-active_ledger_rows = ledger_rows.select do |entry|
-  status = rows.find { |row| row[:unit] == entry[:unit] }[:status]
-  ["in-progress", "blocked"].include?(status)
-end
+active_ledger_rows = live_assignment_rows(ledger_rows, rows)
 gate_module_roots_for = lambda do |unit|
   closure = Set.new
   visit = lambda do |candidate|
@@ -10033,9 +14543,8 @@ ledger_rows.each do |entry|
       fail_check("#{entry[:unit]} pre-integration row has gate evidence") unless entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
       unless entry[:worker_commit] == "—"
         matching_recovery = authorized_recoveries.any? do |source_row|
-          plain_cell(source_row[0]) == entry[:unit] &&
-            plain_cell(source_row[1]) == entry[:generation] &&
-            plain_cell(source_row[3]) == entry[:worker_commit]
+          source_row[:unit] == entry[:unit] && source_row[:generation] == entry[:generation] &&
+            source_row[:worker_checkpoint] == entry[:worker_commit]
         end
         fail_check("#{entry[:unit]} pre-integration recovery lacks exact authorization") unless matching_recovery
       end
@@ -10121,8 +14630,28 @@ ledger_rows.each do |entry|
         gate, unit: entry[:unit], revision: entry[:gate_revision], fingerprint: entry[:fingerprint],
         module_roots: gate_module_roots_for.call(entry[:unit]), repository_root: REPOSITORY_ROOT,
         record_path: ".ai/identity-platform/evidence/gates/#{entry[:unit].tr('/', '-')}.json",
-        evidence_commit: gate_binding&.fetch(:commit)
+        evidence_commit: gate_binding&.fetch(:commit), platform_capture_bindings: platform_gate_capture_bindings,
+        canonical_command: "make check MODULES=#{inventory_row[:module]}"
       ).each do |error|
+        fail_check("#{entry[:unit]} local gate evidence #{error}")
+      end
+      receipt_entry = gate.fetch("artifacts").find do |artifact|
+        artifact.fetch("path").match?(%r{\A\.ai/identity-platform/evidence/executions/.+\.json\z})
+      end
+      fail_check("#{entry[:unit]} local gate lacks receipt registry identity") unless receipt_entry
+      if gate_binding && receipt_entry
+        verified_evidence_candidates << {
+          evidence_id: "unit-gate:#{entry[:unit].tr('/', '-')}",
+          kind: "unit-gate", subject_id: entry[:unit], claim_ids: [entry[:unit]],
+          command_or_profile: "make check MODULES=#{inventory_row[:module]}",
+          record_path: gate_binding.fetch(:path), record_commit: gate_binding.fetch(:commit),
+          record_sha256: gate_binding.fetch(:digest).delete_prefix("sha256:"), receipt_path: receipt_entry.fetch("path"),
+          receipt_commit: gate_binding.fetch(:commit), receipt_sha256: receipt_entry.fetch("sha256").delete_prefix("sha256:"),
+          tested_revision: gate.fetch("tested_revision"), gate_execution_revision: gate.fetch("gate_execution_revision"),
+          input_root: gate.fetch("input_root"), verified: true, local_gate_schema: gate.fetch("schema")
+        }
+      end
+      environment_input_attestation_errors(gate.fetch("input_manifest"), expected_environment_identities).each do |error|
         fail_check("#{entry[:unit]} local gate evidence #{error}")
       end
       unless execution_fixture_path
@@ -10163,6 +14692,252 @@ ledger_rows.each do |entry|
       end
     end
   end
+end
+
+terminal_report_path = File.join(ROOT, "evidence", "final-report.json")
+if execution_mode
+  all_units_verified = rows.all? { |row| row[:status] == "verified" }
+  unfinished_rows = rows.reject { |row| row[:status] == "verified" }
+  all_remaining_blocked = unfinished_rows.any? && unfinished_rows.all? { |row| row[:status] == "blocked" }
+  active_assignments_reconciled = active_ledger_rows.empty?
+  resources_reconciled = if all_units_verified
+    completed_cleanup_handoff?(task_owned_resource_rows, integration_target: integration_worktree)
+  else
+    task_owned_resource_rows.all? do |resource|
+      resource[:state] == "removed" ||
+        (resource[:state] == "retained-for-recovery" && !resource[:evidence].to_s.empty?)
+    end
+  end
+  complete_resources_removed = completed_cleanup_handoff?(
+    task_owned_resource_rows, integration_target: integration_worktree
+  )
+  terminal_status_output, _terminal_status_error, terminal_status = Open3.capture3(
+    "git", "-C", REPOSITORY_ROOT, "status", "--porcelain"
+  )
+  terminal_repository_clean = terminal_status.success? && terminal_status_output.empty?
+  current_blocker_identities = unfinished_rows.map do |row|
+    [row[:owner].to_s.delete_prefix("blocker:"), row[:unit]]
+  end.sort_by { |identity| identity.map(&:b) }
+  current_assignment_ids = ledger_rows.reject { |row| row[:task] == "—" }.map { |row| "#{row[:unit]}:g#{row[:generation]}" }.sort_by(&:b)
+  current_resource_ids = task_owned_resource_rows.map { |resource| resource[:id] }.sort_by(&:b)
+  current_assignment_projection = ledger_rows.reject { |row| row[:task] == "—" }.map do |entry|
+    inventory = rows.find { |row| row[:unit] == entry[:unit] }
+    {
+      "unit" => entry[:unit], "generation" => entry[:generation], "status" => inventory[:status],
+      "owner" => inventory[:owner], "task" => entry[:task], "assignment" => entry[:assignment],
+      "worker_commit" => entry[:worker_commit], "checkpoint" => entry[:checkpoint],
+      "gate_revision" => entry[:gate_revision], "fingerprint" => entry[:fingerprint],
+      "external" => entry[:external], "transition" => entry[:transition]
+    }
+  end.sort_by { |row| row.fetch("unit").b }
+  current_resource_projection = task_owned_resource_rows.map do |resource|
+    resource.transform_keys(&:to_s).slice("id", "type", "owner", "state", "target", "evidence")
+  end.sort_by { |row| row.fetch("id").b }
+  current_assignments_root = blocked_state_root(current_assignment_projection)
+  current_resources_root = blocked_state_root(current_resource_projection)
+  terminal_head = git_output("rev-parse", "HEAD")
+  terminal_module_roots = rows.map { |row| row[:module] }.sort_by(&:b)
+  blocked_audit = blocked_audit_bindings.find do |binding|
+    threshold = binding.fetch(:threshold)
+    threshold_revision = threshold["final_input_revision"]
+    threshold_manifest = tracked_behavior_input_manifest(threshold_revision, terminal_module_roots)
+    threshold_manifest = threshold_manifest &&
+      (threshold_manifest + attested_environment_manifest(expected_environment_identities))
+        .sort_by { |entry| entry.fetch("path_or_environment_id").b }
+    threshold_input_root = threshold_manifest && behavior_input_fingerprint(threshold_manifest)
+    blocked_audit_projection_errors(
+      binding, current_blocker_identities: current_blocker_identities,
+      current_assignment_ids: current_assignment_ids, current_resource_ids: current_resource_ids,
+      current_assignments_root: current_assignments_root, current_resources_root: current_resources_root,
+      expected_input_root: threshold_input_root,
+      bookkeeping_valid: final_input_bookkeeping_valid?(threshold_revision, head: terminal_head)
+    ).empty?
+  end
+  blocked_threshold_satisfied = !blocked_audit.nil?
+  blocked_terminal_claimed = all_remaining_blocked && eligible_proposed.empty? && active_assignments_reconciled &&
+    resources_reconciled && blocked_threshold_satisfied && terminal_repository_clean
+
+  report_catalogs = IdentityPlatformFinalReport.catalogs
+  authorization_evidence_claims = authorization_evidence_claim_ids.reject { |claim| claim == "structural-validation" }
+  final_gate_candidates = final_gate_bindings.filter_map do |binding|
+    record_bytes, record_commit, record_errors = verified_evidence_artifact(binding.fetch(:evidence_binding))
+    receipt_bytes, receipt_commit, receipt_errors = verified_evidence_artifact(binding.fetch(:receipt_binding))
+    next unless record_errors.empty? && receipt_errors.empty?
+    begin
+      record = AcceptanceSchemaValidation.parse_json(record_bytes, canonical: true)
+      receipt = AcceptanceSchemaValidation.parse_json(receipt_bytes, canonical: true)
+    rescue JSON::ParserError
+      next
+    end
+    expected_record = {
+      "schema_version" => 1, "schema" => "identity-platform.final-gate.v1", "gate_id" => binding.fetch(:gate_id),
+      "outcome" => "passed", "resolved_argv" => binding.fetch(:argv), "tested_revision" => binding.fetch(:final_input_revision),
+      "gate_execution_revision" => record.fetch("gate_execution_revision"), "input_root" => binding.fetch(:input_root),
+      "execution_identity" => binding.fetch(:execution_identity), "receipt_path" => evidence_artifact_binding_parts(binding.fetch(:receipt_binding))&.first,
+      "receipt_sha256" => "sha256:#{Digest::SHA256.hexdigest(receipt_bytes)}", "record_digest" => record.fetch("record_digest")
+    }
+    expected_record_digest = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(expected_record.reject { |key, _value| key == 'record_digest' }))}"
+    next unless record.fetch("record_digest") == expected_record_digest
+    next unless record.keys == expected_record.keys && record == expected_record
+    next unless git_ancestor?(binding.fetch(:final_input_revision), record.fetch("gate_execution_revision")) &&
+      git_ancestor?(record.fetch("gate_execution_revision"), record_commit)
+    next unless AcceptanceSchemaValidation.execution_identity(receipt) == binding.fetch(:execution_identity)
+    next unless receipt["capture_authority"] == "coordinator-owned-execution-runner/v3" &&
+      receipt["producer_argv"] == binding.fetch(:argv) && receipt["tested_revision"] == binding.fetch(:final_input_revision) &&
+      receipt["input_root"] == binding.fetch(:input_root) && receipt["exit_status"] == 0 && receipt["verifier_exit_status"] == 0 &&
+      receipt["verifier_argv"].is_a?(Array) && receipt["verifier_argv"] != receipt["producer_argv"] &&
+      receipt["verifier_attestation_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/) &&
+      receipt["verifier_attestation_sha256"] != "sha256:#{'0' * 64}" &&
+      receipt["raw_capture_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/) &&
+      receipt["raw_capture_sha256"] != "sha256:#{'0' * 64}" &&
+      receipt["output_artifact_path"] == evidence_artifact_binding_parts(binding.fetch(:evidence_binding))&.first
+    if binding.fetch(:gate_id) == "final-complete-diff-review"
+      expected_verifier = [RbConfig.ruby, File.join(ROOT, "final_review_verifier.rb")]
+      next unless receipt["verifier_argv"] == expected_verifier
+      begin
+        expected_attestation = IdentityPlatformFinalReviewVerifier.verify(receipt.fetch("stdout"))
+      rescue JSON::ParserError, RuntimeError, KeyError
+        next
+      end
+      next unless receipt["verifier_stdout"] == "" && receipt["verifier_stderr"] == "" &&
+        receipt["verifier_attestation_sha256"] == "sha256:#{Digest::SHA256.hexdigest(expected_attestation)}"
+    end
+    gate_claim_ids = binding.fetch(:gate_id) == "structural-validation" ?
+      authorization_evidence_claim_ids : [binding.fetch(:gate_id)]
+    {
+      evidence_id: "final-gate:#{binding.fetch(:gate_id)}",
+      kind: "final-gate", subject_id: binding.fetch(:gate_id), claim_ids: gate_claim_ids,
+      command_or_profile: canonical_final_gate_command(binding.fetch(:gate_id), recorded_base: recorded_base),
+      record_path: evidence_artifact_binding_parts(binding.fetch(:evidence_binding))&.first,
+      record_commit: record_commit, record_sha256: Digest::SHA256.hexdigest(record_bytes),
+      receipt_path: evidence_artifact_binding_parts(binding.fetch(:receipt_binding))&.first, receipt_commit: receipt_commit,
+      receipt_sha256: Digest::SHA256.hexdigest(receipt_bytes), tested_revision: binding.fetch(:final_input_revision),
+      gate_execution_revision: record.fetch("gate_execution_revision"), input_root: binding.fetch(:input_root), verified: true,
+      final_gate_schema: "identity-platform.final-gate.v1", platform_capture_valid: true
+    }
+  end
+  verified_evidence_candidates.concat(final_gate_candidates)
+  final_gate_closure = final_gate_candidates.map { |row| row.fetch(:subject_id) } == IdentityPlatformFinalReport::FINAL_GATES
+  common_final_input_revision = final_gate_bindings.map { |row| row[:final_input_revision] }.uniq
+  common_final_input_root = final_gate_bindings.map { |row| row[:input_root] }.uniq
+  complete_input_manifest = common_final_input_revision.length == 1 &&
+    tracked_behavior_input_manifest(common_final_input_revision.first, terminal_module_roots)
+  complete_input_manifest = complete_input_manifest &&
+    (complete_input_manifest + attested_environment_manifest(expected_environment_identities))
+      .sort_by { |entry| entry.fetch("path_or_environment_id").b }
+  recomputed_complete_input_root = complete_input_manifest && behavior_input_fingerprint(complete_input_manifest)
+  no_push_assertion_current = no_push_assertions.length == 1 &&
+    common_final_input_revision.length == 1 && common_final_input_root.length == 1 &&
+    common_final_input_root.first == recomputed_complete_input_root &&
+    no_push_assertions.first[:final_input_revision] == common_final_input_revision.first
+
+  complete_evidence_closure = all_units_verified && final_gate_closure && complete_resources_removed &&
+    acceptance_evidence_bindings.length == artifact_catalog.length &&
+    external_lanes.all? { |lane| lane[:classification] == "available" }
+  program_claims = {}
+  IdentityPlatformFinalReport::BLOCKED_REQUIREMENTS.first(5).each { |claim| program_claims[claim] = blocked_terminal_claimed }
+  authorization_evidence = final_gate_candidates.find do |candidate|
+    candidate.fetch(:subject_id) == "structural-validation" &&
+      authorization_evidence_claims.all? { |claim| candidate.fetch(:claim_ids).include?(claim) }
+  end
+  authorization_integrity_current = !authorization_evidence.nil?
+  program_claims["program-authorizations"] = authorization_integrity_current
+  program_claims["inventory-validation"] = true
+  program_claims["structural-validation"] = true
+  report_catalogs.fetch(:authorization_boundaries).each do |boundary|
+    program_claims[boundary.fetch("id")] = authorization_integrity_current
+  end
+  verified_candidate_subjects = verified_evidence_candidates.select { |candidate| candidate[:verified] }.map { |candidate| candidate[:subject_id] }.to_set
+  acceptance_claim_proven = lambda do |row|
+    row.fetch("artifacts").all? { |artifact_id| verified_candidate_subjects.include?(artifact_id) }
+  end
+  report_catalogs.fetch(:journeys).each { |row| program_claims[row.fetch("id")] = acceptance_claim_proven.call(row) }
+  report_catalogs.fetch(:cross_cutting).each { |row| program_claims[row.fetch("id")] = acceptance_claim_proven.call(row) }
+  report_catalogs.fetch(:parity).each do |row|
+    owners = row.fetch("owner").scan(/`([^`]+)`/).flatten
+    owners = [row.fetch("owner")] if owners.empty? && known.include?(row.fetch("owner"))
+    exact_row_pinned = row.fetch("semantic_digest").match?(/\A[0-9a-f]{64}\z/) && !owners.empty?
+    program_claims[row.fetch("id")] = exact_row_pinned && owners.all? { |owner| verified_candidate_subjects.include?(owner) }
+  end
+  report_catalogs.fetch(:deployments).each do |row|
+    program_claims[row.fetch("id")] = row.fetch("semantic_digest").match?(/\A[0-9a-f]{64}\z/) &&
+      verified_candidate_subjects.include?(row.fetch("owner"))
+  end
+  complete_clause_values = [
+    all_units_verified,
+    all_units_verified && local_gate_evidence_bindings.length == rows.length,
+    report_catalogs.fetch(:parity).all? { |row| program_claims[row.fetch("id")] },
+    report_catalogs.fetch(:journeys).all? { |row| program_claims[row.fetch("id")] } &&
+      report_catalogs.fetch(:cross_cutting).all? { |row| program_claims[row.fetch("id")] } &&
+      acceptance_evidence_bindings.length == artifact_catalog.length,
+    acceptance_evidence_bindings.length == artifact_catalog.length && external_lanes.all? { |lane| lane[:classification] == "available" },
+    final_gate_closure,
+    authorization_integrity_current,
+    complete_resources_removed,
+    complete_evidence_closure
+  ]
+  IdentityPlatformFinalReport::COMPLETE_REQUIREMENTS.zip(complete_clause_values).each do |claim, value|
+    program_claims[claim] = value
+  end
+  complete_terminal_claimed = complete_clause_values.all? && no_push_assertion_current
+  task_owned_resource_rows.each do |resource|
+    program_claims["cleanup:#{resource.fetch(:id)}"] = resource[:state] == "removed" ||
+      (resource[:type] == "worktree" && resource[:owner] == "coordinator" &&
+       resource[:target] == integration_worktree && resource[:state] == "removal-pending-after-final-commit")
+  end
+  unfinished_rows.each do |row|
+    blocker_id = row[:owner].to_s.delete_prefix("blocker:")
+    program_claims["blocker:#{blocker_id}"] = blocked_terminal_claimed unless blocker_id.empty? || blocker_id == "—"
+  end
+
+  terminal_final_input_revision = blocked_terminal_claimed ?
+    blocked_audit.fetch(:threshold).fetch("final_input_revision") : common_final_input_revision.first
+  terminal_final_input_root = blocked_terminal_claimed ?
+    blocked_audit.fetch(:threshold).fetch("input_root") : common_final_input_root.first
+  terminal_projection_root = terminal_history_root(terminal_head)
+  program_evidence = program_claims.filter_map do |claim, value|
+    next unless value == true && terminal_final_input_revision && terminal_final_input_root
+    next if authorization_evidence_claims.include?(claim)
+
+    [claim, "program:#{claim}@#{terminal_final_input_revision}@#{terminal_final_input_root}@#{terminal_projection_root}"]
+  end.to_h
+
+  terminal_facts = {
+    program_claims: program_claims, program_evidence: program_evidence, current_input_roots: all_units_verified,
+    all_gates_verified: final_gate_closure,
+    push_boundary: {
+      "push_prohibited" => true,
+      "coordinator_assertion" => "coordinator-asserts-no-push",
+      "assertion_verified" => false,
+      "observed_local_branch" => git_output("branch", "--show-current"),
+      "observed_local_head" => terminal_head,
+      "configured_remotes" => git_output("remote").to_s.lines.map(&:strip).reject(&:empty?).sort_by(&:b),
+      "limitation" => "no-complete-command-audit-or-remote-non-delivery-proof"
+    },
+    no_push_assertion_recorded: no_push_assertion_current,
+    authorization_history: authorization_integrity_current, topology_history: authorization_integrity_current,
+    resource_cleanup: complete_resources_removed,
+    complete_false: !complete_evidence_closure,
+    no_safe_lane: blocked_terminal_claimed, remaining_paths_exact: blocked_terminal_claimed,
+    independent_work_exhausted: blocked_terminal_claimed, assignments_resources_reconciled: active_assignments_reconciled && resources_reconciled,
+    blocked_audit_threshold: blocked_threshold_satisfied,
+    blocked_audit_binding: blocked_audit && "platform-blocked-audit:#{blocked_audit.fetch(:event_binding)}",
+    blocked_audit_event_valid: blocked_threshold_satisfied,
+    blocked_audit_threshold_satisfied: blocked_threshold_satisfied,
+    blockers: blocked_audit ? blocked_audit.fetch(:threshold).fetch("blockers") : [],
+    final_input_revision: terminal_final_input_revision,
+    complete_terminal_claimed: complete_terminal_claimed,
+    blocked_terminal_claimed: blocked_terminal_claimed
+  }
+  require_terminal_report = complete_terminal_claimed || blocked_terminal_claimed
+  if File.file?(terminal_report_path) && !require_terminal_report
+    fail_check("terminal final report exists before either terminal predicate is derivable")
+  end
+  terminal_report_validation_errors(
+    report_path: terminal_report_path, evidence_candidates: verified_evidence_candidates,
+    terminal_facts: terminal_facts, require_report: require_terminal_report,
+    capture_bindings: platform_gate_capture_bindings
+  ).each { |error| fail_check(error) }
 end
 
 puts "identity-platform validation: #{rows.length} schedulable units (#{identity_rows.length} identity public-contract units plus #{primitive_extension_rows.length} primitive extensions), #{inventory_edges.length} edges, #{depth.values.max + 1} waves, #{operation_ids.length} operations, #{route_records.length} HTTP mappings, #{openapi_owners.length} OpenAPI operations, parity baseline #{BASELINE}"

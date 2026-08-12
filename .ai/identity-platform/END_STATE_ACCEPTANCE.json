@@ -4,6 +4,11 @@
   "digest_algorithm": "sha256",
   "digest_input": "sha256 of RFC 8785-style canonical row JSON excluding semantic_digest, LF, then exact authoritative artifact bytes selected by source_anchor or artifact",
   "evidence_record_contract": {
+    "canonical_json_rule": "every evidence payload, execution receipt and live-comparison payload MUST reject duplicate object keys and MUST equal its canonical pretty-JSON bytes before schema validation, digest comparison or semantic comparison",
+    "committed_bytes_rule": "validation reads the blob from the bound evidence-record commit and requires it to equal both the declared digest and the bytes parsed; working-tree existence or bytes alone are insufficient",
+    "execution_authority_rule": "final acceptance MUST use the coordinator-owned execution runner to launch each exact producer command itself after proving the committed tested_revision input manifest is identical at current HEAD, capture exit status and stdout/stderr bytes through the subprocess boundary, give the producer only a fresh previously absent task-owned raw-capture path, reject producer-authored execution, transcript, provider-outcome, or protocol-outcome fields, derive the closed final evidence payload and every runner-owned binding itself, atomically write its receipt and final artifact only after successful process completion, and immediately compare final canonical semantics with the committed artifact; a preexisting, caller-supplied, producer-finalized, artifact-supplied, or self-hashed receipt or artifact is provenance only and MUST NOT authorize pass",
+    "execution_receipt_rule": "each committed artifact payload binds the coordinator runner command, tested revision, current-identical input root, tool and environment identities, start and completion times, exit status, exact captured stdout/stderr bytes and digests, exact raw-capture digest, canonical output artifact path, execution identity, and a separately hashed receipt path; final execution mode MUST also compare those declared command results, raw capture identity, runner-derived row transcripts and final artifact semantics with the fresh live in-memory coordinator runner capture and reject absent, stale, failed, raw-missing, artifact-missing, producer-finalized, unresolved, not-run, or coherently recomputed synthetic captures",
+    "record_commit_rule": "the payload MUST NOT contain or predict the commit that contains itself; coordinator state binds the repository path, exact blob SHA-256 and later evidence-record commit, and that commit MUST be an ancestor of the verification/finalization commit",
     "required_payload_fields": [
       "schema_version",
       "artifact_id",
@@ -13,21 +18,21 @@
       "revalidation_revision",
       "input_manifest",
       "input_root",
-      "tool_environment",
       "observations",
       "artifact_hashes",
       "recorded_at"
     ],
-    "revision_rule": "tested_revision identifies the original execution tree and gate_execution_revision identifies the ledger gate tree; when they are equal revalidation_revision MUST be null, and when they differ revalidation_revision MUST equal gate_execution_revision and the complete input manifest and input_root MUST validate identically at both revisions",
-    "execution_authority_rule": "final acceptance MUST use the coordinator-owned execution runner to launch each exact producer command itself after proving the committed tested_revision input manifest is identical at current HEAD, capture exit status and stdout/stderr bytes through the subprocess boundary, require the command to write a fresh artifact to the runner's previously absent task-owned output path, atomically write its receipt only after process completion, hash the live artifact bytes, and immediately compare their canonical semantic payload with the committed artifact; a preexisting, caller-supplied, artifact-supplied, or self-hashed receipt or artifact is provenance only and MUST NOT authorize pass",
-    "execution_receipt_rule": "each committed artifact payload binds the coordinator runner command, tested revision, current-identical input root, tool and environment identities, start and completion times, exit status, exact captured stdout/stderr bytes and digests, canonical output artifact path, execution identity, and a separately hashed receipt path; final execution mode MUST also compare those declared command results and artifact semantics with the fresh live in-memory coordinator runner capture and reject absent, stale, failed, artifact-missing, or coherently recomputed synthetic captures",
-    "record_commit_rule": "the payload MUST NOT contain or predict the commit that contains itself; coordinator state binds the repository path, exact blob SHA-256 and later evidence-record commit, and that commit MUST be an ancestor of the verification/finalization commit",
-    "committed_bytes_rule": "validation reads the blob from the bound evidence-record commit and requires it to equal both the declared digest and the bytes parsed; working-tree existence or bytes alone are insufficient",
-    "canonical_json_rule": "every evidence payload, execution receipt and live-comparison payload MUST reject duplicate object keys and MUST equal its canonical pretty-JSON bytes before schema validation, digest comparison or semantic comparison"
+    "revision_rule": "tested_revision identifies the original execution tree and gate_execution_revision identifies the ledger gate tree; when they are equal revalidation_revision MUST be null, and when they differ revalidation_revision MUST equal gate_execution_revision and the complete input manifest and input_root MUST validate identically at both revisions"
   },
   "artifact_observation_contract": {
     "artifact_specific_schema_rule": "each artifact_catalog schema is a distinct behavioral payload schema for that artifact ID, not a label for a shared free-form report",
-    "required_observation_id_rule": "each schema MUST enumerate nonempty exact observation IDs prefixed by its artifact ID and allocated to every behavior that the artifact proves for its listed claims and operation_claims",
+    "behavior_rule": "observations MUST exercise observable success plus every applicable denial, failure, outage, replay, concurrency, cleanup and unknown-outcome recovery boundary allocated to that artifact; a summary string, source-text assertion, schema label, command name or passing result without those observations is invalid",
+    "coverage_mutation_inventory_rule": "before launching the result producer, the coordinator runner MUST invoke the exact gate in two separate coordinator-owned discovery subprocesses using ACCEPTANCE_DISCOVERY=affected-packages and ACCEPTANCE_DISCOVERY=viable-mutants, capture their canonical stdout manifests without exposing writable manifest paths to the result producer, bind both commands and manifest digests into the execution receipt, and require result rows to equal those independently captured manifests; coverage and mutation evidence MUST enumerate every discovered production package and every discovered viable mutant with stable identities, exact per-package statement totals, exact 10000-basis-point coverage, killed outcomes and runner-derived row transcripts",
+    "external_profile_rule": "the CAPTCHA, HIBP, OpenID conformance suite, Web Platform Tests, UnboundID SCIM SDK and SimpleSAMLphp acceptance artifacts MUST each bind their exact external profile ID, immutable source identity, exact consumer claims, runner-derived passing execution outcome and exact-row transcript; generic protocol rows, missing consumers, producer-attested outcomes, unresolved outcomes and not-run profiles are invalid",
+    "mutation_rule": "schema validation fixtures MUST reject a missing required observation, an observation attributed to another artifact or claim, a missing expected or actual outcome, a non-pass observation, an unbound hash, duplicate keys, non-canonical bytes, coherent cross-field forgery, a missing exact set member, duplicates, extras and substitutions",
+    "operation_closure_rule": "the union of executable artifact operation IDs MUST equal the API_OPERATIONS.md catalog exactly; the bijection payload MUST separately bind the exact catalog, handler-dispatch, OpenAPI-owner, direct and middleware sets plus every exact operation-handler-OpenAPI tuple",
+    "protocol_closure_rule": "protocol evidence MUST allocate each PROTOCOL_CONFORMANCE_MANIFEST.json requirement exactly once to the narrowest domain-conformance artifact that proves it, bind its complete exact consumer set without duplication or omission, and bind every exact requirement ID, suite case ID, derived operation set, raw observed and runner-derived passed or manifest-authorized unsupported outcome, source ID, locator and runner-derived exact-row transcript digest; catch-all artifacts, repeated general RFC rows, six fixed artifact lists, aggregate booleans, producer-attested outcomes, unresolved outcomes and unallocated requirements are invalid",
+    "provider_closure_rule": "provider evidence MUST derive exactly 43 unique rows from CONFIGURATION_CATALOGS.json provider_matrix.rows and bind each provider ID, canonical row digest, source locator, catalog preimplementation interoperability status, runner-derived passing execution outcome and runner-derived exact-row transcript; missing, extra, duplicate, producer-attested, unverified, unresolved and not-run execution evidence is invalid",
     "required_observation_fields": [
       "observation_id",
       "claim_id",
@@ -40,15 +45,12 @@
       "result",
       "artifact_sha256"
     ],
-    "behavior_rule": "observations MUST exercise observable success plus every applicable denial, failure, outage, replay, concurrency, cleanup and unknown-outcome recovery boundary allocated to that artifact; a summary string, source-text assertion, schema label, command name or passing result without those observations is invalid",
-    "mutation_rule": "schema validation fixtures MUST reject a missing required observation, an observation attributed to another artifact or claim, a missing expected or actual outcome, a non-pass observation, an unbound hash, duplicate keys, non-canonical bytes, coherent cross-field forgery, a missing exact set member, duplicates, extras and substitutions",
-    "scenario_evidence_rule": "every allocated scenario MUST carry artifact-specific observed scalar values and outcomes, the exact top-level invariant ID, exact operation set, ordered observation steps, observed-value count, state and event digests, coordinator transcript digest and artifact-contract digest; digest-only and declared-field-list evidence is invalid",
-    "operation_closure_rule": "the union of executable artifact operation IDs MUST equal the API_OPERATIONS.md catalog exactly; the bijection payload MUST separately bind the exact catalog, handler-dispatch, OpenAPI-owner, direct and middleware sets plus every exact operation-handler-OpenAPI tuple",
-    "provider_closure_rule": "provider evidence MUST derive exactly 43 unique rows from CONFIGURATION_CATALOGS.json provider_matrix.rows and bind each provider ID, canonical row digest, source locator, catalog interoperability status, passing execution outcome and transcript; missing, extra, duplicate, unverified and not-run execution evidence is invalid",
-    "protocol_closure_rule": "protocol evidence MUST derive selected requirements by exact PROTOCOL_CONFORMANCE_MANIFEST.json consumer sets and bind every exact requirement ID, suite case ID, operation set, passed or unsupported outcome, source ID, locator and transcript digest; aggregate booleans and unselected requirements are invalid"
+    "required_observation_id_rule": "each schema MUST enumerate nonempty exact observation IDs prefixed by its artifact ID and allocated to every behavior that the artifact proves for its listed claims and operation_claims",
+    "scenario_evidence_rule": "every allocated scenario MUST carry artifact-specific observed scalar values and outcomes, the exact top-level invariant ID, exact operation set, ordered observation steps, observed-value count, state and event digests, runner-derived transcript digest over the exact row values plus raw capture and process identities, and artifact-contract digest; one shared transcript digest, producer-authored transcript fields, digest-only evidence and declared-field-list evidence are invalid"
   },
   "input_identity_contract": {
-    "manifest_schema": "identity-platform.acceptance.input-manifest.v1",
+    "exhaustiveness_rule": "the manifest MUST enumerate every behavior-affecting input in the required classes, use sorted unique entries, and fail closed when ownership or input identity cannot be resolved; a fixed shortlist or semantic digest over planning manifests alone is insufficient",
+    "input_root_rule": "input_root is sha256 over RFC 8785 canonical JSON of the complete manifest and is the acceptance fingerprint used for invalidation and reuse",
     "manifest_entry_fields": [
       "path_or_environment_id",
       "kind",
@@ -56,13 +58,7 @@
       "owner",
       "reason"
     ],
-    "required_input_classes": [
-      "all production code, tests, fuzz corpora, fixtures, migrations, generated files, documentation, examples, go.mod and go.sum files beneath every affected module and reverse dependant",
-      "modules.json, packages.json, go.work, go.work.sum and every owned dependency selected by the affected graph",
-      "repository gate scripts, shared gate libraries, gate configuration, pinned tool and action versions, required service images and service configuration",
-      "END_STATE.md, END_STATE_ACCEPTANCE.json, REFERENCE_PROFILE.md, API_OPERATIONS.md, OPERATION_SEMANTICS.json, SECURITY_EVENTS.md, TRANSACTION_CONTRACT.md, LIFECYCLE_CASCADES.md, LIFECYCLE_CONSUMERS.md, SHARED_CONTRACT_APPLICABILITY.json, PROTOCOL_BASELINES.md, PROTOCOL_CONFORMANCE_MANIFEST.json, REFERENCE_CONFIGURATION.md, CONFIGURATION_CATALOGS.json, VERIFICATION_APPLICABILITY.json, BETTER_AUTH_PARITY.md, PARITY_DISPOSITIONS.json, UPSTREAM_DISPOSITIONS.md, UPSTREAM_SURFACE.json, COMMON_REQUIREMENTS.md and every applicable goal",
-      "toolchain, operating-system, architecture, behavior-affecting environment variables, external profile identities and required service-image identities"
-    ],
+    "manifest_schema": "identity-platform.acceptance.input-manifest.v1",
     "non_behavioral_provenance_exclusions": [
       ".ai/identity-platform/EXECUTION_LEDGER.md",
       ".ai/identity-platform/INVENTORY.md",
@@ -70,319 +66,320 @@
       ".ai/identity-platform/evidence/"
     ],
     "provenance_rule": "the exclusions contain execution and evidence bookkeeping only; their committed revisions and exact evidence bindings remain provenance, the authoritative current Requires closure still selects complete module roots, DEPENDENCIES.md remains a behavior input, and no other selected identity-platform input is excluded",
-    "exhaustiveness_rule": "the manifest MUST enumerate every behavior-affecting input in the required classes, use sorted unique entries, and fail closed when ownership or input identity cannot be resolved; a fixed shortlist or semantic digest over planning manifests alone is insufficient",
-    "input_root_rule": "input_root is sha256 over RFC 8785 canonical JSON of the complete manifest and is the acceptance fingerprint used for invalidation and reuse"
+    "required_input_classes": [
+      "all production code, tests, fuzz corpora, fixtures, migrations, generated files, documentation, examples, go.mod and go.sum files beneath every affected module and reverse dependant",
+      "modules.json, packages.json, go.work, go.work.sum and every owned dependency selected by the affected graph",
+      "repository gate scripts, shared gate libraries, gate configuration, pinned tool and action versions, required service images and service configuration",
+      "END_STATE.md, END_STATE_ACCEPTANCE.json, REFERENCE_PROFILE.md, API_OPERATIONS.md, OPERATION_SEMANTICS.json, SECURITY_EVENTS.md, TRANSACTION_CONTRACT.md, LIFECYCLE_CASCADES.md, LIFECYCLE_CONSUMERS.md, SHARED_CONTRACT_APPLICABILITY.json, PROTOCOL_BASELINES.md, PROTOCOL_CONFORMANCE_MANIFEST.json, REFERENCE_CONFIGURATION.md, CONFIGURATION_CATALOGS.json, VERIFICATION_APPLICABILITY.json, BETTER_AUTH_PARITY.md, PARITY_DISPOSITIONS.json, UPSTREAM_DISPOSITIONS.md, UPSTREAM_SURFACE.json, COMMON_REQUIREMENTS.md and every applicable goal",
+      "toolchain, operating-system, architecture, behavior-affecting environment variables, external profile identities, required service-image identities, and the actual local Better Auth repository identity with its pinned revision, object format and exact source objects"
+    ]
   },
   "journeys": [
     {
-      "id": "journey.identity-lifecycle.v1",
-      "number": 1,
-      "owner": "identity/reference",
       "artifacts": [
         "reference-http-identity-lifecycle",
         "postgres-lifecycle-cascade-report",
         "typed-fields-schema-report"
       ],
-      "semantic_digest": "62e936b42ef30f11043be9031361fea4096364cd0b263c59b34d7ced43f7ce51",
+      "id": "journey.identity-lifecycle.v1",
+      "number": 1,
+      "owner": "identity/reference",
+      "semantic_digest": "9c56fc0a67eb39ca9efc5941278eb6fa785872ee15bc0cbc5b146124299a6a5f",
       "source_anchor": "END_STATE.md#required-composed-journey-1"
     },
     {
-      "id": "journey.email-password-username.v1",
-      "number": 2,
-      "owner": "identity/reference",
       "artifacts": [
         "reference-http-password-journey",
         "hibp-interoperability-report",
         "reauthentication-proof-report"
       ],
+      "id": "journey.email-password-username.v1",
+      "number": 2,
+      "owner": "identity/reference",
       "semantic_digest": "449e9317cb836914139416c85d35c46671beb8452dd2472de387dd5e91402c21",
       "source_anchor": "END_STATE.md#required-composed-journey-2"
     },
     {
-      "id": "journey.sessions.v1",
-      "number": 3,
-      "owner": "identity/reference",
       "artifacts": [
         "session-profile-contract-report",
         "bearer-continuation-report",
         "remember-policy-propagation-report",
         "session-transfer-report"
       ],
+      "id": "journey.sessions.v1",
+      "number": 3,
+      "owner": "identity/reference",
       "semantic_digest": "9612c482e3a4be93e9f074555ef5492dee303c41577218178c3773aca69c045e",
       "source_anchor": "END_STATE.md#required-composed-journey-3"
     },
     {
-      "id": "journey.passwordless.v1",
-      "number": 4,
-      "owner": "identity/reference",
       "artifacts": [
         "passwordless-http-report",
         "phone-reset-risk-evidence-report",
         "otp-reservation-report"
       ],
+      "id": "journey.passwordless.v1",
+      "number": 4,
+      "owner": "identity/reference",
       "semantic_digest": "bbcb80d1aec84eeced28ec0567c58be96f956751377ca7bec4ece04b1849100c",
       "source_anchor": "END_STATE.md#required-composed-journey-4"
     },
     {
-      "id": "journey.mfa-webauthn.v1",
-      "number": 5,
-      "owner": "identity/reference",
       "artifacts": [
         "mfa-recovery-report",
         "webauthn-conformance-report",
         "passkey-browser-ceremony-report"
       ],
+      "id": "journey.mfa-webauthn.v1",
+      "number": 5,
+      "owner": "identity/reference",
       "semantic_digest": "05a07b713cad0c2dc0d0950aa142b1e5f06b6d2da5f96c4c0d5c0cc62c887998",
       "source_anchor": "END_STATE.md#required-composed-journey-5"
     },
     {
-      "id": "journey.social-oauth.v1",
-      "number": 6,
-      "owner": "identity/reference",
       "artifacts": [
         "oauth-provider-matrix-report",
         "native-token-mode-report",
         "oauth-popup-browser-report",
         "oauth-proxy-no-write-report"
       ],
+      "id": "journey.social-oauth.v1",
+      "number": 6,
+      "owner": "identity/reference",
       "semantic_digest": "b458a1c45bc39c1e9c6aea4e101da9403c71847d8d1236453fe7e2d84a0e839a",
       "source_anchor": "END_STATE.md#required-composed-journey-6"
     },
     {
-      "id": "journey.api-keys.v1",
-      "number": 7,
-      "owner": "identity/reference",
       "artifacts": [
         "api-key-http-lifecycle-report",
         "api-key-postgres-valkey-race-report"
       ],
+      "id": "journey.api-keys.v1",
+      "number": 7,
+      "owner": "identity/reference",
       "semantic_digest": "d852e1175429286a564af5c437fbefb0b1aa86be9acdf84d0e27c530d243c728",
       "source_anchor": "END_STATE.md#required-composed-journey-7"
     },
     {
-      "id": "journey.administration.v1",
-      "number": 8,
-      "owner": "identity/reference",
       "artifacts": [
         "platform-authority-version-report",
         "impersonation-quorum-report",
         "audit-retention-plan-confirm-report"
       ],
-      "semantic_digest": "0ce006676135260adc4b3e2d8a4f022f3a9cb0ae711db88acbc7d0a16d43594d",
+      "id": "journey.administration.v1",
+      "number": 8,
+      "owner": "identity/reference",
+      "semantic_digest": "44e7fe8e0f974506051c3d1072daef5f3b2be74f88e1e3a6e056d83acbb8d247",
       "source_anchor": "END_STATE.md#required-composed-journey-8"
     },
     {
-      "id": "journey.organizations.v1",
-      "number": 9,
-      "owner": "identity/reference",
       "artifacts": [
         "organization-archive-restore-delete-report",
         "organization-invitation-lifecycle-report",
         "organization-concurrency-report"
       ],
+      "id": "journey.organizations.v1",
+      "number": 9,
+      "owner": "identity/reference",
       "semantic_digest": "7efcb0f8243dff8f71c0511d07f01715efa6e5b1f6d4db2bf6f41771968b20f0",
       "source_anchor": "END_STATE.md#required-composed-journey-9"
     },
     {
-      "id": "journey.enterprise-federation.v1",
-      "number": 10,
-      "owner": "identity/reference",
       "artifacts": [
         "domain-verification-report",
         "sso-provider-lifecycle-report",
         "enterprise-oidc-logout-report",
         "sso-enforcement-break-glass-report"
       ],
+      "id": "journey.enterprise-federation.v1",
+      "number": 10,
+      "owner": "identity/reference",
       "semantic_digest": "ef9f15f6c7e99c19d2e15ad879eba333897c063fc7290ac4cea2a12d128cbc43",
       "source_anchor": "END_STATE.md#required-composed-journey-10"
     },
     {
-      "id": "journey.scim.v1",
-      "number": 11,
-      "owner": "identity/reference",
       "artifacts": [
         "scim-rfc-conformance-report",
         "scim-connection-lifecycle-report",
         "scim-reconciliation-report"
       ],
+      "id": "journey.scim.v1",
+      "number": 11,
+      "owner": "identity/reference",
       "semantic_digest": "d1c3bd2078bf0e3ab160211aaaaa2662c42c6700c7882b7cc3c08c5adabdc642",
       "source_anchor": "END_STATE.md#required-composed-journey-11"
     },
     {
-      "id": "journey.oauth-oidc-provider.v1",
-      "number": 12,
-      "owner": "identity/reference",
       "artifacts": [
         "oauth-oidc-conformance-report",
         "device-authorization-report",
         "signer-jwks-profile-report"
       ],
+      "id": "journey.oauth-oidc-provider.v1",
+      "number": 12,
+      "owner": "identity/reference",
       "semantic_digest": "f2ee81b5e6cd1e1e1ec4a4bdc1838a556dc7142f3c181288033490b3827abc6b",
       "source_anchor": "END_STATE.md#required-composed-journey-12"
     },
     {
-      "id": "journey.abuse-controls.v1",
-      "number": 13,
-      "owner": "identity/reference",
       "artifacts": [
         "risk-policy-report",
         "captcha-four-provider-report",
         "distributed-rate-limit-report"
       ],
+      "id": "journey.abuse-controls.v1",
+      "number": 13,
+      "owner": "identity/reference",
       "semantic_digest": "e55f6a6cb48d65f1e0c58bc22681cf940f20a0d2055bbb094d6d7dc7330ce769",
       "source_anchor": "END_STATE.md#required-composed-journey-13"
     },
     {
-      "id": "journey.localization.v1",
-      "number": 14,
-      "owner": "identity/reference",
       "artifacts": [
         "locale-negotiation-report",
         "localized-error-identity-report"
       ],
+      "id": "journey.localization.v1",
+      "number": 14,
+      "owner": "identity/reference",
       "semantic_digest": "ca46a4cf276bd890cdf69b004b1563db9cc8e55600e3b89960a438b995dc243f",
       "source_anchor": "END_STATE.md#required-composed-journey-14"
     },
     {
-      "id": "journey.developer-use.v1",
-      "number": 15,
-      "owner": "identity/reference",
       "artifacts": [
         "clean-reference-stack-report",
         "identitytest-cycle-free-report",
         "openapi-consumer-report"
       ],
+      "id": "journey.developer-use.v1",
+      "number": 15,
+      "owner": "identity/reference",
       "semantic_digest": "22c27dcaecde6162f465a1cc145a4124860af12bf8aaae0cd2b49c03f812dc2a",
       "source_anchor": "END_STATE.md#required-composed-journey-15"
     },
     {
-      "id": "journey.extension-access-policy.v1",
-      "number": 16,
-      "owner": "identity/reference",
       "artifacts": [
         "typed-hooks-report",
         "custom-fields-report",
         "authorization-cross-tenant-report"
       ],
+      "id": "journey.extension-access-policy.v1",
+      "number": 16,
+      "owner": "identity/reference",
       "semantic_digest": "a2ec1e3133752837111ce41bc590ca278d11ce2d367b8a69014fd515422e42a8",
       "source_anchor": "END_STATE.md#required-composed-journey-16"
     },
     {
-      "id": "journey.typed-modules-operations.v1",
-      "number": 17,
-      "owner": "identity/reference",
       "artifacts": [
         "external-module-clean-consumer-report",
         "composition-collision-report"
       ],
+      "id": "journey.typed-modules-operations.v1",
+      "number": 17,
+      "owner": "identity/reference",
       "semantic_digest": "70d91d4e1382b0886313879f61424382aec213e90e3ddbbb9bdcf3efd5f67d3a",
       "source_anchor": "END_STATE.md#required-composed-journey-17"
     },
     {
-      "id": "journey.privacy-export.v1",
-      "number": 18,
-      "owner": "identity/reference",
       "artifacts": [
         "privacy-export-lifecycle-report",
         "download-capability-report",
         "export-minimization-redaction-report"
       ],
+      "id": "journey.privacy-export.v1",
+      "number": 18,
+      "owner": "identity/reference",
       "semantic_digest": "639c464b10c325a7f8c982451d74098794fdc710ca9415b925491070e77ae730",
       "source_anchor": "END_STATE.md#required-composed-journey-18"
     },
     {
-      "id": "journey.audit-investigation.v1",
-      "number": 19,
-      "owner": "identity/reference",
       "artifacts": [
         "operational-api-redaction-report"
       ],
+      "id": "journey.audit-investigation.v1",
+      "number": 19,
+      "owner": "identity/reference",
       "semantic_digest": "e60905d62b1a26b35f81945b9dfbf778596fc16cc1148f8201436ac32a37eeba",
       "source_anchor": "END_STATE.md#required-composed-journey-19"
     }
   ],
   "cross_cutting": [
     {
-      "id": "cross.http-browser.v1",
-      "owner": "identity/http",
       "artifacts": [
         "operation-handler-openapi-bijection",
         "browser-security-report",
         "health-readiness-route-report"
       ],
+      "id": "cross.http-browser.v1",
+      "owner": "identity/http",
       "semantic_digest": "25975f4b628d7df85764595122ad76b51681c816c100b60ae42d0037de47d368",
       "source_anchor": "END_STATE.md#http-and-browser-facing-contract"
     },
     {
-      "id": "cross.persistence-recovery.v1",
-      "owner": "identity/reference",
       "artifacts": [
         "postgres-valkey-failure-report",
         "unknown-outcome-reconciliation-report",
         "backup-restore-rehearsal"
       ],
-      "semantic_digest": "b2a81e0b0305833e1ccfe24fd8642a811a99e73d4e983d7a9bd22d300f77e1ac",
+      "id": "cross.persistence-recovery.v1",
+      "owner": "identity/reference",
+      "semantic_digest": "89719c0467b9927067a69d6c82d1bb2ff7afedb6a12c72425b29c73220ab0767",
       "source_anchor": "END_STATE.md#persistence-and-failure-recovery"
     },
     {
-      "id": "cross.security-privacy.v1",
-      "owner": "identity/reference",
       "artifacts": [
         "integrated-threat-report",
         "secret-redaction-report",
         "privacy-boundary-report"
       ],
-      "semantic_digest": "0a6d02d2c83665eba78f9eed597b2e6a6a1bb45450028efdc49ebf7f2b5025d9",
+      "id": "cross.security-privacy.v1",
+      "owner": "identity/reference",
+      "semantic_digest": "f0f1e1b740ea1baa7c18f1b06f1c345a61fde58acbc5d6e1ed03776fec76add2",
       "source_anchor": "END_STATE.md#security-and-privacy-properties"
     },
     {
-      "id": "cross.operability-provider-proof.v1",
-      "owner": "identity/reference",
       "artifacts": [
         "provider-evidence-index",
         "instrumentation-report",
         "operations-runbook-index"
       ],
+      "id": "cross.operability-provider-proof.v1",
+      "owner": "identity/reference",
       "semantic_digest": "38b7b6f550d382232397bf6e072c5f486600d6510c87e56472b109307e37fb1d",
       "source_anchor": "END_STATE.md#operability-and-provider-proof"
     },
     {
-      "id": "cross.final-acceptance.v1",
-      "owner": "identity/reference",
       "artifacts": [
         "affected-gate-report",
         "coverage-mutation-report",
         "supply-chain-release-report"
       ],
+      "id": "cross.final-acceptance.v1",
+      "owner": "identity/reference",
       "semantic_digest": "8ba67e44f953dc0a356f7d04e822f94e730a9bbbea7963c1457657a8ddd3485a",
       "source_anchor": "END_STATE.md#final-acceptance-gates"
     }
   ],
   "artifact_catalog": [
     {
-      "id": "affected-gate-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/affected-gate-report.json",
-      "schema": "identity-platform.acceptance.affected-gate-report.v1",
       "claims": [
         "cross.final-acceptance.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "affected-gate-report",
       "observation_ids": [
         "affected-gate-report.cross.final-acceptance.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/affected-gate-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.affected-gate-report.v1"
     },
     {
-      "id": "api-key-http-lifecycle-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/api-key-http-lifecycle-report.json",
-      "schema": "identity-platform.acceptance.api-key-http-lifecycle-report.v1",
       "claims": [
         "journey.api-keys.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "api-key-http-lifecycle-report",
       "observation_ids": [
         "api-key-http-lifecycle-report.identity.apikey.create.behavior",
         "api-key-http-lifecycle-report.identity.apikey.delete.behavior",
@@ -405,41 +402,32 @@
         "identity.apikey.session-authenticate",
         "identity.apikey.update",
         "identity.apikey.verify"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/api-key-http-lifecycle-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.api-key-http-lifecycle-report.v1"
     },
     {
-      "id": "api-key-postgres-valkey-race-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/api-key-postgres-valkey-race-report.json",
-      "schema": "identity-platform.acceptance.api-key-postgres-valkey-race-report.v1",
       "claims": [
         "journey.api-keys.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "api-key-postgres-valkey-race-report",
       "observation_ids": [
         "api-key-postgres-valkey-race-report.journey.api-keys.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/api-key-postgres-valkey-race-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.api-key-postgres-valkey-race-report.v1"
     },
     {
-      "id": "audit-retention-plan-confirm-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/audit-retention-plan-confirm-report.json",
-      "schema": "identity-platform.acceptance.audit-retention-plan-confirm-report.v1",
       "claims": [
         "journey.administration.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "operation_claims": [
-        "identity.audit-retention.deletion.confirm",
-        "identity.audit-retention.deletion.plan",
-        "identity.audit-retention.legal-hold.create",
-        "identity.audit-retention.legal-hold.release",
-        "identity.audit-retention.legal-hold.update",
-        "identity.audit-retention.policy.update",
-        "identity.audit-retention.records.delete"
-      ],
-      "producer_goal": "goals/identity-reference.md",
+      "id": "audit-retention-plan-confirm-report",
       "observation_ids": [
         "audit-retention-plan-confirm-report.identity.audit-retention.deletion.confirm.behavior",
         "audit-retention-plan-confirm-report.identity.audit-retention.deletion.plan.behavior",
@@ -449,46 +437,55 @@
         "audit-retention-plan-confirm-report.identity.audit-retention.policy.update.behavior",
         "audit-retention-plan-confirm-report.identity.audit-retention.records.delete.behavior",
         "audit-retention-plan-confirm-report.journey.administration.v1.behavior"
-      ]
+      ],
+      "operation_claims": [
+        "identity.audit-retention.deletion.confirm",
+        "identity.audit-retention.deletion.plan",
+        "identity.audit-retention.legal-hold.create",
+        "identity.audit-retention.legal-hold.release",
+        "identity.audit-retention.legal-hold.update",
+        "identity.audit-retention.policy.update",
+        "identity.audit-retention.records.delete"
+      ],
+      "path": ".ai/identity-platform/evidence/audit-retention-plan-confirm-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.audit-retention-plan-confirm-report.v1"
     },
     {
-      "id": "authorization-cross-tenant-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/authorization-cross-tenant-report.json",
-      "schema": "identity-platform.acceptance.authorization-cross-tenant-report.v1",
       "claims": [
         "journey.extension-access-policy.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "authorization-cross-tenant-report",
       "observation_ids": [
         "authorization-cross-tenant-report.journey.extension-access-policy.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/authorization-cross-tenant-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.authorization-cross-tenant-report.v1"
     },
     {
-      "id": "backup-restore-rehearsal",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/backup-restore-rehearsal.json",
-      "schema": "identity-platform.acceptance.backup-restore-rehearsal.v1",
       "claims": [
         "cross.persistence-recovery.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "backup-restore-rehearsal",
       "observation_ids": [
         "backup-restore-rehearsal.cross.persistence-recovery.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/backup-restore-rehearsal.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.backup-restore-rehearsal.v1"
     },
     {
-      "id": "bearer-continuation-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/bearer-continuation-report.json",
-      "schema": "identity-platform.acceptance.bearer-continuation-report.v1",
       "claims": [
         "journey.sessions.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "bearer-continuation-report",
       "observation_ids": [
         "bearer-continuation-report.identity.session.bearer-authorize.behavior",
         "bearer-continuation-report.identity.session.bearer-issue.behavior",
@@ -497,32 +494,32 @@
       "operation_claims": [
         "identity.session.bearer-authorize",
         "identity.session.bearer-issue"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/bearer-continuation-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.bearer-continuation-report.v1"
     },
     {
-      "id": "browser-security-report",
-      "producer_unit": "identity/http",
-      "path": ".ai/identity-platform/evidence/browser-security-report.json",
-      "schema": "identity-platform.acceptance.browser-security-report.v1",
       "claims": [
         "cross.http-browser.v1"
       ],
       "gate": "make check MODULES=pkg/identity/http",
-      "producer_goal": "goals/identity-http.md",
+      "id": "browser-security-report",
       "observation_ids": [
         "browser-security-report.cross.http-browser.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/browser-security-report.json",
+      "producer_goal": "goals/identity-http.md",
+      "producer_unit": "identity/http",
+      "schema": "identity-platform.acceptance.browser-security-report.v1"
     },
     {
-      "id": "captcha-four-provider-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/captcha-four-provider-report.json",
-      "schema": "identity-platform.acceptance.captcha-four-provider-report.v1",
       "claims": [
         "journey.abuse-controls.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "captcha-four-provider-report",
       "observation_ids": [
         "captcha-four-provider-report.identity.admin.user-password-set.behavior",
         "captcha-four-provider-report.identity.anonymous.signin.behavior",
@@ -577,24 +574,24 @@
         "identity.oauth.onetap-callback",
         "identity.sso.discover",
         "identity.sso.signin-start"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/captcha-four-provider-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.captcha-four-provider-report.v1"
     },
     {
-      "id": "clean-reference-stack-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/clean-reference-stack-report.json",
-      "schema": "identity-platform.acceptance.clean-reference-stack-report.v1",
       "claims": [
         "journey.developer-use.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "clean-reference-stack-report",
       "observation_ids": [
         "clean-reference-stack-report.identity.reference.config-validate.behavior",
         "clean-reference-stack-report.identity.reference.diagnostics.behavior",
         "clean-reference-stack-report.identity.reference.migration-apply.behavior",
+        "clean-reference-stack-report.identity.reference.migration-check.behavior",
         "clean-reference-stack-report.identity.reference.migration-plan.behavior",
-        "clean-reference-stack-report.identity.reference.migration-status.behavior",
         "clean-reference-stack-report.identity.reference.schema-generate.behavior",
         "clean-reference-stack-report.identity.reference.secret-generate.behavior",
         "clean-reference-stack-report.journey.developer-use.v1.behavior"
@@ -603,190 +600,190 @@
         "identity.reference.config-validate",
         "identity.reference.diagnostics",
         "identity.reference.migration-apply",
+        "identity.reference.migration-check",
         "identity.reference.migration-plan",
-        "identity.reference.migration-status",
         "identity.reference.schema-generate",
         "identity.reference.secret-generate"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/clean-reference-stack-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.clean-reference-stack-report.v1"
     },
     {
-      "id": "composition-collision-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/composition-collision-report.json",
-      "schema": "identity-platform.acceptance.composition-collision-report.v1",
       "claims": [
         "journey.typed-modules-operations.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "composition-collision-report",
       "observation_ids": [
         "composition-collision-report.journey.typed-modules-operations.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/composition-collision-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.composition-collision-report.v1"
     },
     {
-      "id": "coverage-mutation-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/coverage-mutation-report.json",
-      "schema": "identity-platform.acceptance.coverage-mutation-report.v1",
       "claims": [
         "cross.final-acceptance.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "coverage-mutation-report",
       "observation_ids": [
         "coverage-mutation-report.cross.final-acceptance.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/coverage-mutation-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.coverage-mutation-report.v1"
     },
     {
-      "id": "custom-fields-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/custom-fields-report.json",
-      "schema": "identity-platform.acceptance.custom-fields-report.v1",
       "claims": [
         "journey.extension-access-policy.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "custom-fields-report",
       "observation_ids": [
         "custom-fields-report.journey.extension-access-policy.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/custom-fields-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.custom-fields-report.v1"
     },
     {
-      "id": "device-authorization-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/device-authorization-report.json",
-      "schema": "identity-platform.acceptance.device-authorization-report.v1",
       "claims": [
         "journey.oauth-oidc-provider.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "device-authorization-report",
       "observation_ids": [
         "device-authorization-report.journey.oauth-oidc-provider.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/device-authorization-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.device-authorization-report.v1"
     },
     {
-      "id": "distributed-rate-limit-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/distributed-rate-limit-report.json",
-      "schema": "identity-platform.acceptance.distributed-rate-limit-report.v1",
       "claims": [
         "journey.abuse-controls.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "distributed-rate-limit-report",
       "observation_ids": [
         "distributed-rate-limit-report.journey.abuse-controls.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/distributed-rate-limit-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.distributed-rate-limit-report.v1"
     },
     {
-      "id": "domain-verification-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/domain-verification-report.json",
-      "schema": "identity-platform.acceptance.domain-verification-report.v1",
       "claims": [
         "journey.enterprise-federation.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "domain-verification-report",
       "observation_ids": [
         "domain-verification-report.journey.enterprise-federation.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/domain-verification-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.domain-verification-report.v1"
     },
     {
-      "id": "download-capability-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/download-capability-report.json",
-      "schema": "identity-platform.acceptance.download-capability-report.v1",
       "claims": [
         "journey.privacy-export.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "download-capability-report",
       "observation_ids": [
         "download-capability-report.journey.privacy-export.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/download-capability-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.download-capability-report.v1"
     },
     {
-      "id": "enterprise-oidc-logout-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/enterprise-oidc-logout-report.json",
-      "schema": "identity-platform.acceptance.enterprise-oidc-logout-report.v1",
       "claims": [
         "journey.enterprise-federation.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "enterprise-oidc-logout-report",
       "observation_ids": [
         "enterprise-oidc-logout-report.journey.enterprise-federation.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/enterprise-oidc-logout-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.enterprise-oidc-logout-report.v1"
     },
     {
-      "id": "export-minimization-redaction-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/export-minimization-redaction-report.json",
-      "schema": "identity-platform.acceptance.export-minimization-redaction-report.v1",
       "claims": [
         "journey.privacy-export.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "export-minimization-redaction-report",
       "observation_ids": [
         "export-minimization-redaction-report.journey.privacy-export.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/export-minimization-redaction-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.export-minimization-redaction-report.v1"
     },
     {
-      "id": "external-module-clean-consumer-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/external-module-clean-consumer-report.json",
-      "schema": "identity-platform.acceptance.external-module-clean-consumer-report.v1",
       "claims": [
         "journey.typed-modules-operations.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "external-module-clean-consumer-report",
       "observation_ids": [
         "external-module-clean-consumer-report.journey.typed-modules-operations.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/external-module-clean-consumer-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.external-module-clean-consumer-report.v1"
     },
     {
-      "id": "health-readiness-route-report",
-      "producer_unit": "identity/http",
-      "path": ".ai/identity-platform/evidence/health-readiness-route-report.json",
-      "schema": "identity-platform.acceptance.health-readiness-route-report.v1",
       "claims": [
         "cross.http-browser.v1"
       ],
       "gate": "make check MODULES=pkg/identity/http",
-      "producer_goal": "goals/identity-http.md",
+      "id": "health-readiness-route-report",
       "observation_ids": [
         "health-readiness-route-report.cross.http-browser.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/health-readiness-route-report.json",
+      "producer_goal": "goals/identity-http.md",
+      "producer_unit": "identity/http",
+      "schema": "identity-platform.acceptance.health-readiness-route-report.v1"
     },
     {
-      "id": "hibp-interoperability-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/hibp-interoperability-report.json",
-      "schema": "identity-platform.acceptance.hibp-interoperability-report.v1",
       "claims": [
         "journey.email-password-username.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "hibp-interoperability-report",
       "observation_ids": [
         "hibp-interoperability-report.journey.email-password-username.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/hibp-interoperability-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.hibp-interoperability-report.v1"
     },
     {
-      "id": "identitytest-cycle-free-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/identitytest-cycle-free-report.json",
-      "schema": "identity-platform.acceptance.identitytest-cycle-free-report.v1",
       "claims": [
         "journey.developer-use.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "identitytest-cycle-free-report",
       "observation_ids": [
         "identitytest-cycle-free-report.identity.identitytest.auth-headers.behavior",
         "identitytest-cycle-free-report.identity.identitytest.cookie-create.behavior",
@@ -825,18 +822,18 @@
         "identity.identitytest.user-create",
         "identity.identitytest.user-delete",
         "identity.identitytest.user-save"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/identitytest-cycle-free-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.identitytest-cycle-free-report.v1"
     },
     {
-      "id": "impersonation-quorum-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/impersonation-quorum-report.json",
-      "schema": "identity-platform.acceptance.impersonation-quorum-report.v1",
       "claims": [
         "journey.administration.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "impersonation-quorum-report",
       "observation_ids": [
         "impersonation-quorum-report.identity.impersonation.approve.behavior",
         "impersonation-quorum-report.identity.impersonation.deny.behavior",
@@ -855,78 +852,78 @@
         "identity.impersonation.revoke",
         "identity.impersonation.start",
         "identity.impersonation.stop"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/impersonation-quorum-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.impersonation-quorum-report.v1"
     },
     {
-      "id": "instrumentation-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/instrumentation-report.json",
-      "schema": "identity-platform.acceptance.instrumentation-report.v1",
       "claims": [
         "cross.operability-provider-proof.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "instrumentation-report",
       "observation_ids": [
         "instrumentation-report.cross.operability-provider-proof.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/instrumentation-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.instrumentation-report.v1"
     },
     {
-      "id": "integrated-threat-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/integrated-threat-report.json",
-      "schema": "identity-platform.acceptance.integrated-threat-report.v1",
       "claims": [
         "cross.security-privacy.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "integrated-threat-report",
       "observation_ids": [
         "integrated-threat-report.cross.security-privacy.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/integrated-threat-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.integrated-threat-report.v1"
     },
     {
-      "id": "locale-negotiation-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/locale-negotiation-report.json",
-      "schema": "identity-platform.acceptance.locale-negotiation-report.v1",
       "claims": [
         "journey.localization.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "locale-negotiation-report",
       "observation_ids": [
         "locale-negotiation-report.identity.i18n.resolve.behavior",
         "locale-negotiation-report.journey.localization.v1.behavior"
       ],
       "operation_claims": [
         "identity.i18n.resolve"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/locale-negotiation-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.locale-negotiation-report.v1"
     },
     {
-      "id": "localized-error-identity-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/localized-error-identity-report.json",
-      "schema": "identity-platform.acceptance.localized-error-identity-report.v1",
       "claims": [
         "journey.localization.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "localized-error-identity-report",
       "observation_ids": [
         "localized-error-identity-report.journey.localization.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/localized-error-identity-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.localized-error-identity-report.v1"
     },
     {
-      "id": "mfa-recovery-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/mfa-recovery-report.json",
-      "schema": "identity-platform.acceptance.mfa-recovery-report.v1",
       "claims": [
         "journey.mfa-webauthn.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "mfa-recovery-report",
       "observation_ids": [
         "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior",
         "mfa-recovery-report.identity.admin.mfa-reset.behavior",
@@ -965,32 +962,32 @@
         "identity.mfa.totp-uri",
         "identity.mfa.totp-verify",
         "identity.mfa.trusted-device-revoke"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/mfa-recovery-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.mfa-recovery-report.v1"
     },
     {
-      "id": "native-token-mode-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/native-token-mode-report.json",
-      "schema": "identity-platform.acceptance.native-token-mode-report.v1",
       "claims": [
         "journey.social-oauth.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "native-token-mode-report",
       "observation_ids": [
         "native-token-mode-report.journey.social-oauth.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/native-token-mode-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.native-token-mode-report.v1"
     },
     {
-      "id": "oauth-oidc-conformance-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/oauth-oidc-conformance-report.json",
-      "schema": "identity-platform.acceptance.oauth-oidc-conformance-report.v1",
       "claims": [
         "journey.oauth-oidc-provider.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "oauth-oidc-conformance-report",
       "observation_ids": [
         "oauth-oidc-conformance-report.identity.oauth-server.authorize.behavior",
         "oauth-oidc-conformance-report.identity.oauth-server.client-create.behavior",
@@ -1057,32 +1054,32 @@
         "identity.oauth-server.session-token",
         "identity.oauth-server.token",
         "identity.oauth-server.userinfo"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/oauth-oidc-conformance-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.oauth-oidc-conformance-report.v1"
     },
     {
-      "id": "oauth-popup-browser-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/oauth-popup-browser-report.json",
-      "schema": "identity-platform.acceptance.oauth-popup-browser-report.v1",
       "claims": [
         "journey.social-oauth.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "oauth-popup-browser-report",
       "observation_ids": [
         "oauth-popup-browser-report.journey.social-oauth.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/oauth-popup-browser-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.oauth-popup-browser-report.v1"
     },
     {
-      "id": "oauth-provider-matrix-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/oauth-provider-matrix-report.json",
-      "schema": "identity-platform.acceptance.oauth-provider-matrix-report.v1",
       "claims": [
         "journey.social-oauth.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "oauth-provider-matrix-report",
       "observation_ids": [
         "oauth-provider-matrix-report.identity.account.access-token.behavior",
         "oauth-provider-matrix-report.identity.account.link-start.behavior",
@@ -1093,6 +1090,8 @@
         "oauth-provider-matrix-report.identity.account.unlink.behavior",
         "oauth-provider-matrix-report.identity.oauth.callback.behavior",
         "oauth-provider-matrix-report.identity.oauth.callback-form-post.behavior",
+        "oauth-provider-matrix-report.identity.oauth.logout-complete.behavior",
+        "oauth-provider-matrix-report.identity.oauth.logout-start.behavior",
         "oauth-provider-matrix-report.identity.oauth.onetap-callback.behavior",
         "oauth-provider-matrix-report.identity.oauth.onetap-start.behavior",
         "oauth-provider-matrix-report.identity.oauth.popup-complete.behavior",
@@ -1113,6 +1112,8 @@
         "identity.account.unlink",
         "identity.oauth.callback",
         "identity.oauth.callback-form-post",
+        "identity.oauth.logout-complete",
+        "identity.oauth.logout-start",
         "identity.oauth.onetap-callback",
         "identity.oauth.onetap-start",
         "identity.oauth.popup-complete",
@@ -1121,60 +1122,60 @@
         "identity.oauth.proxy-forward",
         "identity.oauth.signin-start",
         "identity.oauth.signin-token"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/oauth-provider-matrix-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.oauth-provider-matrix-report.v1"
     },
     {
-      "id": "oauth-proxy-no-write-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/oauth-proxy-no-write-report.json",
-      "schema": "identity-platform.acceptance.oauth-proxy-no-write-report.v1",
       "claims": [
         "journey.social-oauth.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "oauth-proxy-no-write-report",
       "observation_ids": [
         "oauth-proxy-no-write-report.journey.social-oauth.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/oauth-proxy-no-write-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.oauth-proxy-no-write-report.v1"
     },
     {
-      "id": "openapi-consumer-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/openapi-consumer-report.json",
-      "schema": "identity-platform.acceptance.openapi-consumer-report.v1",
       "claims": [
         "journey.developer-use.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "openapi-consumer-report",
       "observation_ids": [
         "openapi-consumer-report.journey.developer-use.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/openapi-consumer-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.openapi-consumer-report.v1"
     },
     {
-      "id": "operation-handler-openapi-bijection",
-      "producer_unit": "identity/http",
-      "path": ".ai/identity-platform/evidence/operation-handler-openapi-bijection.json",
-      "schema": "identity-platform.acceptance.operation-handler-openapi-bijection.v1",
       "claims": [
         "cross.http-browser.v1"
       ],
       "gate": "make check MODULES=pkg/identity/http",
-      "producer_goal": "goals/identity-http.md",
+      "id": "operation-handler-openapi-bijection",
       "observation_ids": [
         "operation-handler-openapi-bijection.cross.http-browser.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/operation-handler-openapi-bijection.json",
+      "producer_goal": "goals/identity-http.md",
+      "producer_unit": "identity/http",
+      "schema": "identity-platform.acceptance.operation-handler-openapi-bijection.v1"
     },
     {
-      "id": "operational-api-redaction-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/operational-api-redaction-report.json",
-      "schema": "identity-platform.acceptance.operational-api-redaction-report.v1",
       "claims": [
         "journey.audit-investigation.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "operational-api-redaction-report",
       "observation_ids": [
         "operational-api-redaction-report.identity.audit.export.behavior",
         "operational-api-redaction-report.identity.audit.get.behavior",
@@ -1187,46 +1188,46 @@
         "identity.audit.get",
         "identity.audit.list",
         "identity.audit.search"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/operational-api-redaction-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.operational-api-redaction-report.v1"
     },
     {
-      "id": "operations-runbook-index",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/operations-runbook-index.json",
-      "schema": "identity-platform.acceptance.operations-runbook-index.v1",
       "claims": [
         "cross.operability-provider-proof.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "operations-runbook-index",
       "observation_ids": [
         "operations-runbook-index.cross.operability-provider-proof.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/operations-runbook-index.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.operations-runbook-index.v1"
     },
     {
-      "id": "organization-archive-restore-delete-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/organization-archive-restore-delete-report.json",
-      "schema": "identity-platform.acceptance.organization-archive-restore-delete-report.v1",
       "claims": [
         "journey.organizations.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "organization-archive-restore-delete-report",
       "observation_ids": [
         "organization-archive-restore-delete-report.journey.organizations.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/organization-archive-restore-delete-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.organization-archive-restore-delete-report.v1"
     },
     {
-      "id": "organization-concurrency-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/organization-concurrency-report.json",
-      "schema": "identity-platform.acceptance.organization-concurrency-report.v1",
       "claims": [
         "journey.organizations.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "organization-concurrency-report",
       "observation_ids": [
         "organization-concurrency-report.identity.organization.active-get.behavior",
         "organization-concurrency-report.identity.organization.active-set.behavior",
@@ -1299,18 +1300,18 @@
         "identity.organization.team.member-remove",
         "identity.organization.team.update",
         "identity.organization.update"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/organization-concurrency-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.organization-concurrency-report.v1"
     },
     {
-      "id": "organization-invitation-lifecycle-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/organization-invitation-lifecycle-report.json",
-      "schema": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1",
       "claims": [
         "journey.organizations.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "organization-invitation-lifecycle-report",
       "observation_ids": [
         "organization-invitation-lifecycle-report.identity.organization.invitation-send.behavior",
         "organization-invitation-lifecycle-report.identity.organization.invitation.accept.behavior",
@@ -1333,18 +1334,18 @@
         "identity.organization.invitation.list-mine",
         "identity.organization.invitation.reject",
         "identity.organization.invitation.resend"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/organization-invitation-lifecycle-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.organization-invitation-lifecycle-report.v1"
     },
     {
-      "id": "otp-reservation-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/otp-reservation-report.json",
-      "schema": "identity-platform.acceptance.otp-reservation-report.v1",
       "claims": [
         "journey.passwordless.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "otp-reservation-report",
       "observation_ids": [
         "otp-reservation-report.identity.otp.check.behavior",
         "otp-reservation-report.identity.otp.email-change-confirm.behavior",
@@ -1363,18 +1364,18 @@
         "identity.otp.password-reset",
         "identity.otp.send",
         "identity.otp.signin"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/otp-reservation-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.otp-reservation-report.v1"
     },
     {
-      "id": "passkey-browser-ceremony-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/passkey-browser-ceremony-report.json",
-      "schema": "identity-platform.acceptance.passkey-browser-ceremony-report.v1",
       "claims": [
         "journey.mfa-webauthn.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "passkey-browser-ceremony-report",
       "observation_ids": [
         "passkey-browser-ceremony-report.identity.passkey.delete.behavior",
         "passkey-browser-ceremony-report.identity.passkey.list.behavior",
@@ -1393,54 +1394,54 @@
         "identity.passkey.list",
         "identity.passkey.update",
         "identity.passkey.delete"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/passkey-browser-ceremony-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.passkey-browser-ceremony-report.v1"
     },
     {
-      "id": "passwordless-http-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/passwordless-http-report.json",
-      "schema": "identity-platform.acceptance.passwordless-http-report.v1",
       "claims": [
         "journey.passwordless.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "passwordless-http-report",
       "observation_ids": [
         "passwordless-http-report.journey.passwordless.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/passwordless-http-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.passwordless-http-report.v1"
     },
     {
-      "id": "phone-reset-risk-evidence-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/phone-reset-risk-evidence-report.json",
-      "schema": "identity-platform.acceptance.phone-reset-risk-evidence-report.v1",
       "claims": [
         "journey.passwordless.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "operation_claims": [
-        "identity.phone.password-reset-request",
-        "identity.phone.password-reset-complete",
-        "identity.risk.evaluate"
-      ],
-      "producer_goal": "goals/identity-reference.md",
+      "id": "phone-reset-risk-evidence-report",
       "observation_ids": [
         "phone-reset-risk-evidence-report.identity.phone.password-reset-complete.behavior",
         "phone-reset-risk-evidence-report.identity.phone.password-reset-request.behavior",
         "phone-reset-risk-evidence-report.identity.risk.evaluate.behavior",
         "phone-reset-risk-evidence-report.journey.passwordless.v1.behavior"
-      ]
+      ],
+      "operation_claims": [
+        "identity.phone.password-reset-request",
+        "identity.phone.password-reset-complete",
+        "identity.risk.evaluate"
+      ],
+      "path": ".ai/identity-platform/evidence/phone-reset-risk-evidence-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.phone-reset-risk-evidence-report.v1"
     },
     {
-      "id": "platform-authority-version-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/platform-authority-version-report.json",
-      "schema": "identity-platform.acceptance.platform-authority-version-report.v1",
       "claims": [
         "journey.administration.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "platform-authority-version-report",
       "observation_ids": [
         "platform-authority-version-report.identity.admin.mfa-recovery-issue.behavior",
         "platform-authority-version-report.identity.admin.mfa-reset.behavior",
@@ -1481,102 +1482,102 @@
         "identity.platform.role.create",
         "identity.platform.role.delete",
         "identity.platform.role.update"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/platform-authority-version-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.platform-authority-version-report.v1"
     },
     {
-      "id": "postgres-lifecycle-cascade-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/postgres-lifecycle-cascade-report.json",
-      "schema": "identity-platform.acceptance.postgres-lifecycle-cascade-report.v1",
       "claims": [
         "journey.identity-lifecycle.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "postgres-lifecycle-cascade-report",
       "observation_ids": [
         "postgres-lifecycle-cascade-report.journey.identity-lifecycle.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/postgres-lifecycle-cascade-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.postgres-lifecycle-cascade-report.v1"
     },
     {
-      "id": "postgres-valkey-failure-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/postgres-valkey-failure-report.json",
-      "schema": "identity-platform.acceptance.postgres-valkey-failure-report.v1",
       "claims": [
         "cross.persistence-recovery.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "postgres-valkey-failure-report",
       "observation_ids": [
         "postgres-valkey-failure-report.cross.persistence-recovery.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/postgres-valkey-failure-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.postgres-valkey-failure-report.v1"
     },
     {
-      "id": "privacy-boundary-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/privacy-boundary-report.json",
-      "schema": "identity-platform.acceptance.privacy-boundary-report.v1",
       "claims": [
         "cross.security-privacy.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "privacy-boundary-report",
       "observation_ids": [
         "privacy-boundary-report.cross.security-privacy.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/privacy-boundary-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.privacy-boundary-report.v1"
     },
     {
-      "id": "privacy-export-lifecycle-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/privacy-export-lifecycle-report.json",
-      "schema": "identity-platform.acceptance.privacy-export-lifecycle-report.v1",
       "claims": [
         "journey.privacy-export.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "privacy-export-lifecycle-report",
       "observation_ids": [
         "privacy-export-lifecycle-report.journey.privacy-export.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/privacy-export-lifecycle-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.privacy-export-lifecycle-report.v1"
     },
     {
-      "id": "provider-evidence-index",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/provider-evidence-index.json",
-      "schema": "identity-platform.acceptance.provider-evidence-index.v1",
       "claims": [
         "cross.operability-provider-proof.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "provider-evidence-index",
       "observation_ids": [
         "provider-evidence-index.cross.operability-provider-proof.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/provider-evidence-index.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.provider-evidence-index.v1"
     },
     {
-      "id": "reauthentication-proof-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/reauthentication-proof-report.json",
-      "schema": "identity-platform.acceptance.reauthentication-proof-report.v1",
       "claims": [
         "journey.email-password-username.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "reauthentication-proof-report",
       "observation_ids": [
         "reauthentication-proof-report.journey.email-password-username.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/reauthentication-proof-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.reauthentication-proof-report.v1"
     },
     {
-      "id": "reference-http-identity-lifecycle",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/reference-http-identity-lifecycle.json",
-      "schema": "identity-platform.acceptance.reference-http-identity-lifecycle.v1",
       "claims": [
         "journey.identity-lifecycle.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "reference-http-identity-lifecycle",
       "observation_ids": [
         "reference-http-identity-lifecycle.identity.anonymous.delete.behavior",
         "reference-http-identity-lifecycle.identity.anonymous.signin.behavior",
@@ -1617,18 +1618,18 @@
         "identity.username.signin",
         "identity.username.signup",
         "identity.username.update"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/reference-http-identity-lifecycle.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.reference-http-identity-lifecycle.v1"
     },
     {
-      "id": "reference-http-password-journey",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/reference-http-password-journey.json",
-      "schema": "identity-platform.acceptance.reference-http-password-journey.v1",
       "claims": [
         "journey.email-password-username.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "reference-http-password-journey",
       "observation_ids": [
         "reference-http-password-journey.identity.email.address-get.behavior",
         "reference-http-password-journey.identity.email.address-list.behavior",
@@ -1679,18 +1680,18 @@
         "identity.phone.signin",
         "identity.phone.update",
         "identity.phone.verify"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/reference-http-password-journey.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.reference-http-password-journey.v1"
     },
     {
-      "id": "remember-policy-propagation-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/remember-policy-propagation-report.json",
-      "schema": "identity-platform.acceptance.remember-policy-propagation-report.v1",
       "claims": [
         "journey.sessions.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "remember-policy-propagation-report",
       "observation_ids": [
         "remember-policy-propagation-report.identity.anonymous.signin.behavior",
         "remember-policy-propagation-report.identity.anonymous.upgrade.behavior",
@@ -1747,32 +1748,32 @@
         "identity.sso.oidc-callback",
         "identity.sso.saml-acs",
         "identity.sso.saml-idp-init"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/remember-policy-propagation-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.remember-policy-propagation-report.v1"
     },
     {
-      "id": "risk-policy-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/risk-policy-report.json",
-      "schema": "identity-platform.acceptance.risk-policy-report.v1",
       "claims": [
         "journey.abuse-controls.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "risk-policy-report",
       "observation_ids": [
         "risk-policy-report.journey.abuse-controls.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/risk-policy-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.risk-policy-report.v1"
     },
     {
-      "id": "scim-connection-lifecycle-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/scim-connection-lifecycle-report.json",
-      "schema": "identity-platform.acceptance.scim-connection-lifecycle-report.v1",
       "claims": [
         "journey.scim.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "scim-connection-lifecycle-report",
       "observation_ids": [
         "scim-connection-lifecycle-report.identity.scim.connection-create.behavior",
         "scim-connection-lifecycle-report.identity.scim.connection-delete.behavior",
@@ -1793,18 +1794,18 @@
         "identity.scim.connection-rotate",
         "identity.scim.connection-token-revoke",
         "identity.scim.connection-update"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/scim-connection-lifecycle-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.scim-connection-lifecycle-report.v1"
     },
     {
-      "id": "scim-reconciliation-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/scim-reconciliation-report.json",
-      "schema": "identity-platform.acceptance.scim-reconciliation-report.v1",
       "claims": [
         "journey.scim.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "scim-reconciliation-report",
       "observation_ids": [
         "scim-reconciliation-report.identity.sso.directory-sync-apply.behavior",
         "scim-reconciliation-report.identity.sso.directory-sync-start.behavior",
@@ -1815,46 +1816,46 @@
         "identity.sso.directory-sync-apply",
         "identity.sso.directory-sync-start",
         "identity.sso.directory-sync-status"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/scim-reconciliation-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.scim-reconciliation-report.v1"
     },
     {
-      "id": "scim-rfc-conformance-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/scim-rfc-conformance-report.json",
-      "schema": "identity-platform.acceptance.scim-rfc-conformance-report.v1",
       "claims": [
         "journey.scim.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "scim-rfc-conformance-report",
       "observation_ids": [
         "scim-rfc-conformance-report.journey.scim.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/scim-rfc-conformance-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.scim-rfc-conformance-report.v1"
     },
     {
-      "id": "secret-redaction-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/secret-redaction-report.json",
-      "schema": "identity-platform.acceptance.secret-redaction-report.v1",
       "claims": [
         "cross.security-privacy.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "secret-redaction-report",
       "observation_ids": [
         "secret-redaction-report.cross.security-privacy.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/secret-redaction-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.secret-redaction-report.v1"
     },
     {
-      "id": "session-profile-contract-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/session-profile-contract-report.json",
-      "schema": "identity-platform.acceptance.session-profile-contract-report.v1",
       "claims": [
         "journey.sessions.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "session-profile-contract-report",
       "observation_ids": [
         "session-profile-contract-report.identity.session.bearer-authorize.behavior",
         "session-profile-contract-report.identity.session.bearer-issue.behavior",
@@ -1893,60 +1894,60 @@
         "identity.session.transfer-consume",
         "identity.session.transfer-generate",
         "identity.session.update"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/session-profile-contract-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.session-profile-contract-report.v1"
     },
     {
-      "id": "session-transfer-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/session-transfer-report.json",
-      "schema": "identity-platform.acceptance.session-transfer-report.v1",
       "claims": [
         "journey.sessions.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "session-transfer-report",
       "observation_ids": [
         "session-transfer-report.journey.sessions.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/session-transfer-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.session-transfer-report.v1"
     },
     {
-      "id": "signer-jwks-profile-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/signer-jwks-profile-report.json",
-      "schema": "identity-platform.acceptance.signer-jwks-profile-report.v1",
       "claims": [
         "journey.oauth-oidc-provider.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "signer-jwks-profile-report",
       "observation_ids": [
         "signer-jwks-profile-report.journey.oauth-oidc-provider.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/signer-jwks-profile-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.signer-jwks-profile-report.v1"
     },
     {
-      "id": "sso-enforcement-break-glass-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/sso-enforcement-break-glass-report.json",
-      "schema": "identity-platform.acceptance.sso-enforcement-break-glass-report.v1",
       "claims": [
         "journey.enterprise-federation.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "sso-enforcement-break-glass-report",
       "observation_ids": [
         "sso-enforcement-break-glass-report.journey.enterprise-federation.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/sso-enforcement-break-glass-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.sso-enforcement-break-glass-report.v1"
     },
     {
-      "id": "sso-provider-lifecycle-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/sso-provider-lifecycle-report.json",
-      "schema": "identity-platform.acceptance.sso-provider-lifecycle-report.v1",
       "claims": [
         "journey.enterprise-federation.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "sso-provider-lifecycle-report",
       "observation_ids": [
         "sso-provider-lifecycle-report.identity.sso.break-glass.consume.behavior",
         "sso-provider-lifecycle-report.identity.sso.break-glass.issue.behavior",
@@ -2013,60 +2014,60 @@
         "identity.sso.saml-slo",
         "identity.sso.saml-start",
         "identity.sso.signin-start"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/sso-provider-lifecycle-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.sso-provider-lifecycle-report.v1"
     },
     {
-      "id": "supply-chain-release-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/supply-chain-release-report.json",
-      "schema": "identity-platform.acceptance.supply-chain-release-report.v1",
       "claims": [
         "cross.final-acceptance.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "supply-chain-release-report",
       "observation_ids": [
         "supply-chain-release-report.cross.final-acceptance.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/supply-chain-release-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.supply-chain-release-report.v1"
     },
     {
-      "id": "typed-fields-schema-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/typed-fields-schema-report.json",
-      "schema": "identity-platform.acceptance.typed-fields-schema-report.v1",
       "claims": [
         "journey.identity-lifecycle.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "typed-fields-schema-report",
       "observation_ids": [
         "typed-fields-schema-report.journey.identity-lifecycle.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/typed-fields-schema-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.typed-fields-schema-report.v1"
     },
     {
-      "id": "typed-hooks-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/typed-hooks-report.json",
-      "schema": "identity-platform.acceptance.typed-hooks-report.v1",
       "claims": [
         "journey.extension-access-policy.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "typed-hooks-report",
       "observation_ids": [
         "typed-hooks-report.journey.extension-access-policy.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/typed-hooks-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.typed-hooks-report.v1"
     },
     {
-      "id": "unknown-outcome-reconciliation-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/unknown-outcome-reconciliation-report.json",
-      "schema": "identity-platform.acceptance.unknown-outcome-reconciliation-report.v1",
       "claims": [
         "cross.persistence-recovery.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "unknown-outcome-reconciliation-report",
       "observation_ids": [
         "unknown-outcome-reconciliation-report.cross.persistence-recovery.v1.behavior",
         "unknown-outcome-reconciliation-report.identity.delivery.cancel.behavior",
@@ -2081,21 +2082,25 @@
         "identity.delivery.receipt-record",
         "identity.delivery.reconcile",
         "identity.delivery.status-get"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/unknown-outcome-reconciliation-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.unknown-outcome-reconciliation-report.v1"
     },
     {
-      "id": "webauthn-conformance-report",
-      "producer_unit": "identity/reference",
-      "path": ".ai/identity-platform/evidence/webauthn-conformance-report.json",
-      "schema": "identity-platform.acceptance.webauthn-conformance-report.v1",
       "claims": [
         "journey.mfa-webauthn.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
-      "producer_goal": "goals/identity-reference.md",
+      "id": "webauthn-conformance-report",
       "observation_ids": [
         "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
-      ]
+      ],
+      "path": ".ai/identity-platform/evidence/webauthn-conformance-report.json",
+      "producer_goal": "goals/identity-reference.md",
+      "producer_unit": "identity/reference",
+      "schema": "identity-platform.acceptance.webauthn-conformance-report.v1"
     }
   ]
 }

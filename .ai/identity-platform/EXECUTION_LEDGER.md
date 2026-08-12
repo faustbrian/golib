@@ -34,6 +34,28 @@ ledger commit that records the binding. A dash means never assigned. `available`
 records preflight availability only and MUST NOT be treated as acceptance
 evidence.
 
+Every assignment and integration row is also a commit-custody claim. The
+coordinator MUST validate the complete first-parent history from the recorded
+base under `ORCHESTRATOR_GOAL.md`'s commit-class envelopes. In particular, an
+assignment-state commit changes exactly inventory and ledger; its direct
+finalization child changes exactly ledger; authorization, runtime, and release
+commits have their exact control-only envelopes; and an integration checkpoint
+is an exact two-parent merge `[recorded-premerge-head, worker-tip]` with package
+and outside-tree projections taken from the correct parent. An ancestry-only
+relationship is insufficient.
+
+No coordinator state, evidence, registration, or gate commit may change a
+worker-owned package projection. The sole package-path exception is the
+byte-identical relocation of the coordinator-custody goal from its planning to
+canonical path. The validator MUST reject transient edits even when a later
+commit restores the final bytes.
+
+Goal custody follows location changes. A goal moved beneath a canonical module
+root remains a coordinator-owned control path and is excluded from every
+worker-authored range. Its path change is byte-preserving; any goal-body digest
+change requires the prior user semantic authorization defined by `PROGRAM.md`
+and `PREFLIGHT_EVIDENCE.md`.
+
 After `initial`, `Last transition` MUST use
 `v<positive-integer> <status> owner=<owner-or-dash> at=<RFC3339>` and mirror
 the inventory status and owner/blocker exactly. Every later ledger update MUST
@@ -119,6 +141,28 @@ still selects the complete module roots and `DEPENDENCIES.md` remains included,
 so a dependency revision invalidates affected inputs. No other
 identity-platform input is excluded.
 
+The `artifacts` field MUST contain the canonical path and exact SHA-256 digest
+of a separately committed coordinator execution receipt. That receipt is part
+of the gate result and MUST bind the absolute executable path, executable
+version, executable-byte digest, exact argument vector, working directory,
+sorted redacted environment identity, start/completion times, exit status,
+exact stdout/stderr bytes with byte lengths and digests, raw-capture identity,
+artifact-specific verifier execution, and final artifact digest. The
+coordinator MUST resolve both blobs at their named commits and validate their
+mutual path/digest binding before accepting the gate. Worker or producer
+receipt authorship, a receipt reconstructed from a final artifact, or an
+unbound command transcript is invalid.
+
+The coordinator MUST derive affected packages and the complete reverse-
+dependant closure from repository-native discovery at the tested revision and
+bind the canonical discovery stdout and receipt to the gate record. Coverage
+and mutation gates additionally require separate receipt-bound
+`ACCEPTANCE_DISCOVERY=affected-packages` and
+`ACCEPTANCE_DISCOVERY=viable-mutants` subprocesses. Mutation results MUST bind
+the mutation tool's native machine-readable output and match every discovered
+viable mutant exactly; worker manifests and producer-declared totals are not
+authoritative.
+
 ## Per-status row schema
 
 - An initial `proposed` row MUST have generation `0`. A post-initial `proposed`
@@ -146,12 +190,15 @@ identity-platform input is excluded.
   same task, branch, worktree, assignment commit, and generation from its
   `blocked` parent; worker commit MAY be the clean coherent checkpoint while
   integration checkpoint and gate fingerprint remain `—`. Its exact authorized
-  recovery baseline MUST be recorded in the matching
-  `PREFLIGHT_EVIDENCE.md` conflict-recovery row in the same resume/authorization
-  commit. That row's integration commit is the resume commit's first parent,
-  not the resume commit itself. Before any package edit, the worker MUST merge
-  the exact resume/authorization commit supplied by the coordinator and prove
-  that commit has the recorded integration parent and worker checkpoint.
+  recovery baseline and complete-input root MUST be recorded in the matching
+  `PREFLIGHT_EVIDENCE.md` conflict-recovery `authorized` row in the same
+  transition commit. An immediate recovery-finalization `effective` row in
+  `PREFLIGHT_EVIDENCE.md` MUST bind that
+  authorization checkpoint. Before any package edit, the worker MUST merge the
+  exact effective-authorization commit supplied by the coordinator and prove
+  the authorization checkpoint has the recorded integration parent and worker
+  checkpoint. A successful terminal row MUST bind the exact result worker and
+  non-fast-forward integration commits.
 - A retained-assignment `blocked` row MUST use `blocker:<safe-id>` as owner and
   retain task, branch, worktree, assignment commit, and generation. Before
   integration, worker commit MAY be `—` or the clean coherent stale-baseline
@@ -203,13 +250,23 @@ satisfy the exact descendant and assignment-identity rules above; a sibling,
 rewritten, detached, or different-assignment commit is forbidden.
 Every other same-status field change is forbidden.
 
-Pre-spawn assignment authorization and post-spawn runtime attestation are
-distinct. A worker commit or integration checkpoint MUST NOT be accepted unless
+Pre-spawn assignment authorization, the readiness-only first turn, post-spawn
+runtime attestation, and the second-turn release are distinct. A worker commit
+or integration checkpoint MUST NOT be accepted unless
 the current unit/generation/task has exactly one runtime row bound to a
-non-dash immutable agent ID and the actual platform-reported
-`gpt-5.6-sol`/`medium`/`none`/`false` settings. The immutable assignment row
+non-dash tool-visible agent ID and the requested
+`gpt-5.6-sol`/`medium`/`none`/`false` settings plus exactly one valid release-
+handshake row whose runtime and row commits are ancestors of, and precede,
+worker-authored work. Early
+worker mutation permanently invalidates the generation. The immutable assignment row
 retains its assignment-time goal path; later canonical-goal repairs use only
 the separately versioned integrated-repair table.
+
+The corresponding spawn, readiness, release-preparation, activation, and return
+captures MUST follow the base-pinned capture policy. Capture
+IDs and turn ordinals are unique and contiguous for that worker; the return
+event binds the exact ordered worker commits and returned tip. If platform
+event verification is unavailable, assignment and integration are blocked.
 
 Every ordinary `in-progress -> ready` or `blocked -> ready` abandonment MUST
 append an assignment disposition row using an
@@ -221,9 +278,12 @@ Generation increment plus cleared ledger fields alone MUST be rejected.
 
 ## Dependency revisions
 
-Only the coordinator MAY change an inventory `Requires` set. A worker MUST
+Only the coordinator MAY record an inventory `Requires` change. A worker MUST
 report the discovered dependency change and stop; it MUST NOT edit inventory,
-goals, or the dependency graph. Before accepting a revision, the coordinator
+goals, or the dependency graph. A behavior-changing dependency revision MUST
+have a prior exact user semantic authorization; coordinator approval alone is
+valid only for a mechanical correction already entailed by unchanged
+user-authorized sources. Before accepting a revision, the coordinator
 MUST update and validate the affected goal metadata and complete Mermaid DAG,
 prove the graph is acyclic, and append one exact row below for every unit whose
 `Requires` set changes. Rows are append-only.
@@ -316,12 +376,13 @@ This append-only table contains both dependency-revision dispositions and
 ordinary abandonment dispositions. `Revision IDs` MUST name exact dependency
 revision IDs or one `abandonment:<safe-id>` marker.
 
-## Local gate evidence bindings
+## Per-unit verification-gate evidence bindings
 
 | Unit | Generation | Gate execution revision | Evidence path | Evidence record commit | Evidence blob digest | Bound at |
 | --- | --- | --- | --- | --- | --- | --- |
 
-This append-only table binds each local gate evidence v2 record after the
+This append-only table binds each coordinator-run per-unit verification-gate
+evidence v2 record after the
 record has been committed. The record cannot predict its own containing commit.
 The binding MUST use the unit's current generation, exact gate execution
 revision, the canonical path
@@ -334,6 +395,19 @@ the assignment, worker, checkpoint, gate-execution, and evidence-record commits
 on current integration history, read the exact record blob from its bound
 commit, match it byte-for-byte to the canonical local record, and validate that
 record's input root and artifacts before accepting `verified`.
+
+Resolving `artifacts` includes resolving the coordinator execution receipt and
+proving its immutable process capture, repository discovery manifests, native
+mutation output when selected, and independent artifact-specific verifier.
+For protocol or security claims, the binding MUST also prove the selected
+independent conformance suite or separately owned raw-observation verifier; the
+producing package worker MUST NOT be that verifier.
+
+These records prove current unit status and may unlock dependants. They are not
+program-final-input evidence. After all implementations are integrated, the
+coordinator MUST recompute all 67 roots at one clean committed revision and run
+or validly reuse every changed per-unit result as part of the distinct
+program-final-input gate defined by `ORCHESTRATOR_GOAL.md`.
 
 ## Unit execution ledger
 

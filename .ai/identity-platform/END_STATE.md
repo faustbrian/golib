@@ -32,16 +32,19 @@ The reference profile MUST compose the following public typed seams; no
 consumer-written workflow substitute is permitted:
 
 - `identity/reference.NewServer(ReferenceConfig, ReferenceDependencies,
-  FeatureSet) (Server, error)` validates the complete immutable graph before
+  FeatureSet) (*Server, error)` validates the complete immutable graph before
   exposing `Handler`, `OpenAPI`, `Health`, or `Readiness`.
 - `identity/http.NewRouter(TransportPolicy, []OperationDescriptor,
   []MiddlewareDescriptor) (http.Handler, OpenAPIDocument, error)` rejects
   duplicate method/path, operation ID, schema, middleware and rate-policy
   ownership before serving.
-- `identity/reference.ComposeStores(StoreSet)`,
-  `ComposeProviders(ProviderSet)`, and `ComposeWorkers(WorkerSet)` accept the
-  exact typed adapters selected by the reference profile; they MUST NOT perform
-  reflection, global registration or service lookup.
+- `identity/reference.ComposeStores(StoreConfiguration,
+  ReferenceDependencies) (StoreSet, error)`,
+  `ComposeProviders([]ProviderConfig, ReferenceDependencies) (ProviderSet,
+  error)`, and `ComposeWorkers(StoreSet, ProviderSet, WorkerPolicy)
+  (WorkerSet, error)` construct and seal the exact typed adapters selected by
+  the reference profile; they MUST NOT perform reflection, global registration
+  or service lookup.
 - `identity/delivery.Sender.Send(context.Context, Attempt)
   (DeliveryResult, error)` is the sole application callback permitted for
   email/SMS delivery. The platform owns intent construction, persistence,
@@ -83,7 +86,7 @@ Its handlers MUST call public package contracts exactly as a consumer would.
    lifecycle cascades for sessions, credentials, identifiers, linked provider
    accounts, organization memberships/invitations/teams, SSO/SCIM mappings,
    API keys, grants, delivery/outbox/workflow state and retained audit/legal
-   holds; no dangling authority or cross-tenant disclosure may remain.
+   holds. Dangling authority and cross-tenant disclosure MUST NOT remain.
    Self-service deletion MUST prove the closed credential-specific policy:
    current password plus fresh session for password users, a fresh UV passkey
    for passkey users, a purpose/session/version-bound emailed capability for
@@ -207,8 +210,8 @@ Its handlers MUST call public package contracts exactly as a consumer would.
    role/permission decisions, session control, credential reset and bounded
    impersonation with actor chain and immutable audit.
    Impersonation MUST prove request, distinct-actor approval, denial, quorum
-   inspection and revocation as separate operations. No active grant or session
-   may exist before the configured quorum commits, and requesters MUST NOT
+   inspection and revocation as separate operations. An active grant or session
+   MUST NOT exist before the configured quorum commits, and requesters MUST NOT
    approve their own request.
    A clean tenant MUST bootstrap its first administrator exactly once through
    the out-of-band, short-lived bootstrap capability; concurrent/replayed
@@ -424,7 +427,7 @@ consumer-supplied feature sets without acquiring concrete adapter dependencies.
   cluster behavior, failover and the consequence of lost ephemeral state.
 - Every multi-store or provider transition MUST distinguish not committed,
   committed and unknown outcomes and define retry, idempotency and
-  reconciliation. No unknown outcome may be reported as success.
+  reconciliation. An unknown outcome MUST NOT be reported as success.
 - Outbox/audit emission, revocation, token consumption and identity state MUST
   have explicit atomic boundaries. Cleanup MUST be bounded, cancellable and
   safe under concurrent workers.
@@ -445,8 +448,15 @@ consumer-supplied feature sets without acquiring concrete adapter dependencies.
 All parsers and cryptographic boundaries MUST be bounded and fuzzed. Secrets,
 credentials, tokens, provider responses, PII and recovery material MUST remain
 redacted from logs, traces, metrics, errors, fixtures and evidence. Recoverable
-secrets MUST be envelope-encrypted with context and rotation; lookup tokens
-MUST be digested where possible. Tenant, organization, audience, purpose,
+secrets, including provider credentials and refresh tokens that must be replayed
+to an upstream, MUST be envelope-encrypted with tenant, owner, purpose and key
+version context plus rotation. Irrecoverable bearer authenticators, capability
+references, API keys, session tokens, OTP/recovery-code verifiers and lookup
+tokens MUST be stored only as domain-separated keyed digests with an explicit
+digest-key version; plaintext MUST exist only in the bounded reveal or request
+scope and MUST NOT be persisted. Public signing keys and non-secret opaque IDs
+MUST NOT be encrypted merely to satisfy this classification. Tenant,
+organization, audience, purpose,
 redirect, origin and actor scope MUST fail closed.
 
 The integrated threat suite MUST cover enumeration, fixation, replay, token

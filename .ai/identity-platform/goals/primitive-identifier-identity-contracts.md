@@ -33,15 +33,25 @@ Extend the existing identifier primitive with the exact bounded input,
 normalization, canonical, and reference vocabulary required by identity
 consumers. The module MUST add:
 
-- `Canonical`: defined string containing 1..4096 valid UTF-8 bytes and accepted only from `Normalize`.
+- `Canonical`: opaque immutable value containing 1..4096 valid UTF-8 bytes plus
+  the exact normalization profile ID and positive profile version, returned
+  only by `Normalize`.
 - `Input`: defined string containing 1..4096 valid UTF-8 bytes.
-- `NormalizationProfile`: `struct{Unicode UnicodeNormalization; CaseFold bool; TrimSpace bool; IDNA bool; MaximumBytes uint32}`.
+- `NormalizationProfileID`: defined string containing 1..128 canonical ASCII
+  characters.
+- `NormalizationProfileSpec`: `struct{ID NormalizationProfileID; Version uint32; Unicode UnicodeNormalization; CaseFold bool; TrimSpace bool; IDNA bool; MaximumBytes uint32}`.
+- `NormalizationProfile`: opaque immutable value constructed only from
+  `NormalizationProfileSpec`.
+- `CanonicalRecord`: `struct{Value string; ProfileID NormalizationProfileID; ProfileVersion uint32}` used only as the complete versioned persistence/wire projection.
 - `Reference`: `struct{Kind string; Canonical Canonical; Display string}`.
 - `UnicodeNormalization`: `enum{UnicodeNormalizationUnspecified,UnicodeNormalizationNone,UnicodeNormalizationNFC,UnicodeNormalizationNFKC}`.
 - `NewInput(string) (Input, error)`.
-- `NewNormalizationProfile(NormalizationProfile) (NormalizationProfile, error)`.
+- `NewNormalizationProfile(NormalizationProfileSpec) (NormalizationProfile, error)`.
 - `NewReference(string, Canonical, string) (Reference, error)`.
 - `Normalize(Input, NormalizationProfile) (Canonical, error)`.
+- `RestoreCanonical(CanonicalRecord, NormalizationProfile) (Canonical, error)`.
+- `Canonical.Record() CanonicalRecord`.
+- `Canonical.Equal(Canonical) bool`.
 
 The module MUST expose `ErrInvalid`, `ErrNormalization`, and `ErrUnsupported`
 with the exact pinned semantics. It MUST NOT add a generic identifier payload,
@@ -55,14 +65,23 @@ meaning, authorization meaning, or identity-record ownership.
 - Input values MUST be treated as enumeration-sensitive and MUST NOT appear in
   logs, traces, metrics, errors, or fixtures.
 - `NormalizationProfile` MUST explicitly select Unicode behavior and MUST
-  require `MaximumBytes` within 1..4096.
+  require a stable non-zero ID, a positive version, and `MaximumBytes` within
+  1..4096. Its fields MUST be unexported and immutable after construction.
 - `UnicodeNormalizationUnspecified` MUST be invalid.
 - `Normalize` MUST be deterministic for one immutable profile and MUST reject
   unsupported or over-limit results.
 - A profile change MUST require a migration and MUST NOT silently reinterpret
   an existing canonical value.
-- `Canonical` equality MUST have meaning only under the same profile and MUST
-  NOT be presented as a display value.
+- `Canonical` MUST retain its exact profile ID and version in its opaque value;
+  callers MUST NOT construct it from a string or mutate its canonical bytes or
+  profile binding. Equality MUST compare profile ID, profile version, and
+  canonical bytes and MUST NOT compare canonical bytes across different
+  profiles or present them as a display value. Any controlled text/persistence
+  projection MUST preserve the profile ID and version alongside the bytes and
+  MUST reject an absent, unknown, or mismatched profile on restore.
+  `RestoreCanonical` MUST require the exact matching immutable profile and MUST
+  re-normalize `Value` to prove it is a fixed point before returning a value;
+  it MUST NOT accept caller-declared canonical bytes on profile identity alone.
 - `Reference.Kind` MUST contain 1..64 canonical ASCII bytes.
 - `Reference.Canonical` MUST be non-zero; `Display` MUST be optional valid
   UTF-8 bounded to 4096 bytes.
@@ -85,8 +104,10 @@ change MUST use a versioned, collision-aware, rollback-capable migration with
 mixed-version compatibility evidence.
 
 Focused tests MUST prove UTF-8 and byte bounds, deterministic normalization,
-every Unicode mode, case/space/IDNA flags, profile immutability, collision
-handling, reference bounds, redaction, defensive ownership, and concurrent use.
+every Unicode mode, case/space/IDNA flags, profile immutability, compile-time
+non-constructibility, exact profile-ID/version equality and persistence,
+unknown-profile rejection, collision handling, reference bounds, redaction,
+defensive ownership, and concurrent use.
 Applicable fuzz tests MUST exercise hostile Unicode, IDNA, length, and invalid
 encoding inputs. The worker MUST run exact coverage, mutation, race, fuzz,
 API-baseline, clean-consumer, documentation, example, inventory, supply-chain,
