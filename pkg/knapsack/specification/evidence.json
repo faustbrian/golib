@@ -1,11 +1,11 @@
 {
   "schema_version": "v1",
   "generated": {
-    "package_commit": "863fa7d636b0c5a6bbb80688b3dacd3cdba069a3",
-    "source_sha256": "671bbefcecb3bc6c0831a0a23dcd169b8baf2d7af197598fce149d2a0f96b0f4",
+    "package_commit": "f90fd82d29f276a19a514065b8503ea6536cc8d6",
+    "source_sha256": "ccaaafde7198fee297a288a3053c0b5037f22b74e481972c0483b2afef3b7a2f",
     "go_version": "go1.26.5",
     "environment": "darwin/arm64",
-    "date": "2026-08-08",
+    "date": "2026-08-12",
     "commands": [
       "make check",
       "make release-check"
@@ -15,9 +15,9 @@
       "github.com/faustbrian/golib/pkg/measurement": "v1.0.0"
     },
     "fixtures": {
-      "docs/benchmarks/raw/2026-08-08-boxpacker-runtime.json": "bdbc0236734acffd4f10961f31b41aaee5531699ca8a4e7f44308b2fa02af116",
-      "docs/benchmarks/raw/2026-08-08-darwin-arm64-rss.tsv": "13a1dcfccee830c4170d7e6016feea52e5cdd3d4251b3b6f2810607ea59cb155",
-      "docs/benchmarks/raw/2026-08-08-darwin-arm64.txt": "2d716e4055733b8277ff2ded3273f3b0a3d30f359818e9fb51c9f4fb1e814c99",
+      "docs/benchmarks/raw/2026-08-12-boxpacker-runtime.json": "16bb7b9c770e7c2f8d7a0a9994eb9af29c86620d8d4f792c87b6dc768198ea37",
+      "docs/benchmarks/raw/2026-08-12-darwin-arm64-rss.tsv": "fe6bed7f816ddfccb007246d5328d17ba4ec7c5bd49b0b3a45e57acd801f6108",
+      "docs/benchmarks/raw/2026-08-12-darwin-arm64.txt": "891273ffba42adbbe20c3c64885b2dee8153225c99f80e49fbe2845c4d827d65",
       "docs/mutation/raw/adapter.json": "7a81464a367db04aebf01b23691e61d40f46694ea1a5eb0e8bb064ad148959b4",
       "docs/mutation/raw/gomoney.json": "e4c972d7db9a5a53dfdddedcb81bdbc1e262abf02ebe79d434f64672784147c6",
       "docs/mutation/raw/root.json": "83c654d9ed2bcb7d5fff9f6aff9aa40bf9a9def9df78a0304795db672a1f5f75",
@@ -29,7 +29,7 @@
       "specification/benchmark-thresholds.tsv": "6c55cc0ebf4a2bc170c9099f26203d6d1dd43b5a8886fd51a3536e3db04b2584",
       "specification/corpora.tsv": "7ef6a6833a78ccf19430940d8ee7e559928fda2863819b00aa13f28a409f6fa3",
       "specification/dependency-licenses.tsv": "0c85edad2be8e0e402c513bf99fcbba9199efa491808c81ecfae5c7d89cc5c43",
-      "specification/fuzz-budgets.tsv": "d4ef32187ca3457e089242e80dfc54183a67c756001051bd4290fda229181f5b",
+      "specification/fuzz-budgets.tsv": "9778b8fbb060319f0efd5b4481f150a79715ded65e1126149611e826dbc13aa6",
       "specification/mutation-classifications.tsv": "4baf3f69ee8d059dbccbcb38c0e00209aa93a26edb520b659da755a079b36a63",
       "specification/references.tsv": "10a9183ffedd076781d1380c4e34f473573b3815318dc8dcf5cdf462859b6d42",
       "testdata/fuzz/FuzzItemContainerValidation/2f162b4f416df340": "2f162b4f416df3407601b0d4c7c0299446c436f10a9bdfa774a496fd92dc0188"
@@ -2482,6 +2482,20 @@
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
       "kind": "field",
+      "name": "Entry.Cost",
+      "signature": "money.Money",
+      "doc": "Cost is the exact cost for each selected instance of TypeID."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "field",
+      "name": "Entry.TypeID",
+      "signature": "string",
+      "doc": "TypeID is the exact Knapsack container type identifier."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "field",
       "name": "Limits.MaxIDBytes",
       "signature": "uint32",
       "doc": "MaxIDBytes bounds each container type identifier."
@@ -2495,6 +2509,20 @@
     },
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "field",
+      "name": "Policy.AllowNegativeCosts",
+      "signature": "bool",
+      "doc": "AllowNegativeCosts permits values that explicitly model credits or rebates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "field",
+      "name": "Policy.Limits",
+      "signature": "Limits",
+      "doc": "Limits bounds the copied mapping and its type IDs."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
       "kind": "function",
       "name": "DefaultLimits",
       "signature": "func() Limits",
@@ -2503,9 +2531,23 @@
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
       "kind": "function",
+      "name": "DefaultPolicy",
+      "signature": "func() Policy",
+      "doc": "DefaultPolicy returns the default resource limits and rejects negative costs."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "function",
       "name": "New",
       "signature": "func(values map[string]money.Money) (Costs, error)",
-      "doc": "New validates and copies a cost map using DefaultLimits."
+      "doc": "New validates and copies a cost map using DefaultPolicy."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "function",
+      "name": "NewFromEntries",
+      "signature": "func(entries []Entry, policy Policy) (Costs, error)",
+      "doc": "NewFromEntries validates, sorts, and defensively copies a bounded nonempty\nentry sequence. It rejects duplicate type IDs and requires one currency and\none fixed Default or Custom money context across all values."
     },
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
@@ -2513,6 +2555,13 @@
       "name": "NewWithLimits",
       "signature": "func(values map[string]money.Money, limits Limits) (Costs, error)",
       "doc": "NewWithLimits validates, sorts, and defensively copies a bounded nonempty\nsingle-currency cost map."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "function",
+      "name": "NewWithPolicy",
+      "signature": "func(values map[string]money.Money, policy Policy) (Costs, error)",
+      "doc": "NewWithPolicy validates and copies a cost map using an explicit negative-cost\nand resource policy. A Go map has already collapsed duplicate keys; callers\nthat need duplicate detection must use NewFromEntries."
     },
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
@@ -2540,7 +2589,7 @@
       "kind": "method",
       "name": "Costs.Total",
       "signature": "func(plan knapsack.Plan) (money.Money, error)",
-      "doc": "Total sums configured exact costs for every selected container instance."
+      "doc": "Total sums configured exact costs for every selected container instance. It\napplies the Money amount bound only to the final order-independent total."
     },
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
@@ -2553,22 +2602,43 @@
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
       "kind": "type",
       "name": "Costs",
-      "signature": "struct {\n\ttypeIDs\t[]string\n\tvalues\t[]money.Money\n}",
+      "signature": "struct {\n\ttypeIDs\t[]string\n\tvalues\t[]money.Money\n\tzero\tmoney.Money\n}",
       "doc": "Costs is an immutable exact packaging-cost objective keyed by container\ntype ID."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "type",
+      "name": "Entry",
+      "signature": "struct {\n\t// TypeID is the exact Knapsack container type identifier.\n\tTypeID\tstring\n\t// Cost is the exact cost for each selected instance of TypeID.\n\tCost\tmoney.Money\n}",
+      "doc": "Entry is one container type ID and exact packaging cost. Entry construction\nis useful when duplicate IDs must be detected before forming a Go map."
     },
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
       "kind": "type",
       "name": "Limits",
       "signature": "struct {\n\t// MaxTypes bounds configured container type costs.\n\tMaxTypes\tuint32\n\t// MaxIDBytes bounds each container type identifier.\n\tMaxIDBytes\tuint32\n}",
-      "doc": "Limits bounds the cost-map collections copied by NewWithLimits."
+      "doc": "Limits bounds cost collections copied by the constructors."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "type",
+      "name": "Policy",
+      "signature": "struct {\n\t// Limits bounds the copied mapping and its type IDs.\n\tLimits\tLimits\n\t// AllowNegativeCosts permits values that explicitly model credits or rebates.\n\tAllowNegativeCosts\tbool\n}",
+      "doc": "Policy controls bounded construction and whether negative values explicitly\nmodel credits or rebates. DefaultPolicy rejects negative costs."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "var",
+      "name": "ErrDuplicateTypeID",
+      "signature": "",
+      "doc": "ErrDuplicateTypeID identifies repeated container type IDs supplied through\nNewFromEntries."
     },
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
       "kind": "var",
       "name": "ErrInvalidCosts",
       "signature": "",
-      "doc": "ErrInvalidCosts identifies empty, invalid, or mixed-currency cost maps."
+      "doc": "ErrInvalidCosts identifies an empty, invalid, or incompatible cost mapping."
     },
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
@@ -2576,6 +2646,20 @@
       "name": "ErrMissingCost",
       "signature": "",
       "doc": "ErrMissingCost identifies a selected container type without a configured\npackaging cost."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "var",
+      "name": "ErrNegativeCost",
+      "signature": "",
+      "doc": "ErrNegativeCost identifies a negative cost rejected by the active policy."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "var",
+      "name": "ErrUnsupportedScale",
+      "signature": "",
+      "doc": "ErrUnsupportedScale identifies a money context whose scale is not fixed."
     },
     {
       "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
@@ -3231,7 +3315,7 @@
     {
       "feature": "fresh-process runtime comparison",
       "semantic_scope": "identical verified common subset with startup, serialization, RSS, and deadline treatment",
-      "status": "docs/benchmarks/raw/2026-08-08-boxpacker-runtime.json"
+      "status": "docs/benchmarks/raw/2026-08-12-boxpacker-runtime.json"
     },
     {
       "feature": "single-pass online packing",
@@ -3321,6 +3405,13 @@
       ]
     },
     {
+      "id": "cost-mapping-and-solver-objective",
+      "tests": [
+        "FuzzCostMappings",
+        "FuzzSolverCostObjective"
+      ]
+    },
+    {
       "id": "cancellation-and-budgets",
       "tests": [
         "FuzzCancellationAndBudgets"
@@ -3375,13 +3466,13 @@
   },
   "benchmarks": {
     "boxpacker_runtime_command": "scripts/benchmark-boxpacker.sh",
-    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-08-08-boxpacker-runtime.json",
+    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-08-12-boxpacker-runtime.json",
     "command": "make benchmark",
     "comparison_command": "make benchmark-compare",
-    "environment": "docs/benchmarks/2026-08-08-darwin-arm64.md",
-    "raw_output": "docs/benchmarks/raw/2026-08-08-darwin-arm64.txt",
+    "environment": "docs/benchmarks/2026-08-12-darwin-arm64.md",
+    "raw_output": "docs/benchmarks/raw/2026-08-12-darwin-arm64.txt",
     "rss_command": "make benchmark-rss",
-    "rss_raw_output": "docs/benchmarks/raw/2026-08-08-darwin-arm64-rss.tsv",
+    "rss_raw_output": "docs/benchmarks/raw/2026-08-12-darwin-arm64-rss.tsv",
     "rss_thresholds": "specification/benchmark-rss-thresholds.tsv",
     "semantic_normalization": "identical lattice, weights, rotations, stock, constraints, and objectives",
     "thresholds": "specification/benchmark-thresholds.tsv"

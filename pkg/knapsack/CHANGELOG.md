@@ -4,6 +4,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Refreshed native, peak-RSS, and BoxPacker comparison evidence against the
+  current implementation and expanded the fuzz manifest for cost objectives.
+
 ### Fixed
 
 - Include adapter subprocess diagnostics when nested interoperability checks
