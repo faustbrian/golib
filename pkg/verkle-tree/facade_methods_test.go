@@ -189,6 +189,122 @@ func TestFacadeSnapshotRejectsEveryInvalidOwnershipState(t *testing.T) {
 	}
 }
 
+func TestFacadeSnapshotPreflightsResourcesBeforeCopyingCallerSlices(t *testing.T) {
+	t.Parallel()
+
+	initialCases := []struct {
+		name     string
+		limits   SnapshotLimits
+		entries  []Entry
+		resource Resource
+		limit    uint64
+		actual   uint64
+	}{
+		{
+			name: "entries",
+			limits: func() SnapshotLimits {
+				value := testFacadeSnapshotLimits()
+				value.State.MaxEntries = 1
+				return value
+			}(),
+			entries:  []Entry{{Key: Key{1}}, {Key: Key{2}}},
+			resource: ResourceEntries,
+			limit:    1,
+			actual:   2,
+		},
+		{
+			name: "temporary bytes",
+			limits: func() SnapshotLimits {
+				value := testFacadeSnapshotLimits()
+				value.State.MaxTemporaryBytes = 127
+				return value
+			}(),
+			entries:  []Entry{{Key: Key{1}}},
+			resource: ResourceTemporaryBytes,
+			limit:    127,
+			actual:   128,
+		},
+	}
+	for _, test := range initialCases {
+		t.Run("construct "+test.name, func(t *testing.T) {
+			_, err := NewSnapshot(
+				&cancellingContext{remaining: 1},
+				BandersnatchIPA256V0(),
+				test.entries,
+				test.limits,
+			)
+			assertFacadeResourceError(t, err, test.resource, test.limit, test.actual)
+		})
+	}
+
+	applyCases := []struct {
+		name     string
+		limits   SnapshotLimits
+		updates  []Update
+		resource Resource
+		limit    uint64
+		actual   uint64
+	}{
+		{
+			name: "batch updates",
+			limits: func() SnapshotLimits {
+				value := testFacadeSnapshotLimits()
+				value.State.MaxBatchUpdates = 1
+				return value
+			}(),
+			updates:  []Update{Set(Key{1}, Value{}), Set(Key{2}, Value{})},
+			resource: ResourceBatchUpdates,
+			limit:    1,
+			actual:   2,
+		},
+		{
+			name: "temporary bytes",
+			limits: func() SnapshotLimits {
+				value := testFacadeSnapshotLimits()
+				value.State.MaxTemporaryBytes = 191
+				return value
+			}(),
+			updates:  []Update{Set(Key{1}, Value{})},
+			resource: ResourceTemporaryBytes,
+			limit:    191,
+			actual:   192,
+		},
+	}
+	for _, test := range applyCases {
+		t.Run("apply "+test.name, func(t *testing.T) {
+			snapshot, err := NewSnapshot(
+				context.Background(), BandersnatchIPA256V0(), nil, test.limits,
+			)
+			if err != nil {
+				t.Fatalf("construct snapshot: %v", err)
+			}
+			_, _, err = snapshot.Apply(
+				&cancellingContext{remaining: 1}, test.updates,
+			)
+			assertFacadeResourceError(t, err, test.resource, test.limit, test.actual)
+		})
+	}
+}
+
+func assertFacadeResourceError(
+	t testing.TB,
+	err error,
+	resource Resource,
+	limit uint64,
+	actual uint64,
+) {
+	t.Helper()
+
+	var resourceErr *ResourceError
+	if !errors.As(err, &resourceErr) ||
+		!errors.Is(err, ErrResourceExhausted) ||
+		resourceErr.Resource != resource ||
+		resourceErr.Limit != limit ||
+		resourceErr.Actual != actual {
+		t.Fatalf("resource error = %#v (%v)", resourceErr, err)
+	}
+}
+
 func TestFacadeProofRejectsEveryInvalidOwnershipState(t *testing.T) {
 	t.Parallel()
 

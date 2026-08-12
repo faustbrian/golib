@@ -22,6 +22,10 @@ const (
 	aggregateFixedMSMTerms       = uint64(2 * VectorWidth * 8)
 	aggregateTranscriptLabel     = "verkle"
 	aggregateBindingLabel        = "verkletree-proof-statement-v0"
+	pinnedIPAAuxiliaryGenerator  = "\x4a\x2c\x74\x86\xfd\x92\x48\x82" +
+		"\xbf\x02\xc6\x90\x8d\xe3\x95\x12" +
+		"\x28\x43\xe3\xe0\x52\x64\xd7\x99" +
+		"\x1e\x18\xe7\x98\x5d\xad\x51\xe9"
 )
 
 var (
@@ -264,7 +268,9 @@ func newAggregateOpeningEngine(
 	if err := checkAggregateOpeningContext(ctx); err != nil {
 		return nil, err
 	}
-	if config == nil || validateGeneratorSet(config.SRS) != nil {
+	if config == nil ||
+		validateGeneratorSet(config.SRS) != nil ||
+		!validIPAAuxiliaryGenerator(config.Q) {
 		return nil, errGeneratorMismatch
 	}
 
@@ -281,6 +287,12 @@ func newAggregateOpeningEngine(
 		},
 		valid: true,
 	}, nil
+}
+
+func validIPAAuxiliaryGenerator(generator banderwagon.Element) bool {
+	encoded := generator.Bytes()
+
+	return string(encoded[:]) == pinnedIPAAuxiliaryGenerator
 }
 
 // Open creates one canonical aggregate proof in exact caller query order.
