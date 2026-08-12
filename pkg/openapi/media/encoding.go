@@ -549,14 +549,8 @@ func ApplyEncoding(
 	if err != nil {
 		return EncodingApplication{}, ErrInvalidEncodingSerialization
 	}
-	major, subtype, structured := strings.Cut(base, "/")
-	if !structured {
-		return EncodingApplication{}, ErrInvalidEncodingSerialization
-	}
-	if major == "" {
-		return EncodingApplication{}, ErrInvalidEncodingSerialization
-	}
-	if subtype == "" {
+	_, _, valid := encodingMediaTypeParts(base)
+	if !valid {
 		return EncodingApplication{}, ErrInvalidEncodingSerialization
 	}
 	contentType, err := SelectEncodingContentType(
@@ -593,6 +587,20 @@ func ApplyEncoding(
 	result.PrefixEncoding, _ = encoding.Lookup("prefixEncoding")
 	result.ItemEncoding, _ = encoding.Lookup("itemEncoding")
 	return result, nil
+}
+
+func encodingMediaTypeParts(value string) (string, string, bool) {
+	major, subtype, structured := strings.Cut(value, "/")
+	if !structured {
+		return "", "", false
+	}
+	if major == "" {
+		return "", "", false
+	}
+	if subtype == "" {
+		return "", "", false
+	}
+	return major, subtype, true
 }
 
 // SerializeEncoding applies explicitly configured OpenAPI 3.2 RFC6570-style

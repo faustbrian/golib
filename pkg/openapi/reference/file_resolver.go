@@ -224,7 +224,15 @@ func (resolver *FileResolver) authorized(path string) (*fileRoot, string, bool) 
 }
 
 func authorizedRelativePath(root string, path string) (string, bool) {
-	relative, err := filepath.Rel(root, path)
+	return authorizedRelativePathWith(root, path, filepath.Rel)
+}
+
+func authorizedRelativePathWith(
+	root string,
+	path string,
+	relativePath func(string, string) (string, error),
+) (string, bool) {
+	relative, err := relativePath(root, path)
 	if err != nil {
 		return "", false
 	}

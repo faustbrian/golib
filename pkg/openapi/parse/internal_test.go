@@ -189,6 +189,16 @@ func TestJSONHexQuadCoversDigitBoundaries(t *testing.T) {
 	}
 }
 
+func TestYAMLRejectsUnsignedInfinity(t *testing.T) {
+	t.Parallel()
+
+	if _, err := YAML(
+		context.Background(), strings.NewReader("value: .inf\n"), DefaultLimits(),
+	); !errors.Is(err, ErrUnsupportedYAMLFeature) {
+		t.Fatalf("unsigned infinity error = %v", err)
+	}
+}
+
 func TestYAMLParserRejectsDefensiveNodeBoundaries(t *testing.T) {
 	t.Parallel()
 

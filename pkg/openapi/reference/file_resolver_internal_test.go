@@ -3,6 +3,7 @@ package reference
 import (
 	"context"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -119,6 +120,42 @@ func TestValidParseLimitsAcceptsEveryMinimum(t *testing.T) {
 	}
 	if err := validParseLimits(limits); err != nil {
 		t.Fatalf("minimum parse limits error = %v", err)
+	}
+}
+
+func TestAuthorizedRelativePathRejectsPathAndBoundaryFailures(t *testing.T) {
+	t.Parallel()
+
+	want := errors.New("relative path")
+	if _, authorized := authorizedRelativePathWith(
+		"root", "path", func(string, string) (string, error) { return "", want },
+	); authorized {
+		t.Fatal("relative path failure was authorized")
+	}
+	for _, path := range []string{"..", "../outside"} {
+		if _, authorized := authorizedRelativePath("/root", "/root/"+path); authorized {
+			t.Fatalf("path %q was authorized", path)
+		}
+	}
+}
+
+func TestValidParseLimitsRejectsEveryIndependentLimit(t *testing.T) {
+	t.Parallel()
+
+	for _, mutate := range []func(*parse.Limits){
+		func(limits *parse.Limits) { limits.MaxBytes = math.MaxInt64 },
+		func(limits *parse.Limits) { limits.MaxTokens = 0 },
+		func(limits *parse.Limits) { limits.MaxDepth = 0 },
+		func(limits *parse.Limits) { limits.MaxObjectMembers = 0 },
+		func(limits *parse.Limits) { limits.MaxArrayItems = 0 },
+		func(limits *parse.Limits) { limits.MaxScalarBytes = 0 },
+		func(limits *parse.Limits) { limits.MaxTotalValues = 0 },
+	} {
+		limits := parse.DefaultLimits()
+		mutate(&limits)
+		if err := validParseLimits(limits); !errors.Is(err, ErrResourceLimitExceeded) {
+			t.Fatalf("invalid parse limits error = %v", err)
+		}
 	}
 }
 

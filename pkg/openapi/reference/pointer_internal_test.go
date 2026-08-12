@@ -22,3 +22,13 @@ func TestArrayIndexAcceptsDigitAndIntegerEndpoints(t *testing.T) {
 		}
 	}
 }
+
+func TestArrayIndexRejectsCharactersOutsideDecimalRange(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{"/", ":"} {
+		if got, valid := arrayIndex(raw); valid {
+			t.Fatalf("arrayIndex(%q) = %d, true", raw, got)
+		}
+	}
+}

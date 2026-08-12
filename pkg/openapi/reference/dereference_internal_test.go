@@ -53,6 +53,8 @@ func TestDereferenceReferenceObjectRegistryCoversEveryLocation(t *testing.T) {
 			tokens: []string{"paths", "/pets", "get"}},
 		{name: "oas non-component registry name", dialect: specversion.DialectOAS32,
 			tokens: []string{"ordinary", "securitySchemes", "value"}},
+		{name: "swagger path item component", dialect: specversion.DialectSwagger20,
+			tokens: []string{"components", "pathItems", "Shared"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -64,6 +66,24 @@ func TestDereferenceReferenceObjectRegistryCoversEveryLocation(t *testing.T) {
 				t.Fatalf("referenceObjectRegistry() = %q, want %q", got, test.registry)
 			}
 		})
+	}
+}
+
+func TestSwaggerPathItemComponentUsesOrdinarySiblingRules(t *testing.T) {
+	t.Parallel()
+
+	object, err := jsonvalue.Object([]jsonvalue.Member{
+		{Name: "$ref", Value: jsonvalue.Null()},
+		{Name: "summary", Value: jsonvalue.Null()},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dereferencer := objectDereferencer{dialect: specversion.DialectSwagger20}
+	if !dereferencer.pathItemReferenceHasMeaningfulSiblings(
+		[]string{"components", "pathItems", "Shared"}, object,
+	) {
+		t.Fatal("Swagger path item component did not use ordinary sibling rules")
 	}
 }
 

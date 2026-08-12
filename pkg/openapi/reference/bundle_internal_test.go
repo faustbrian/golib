@@ -128,6 +128,22 @@ func TestBundleMinimumAndExactWorkLimits(t *testing.T) {
 	}
 }
 
+func TestBundleOptionsRejectEachIndependentWorkLimit(t *testing.T) {
+	t.Parallel()
+
+	for _, mutate := range []func(*BundleOptions){
+		func(options *BundleOptions) { options.MaxNodes = 0 },
+		func(options *BundleOptions) { options.MaxDepth = 0 },
+		func(options *BundleOptions) { options.MaxComponentNameBytes = 0 },
+	} {
+		options := DefaultBundleOptions()
+		mutate(&options)
+		if err := options.validate(); !errors.Is(err, ErrLimitExceeded) {
+			t.Fatalf("invalid bundle options error = %v", err)
+		}
+	}
+}
+
 func TestBundleHelpersRejectImpossibleDestinationStates(t *testing.T) {
 	t.Parallel()
 
