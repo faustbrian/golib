@@ -22,6 +22,7 @@ var (
 const defaultMaxResponseBytes int64 = 4 << 20
 
 var defaultHTTPClient = &http.Client{
+	Transport: http.DefaultTransport.(*http.Transport).Clone(),
 	CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	},

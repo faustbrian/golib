@@ -58,6 +58,28 @@ func TestHTTPTransportNoContent(t *testing.T) {
 	}
 }
 
+func TestHTTPTransportDefaultClientIsolatedFromProcessGlobalTransport(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"jsonrpc":"2.0","result":null,"id":1}`))
+	}))
+	defer server.Close()
+
+	originalTransport := http.DefaultTransport
+	http.DefaultTransport = roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("process-global transport used")
+	})
+	defer func() { http.DefaultTransport = originalTransport }()
+
+	transport, err := NewHTTPTransport(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := transport.RoundTrip(context.Background(), []byte(`{}`)); err != nil {
+		t.Fatalf("RoundTrip() error = %v", err)
+	}
+}
+
 func TestHTTPTransportDoesNotFollowRedirectsByDefault(t *testing.T) {
 	t.Parallel()
 
