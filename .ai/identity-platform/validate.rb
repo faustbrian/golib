@@ -26,6 +26,10 @@ EXPECTED_IDENTITY_UNITS = 61
 EXPECTED_PRIMITIVE_EXTENSION_AUTHORITIES = 6
 EXPECTED_PRIMITIVE_EXTENSION_UNITS = 6
 EXPECTED_SCHEDULABLE_UNITS = EXPECTED_IDENTITY_UNITS + EXPECTED_PRIMITIVE_EXTENSION_UNITS
+SEMANTIC_ONLY_PRIMITIVE_CONSUMERS = {
+  "primitive/identifier-identity-contracts" => ["identity/risk/captcha"],
+  "primitive/password-secret-contracts" => ["identity/risk/hibp"]
+}.freeze
 BASELINE = "b8077b74ef9a80a7757220b72834349bd8de05c0"
 NORMATIVE_KEYWORD_PATTERN = /\b(?:MUST(?: NOT)?|REQUIRED|SHALL(?: NOT)?|SHOULD(?: NOT)?|RECOMMENDED|NOT RECOMMENDED|MAY|OPTIONAL)\b/
 BCP14_NOTICE = <<~NOTICE.chomp.freeze
@@ -3157,8 +3161,8 @@ def primitive_extension_inventory_errors(public_contracts:, rows:, goal_bodies:,
 
     expected_consumers = requirements.flat_map { |requirement| derived_consumers_by_authority.fetch(requirement["unit"], []) }.sort_by(&:b).uniq
     actual_consumers = identity_rows.select { |candidate| candidate[:requires].include?(extension_unit) }.map { |candidate| candidate[:unit] }.sort_by(&:b)
-    unexpected_prerequisite_consumers = actual_consumers - expected_consumers
-    errors << "primitive extension consumer prerequisite closure drifted for #{extension_unit}: #{unexpected_prerequisite_consumers}" unless unexpected_prerequisite_consumers.empty?
+    expected_prerequisite_consumers = expected_consumers - SEMANTIC_ONLY_PRIMITIVE_CONSUMERS.fetch(extension_unit, [])
+    errors << "primitive extension consumer prerequisite closure drifted for #{extension_unit}" unless actual_consumers == expected_prerequisite_consumers
 
     body = goal_bodies[extension_unit]
     unless body
