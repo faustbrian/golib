@@ -71,6 +71,7 @@ func TestSpecificationDecisionRegisterIsLinkedFromContracts(t *testing.T) {
 		"docs/conformance.md",
 		"docs/versioning.md",
 	} {
+		// #nosec G304 -- path comes from the fixed repository contract table above.
 		contents, err := os.ReadFile(path)
 		if err != nil {
 			t.Errorf("ReadFile(%q) error = %v", path, err)
