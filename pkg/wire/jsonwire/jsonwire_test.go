@@ -53,6 +53,13 @@ func TestDecodeRejectsMalformedAndTrailingValues(t *testing.T) {
 		err := jsonwire.Decode(readFixture(t, name), &got, jsonwire.DecodeOptions{})
 		assertKind(t, err, wire.ErrParse)
 	}
+
+	var got message
+	err := jsonwire.Decode([]byte(`{"id":42} {"id":43}`), &got, jsonwire.DecodeOptions{})
+	var wireErr *wire.Error
+	if !errors.As(err, &wireErr) || wireErr.Err == nil || wireErr.Err.Error() != "multiple JSON values" {
+		t.Fatalf("Decode() trailing value error = %#v", err)
+	}
 }
 
 func TestDecodeCanRejectDuplicateObjectNamesBeforeMutation(t *testing.T) {
@@ -144,7 +151,8 @@ func TestDecodeReaderEnforcesSizeLimitAndReportsReadFailures(t *testing.T) {
 	t.Parallel()
 
 	var got message
-	err := jsonwire.DecodeReader(strings.NewReader(`{"id":42}`), &got, jsonwire.DecodeOptions{MaxBytes: 4})
+	payload := `{"id":42}`
+	err := jsonwire.DecodeReader(strings.NewReader(payload), &got, jsonwire.DecodeOptions{MaxBytes: 4})
 	if !errors.Is(err, jsonwire.ErrPayloadTooLarge) {
 		t.Fatalf("DecodeReader() error = %v, want payload too large", err)
 	}
@@ -156,7 +164,11 @@ func TestDecodeReaderEnforcesSizeLimitAndReportsReadFailures(t *testing.T) {
 	err = jsonwire.DecodeReader(nil, &got, jsonwire.DecodeOptions{})
 	assertKind(t, err, wire.ErrValidation)
 
-	err = jsonwire.DecodeReader(strings.NewReader(`{"id":42}`), &got, jsonwire.DecodeOptions{MaxBytes: math.MaxInt64})
+	err = jsonwire.DecodeReader(strings.NewReader(payload), &got, jsonwire.DecodeOptions{MaxBytes: int64(len(payload))})
+	if err != nil {
+		t.Fatalf("DecodeReader() with exact limit error = %v", err)
+	}
+	err = jsonwire.DecodeReader(strings.NewReader(payload), &got, jsonwire.DecodeOptions{MaxBytes: math.MaxInt64})
 	if err != nil {
 		t.Fatalf("DecodeReader() with maximum limit error = %v", err)
 	}
@@ -235,6 +247,16 @@ func TestNormalizeMakesVendorJSONCanonical(t *testing.T) {
 	}
 	if want := `{"a":[true],"z":1.20}`; string(got) != want {
 		t.Fatalf("Normalize() = %q, want %q", got, want)
+	}
+}
+
+func TestNormalizeAcceptsExactSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{"id":42}`)
+	got, err := jsonwire.Normalize(payload, jsonwire.NormalizeOptions{MaxBytes: int64(len(payload))})
+	if err != nil || !bytes.Equal(got, payload) {
+		t.Fatalf("Normalize() exact limit = %q, %v", got, err)
 	}
 }
 

@@ -42,6 +42,10 @@ func TestParseReaderSupportsBoundedStreams(t *testing.T) {
 	t.Parallel()
 
 	payload := readFixture(t, "soap11-response.xml")
+	exact, err := soap.ParseReader(bytes.NewReader(payload), soap.ParseOptions{MaxBytes: int64(len(payload))})
+	if err != nil || exact.Version != soap.Version11 {
+		t.Fatalf("exact ParseReader() = %#v, %v", exact, err)
+	}
 	envelope, err := soap.ParseReader(strings.NewReader(string(payload)), soap.ParseOptions{MaxBytes: math.MaxInt64})
 	if err != nil || envelope.Version != soap.Version11 {
 		t.Fatalf("ParseReader() = %#v, %v", envelope, err)
@@ -80,6 +84,15 @@ func TestParseEnforcesXMLTokenDepthLimit(t *testing.T) {
 	}
 }
 
+func TestParseTracksDepthAcrossSiblingElements(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body><a/><b/><c/></soap:Body></soap:Envelope>`)
+	if _, err := soap.Parse(payload, soap.ParseOptions{MaxDepth: 3, MaxBytes: int64(len(payload))}); err != nil {
+		t.Fatalf("Parse() exact limits error = %v", err)
+	}
+}
+
 func TestEnvelopeRawAccessReturnsCopies(t *testing.T) {
 	t.Parallel()
 
@@ -113,6 +126,46 @@ func TestDecodeBodyRetainsInheritedNamespaces(t *testing.T) {
 	}
 	if response.Amount != "12.50" || response.XMLName.Space != "urn:rates" {
 		t.Fatalf("DecodeBody() = %#v", response)
+	}
+}
+
+func TestDecodeBodySkipsHeaderAndWhitespace(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`<env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/"><env:Header><trace>abc</trace></env:Header><env:Body>
+ <result>ok</result>
+ </env:Body></env:Envelope>`)
+	envelope, err := soap.Parse(payload, soap.ParseOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Value string `xml:",chardata"`
+	}
+	if err := envelope.DecodeBody(&result); err != nil {
+		t.Fatalf("DecodeBody() error = %v", err)
+	}
+	if result.Value != "ok" {
+		t.Fatalf("DecodeBody() value = %q", result.Value)
+	}
+}
+
+func TestParseUsesDefaultCharsetReader(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><env:Envelope xmlns:env=\"http://schemas.xmlsoap.org/soap/envelope/\"><env:Body><result>\xe4</result></env:Body></env:Envelope>")
+	envelope, err := soap.Parse(payload, soap.ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	var result struct {
+		Value string `xml:",chardata"`
+	}
+	if err := envelope.DecodeBody(&result); err != nil {
+		t.Fatalf("DecodeBody() error = %v", err)
+	}
+	if result.Value != "ä" {
+		t.Fatalf("DecodeBody() value = %q", result.Value)
 	}
 }
 
@@ -381,6 +434,7 @@ func TestMarshalRejectsVersionAndMalformedFragments(t *testing.T) {
 		{version: soap.Version11, header: []byte(`<broken>`)},
 		{version: soap.Version11, body: []byte(`<broken>`)},
 		{version: soap.Version11, body: []byte(`text`)},
+		{version: soap.Version11, body: []byte(`<result/>text`)},
 	} {
 		_, err := soap.Marshal(tc.version, tc.header, tc.body)
 		if err == nil {
@@ -407,8 +461,39 @@ func TestMarshalFaultRoundTripsBothVersions(t *testing.T) {
 		if !errors.Is(err, wire.ErrSOAPFault) {
 			t.Fatalf("Parse() error = %v", err)
 		}
-		if envelope.Fault.Code != fault.Code || envelope.Fault.Version != fault.Version {
+		if envelope.Fault.Code != fault.Code || envelope.Fault.Version != fault.Version ||
+			envelope.Fault.Actor != fault.Actor || envelope.Fault.Node != fault.Node || envelope.Fault.Role != fault.Role ||
+			string(envelope.Fault.Detail) != string(fault.Detail) {
 			t.Fatalf("round-trip fault = %#v", envelope.Fault)
+		}
+	}
+}
+
+func TestMarshalFaultOmitsEmptyOptionalElements(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		fault     soap.Fault
+		forbidden []string
+	}{
+		{
+			fault:     soap.Fault{Version: soap.Version11, Code: "soap:Server", Reason: "failed"},
+			forbidden: []string{"<faultactor>", "<detail>"},
+		},
+		{
+			fault:     soap.Fault{Version: soap.Version12, Code: "env:Receiver", Reason: "failed"},
+			forbidden: []string{"<soap:Node>", "<soap:Role>", "<soap:Detail>"},
+		},
+	}
+	for _, test := range tests {
+		payload, err := soap.MarshalFault(test.fault)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, forbidden := range test.forbidden {
+			if strings.Contains(string(payload), forbidden) {
+				t.Fatalf("MarshalFault() = %q, contains %q", payload, forbidden)
+			}
 		}
 	}
 }
@@ -479,6 +564,24 @@ func TestParseRejectsInvalidFaultShapes(t *testing.T) {
 		payload := `<env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/"><env:Body>` + body + `</env:Body></env:Envelope>`
 		_, err := soap.Parse([]byte(payload), soap.ParseOptions{})
 		assertKind(t, err, wire.ErrEnvelope)
+	}
+}
+
+func TestParseDoesNotClassifyFaultLookalikes(t *testing.T) {
+	t.Parallel()
+
+	for _, child := range []string{
+		`<Fault xmlns="urn:not-soap"><faultcode>x</faultcode><faultstring>y</faultstring></Fault>`,
+		`<env:Result>Fault</env:Result>`,
+	} {
+		payload := `<env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/"><env:Body>` + child + `</env:Body></env:Envelope>`
+		envelope, err := soap.Parse([]byte(payload), soap.ParseOptions{})
+		if err != nil {
+			t.Fatalf("Parse() error = %v", err)
+		}
+		if envelope.Fault != nil {
+			t.Fatalf("Parse() fault = %#v", envelope.Fault)
+		}
 	}
 }
 

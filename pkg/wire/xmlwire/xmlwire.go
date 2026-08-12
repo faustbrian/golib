@@ -265,7 +265,7 @@ func readBounded(reader io.Reader, configuredMax int64) ([]byte, error) {
 	if err != nil {
 		return nil, parseError("read", err)
 	}
-	if int64(len(payload)) > maxBytes {
+	if exceedsLimit(len(payload), maxBytes) {
 		return nil, &wire.Error{Kind: wire.ErrorKindSizeLimit, Format: wire.FormatXML, Op: "read", Err: ErrPayloadTooLarge}
 	}
 	return payload, nil
@@ -292,8 +292,11 @@ func (e charsetError) Error() string {
 
 func classifyDecodeError(op string, err error) error {
 	var syntaxError *xml.SyntaxError
+	if errors.As(err, &syntaxError) {
+		return parseError(op, err)
+	}
 	var encodingError charsetError
-	if errors.As(err, &syntaxError) || errors.As(err, &encodingError) {
+	if errors.As(err, &encodingError) {
 		return parseError(op, err)
 	}
 	var numberError *strconv.NumError
@@ -327,13 +330,21 @@ func singleByteToUTF8(payload []byte, replacements map[byte]rune) []byte {
 
 func windows1252ToUTF8(payload []byte) ([]byte, error) {
 	for _, value := range payload {
-		if value >= 0x80 && value <= 0x9f {
+		if isWindows1252Control(value) {
 			if _, ok := windows1252[value]; !ok {
 				return nil, charsetError{message: fmt.Sprintf("undefined Windows-1252 byte 0x%02x", value)}
 			}
 		}
 	}
 	return singleByteToUTF8(payload, windows1252), nil
+}
+
+func exceedsLimit(length int, maximum int64) bool {
+	return int64(length) > maximum
+}
+
+func isWindows1252Control(value byte) bool {
+	return value >= 0x80 && value <= 0x9f
 }
 
 var windows1252 = map[byte]rune{

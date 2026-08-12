@@ -96,6 +96,10 @@ func TestDecodeDefinesAliasAnchorAndMergeBehavior(t *testing.T) {
 	assertKind(t, yamlwire.Decode(payload, &got, yamlwire.DecodeOptions{DisallowMergeKeys: true}), wire.ErrUnsupportedFormat)
 	manyAliases := []byte("defaults: &defaults\n  image: stable\none: *defaults\ntwo: *defaults\n")
 	assertKind(t, yamlwire.Decode(manyAliases, &got, yamlwire.DecodeOptions{MaxAliases: 1}), wire.ErrSizeLimit)
+	var aliasFree map[string]string
+	if err := yamlwire.Decode([]byte("service: stable\n"), &aliasFree, yamlwire.DecodeOptions{DisallowAliases: true}); err != nil {
+		t.Fatalf("Decode() alias-free error = %v", err)
+	}
 
 	var scalar map[string]string
 	if err := yamlwire.Decode(
@@ -142,7 +146,11 @@ func TestDecodeDefinesTagsImplicitTypesAndNonJSONKeys(t *testing.T) {
 func TestDecodeEnforcesDepthLimit(t *testing.T) {
 	t.Parallel()
 	var got any
-	err := yamlwire.Decode([]byte("a:\n  b:\n    c: value\n"), &got, yamlwire.DecodeOptions{MaxDepth: 2})
+	payload := []byte("a:\n  b:\n    c: value\n")
+	if err := yamlwire.Decode(payload, &got, yamlwire.DecodeOptions{MaxDepth: 3}); err != nil {
+		t.Fatalf("Decode() exact depth error = %v", err)
+	}
+	err := yamlwire.Decode(payload, &got, yamlwire.DecodeOptions{MaxDepth: 2})
 	assertKind(t, err, wire.ErrSizeLimit)
 }
 
@@ -188,7 +196,11 @@ func TestDecodeRejectsInvalidTargetAndOptions(t *testing.T) {
 func TestDecodeReaderEnforcesLimitsAndClassifiesReadFailures(t *testing.T) {
 	t.Parallel()
 	var got manifest
-	assertKind(t, yamlwire.DecodeReader(strings.NewReader("service: tracking\n"), &got, yamlwire.DecodeOptions{MaxBytes: 4}), wire.ErrSizeLimit)
+	payload := "service: tracking\n"
+	if err := yamlwire.DecodeReader(strings.NewReader(payload), &got, yamlwire.DecodeOptions{MaxBytes: int64(len(payload))}); err != nil {
+		t.Fatalf("DecodeReader() exact limit error = %v", err)
+	}
+	assertKind(t, yamlwire.DecodeReader(strings.NewReader(payload), &got, yamlwire.DecodeOptions{MaxBytes: 4}), wire.ErrSizeLimit)
 	assertKind(t, yamlwire.DecodeReader(errorReader{}, &got, yamlwire.DecodeOptions{}), wire.ErrParse)
 	assertKind(t, yamlwire.DecodeReader(nil, &got, yamlwire.DecodeOptions{}), wire.ErrValidation)
 	if err := yamlwire.DecodeReader(strings.NewReader("service: tracking\n"), &got, yamlwire.DecodeOptions{MaxBytes: math.MaxInt64}); err != nil {
@@ -231,6 +243,25 @@ func TestEncodeClassifiesUnsupportedAndEncodeFailures(t *testing.T) {
 	assertKind(t, err, wire.ErrEncode)
 	_, err = yamlwire.Encode(map[string]string{"ok": "yes"}, yamlwire.EncodeOptions{Indent: 1})
 	assertKind(t, err, wire.ErrValidation)
+	_, err = yamlwire.Encode(map[string]string{"ok": "yes"}, yamlwire.EncodeOptions{Indent: 10})
+	assertKind(t, err, wire.ErrValidation)
+	for _, indent := range []int{2, 9} {
+		if _, err := yamlwire.Encode(map[string]string{"ok": "yes"}, yamlwire.EncodeOptions{Indent: indent}); err != nil {
+			t.Fatalf("Encode() indent %d error = %v", indent, err)
+		}
+	}
+}
+
+func TestEncodeDoesNotWrapLongScalars(t *testing.T) {
+	t.Parallel()
+
+	payload, err := yamlwire.Encode(map[string]string{"text": strings.Repeat("word ", 40)}, yamlwire.EncodeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Count(payload, []byte{'\n'}) != 1 {
+		t.Fatalf("Encode() wrapped long scalar: %q", payload)
+	}
 }
 
 func TestEncodeRoundTripsControlCharactersAtLineBoundaries(t *testing.T) {

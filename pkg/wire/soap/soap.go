@@ -129,7 +129,7 @@ func Parse(payload []byte, options ParseOptions) (*Envelope, error) {
 	if maxBytes == 0 {
 		maxBytes = DefaultMaxBytes
 	}
-	if int64(len(payload)) > maxBytes {
+	if exceedsLimit(len(payload), maxBytes) {
 		return nil, sizeError("parse", ErrPayloadTooLarge)
 	}
 	if err := validateTokenDepth(payload, options); err != nil {
@@ -183,7 +183,7 @@ func ParseReader(reader io.Reader, options ParseOptions) (*Envelope, error) {
 	if err != nil {
 		return nil, parseError("read", err)
 	}
-	if int64(len(payload)) > maxBytes {
+	if exceedsLimit(len(payload), maxBytes) {
 		return nil, sizeError("read", ErrPayloadTooLarge)
 	}
 
@@ -204,7 +204,6 @@ func (e *Envelope) DecodeBody(target any) error {
 	if _, err := nextStart(decoder); err != nil {
 		return parseError("decode body", err)
 	}
-	children := 0
 	for {
 		token, err := decoder.Token()
 		if err != nil {
@@ -212,39 +211,41 @@ func (e *Envelope) DecodeBody(target any) error {
 		}
 		switch typed := token.(type) {
 		case xml.StartElement:
-			if typed.Name.Local != "Body" || typed.Name.Space != namespaceForVersion(e.Version) {
-				if err := decoder.Skip(); err != nil {
-					return parseError("decode body", err)
-				}
-				continue
+			if typed.Name.Local == "Body" && typed.Name.Space == namespaceForVersion(e.Version) {
+				return decodeBodyElement(decoder, target)
 			}
-			for {
-				bodyToken, err := decoder.Token()
-				if err != nil {
-					return parseError("decode body", err)
+			if err := decoder.Skip(); err != nil {
+				return parseError("decode body", err)
+			}
+		}
+	}
+}
+
+func decodeBodyElement(decoder *xml.Decoder, target any) error {
+	children := 0
+	for {
+		bodyToken, err := decoder.Token()
+		if err != nil {
+			return parseError("decode body", err)
+		}
+		switch bodyTyped := bodyToken.(type) {
+		case xml.StartElement:
+			children++
+			if children == 1 {
+				if err := decoder.DecodeElement(target, &bodyTyped); err != nil {
+					return validationError("decode body", err)
 				}
-				switch bodyTyped := bodyToken.(type) {
-				case xml.StartElement:
-					children++
-					if children == 1 {
-						if err := decoder.DecodeElement(target, &bodyTyped); err != nil {
-							return validationError("decode body", err)
-						}
-					} else if err := decoder.Skip(); err != nil {
-						return parseError("decode body", err)
-					}
-				case xml.EndElement:
-					if bodyTyped.Name == typed.Name {
-						if children != 1 {
-							return envelopeError("decode body", fmt.Errorf("body has %d child elements, want 1", children))
-						}
-						return nil
-					}
-				case xml.CharData:
-					if strings.TrimSpace(string(bodyTyped)) != "" {
-						return envelopeError("decode body", errors.New("body contains character data outside its child element"))
-					}
-				}
+			} else if err := decoder.Skip(); err != nil {
+				return parseError("decode body", err)
+			}
+		case xml.EndElement:
+			if children != 1 {
+				return envelopeError("decode body", fmt.Errorf("body has %d child elements, want 1", children))
+			}
+			return nil
+		case xml.CharData:
+			if strings.TrimSpace(string(bodyTyped)) != "" {
+				return envelopeError("decode body", errors.New("body contains character data outside its child element"))
 			}
 		}
 	}
@@ -266,7 +267,7 @@ func MarshalWithOptions(version Version, header, body []byte, options MarshalOpt
 	if maxBytes == 0 {
 		maxBytes = DefaultMaxBytes
 	}
-	if int64(len(header)) > maxBytes || int64(len(body)) > maxBytes {
+	if exceedsLimit(len(header), maxBytes) || exceedsLimit(len(body), maxBytes) {
 		return nil, marshalSizeError("marshal", outputlimit.ErrLimit)
 	}
 	namespace := namespaceForVersion(version)
@@ -374,7 +375,7 @@ func MarshalFaultWithOptions(fault Fault, options MarshalOptions) ([]byte, error
 	if maxBytes == 0 {
 		maxBytes = DefaultMaxBytes
 	}
-	if int64(len(fault.Detail)) > maxBytes {
+	if exceedsLimit(len(fault.Detail), maxBytes) {
 		return nil, marshalSizeError("marshal fault", outputlimit.ErrLimit)
 	}
 	if namespaceForVersion(fault.Version) == "" {
@@ -413,7 +414,7 @@ func MarshalFaultWithOptions(fault Fault, options MarshalOptions) ([]byte, error
 		if err := writeOptionalElement(body, "faultactor", fault.Actor); err != nil {
 			return nil, marshalSizeError("marshal fault", err)
 		}
-		if len(fault.Detail) > 0 {
+		if len(fault.Detail) != 0 {
 			if err := writeString(body, `<detail>`); err != nil {
 				return nil, marshalSizeError("marshal fault", err)
 			}
@@ -481,7 +482,7 @@ func MarshalFaultWithOptions(fault Fault, options MarshalOptions) ([]byte, error
 		if err := writeOptionalElement(body, "soap:Role", fault.Role); err != nil {
 			return nil, marshalSizeError("marshal fault", err)
 		}
-		if len(fault.Detail) > 0 {
+		if len(fault.Detail) != 0 {
 			if err := writeString(body, `<soap:Detail>`); err != nil {
 				return nil, marshalSizeError("marshal fault", err)
 			}
@@ -686,7 +687,7 @@ func makeFault(version Version, raw rawFault, source []byte) (*Fault, error) {
 		for _, reason := range raw.Reason.Texts {
 			fault.Reasons = append(fault.Reasons, FaultReason{Language: reason.Language, Text: strings.TrimSpace(reason.Text)})
 		}
-		if len(fault.Reasons) > 0 {
+		if len(fault.Reasons) != 0 {
 			fault.Reason = fault.Reasons[0].Text
 		}
 		fault.Node = strings.TrimSpace(raw.Node)
@@ -847,6 +848,10 @@ func writeOptionalElement(output io.Writer, name, value string) error {
 		return err
 	}
 	return writeString(output, `</`, name, ">")
+}
+
+func exceedsLimit(length int, maximum int64) bool {
+	return int64(length) > maximum
 }
 
 func writeEscaped(output io.Writer, value string) error {

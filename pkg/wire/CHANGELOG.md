@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Hardened codec boundary coverage with exact byte, depth, numeric, charset,
+  alias, fragment, and SOAP fault assertions, and bounded mutation execution
+  for malformed XML and SOAP parser mutants.
 - Link the conformance source matrix directly to the canonical specification
   decision register.
 - Added the `GO-SAFETY-1` ownership, concurrency, race, fuzz, resource, and

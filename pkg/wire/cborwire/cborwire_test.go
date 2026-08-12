@@ -136,9 +136,13 @@ func TestDecodeRejectsInvalidTargetAndOptions(t *testing.T) {
 func TestDecodeReaderEnforcesLimitsAndClassifiesReadFailures(t *testing.T) {
 	t.Parallel()
 	var got shipment
-	assertKind(t, cborwire.DecodeReader(bytes.NewReader(readFixture(t, "shipment.cbor.hex")), &got, cborwire.DecodeOptions{MaxBytes: 4}), wire.ErrSizeLimit)
+	payload := readFixture(t, "shipment.cbor.hex")
+	assertKind(t, cborwire.DecodeReader(bytes.NewReader(payload), &got, cborwire.DecodeOptions{MaxBytes: 4}), wire.ErrSizeLimit)
 	assertKind(t, cborwire.DecodeReader(errorReader{}, &got, cborwire.DecodeOptions{}), wire.ErrParse)
 	assertKind(t, cborwire.DecodeReader(nil, &got, cborwire.DecodeOptions{}), wire.ErrValidation)
+	if err := cborwire.DecodeReader(bytes.NewReader(payload), &got, cborwire.DecodeOptions{MaxBytes: int64(len(payload))}); err != nil {
+		t.Fatalf("DecodeReader() exact limit error = %v", err)
+	}
 	if err := cborwire.DecodeReader(bytes.NewReader([]byte{0xa0}), &got, cborwire.DecodeOptions{MaxBytes: math.MaxInt64}); err != nil {
 		t.Fatalf("DecodeReader() maximum limit error = %v", err)
 	}

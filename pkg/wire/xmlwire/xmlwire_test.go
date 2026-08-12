@@ -95,6 +95,16 @@ func TestDecodeEnforcesTokenDepthLimit(t *testing.T) {
 	}
 }
 
+func TestDecodeTracksDepthAcrossSiblingElements(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`<root><a/><b/><c/></root>`)
+	var target any
+	if err := xmlwire.Decode(payload, &target, xmlwire.DecodeOptions{MaxDepth: 2, MaxBytes: int64(len(payload))}); err != nil {
+		t.Fatalf("Decode() exact limits error = %v", err)
+	}
+}
+
 func TestDecodeRejectsDepthBeyondSafeDefault(t *testing.T) {
 	t.Parallel()
 
@@ -227,6 +237,11 @@ func TestDecodeOptionsAndReaderFailures(t *testing.T) {
 			assertKind(t, err, tt.kind)
 		})
 	}
+
+	payload := `<root/>`
+	if err := xmlwire.DecodeReader(strings.NewReader(payload), &struct{}{}, xmlwire.DecodeOptions{MaxBytes: int64(len(payload))}); err != nil {
+		t.Fatalf("DecodeReader() exact limit error = %v", err)
+	}
 }
 
 func TestDecodeUsesCustomCharsetReader(t *testing.T) {
@@ -261,6 +276,7 @@ func TestCharsetReaderContract(t *testing.T) {
 	}{
 		{name: "UTF-8", label: " UTF8 ", input: []byte("ä"), want: "ä"},
 		{name: "invalid UTF-8", label: "utf-8", input: []byte{0xff}, wantErr: true},
+		{name: "ASCII upper boundary", label: "ascii", input: []byte{0x7f}, want: string([]byte{0x7f})},
 		{name: "Windows ASCII", label: "cp1252", input: []byte("A"), want: "A"},
 		{name: "undefined Windows byte", label: "windows-1252", input: []byte{0x81}, wantErr: true},
 		{name: "unknown", label: "KOI8-R", input: []byte("x"), wantErr: true},

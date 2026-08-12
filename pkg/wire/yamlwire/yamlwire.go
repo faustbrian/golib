@@ -90,7 +90,7 @@ func encode(
 	if err := valuecheck.Validate(value); err != nil {
 		return nil, wrap(wire.ErrorKindEncode, "encode", err)
 	}
-	if options.Indent != 0 && (options.Indent < 2 || options.Indent > 9) {
+	if !validIndent(options.Indent) {
 		return nil, wrap(wire.ErrorKindValidation, "encode options", errors.New("indent must be between 2 and 9"))
 	}
 	yamlOptions := []yaml.Option{yaml.WithV4Defaults(), yaml.WithLineWidth(-1)}
@@ -141,20 +141,20 @@ func addBlockIndentIndicators(payload []byte, indent int, configuredMax int64) (
 	lines := bytes.SplitAfter(payload, []byte{'\n'})
 	indicators := 0
 	for _, line := range lines {
-		if blockScalarIndicator(line) >= 0 {
+		if hasBlockScalar(blockScalarIndicator(line)) {
 			indicators++
 		}
 	}
 	if indicators == 0 {
 		return payload, nil
 	}
-	if int64(indicators) > maxBytes-int64(len(payload)) {
+	if exceedsLimit(indicators, maxBytes-int64(len(payload))) {
 		return nil, outputlimit.ErrLimit
 	}
-	result := make([]byte, 0, len(payload)+indicators)
+	result := make([]byte, 0, outputCapacity(len(payload), indicators))
 	for _, line := range lines {
 		index := blockScalarIndicator(line)
-		if index < 0 {
+		if !hasBlockScalar(index) {
 			result = append(result, line...)
 			continue
 		}
@@ -240,7 +240,7 @@ func readBounded(reader io.Reader, configuredMax int64) ([]byte, error) {
 	if err != nil {
 		return nil, wrap(wire.ErrorKindParse, "read", err)
 	}
-	if int64(len(payload)) > maxBytes {
+	if exceedsLimit(len(payload), maxBytes) {
 		return nil, wrap(wire.ErrorKindSizeLimit, "read", ErrPayloadTooLarge)
 	}
 	return payload, nil
@@ -260,22 +260,22 @@ func baseDecodeYAMLOptions(options DecodeOptions) []yaml.Option {
 		yaml.WithKnownFields(options.DisallowUnknownFields),
 		yaml.WithUniqueKeys(!options.AllowDuplicateKeys),
 	}
-	if options.DisallowAliases || options.MaxAliases > 0 || options.MaxDepth > 0 {
+	if needsLimitPlugin(options) {
 		limitOptions := make([]limit.Option, 0, 2)
-		if options.MaxDepth > 0 {
+		if depthLimitEnabled(options.MaxDepth) {
 			limitOptions = append(limitOptions, limit.DepthFunc(func(depth int, _ *limit.DepthContext) error {
-				if depth > options.MaxDepth {
+				if exceedsDepth(depth, options.MaxDepth) {
 					return errDepthLimit
 				}
 				return nil
 			}))
 		}
-		if options.DisallowAliases || options.MaxAliases > 0 {
+		if aliasLimitEnabled(options.DisallowAliases, options.MaxAliases) {
 			limitOptions = append(limitOptions, limit.AliasFunc(func(aliasCount, _ int) error {
-				if options.DisallowAliases && aliasCount > 0 {
+				if aliasesDisabled(options.DisallowAliases, aliasCount) {
 					return errAliasesDisabled
 				}
-				if options.MaxAliases > 0 && aliasCount > options.MaxAliases {
+				if aliasesExceeded(options.MaxAliases, aliasCount) {
 					return errAliasLimit
 				}
 				return nil
@@ -284,6 +284,46 @@ func baseDecodeYAMLOptions(options DecodeOptions) []yaml.Option {
 		yamlOptions = append(yamlOptions, yaml.WithPlugin(limit.New(limitOptions...)))
 	}
 	return yamlOptions
+}
+
+func validIndent(indent int) bool {
+	return indent == 0 || indent >= 2 && indent <= 9
+}
+
+func hasBlockScalar(index int) bool {
+	return index >= 0
+}
+
+func exceedsLimit(length int, maximum int64) bool {
+	return int64(length) > maximum
+}
+
+func outputCapacity(length, indicators int) int {
+	return length + indicators
+}
+
+func needsLimitPlugin(options DecodeOptions) bool {
+	return options.DisallowAliases || options.MaxAliases > 0 || options.MaxDepth > 0
+}
+
+func depthLimitEnabled(maximum int) bool {
+	return maximum > 0
+}
+
+func exceedsDepth(depth, maximum int) bool {
+	return depth > maximum
+}
+
+func aliasLimitEnabled(disallow bool, maximum int) bool {
+	return disallow || maximum > 0
+}
+
+func aliasesDisabled(disallow bool, count int) bool {
+	return disallow && count > 0
+}
+
+func aliasesExceeded(maximum, count int) bool {
+	return maximum > 0 && count > maximum
 }
 
 func preflightDocuments(payload []byte, options DecodeOptions) error {

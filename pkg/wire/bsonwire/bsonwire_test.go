@@ -172,11 +172,27 @@ func TestDecodeRejectsInvalidTargetAndOptions(t *testing.T) {
 func TestDecodeReaderEnforcesLimitsAndClassifiesReadFailures(t *testing.T) {
 	t.Parallel()
 	var got event
-	assertKind(t, bsonwire.DecodeReader(bytes.NewReader(readFixture(t, "event.bson.hex")), &got, bsonwire.DecodeOptions{MaxBytes: 4}), wire.ErrSizeLimit)
+	payload := readFixture(t, "event.bson.hex")
+	assertKind(t, bsonwire.DecodeReader(bytes.NewReader(payload), &got, bsonwire.DecodeOptions{MaxBytes: 4}), wire.ErrSizeLimit)
 	assertKind(t, bsonwire.DecodeReader(errorReader{}, &got, bsonwire.DecodeOptions{}), wire.ErrParse)
 	assertKind(t, bsonwire.DecodeReader(nil, &got, bsonwire.DecodeOptions{}), wire.ErrValidation)
-	if err := bsonwire.DecodeReader(bytes.NewReader(readFixture(t, "event.bson.hex")), &got, bsonwire.DecodeOptions{MaxBytes: math.MaxInt64}); err != nil {
+	if err := bsonwire.DecodeReader(bytes.NewReader(payload), &got, bsonwire.DecodeOptions{MaxBytes: int64(len(payload))}); err != nil {
+		t.Fatalf("DecodeReader() exact limit error = %v", err)
+	}
+	if err := bsonwire.DecodeReader(bytes.NewReader(payload), &got, bsonwire.DecodeOptions{MaxBytes: math.MaxInt64}); err != nil {
 		t.Fatalf("DecodeReader() maximum limit error = %v", err)
+	}
+}
+
+func TestDecodeAcceptsMinimumLengthDocument(t *testing.T) {
+	t.Parallel()
+
+	var got bsonwire.D
+	if err := bsonwire.Decode([]byte{5, 0, 0, 0, 0}, &got, bsonwire.DecodeOptions{}); err != nil {
+		t.Fatalf("Decode() minimum document error = %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("Decode() minimum document = %#v, want empty document", got)
 	}
 }
 

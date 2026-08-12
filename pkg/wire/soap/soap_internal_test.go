@@ -1,11 +1,55 @@
 package soap
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/wire"
 )
+
+func TestExceedsLimitHonorsExactBoundary(t *testing.T) {
+	t.Parallel()
+
+	if exceedsLimit(4, 4) {
+		t.Fatal("exceedsLimit() rejected exact limit")
+	}
+	if !exceedsLimit(5, 4) {
+		t.Fatal("exceedsLimit() accepted value above limit")
+	}
+}
+
+func TestMakeFaultRequiresCodeAndReasonIndependently(t *testing.T) {
+	t.Parallel()
+
+	tests := []rawFault{
+		{Reason: rawReason{Texts: []rawReasonText{{Text: "reason"}}}},
+		{Code: rawFaultCode{Value: "env:Sender"}},
+	}
+	for _, raw := range tests {
+		if _, err := makeFault(Version12, raw, nil); !errors.Is(err, wire.ErrEnvelope) {
+			t.Fatalf("makeFault() error = %v", err)
+		}
+	}
+}
+
+func TestWriteOptionalElementDistinguishesEmptyAndPresentValues(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	if err := writeOptionalElement(&output, "role", ""); err != nil {
+		t.Fatal(err)
+	}
+	if output.Len() != 0 {
+		t.Fatalf("empty output = %q", output.String())
+	}
+	if err := writeOptionalElement(&output, "role", "a&b"); err != nil {
+		t.Fatal(err)
+	}
+	if output.String() != "<role>a&amp;b</role>" {
+		t.Fatalf("present output = %q", output.String())
+	}
+}
 
 func TestDecodeBodyClassifiesCorruptCachedEnvelope(t *testing.T) {
 	t.Parallel()

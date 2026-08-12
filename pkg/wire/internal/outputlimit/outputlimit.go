@@ -33,7 +33,7 @@ func (b *Buffer) Write(payload []byte) (int, error) {
 	if int64(len(payload)) <= remaining {
 		return b.buffer.Write(payload)
 	}
-	if remaining <= 0 {
+	if remaining == 0 {
 		return 0, ErrLimit
 	}
 	written, _ := b.buffer.Write(payload[:int(remaining)])

@@ -75,6 +75,13 @@ func TestDecodePreservesSpecialFloatsAndArraysOfTables(t *testing.T) {
 func TestDecodeRejectsUnknownFieldsAndNumericLossWhenRequested(t *testing.T) {
 	t.Parallel()
 	var got service
+	if err := tomlwire.Decode(
+		[]byte("service = 'billing'\n"),
+		&got,
+		tomlwire.DecodeOptions{DisallowUnknownFields: true},
+	); err != nil {
+		t.Fatalf("Decode() known fields error = %v", err)
+	}
 	assertKind(t, tomlwire.Decode(
 		[]byte("service = 'billing'\nunknown = true\n"),
 		&got,
@@ -105,7 +112,11 @@ func TestDecodeRejectsInvalidTargetAndOptions(t *testing.T) {
 func TestDecodeReaderEnforcesLimitsAndClassifiesReadFailures(t *testing.T) {
 	t.Parallel()
 	var got service
-	assertKind(t, tomlwire.DecodeReader(strings.NewReader("service = 'billing'\n"), &got, tomlwire.DecodeOptions{MaxBytes: 4}), wire.ErrSizeLimit)
+	payload := "service = 'billing'\n"
+	if err := tomlwire.DecodeReader(strings.NewReader(payload), &got, tomlwire.DecodeOptions{MaxBytes: int64(len(payload))}); err != nil {
+		t.Fatalf("DecodeReader() exact limit error = %v", err)
+	}
+	assertKind(t, tomlwire.DecodeReader(strings.NewReader(payload), &got, tomlwire.DecodeOptions{MaxBytes: 4}), wire.ErrSizeLimit)
 	assertKind(t, tomlwire.DecodeReader(errorReader{}, &got, tomlwire.DecodeOptions{}), wire.ErrParse)
 	assertKind(t, tomlwire.DecodeReader(nil, &got, tomlwire.DecodeOptions{}), wire.ErrValidation)
 	if err := tomlwire.DecodeReader(strings.NewReader("service = 'billing'\n"), &got, tomlwire.DecodeOptions{MaxBytes: math.MaxInt64}); err != nil {
@@ -156,6 +167,8 @@ func TestEncodeSupportsIndentAndClassifiesFailures(t *testing.T) {
 	_, err = tomlwire.Encode(map[string]any{"broken": failingMarshaler{}}, tomlwire.EncodeOptions{})
 	assertKind(t, err, wire.ErrEncode)
 	_, err = tomlwire.Encode(map[string]string{"ok": "yes"}, tomlwire.EncodeOptions{Indent: "\n"})
+	assertKind(t, err, wire.ErrValidation)
+	_, err = tomlwire.Encode(map[string]string{"ok": "yes"}, tomlwire.EncodeOptions{Indent: "x"})
 	assertKind(t, err, wire.ErrValidation)
 }
 
