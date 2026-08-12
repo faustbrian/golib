@@ -66,6 +66,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Withdraw the previous pre-v1 completion classification because the pinned Go
   and Rust implementations do not share fail-closed semantics for degenerate
   Fiat-Shamir challenges and challenge-derived zero opening denominators.
+- Record native arm64, Rosetta amd64, generic-path, cross-compilation, build-tag,
+  and CPU-dispatch evidence without claiming unexecuted platforms or
+  real-hardware ADX/BMI2 and AVX-512 paths.
 
 ### Added
 

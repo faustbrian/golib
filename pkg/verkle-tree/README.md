@@ -482,6 +482,7 @@ responsibilities.
 - [Compatibility matrix](docs/compatibility.md)
 - [Specification decisions](docs/specification-decisions.md)
 - [Backend audit](docs/backend-audit.md)
+- [Platform and CPU audit](docs/platforms.md)
 - [Benchmark method and raw samples](docs/benchmarks.md)
 
 ## Development rule

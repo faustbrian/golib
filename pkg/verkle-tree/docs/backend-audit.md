@@ -314,6 +314,14 @@ selection must define the confidentiality scope and either supply reviewed
 constant-time operations for secrets in that scope or explicitly constrain the
 profile to public inputs with an independently reviewed rationale.
 
+The architecture and build-path audit is recorded in
+[`platforms.md`](platforms.md). Native arm64 and Rosetta amd64 arithmetic
+properties agree with their generic comparisons, and the module cross-compiles
+for the recorded targets. Real amd64 ADX/BMI2, AVX-512, native Linux and
+Windows execution, 32-bit runtime, and non-native side-channel behavior remain
+unverified. The `purego` tag does not disable the pinned Go IPA scalar-field
+amd64 assembly, so it MUST NOT be described as a whole-graph pure-Go mode.
+
 ### Override compatibility scope
 
 Upstream `go-ipa` has not tested or released the dependency combination used by

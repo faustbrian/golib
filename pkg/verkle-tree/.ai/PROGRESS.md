@@ -84,9 +84,12 @@ remain separate future decisions and are not implied by this score.
   maintenance risks remain explicit in [`docs/backend-audit.md`](../docs/backend-audit.md)
   and [`docs/threat-model.md`](../docs/threat-model.md). No Ethereum profile or
   mainnet-readiness claim is made.
-- **Platforms:** The final local campaign covers darwin/arm64. Other supported
-  platforms remain the responsibility of repository CI and release automation;
-  this report does not claim an unobserved platform result.
+- **Platforms:** Native darwin/arm64 and Rosetta darwin/amd64 backend paths pass
+  the recorded default and generic-path checks. Linux amd64, Linux arm64,
+  Linux 386, Windows amd64, and darwin amd64 cross-compilation passes. Native
+  Linux, Windows, and 32-bit execution, real amd64 ADX/BMI2 and AVX-512, and
+  non-native race, crash, performance, and side-channel behavior remain
+  unverified as detailed in [`docs/platforms.md`](../docs/platforms.md).
 
 ## What conformance means
 
