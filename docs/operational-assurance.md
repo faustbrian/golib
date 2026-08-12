@@ -6,10 +6,10 @@ contract is [`.ai/GOAL_OPERATIONAL_ASSURANCE.md`](../.ai/GOAL_OPERATIONAL_ASSURA
 
 ## Current Verdict
 
-The current verdict is **not ready**. None of the eleven required composition
-scenarios has final evidence, and six named residual risks remain open. This is
-an honest release boundary, not a package-quality regression and not a reason
-to rerun content-identical package campaigns.
+The current verdict is **not ready**. One of the eleven required composition
+scenarios has final evidence, ten remain pending, and six named residual risks
+remain open. This is an honest release boundary, not a package-quality
+regression and not a reason to rerun content-identical package campaigns.
 
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256
@@ -35,7 +35,7 @@ must pass the ready check before package gates or publication begin.
 
 | Identifier | Required proof |
 | --- | --- |
-| `OA-REFERENCE-HTTP` | Public-API composition of ingress, lifecycle, configuration, identity, authorization, tenancy, correlation, validation, telemetry, and audit |
+| `OA-REFERENCE-HTTP` | Public-API composition of ingress, lifecycle, configuration, identity, authorization, tenancy, correlation, capabilities, HTTP signatures, validation, telemetry, and audit |
 | `OA-REFERENCE-DURABILITY` | PostgreSQL, migrations, cache, queue, Kafka, schema, outbox, idempotency, scheduler, workflow, dead-letter, and reconciliation composition |
 | `OA-REFERENCE-EXTERNAL` | HTTP clients, webhooks, filesystem/object storage, secrets, retries, rate limits, bulkheads, breakers, hedges, and timeout composition |
 | `OA-PLATFORM-MATRIX` | Supported Go, Linux amd64/arm64, ECS-compatible container, Graviton, non-root/read-only runtime, quotas, descriptors, TLS, DNS, and credential behavior |

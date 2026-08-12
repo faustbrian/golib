@@ -7007,6 +7007,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/service/integration/reference-http",
+      "directory": ".",
+      "name": "referencehttp",
+      "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-http",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/service",
       "directory": "scripts",
       "name": "main",
