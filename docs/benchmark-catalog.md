@@ -76,7 +76,7 @@ This inventory reports discoverable benchmark assets. A passing benchmark gate p
 | `pkg/kafka/benchmarks/clients` | not required | present | 11 | 1 | 0 | 0 | - |
 | `pkg/kafka/kafkaservice` | required | present | 1 | 0 | 0 | 0 | - |
 | `pkg/keyphrase` | required | present | 4 | 0 | 0 | 0 | - |
-| `pkg/knapsack` | required | present | 1 | 3 | 7 | 0 | - |
+| `pkg/knapsack` | required | present | 1 | 4 | 10 | 0 | - |
 | `pkg/knapsack/integration/references` | not required | missing | 0 | 0 | 0 | 0 | - |
 | `pkg/knapsack/objective/gomoney` | required | present | 1 | 0 | 0 | 0 | - |
 | `pkg/lease` | required | present | 2 | 2 | 0 | 0 | `postgresql`<br>`valkey` |

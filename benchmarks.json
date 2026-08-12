@@ -1216,7 +1216,8 @@
       "documentation": [
         "pkg/knapsack/docs/benchmarks.md",
         "pkg/knapsack/docs/benchmarks/2026-08-02-darwin-arm64.md",
-        "pkg/knapsack/docs/benchmarks/2026-08-08-darwin-arm64.md"
+        "pkg/knapsack/docs/benchmarks/2026-08-08-darwin-arm64.md",
+        "pkg/knapsack/docs/benchmarks/2026-08-12-darwin-arm64.md"
       ],
       "baseline_artifacts": [
         "pkg/knapsack/docs/benchmarks/raw/2026-07-21-darwin-arm64.txt",
@@ -1225,7 +1226,10 @@
         "pkg/knapsack/docs/benchmarks/raw/2026-08-02-darwin-arm64.txt",
         "pkg/knapsack/docs/benchmarks/raw/2026-08-08-boxpacker-runtime.json",
         "pkg/knapsack/docs/benchmarks/raw/2026-08-08-darwin-arm64-rss.tsv",
-        "pkg/knapsack/docs/benchmarks/raw/2026-08-08-darwin-arm64.txt"
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-08-darwin-arm64.txt",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-12-boxpacker-runtime.json",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-12-darwin-arm64-rss.tsv",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-12-darwin-arm64.txt"
       ],
       "harness_modules": [],
       "required_services": []
