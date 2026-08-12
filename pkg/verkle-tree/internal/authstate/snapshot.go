@@ -229,6 +229,27 @@ func NewSnapshot(
 	}, nil
 }
 
+// PreflightInitialEntries rejects initial-state count and scratch budgets
+// before a caller copies or otherwise scans the entry slice.
+func PreflightInitialEntries(entryCount uint64, limits Limits) error {
+	if err := limits.validate(); err != nil {
+		return err
+	}
+	if err := checkResource(
+		ResourceEntries,
+		uint64(limits.MaxEntries),
+		entryCount,
+	); err != nil {
+		return err
+	}
+
+	return checkResource(
+		ResourceTemporaryBytes,
+		limits.MaxTemporaryBytes,
+		entryCount*2*entryWorkingBytes,
+	)
+}
+
 // Get returns the present value for key. Absence is distinct from a present
 // all-zero value.
 func (snapshot Snapshot) Get(
@@ -364,21 +385,10 @@ func (snapshot Snapshot) Apply(
 	if len(updates) == 0 {
 		return snapshot, Transition{preRoot: preRoot, postRoot: preRoot, valid: true}, nil
 	}
-	if err := checkResource(
-		ResourceBatchUpdates,
-		uint64(snapshot.limits.MaxBatchUpdates),
-		uint64(len(updates)),
-	); err != nil {
+	if err := snapshot.PreflightApply(uint64(len(updates))); err != nil {
 		return Snapshot{}, Transition{}, err
 	}
 	updateBytes := uint64(len(updates)) * 2 * updateWorkingBytes
-	if err := checkResource(
-		ResourceTemporaryBytes,
-		snapshot.limits.MaxTemporaryBytes,
-		updateBytes,
-	); err != nil {
-		return Snapshot{}, Transition{}, err
-	}
 
 	ordered := make([]Update, len(updates))
 	for index := range updates {
@@ -493,6 +503,30 @@ func (snapshot Snapshot) Apply(
 	return next, Transition{preRoot: preRoot, postRoot: postRoot, valid: true}, nil
 }
 
+// PreflightApply rejects batch-count and initial scratch budgets before a
+// caller copies or otherwise scans the update slice.
+func (snapshot Snapshot) PreflightApply(updateCount uint64) error {
+	if err := snapshot.validate(); err != nil {
+		return err
+	}
+	if updateCount == 0 {
+		return nil
+	}
+	if err := checkResource(
+		ResourceBatchUpdates,
+		uint64(snapshot.limits.MaxBatchUpdates),
+		updateCount,
+	); err != nil {
+		return err
+	}
+
+	return checkResource(
+		ResourceTemporaryBytes,
+		snapshot.limits.MaxTemporaryBytes,
+		updateCount*2*updateWorkingBytes,
+	)
+}
+
 func validateResultCount(result []Entry, expected uint64) error {
 	if uint64(len(result)) != expected {
 		return errInvalidSnapshot
@@ -567,19 +601,7 @@ func prepareInitialEntries(
 	entries []Entry,
 	limits Limits,
 ) ([]Entry, error) {
-	if err := checkResource(
-		ResourceEntries,
-		uint64(limits.MaxEntries),
-		uint64(len(entries)),
-	); err != nil {
-		return nil, err
-	}
-	temporaryBytes := uint64(len(entries)) * 2 * entryWorkingBytes
-	if err := checkResource(
-		ResourceTemporaryBytes,
-		limits.MaxTemporaryBytes,
-		temporaryBytes,
-	); err != nil {
+	if err := PreflightInitialEntries(uint64(len(entries)), limits); err != nil {
 		return nil, err
 	}
 	owned := make([]Entry, len(entries))

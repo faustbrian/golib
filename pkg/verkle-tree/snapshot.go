@@ -201,6 +201,16 @@ func NewSnapshot(
 	if err := limits.validate(); err != nil {
 		return Snapshot{}, err
 	}
+	stateLimits := authstate.Limits{
+		MaxEntries:        limits.State.MaxEntries,
+		MaxBatchUpdates:   limits.State.MaxBatchUpdates,
+		MaxTemporaryBytes: limits.State.MaxTemporaryBytes,
+	}
+	if err := authstate.PreflightInitialEntries(
+		uint64(len(entries)), stateLimits,
+	); err != nil {
+		return Snapshot{}, translateSnapshotError("construct snapshot", err)
+	}
 	owned := make([]authstate.Entry, len(entries))
 	for index := range entries {
 		if err := checkPublicContext(ctx); err != nil {
@@ -214,11 +224,7 @@ func NewSnapshot(
 	value, err := authstate.NewSnapshot(
 		ctx,
 		owned,
-		authstate.Limits{
-			MaxEntries:        limits.State.MaxEntries,
-			MaxBatchUpdates:   limits.State.MaxBatchUpdates,
-			MaxTemporaryBytes: limits.State.MaxTemporaryBytes,
-		},
+		stateLimits,
 		committedtree.Limits{
 			MaxEntries:         limits.Tree.MaxEntries,
 			MaxStems:           limits.Tree.MaxStems,
@@ -286,6 +292,9 @@ func (snapshot Snapshot) Apply(
 	}
 	if err := checkPublicContext(ctx); err != nil {
 		return Snapshot{}, Transition{}, err
+	}
+	if err := snapshot.value.PreflightApply(uint64(len(updates))); err != nil {
+		return Snapshot{}, Transition{}, translateSnapshotError("apply updates", err)
 	}
 	owned := make([]authstate.Update, len(updates))
 	for index := range updates {
