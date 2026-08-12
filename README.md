@@ -78,6 +78,10 @@ local development. Package-local workflows are intentionally unsupported.
 Full policies are documented in [quality](docs/quality.md),
 [CI](docs/ci.md), [performance engineering](docs/performance.md), and
 [security](SECURITY.md).
+Repository-wide security review starts with the
+[threat model](docs/security/threat-model.md),
+[security matrix](docs/security/security-matrix.md), and
+[residual-risk register](docs/security/residual-risks.md).
 The generated [source documentation audit](docs/source-documentation-audit.md)
 tracks objective package and exported API comment gaps without treating comment
 counts as a substitute for technical review.

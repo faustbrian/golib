@@ -13,7 +13,7 @@ to package-owned contracts and examples.
 | Building a worker, ingester, or scheduler | [Recommended stacks](recommended-stacks.md) | [Integration map](integration-map.md) |
 | Migrating from Laravel or PHP | [Migration](migration.md) | [Package selection](choosing-packages.md) |
 | Deploying and operating services | [Architecture](architecture.md) | [Troubleshooting](troubleshooting.md) |
-| Reviewing security or architecture | [Design language](design-language.md) | [Security](../SECURITY.md) and [hardening report](hardening-report.md) |
+| Reviewing security or architecture | [Threat model](security/threat-model.md) | [Security matrix](security/security-matrix.md), [risk register](security/residual-risks.md), and [hardening report](hardening-report.md) |
 | Contributing | [Contributing](../CONTRIBUTING.md) | [Quality](quality.md), [CI](ci.md), and [release policy](releases.md) |
 
 ## Decisions
@@ -52,6 +52,9 @@ to package-owned contracts and examples.
 - [Benchmark catalog](benchmark-catalog.md)
 - [Source documentation audit](source-documentation-audit.md)
 - [Specification governance](specification-governance.md)
+- [Repository threat model](security/threat-model.md)
+- [Security matrix](security/security-matrix.md)
+- [Residual-risk register](security/residual-risks.md)
 - [Compatibility](../COMPATIBILITY.md)
 - [Deprecation](../DEPRECATION.md)
 

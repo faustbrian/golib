@@ -69,7 +69,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -104,7 +105,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -140,6 +142,7 @@
             "docs/architecture.md",
             "docs/hardening-report.md",
             "docs/performance.md",
+            "docs/security/threat-model.md",
             "docs/source-documentation-audit.md"
           ],
           "verification_gates": [
@@ -177,7 +180,8 @@
             "docs/cohesion-audit.md",
             "docs/design-language.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -212,7 +216,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -248,6 +253,7 @@
             "docs/architecture.md",
             "docs/hardening-report.md",
             "docs/performance.md",
+            "docs/security/threat-model.md",
             "docs/source-documentation-audit.md"
           ],
           "verification_gates": [
@@ -283,7 +289,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -318,7 +325,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -353,7 +361,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -388,7 +397,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -423,7 +433,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -458,7 +469,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -493,7 +505,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -529,7 +542,8 @@
             "docs/architecture.md",
             "docs/hardening-report.md",
             "docs/performance.md",
-            "docs/releases.md"
+            "docs/releases.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -565,7 +579,8 @@
             "docs/architecture.md",
             "docs/hardening-report.md",
             "docs/performance.md",
-            "docs/resilience.md"
+            "docs/resilience.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -601,7 +616,8 @@
             "docs/architecture.md",
             "docs/hardening-report.md",
             "docs/performance.md",
-            "docs/resilience.md"
+            "docs/resilience.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -636,7 +652,10 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/residual-risks.md",
+            "docs/security/security-matrix.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",
@@ -672,6 +691,7 @@
             "docs/architecture.md",
             "docs/hardening-report.md",
             "docs/performance.md",
+            "docs/security/threat-model.md",
             "docs/specification-governance.md"
           ],
           "verification_gates": [
@@ -707,7 +727,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",

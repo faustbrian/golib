@@ -918,11 +918,11 @@ assurance scope.
 | Goal | `.ai/GOAL_SECURITY.md` |
 | Scope | Catalog-selected vulnerability and secret scanning for all 134 modules, including explicit not-applicable classification for non-security fixture modules. |
 | Status | `pending-reexecution` to `implemented-unverified` |
-| Evidence | `./scripts/run-modules.sh vulnerability --jobs 8 --all`, `./scripts/run-modules.sh secrets --jobs 8 --all`, and focused reruns for `pkg/http-signature/differential/shared-corpus` and `pkg/analysis/testdata/coverage`. |
-| Result | Vulnerability scanning recorded 132 passes and 2 cataloged not-applicable results with no missing or failed module. Secret scanning recorded the same complete 132-pass and 2-not-applicable matrix after classifying the deterministic public HTTP signature fixture at its declaration. |
+| Evidence | `./scripts/run-modules.sh vulnerability --jobs 8 --all`, `./scripts/run-modules.sh secrets --jobs 8 --all`, focused reruns for `pkg/http-signature/differential/shared-corpus` and `pkg/analysis/testdata/coverage`, `docs/security/threat-model.md`, `docs/security/security-matrix.md`, and `docs/security/residual-risks.md`. |
+| Result | Vulnerability scanning recorded 132 passes and 2 cataloged not-applicable results with no missing or failed module. Secret scanning recorded the same complete 132-pass and 2-not-applicable matrix after classifying the deterministic public HTTP signature fixture at its declaration. The repository now has an explicit cross-module threat model, an owner-and-evidence security matrix, and a fail-closed residual-risk register with no implicit or pre-accepted risk. |
 | Environment | Go 1.26.5 on darwin/arm64 with pinned `govulncheck` and gitleaks versions and task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
-| Observed | 2026-08-11T20:19:36Z |
-| Gaps | Final verification still requires the root threat model, security matrix, residual-risk register, and a requirement-level audit of hostile-input, fuzz, race, resource-bound, workflow, disclosure, and security-tool evidence. `govulncheck` also reported unreachable vulnerabilities in some imported or required dependency graphs; those remain supply-chain review inputs even though no scanned code path was vulnerable. |
+| Observed | 2026-08-12T17:51:07Z |
+| Gaps | Final verification still requires a requirement-level audit of hostile-input, fuzz, race, resource-bound, workflow, disclosure, and security-tool evidence; explicit disposition of every unreachable vulnerable dependency; and the composed rotation, privacy, recovery, and deployment drills recorded in the risk register. The documents are governance inputs, not an operational-assurance or release verdict. |
 
 ### Repository supply-chain audit
 

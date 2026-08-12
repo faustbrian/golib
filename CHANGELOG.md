@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Add a repository threat model, security control matrix, and explicit
+  residual-risk register so package evidence, operational assurance, and
+  release decisions cannot be conflated or silently waived.
 - Add a generated benchmark asset catalog and repository performance guide so
   benchmark sources, harnesses, baselines, services, fairness rules, and
   regression expectations are explicit and stale inventories fail validation.

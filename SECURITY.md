@@ -25,3 +25,11 @@ missing scanner or unavailable service is a failed gate, not a warning.
 
 Security fixes MUST include a regression test that does not publish weaponized
 details or real secrets. Credentials MUST be redacted from logs and evidence.
+
+## Repository Assurance
+
+The repository-wide [threat model](docs/security/threat-model.md),
+[security matrix](docs/security/security-matrix.md), and
+[residual-risk register](docs/security/residual-risks.md) define shared trust
+boundaries and open release risks. Package-specific threat models refine those
+rules for their owned boundary; they do not replace the repository model.
