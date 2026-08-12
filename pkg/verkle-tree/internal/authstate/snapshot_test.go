@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -244,6 +245,126 @@ func TestSnapshotTransitionsMatchIndependentStateModel(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestSnapshotExhaustiveReducedDomainMatchesIndependentModel(t *testing.T) {
+	keys := [2]Key{testKey(0x10, 0x01), testKey(0x20, 0xfe)}
+	values := [2]Value{{}, testValue(0x7a)}
+
+	for stateCode := range 9 {
+		initialEntries, initialOracleUpdates := reducedDomainState(stateCode, keys, values)
+		authenticated := newTestSnapshot(t, initialEntries)
+		oracle, err := statemodel.NewSnapshot(statemodel.Limits{
+			MaxBatchUpdates:   2,
+			MaxEntries:        2,
+			MaxTemporaryBytes: 1 << 10,
+		})
+		if err != nil {
+			t.Fatalf("state %d: new reference snapshot: %v", stateCode, err)
+		}
+		oracle, err = oracle.Apply(context.Background(), initialOracleUpdates)
+		if err != nil {
+			t.Fatalf("state %d: seed reference snapshot: %v", stateCode, err)
+		}
+
+		for updateCode := range 16 {
+			authUpdates, oracleUpdates := reducedDomainUpdates(updateCode, keys, values)
+			got, _, gotErr := authenticated.Apply(context.Background(), authUpdates)
+			want, wantErr := oracle.Apply(context.Background(), oracleUpdates)
+			if gotErr != nil || wantErr != nil {
+				t.Fatalf(
+					"state %d updates %d errors = authenticated %v, reference %v",
+					stateCode, updateCode, gotErr, wantErr,
+				)
+			}
+
+			finalEntries := make([]Entry, 0, len(keys))
+			for _, key := range keys {
+				gotValue, gotPresent, getErr := got.Get(context.Background(), key)
+				wantValue, wantPresent, referenceErr := want.Get(
+					context.Background(), statemodel.Key(key),
+				)
+				if getErr != nil || referenceErr != nil || gotPresent != wantPresent ||
+					statemodel.Value(gotValue) != wantValue {
+					t.Fatalf(
+						"state %d updates %d key %x = %x/%t/%v, want %x/%t/%v",
+						stateCode, updateCode, key, gotValue, gotPresent, getErr,
+						wantValue, wantPresent, referenceErr,
+					)
+				}
+				if wantPresent {
+					finalEntries = append(finalEntries, Entry{Key: key, Value: Value(wantValue)})
+				}
+			}
+
+			rebuilt := newTestSnapshot(t, finalEntries)
+			assertSameSnapshotRoot(t, got, rebuilt)
+			if len(authUpdates) == 2 {
+				reordered := slices.Clone(authUpdates)
+				slices.Reverse(reordered)
+				reorderedSnapshot, _, reorderErr := authenticated.Apply(
+					context.Background(), reordered,
+				)
+				if reorderErr != nil {
+					t.Fatalf("state %d updates %d reordered: %v", stateCode, updateCode, reorderErr)
+				}
+				assertSameSnapshotRoot(t, got, reorderedSnapshot)
+			}
+		}
+	}
+}
+
+func reducedDomainState(
+	stateCode int,
+	keys [2]Key,
+	values [2]Value,
+) ([]Entry, []statemodel.Update) {
+	entries := make([]Entry, 0, len(keys))
+	oracleUpdates := make([]statemodel.Update, 0, len(keys))
+	for _, key := range keys {
+		state := stateCode % 3
+		stateCode /= 3
+		if state == 0 {
+			continue
+		}
+		value := values[state-1]
+		entries = append(entries, Entry{Key: key, Value: value})
+		oracleUpdates = append(
+			oracleUpdates,
+			statemodel.Set(statemodel.Key(key), statemodel.Value(value)),
+		)
+	}
+
+	return entries, oracleUpdates
+}
+
+func reducedDomainUpdates(
+	updateCode int,
+	keys [2]Key,
+	values [2]Value,
+) ([]Update, []statemodel.Update) {
+	updates := make([]Update, 0, len(keys))
+	oracleUpdates := make([]statemodel.Update, 0, len(keys))
+	for _, key := range keys {
+		operation := updateCode % 4
+		updateCode /= 4
+		switch operation {
+		case 0:
+			continue
+		case 1:
+			updates = append(updates, Delete(key))
+			oracleUpdates = append(oracleUpdates, statemodel.Delete(statemodel.Key(key)))
+		case 2, 3:
+			value := values[operation-2]
+			updates = append(updates, Set(key, value))
+			oracleUpdates = append(
+				oracleUpdates,
+				statemodel.Set(statemodel.Key(key), statemodel.Value(value)),
+			)
+		}
+	}
+
+	return updates, oracleUpdates
 }
 
 func TestSnapshotRejectsInvalidTransitionsAtomically(t *testing.T) {
