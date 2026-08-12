@@ -339,6 +339,35 @@ func TestAggregateOpeningEngineRejectsInvalidSetup(t *testing.T) {
 	}
 }
 
+func TestAggregateOpeningEngineRejectsMutatedAuxiliaryGenerator(t *testing.T) {
+	original := banderwagon.Generator
+	t.Cleanup(func() {
+		banderwagon.Generator = original
+	})
+
+	var mutated banderwagon.Element
+	mutated.Double(&original)
+	banderwagon.Generator = mutated
+
+	config, err := ipa.NewIPASettings()
+	if err != nil {
+		t.Fatalf("new settings with mutated auxiliary generator: %v", err)
+	}
+	if err := validateGeneratorSet(config.SRS); err != nil {
+		t.Fatalf("mutated auxiliary generator changed pinned SRS: %v", err)
+	}
+	if config.Q.Equal(&original) {
+		t.Fatal("mutated auxiliary generator did not change IPA Q")
+	}
+	if _, err := newAggregateOpeningEngine(
+		context.Background(),
+		testAggregateOpeningLimits(),
+		func() (*ipa.IPAConfig, error) { return config, nil },
+	); !errors.Is(err, errGeneratorMismatch) {
+		t.Fatalf("mutated auxiliary generator error = %v, want %v", err, errGeneratorMismatch)
+	}
+}
+
 func TestAggregateOpeningEnginePreflightsSetupResources(t *testing.T) {
 	t.Parallel()
 
