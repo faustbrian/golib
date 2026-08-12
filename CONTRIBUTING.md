@@ -14,6 +14,10 @@ the behavior and migration impact. Public API changes require compatibility
 evidence and documentation. Specification behavior requires a decision record,
 fixture coverage, and interoperability evidence.
 
+New direct dependencies and dependency updates must follow the
+[dependency governance policy](docs/dependency-governance.md). Package-local
+update bots are forbidden; the root policy owns every module and action update.
+
 Specification-backed changes must follow the
 [specification governance contract](docs/specification-governance.md), update
 the affected stable decision entries, and complete the Specification Decisions

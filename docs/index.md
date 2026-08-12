@@ -52,6 +52,7 @@ to package-owned contracts and examples.
 - [Benchmark catalog](benchmark-catalog.md)
 - [Source documentation audit](source-documentation-audit.md)
 - [Specification governance](specification-governance.md)
+- [Dependency governance](dependency-governance.md)
 - [Repository threat model](security/threat-model.md)
 - [Security matrix](security/security-matrix.md)
 - [Residual-risk register](security/residual-risks.md)

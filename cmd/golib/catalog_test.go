@@ -998,6 +998,100 @@ func TestRepositoryMutationCommandsCannotReduceThresholds(t *testing.T) {
 	}
 }
 
+func TestValidateDependencyUpdateTopology(t *testing.T) {
+	t.Parallel()
+
+	valid := `version: 2
+updates:
+  - package-ecosystem: gomod
+    directories:
+      - "/"
+      - "/pkg/**"
+    schedule:
+      interval: weekly
+    groups:
+      monorepo-dependencies:
+        group-by: dependency-name
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+`
+	tests := []struct {
+		name       string
+		configure  func(*testing.T, string)
+		wantSubstr string
+	}{
+		{
+			name: "canonical root configuration",
+			configure: func(t *testing.T, root string) {
+				mustWriteFile(t, filepath.Join(root, ".github/dependabot.yml"), valid)
+			},
+		},
+		{
+			name:       "missing root configuration",
+			configure:  func(*testing.T, string) {},
+			wantSubstr: "root Dependabot configuration",
+		},
+		{
+			name: "nested configuration",
+			configure: func(t *testing.T, root string) {
+				mustWriteFile(t, filepath.Join(root, ".github/dependabot.yml"), valid)
+				mustWriteFile(t, filepath.Join(root, "pkg/cache/.github/dependabot.yml"), valid)
+			},
+			wantSubstr: "non-authoritative Dependabot configuration",
+		},
+		{
+			name: "incomplete module selection",
+			configure: func(t *testing.T, root string) {
+				mustWriteFile(t, filepath.Join(root, ".github/dependabot.yml"), strings.Replace(
+					valid,
+					"      - \"/pkg/**\"\n",
+					"",
+					1,
+				))
+			},
+			wantSubstr: "all nested Go modules",
+		},
+		{
+			name: "missing action updates",
+			configure: func(t *testing.T, root string) {
+				mustWriteFile(t, filepath.Join(root, ".github/dependabot.yml"), strings.Split(
+					valid,
+					"  - package-ecosystem: github-actions\n",
+				)[0])
+			},
+			wantSubstr: "GitHub Actions",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			test.configure(t, root)
+			err := validateDependencyUpdateTopology(root)
+			if test.wantSubstr == "" {
+				if err != nil {
+					t.Fatalf("validateDependencyUpdateTopology() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), test.wantSubstr) {
+				t.Fatalf(
+					"validateDependencyUpdateTopology() error = %v, want substring %q",
+					err,
+					test.wantSubstr,
+				)
+			}
+		})
+	}
+}
+
 func mustWriteFile(t *testing.T, path, contents string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

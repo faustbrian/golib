@@ -1,23 +1,18 @@
 version: 2
-
 updates:
   - package-ecosystem: gomod
-    directory: /
+    directories:
+      - "/"
+      - "/pkg/**"
     schedule:
       interval: weekly
-    labels:
-      - dependencies
     groups:
-      go-dependencies:
-        patterns:
-          - "*"
-
+      monorepo-dependencies:
+        group-by: dependency-name
   - package-ecosystem: github-actions
-    directory: /
+    directory: "/"
     schedule:
       interval: weekly
-    labels:
-      - dependencies
     groups:
       github-actions:
         patterns:

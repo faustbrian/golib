@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Add one root Dependabot policy for all Go modules and GitHub Actions, plus a
+  dependency governance guide covering admission, update review, ownership,
+  detection, and compromise response.
 - Add a repository threat model, security control matrix, and explicit
   residual-risk register so package evidence, operational assurance, and
   release decisions cannot be conflated or silently waived.
@@ -41,6 +44,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Remove inert package-local Dependabot configurations and reject future
+  nested update policies so dependency automation cannot silently diverge.
 - Permit cataloged non-releasable fixture modules to use an intentionally empty
   local proxy so their not-applicable verification gates can be recorded while
   unknown module selections still fail closed.

@@ -1944,6 +1944,9 @@ func validatePaths(root string) {
 			fatal("obsolete top-level go- directory: %s", entry.Name())
 		}
 	}
+	if err := validateDependencyUpdateTopology(root); err != nil {
+		fatal("validate dependency update topology: %v", err)
+	}
 	fixtureWorkflowRoot := "pkg/json-schema/testdata/official/JSON-Schema-Test-Suite/.github/workflows/"
 	rootWorkflows := 0
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -1983,6 +1986,71 @@ func validatePaths(root string) {
 	if output, err := command.Output(); err == nil && len(output) != 0 {
 		fatal("obsolete owned module paths remain:\n%s", output)
 	}
+}
+
+const canonicalDependabotConfiguration = `version: 2
+updates:
+  - package-ecosystem: gomod
+    directories:
+      - "/"
+      - "/pkg/**"
+    schedule:
+      interval: weekly
+    groups:
+      monorepo-dependencies:
+        group-by: dependency-name
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+`
+
+func validateDependencyUpdateTopology(root string) error {
+	configurationPath := filepath.Join(root, ".github", "dependabot.yml")
+	contents, err := os.ReadFile(configurationPath)
+	if err != nil {
+		return fmt.Errorf("read root Dependabot configuration: %w", err)
+	}
+	configuration := string(contents)
+	if !strings.Contains(configuration, `      - "/pkg/**"`) {
+		return errors.New("root Dependabot configuration does not select all nested Go modules")
+	}
+	if !strings.Contains(configuration, "  - package-ecosystem: github-actions\n") {
+		return errors.New("root Dependabot configuration does not update GitHub Actions")
+	}
+	if configuration != canonicalDependabotConfiguration {
+		return errors.New("root Dependabot configuration does not match the canonical update policy")
+	}
+
+	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() && path != root && excludedModuleDirectory(entry.Name()) {
+			return filepath.SkipDir
+		}
+		if entry.IsDir() || path == configurationPath {
+			return nil
+		}
+		normalized := filepath.ToSlash(path)
+		if strings.HasSuffix(normalized, "/.github/dependabot.yml") ||
+			strings.HasSuffix(normalized, "/.github/dependabot.yaml") {
+			relative, relativeErr := filepath.Rel(root, path)
+			if relativeErr != nil {
+				return relativeErr
+			}
+			return fmt.Errorf(
+				"non-authoritative Dependabot configuration remains: %s",
+				filepath.ToSlash(relative),
+			)
+		}
+		return nil
+	})
+	return err
 }
 
 func dependencyCycle(current catalog) []string {
