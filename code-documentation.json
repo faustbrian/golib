@@ -52708,7 +52708,7 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/openapi/reference/bundle.go",
-          "line": 191,
+          "line": 201,
           "symbol": "Resolve",
           "message": "exported declaration has no documentation comment"
         },
@@ -52771,14 +52771,14 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/openapi/reference/file_resolver.go",
-          "line": 118,
+          "line": 117,
           "symbol": "Open",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/openapi/reference/file_resolver.go",
-          "line": 119,
+          "line": 118,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
@@ -90078,8 +90078,8 @@
       "documented_packages": 7,
       "missing_package_comments": 1,
       "duplicate_package_comments": 0,
-      "exported_declarations": 1015,
-      "documented_declarations": 812,
+      "exported_declarations": 1017,
+      "documented_declarations": 814,
       "missing_declaration_comments": 203,
       "malformed_comments": 0,
       "generated_files": 0,
@@ -90670,119 +90670,119 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 44,
+          "line": 48,
           "symbol": "MaxGeneratorDerivations",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 45,
+          "line": 49,
           "symbol": "MaxPrecomputedPoints",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 46,
+          "line": 50,
           "symbol": "MaxQueries",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 47,
+          "line": 51,
           "symbol": "MaxScalarDecodes",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 48,
+          "line": 52,
           "symbol": "MaxMSMTerms",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 49,
+          "line": 53,
           "symbol": "MaxTemporaryBytes",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 50,
+          "line": 54,
           "symbol": "MaxWorkers",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 51,
+          "line": 55,
           "symbol": "MaxQueuedOperations",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 103,
+          "line": 107,
           "symbol": "Resource",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 104,
+          "line": 108,
           "symbol": "Limit",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 105,
+          "line": 109,
           "symbol": "Actual",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 129,
+          "line": 133,
           "symbol": "Commitment",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 130,
+          "line": 134,
           "symbol": "Vector",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 131,
+          "line": 135,
           "symbol": "Index",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 137,
+          "line": 141,
           "symbol": "Commitment",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 138,
+          "line": 142,
           "symbol": "Value",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/verkle-tree/internal/backend/aggregate_opening.go",
-          "line": 139,
+          "line": 143,
           "symbol": "Index",
           "message": "exported declaration has no documentation comment"
         },

@@ -134,7 +134,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/temporal` | 10 | 0 | 412 | 73 | 0 | 0 | 0 |
 | `pkg/tenancy` | 5 | 0 | 238 | 45 | 0 | 0 | 0 |
 | `pkg/validation` | 11 | 0 | 261 | 63 | 0 | 0 | 0 |
-| `pkg/verkle-tree` | 8 | 1 | 1015 | 203 | 0 | 0 | 0 |
+| `pkg/verkle-tree` | 8 | 1 | 1017 | 203 | 0 | 0 | 0 |
 | `pkg/webhook` | 7 | 0 | 301 | 180 | 0 | 0 | 0 |
 | `pkg/wire` | 13 | 2 | 266 | 132 | 0 | 0 | 0 |
 | `pkg/workflow` | 2 | 0 | 1173 | 502 | 0 | 0 | 0 |

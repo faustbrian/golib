@@ -23922,10 +23922,23 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "interoperability_tools": [
+        "ethereum/go-verkle at aa0a270c0ed03faa6c502e0d96bf26189d1d6542",
+        "crate-crypto/rust-verkle at e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
+        "Rust 1.97.0"
+      ],
+      "specifications": [
+        "verkletree-bandersnatch-ipa-256-v0 package-owned pre-v1 profile",
+        "Ethereum Verkle EIPs 4762, 6800, 7612, and 7748 at c55786f4242e5324afd14c6bca890a369a771d7f (research only; not implemented)"
+      ],
+      "conformance_corpora": [
+        "Pinned go-verkle tree and aggregate-proof corpus at aa0a270c0ed03faa6c502e0d96bf26189d1d6542",
+        "Pinned rust-verkle encoding, generator, vector-commitment, multiproof, tree-root, topology, and transition corpora at e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
+        "Package-owned verkletree-bandersnatch-ipa-256-v0 positive and hostile-input evidence"
+      ],
+      "provenance": [
+        "pkg/verkle-tree/specification/sources.json"
+      ],
       "goal_files": [
         "pkg/verkle-tree/.ai/GOAL.md",
         "pkg/verkle-tree/.ai/GOAL_HARDEN.md"
@@ -24004,7 +24017,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,
