@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Add a complete operational-assurance requirement matrix that distinguishes
+  proved, partial, external, specialist-owned, and consumer-owned work while
+  preserving the current `not ready` verdict and exact remaining proof.
 - Record executable OpenSearch dashboard, alert, incident-drill, and runbook
   consistency evidence without treating repository artifacts as installed
   production operations.

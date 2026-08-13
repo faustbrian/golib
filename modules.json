@@ -417,6 +417,7 @@
             "docs/assurance/evidence/OA-RESOURCE-PERFORMANCE-CONSTRAINED.md",
             "docs/assurance/evidence/OA-SCHEDULER-POSTGRES-VALKEY.md",
             "docs/assurance/evidence/OA-TELEMETRY-COLLECTOR-OPERATIONS.md",
+            "docs/assurance/requirement-matrix.md",
             "docs/hardening-report.md",
             "docs/operational-assurance.md",
             "docs/performance.md",

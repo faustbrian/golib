@@ -11,6 +11,10 @@ scenarios have final evidence, nine remain pending, and six named residual risks
 remain open. This is an honest release boundary, not a package-quality
 regression and not a reason to rerun content-identical package campaigns.
 
+The [complete requirement-to-evidence matrix](assurance/requirement-matrix.md)
+separates proved, partial, external, specialist-owned, and consumer-owned work
+and names the exact remaining proof for every goal requirement.
+
 `OA-PLATFORM-MATRIX` now retains passing local Linux amd64/arm64 container
 evidence, but remains pending for native Graviton, live ECS task IAM and
 lifecycle, bit-for-bit artifact reproducibility, and production network
