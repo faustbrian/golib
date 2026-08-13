@@ -20,9 +20,10 @@ boundaries.
 for transaction rollback, atomic business/idempotency/outbox commit, relay,
 unacknowledged-task reclamation, acknowledgement, and command replay. It
 also retains queue-service lifecycle evidence for timeout redelivery,
-dead-letter recovery, Redis/Valkey settlement, scheduler lease fencing, and
-migration interruption recovery. It remains pending for the other required
-durability systems and recovery cases.
+dead-letter recovery, Redis/Valkey settlement, scheduler lease fencing,
+migration interruption recovery, and audit backup/restore with retained legal
+holds. It remains pending for the other required durability systems and
+recovery cases.
 
 `OA-RELEASE-CONSUMER` now retains one current local `v1.0.0` source-proxy and
 clean-consumer proof. It remains pending for the complete module matrix,
@@ -38,25 +39,29 @@ capacity proof.
 `OA-FAILURE-RECOVERY` now retains passing local process-death and
 PostgreSQL/Valkey replacement evidence, plus focused workflow evidence for
 deadlocks, process death, unknown activity outcomes, snapshot restore, replica
-promotion, fencing, audited dead-letter resolution, scheduler ambiguity, and
-migration interruption. It remains pending for managed database backup and
-failover, storage exhaustion, network partitions, Kafka, OpenSearch, and
-broader external-side-effect reconciliation.
+promotion, fencing, audited dead-letter resolution, scheduler ambiguity,
+migration interruption, and local audit backup/restore reconciliation. It
+remains pending for managed database backup and failover, storage exhaustion,
+network partitions, Kafka, OpenSearch, and broader external-side-effect
+reconciliation.
 
 `OA-DEPLOYMENT-COMPATIBILITY` now retains bounded queue-worker rolling
 replacement and scale-up evidence on Redis and Valkey, plus migration history,
-Laravel baseline, and interrupted-migration recovery evidence on PostgreSQL
-18.4. It remains pending for mixed binary and data versions, ECS rolling
-deployment and canary behavior, the complete PostgreSQL and engine matrix,
-complete rollback, and key overlap.
+Laravel baseline, interrupted-migration recovery, and audit protocol-compatible
+writer behavior across a durability migration on PostgreSQL 18.4. It remains
+pending for released mixed binary and data versions, ECS rolling deployment and
+canary behavior, the complete PostgreSQL and engine matrix, complete rollback,
+and key overlap.
 
 `OA-SECURITY-PRIVACY-SUPPLY-CHAIN` and
 `OA-OBSERVABILITY-OPERATIONS` reuse the unchanged reference HTTP campaign as
 bounded evidence for signed requests, fail-closed authorization and tenancy,
 correlation, in-memory telemetry and audit, readiness recovery, and graceful
-shutdown. They remain pending for privacy lifecycle, dependency response,
-signed provenance, production exporters, SLOs, dashboards, alerts, and
-operator drills.
+shutdown. Both also retain a local PostgreSQL audit campaign proving immutable
+history, privacy validation, least privilege, legal holds, retention, and
+backup/restore reconciliation. They remain pending for complete privacy
+lifecycle, dependency response, signed provenance, production exporters, SLOs,
+dashboards, alerts, and operator drills.
 
 `OA-CROSS-PACKAGE-CONSISTENCY` retains the representative Track, Postal, and
 Location adoption fixture for public package construction, role isolation,

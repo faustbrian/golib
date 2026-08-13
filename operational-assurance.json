@@ -281,6 +281,21 @@
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
+          "sha256": "c2fde9fad72763a4517a06a045c7a19c42bbdc5812b702cd4779d57de2a874f7",
+          "observed_utc": "2026-08-13T09:18:04Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL clients 18.4/17.0; PostgreSQL 18.4-alpine",
+          "module_scope": [
+            "pkg/audit",
+            "pkg/audit/postgres"
+          ],
+          "input_digests": {
+            "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
+          }
         }
       ],
       "accepted_risks": []
@@ -535,6 +550,21 @@
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
+          "sha256": "c2fde9fad72763a4517a06a045c7a19c42bbdc5812b702cd4779d57de2a874f7",
+          "observed_utc": "2026-08-13T09:18:04Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL clients 18.4/17.0; PostgreSQL 18.4-alpine",
+          "module_scope": [
+            "pkg/audit",
+            "pkg/audit/postgres"
+          ],
+          "input_digests": {
+            "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
+          }
         }
       ],
       "accepted_risks": []
@@ -575,6 +605,21 @@
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
+          "sha256": "c2fde9fad72763a4517a06a045c7a19c42bbdc5812b702cd4779d57de2a874f7",
+          "observed_utc": "2026-08-13T09:18:04Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL clients 18.4/17.0; PostgreSQL 18.4-alpine",
+          "module_scope": [
+            "pkg/audit",
+            "pkg/audit/postgres"
+          ],
+          "input_digests": {
+            "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
           }
         }
       ],
@@ -649,6 +694,21 @@
             "pkg/validation": "ff2b45c24e440416681ce24729668dfb5cafe06ba7a4bb3ba3eab334ef2d1ccc",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
+          "sha256": "c2fde9fad72763a4517a06a045c7a19c42bbdc5812b702cd4779d57de2a874f7",
+          "observed_utc": "2026-08-13T09:18:04Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL clients 18.4/17.0; PostgreSQL 18.4-alpine",
+          "module_scope": [
+            "pkg/audit",
+            "pkg/audit/postgres"
+          ],
+          "input_digests": {
+            "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
+          }
         }
       ],
       "accepted_risks": []
@@ -721,6 +781,21 @@
             "pkg/tenancy": "37605e9638bef041b6b5ee28f437aea5c1b441b6122c073416091e9da26194c8",
             "pkg/validation": "ff2b45c24e440416681ce24729668dfb5cafe06ba7a4bb3ba3eab334ef2d1ccc",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
+          "sha256": "c2fde9fad72763a4517a06a045c7a19c42bbdc5812b702cd4779d57de2a874f7",
+          "observed_utc": "2026-08-13T09:18:04Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL clients 18.4/17.0; PostgreSQL 18.4-alpine",
+          "module_scope": [
+            "pkg/audit",
+            "pkg/audit/postgres"
+          ],
+          "input_digests": {
+            "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
           }
         }
       ],
