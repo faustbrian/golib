@@ -20,7 +20,7 @@ rounding, conditions, and traps explicit. No conversion passes through
 
 See the [documentation index](docs/README.md), [cookbook](docs/cookbook.md),
 and [verification guide](docs/verification.md). The minimum supported toolchain
-is Go 1.26.5.
+is Go 1.26.6.
 
 ## Packages
 

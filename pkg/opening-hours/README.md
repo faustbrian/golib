@@ -10,7 +10,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/golib/pkg/opening-hours.svg)](https://pkg.go.dev/github.com/faustbrian/golib/pkg/opening-hours)
 
 Immutable, deterministic, timezone-safe recurring opening hours and dated
-exceptions for Go 1.26.5 and later.
+exceptions for Go 1.26.6 and later.
 
 The package models generic availability for service points, storefronts,
 offices, pickup locations, and support desks. It does not parse carrier prose,

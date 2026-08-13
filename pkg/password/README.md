@@ -7,7 +7,7 @@ endpoints, sessions, password reset, MFA, authorization, or reversible secrets.
 
 ## Requirements
 
-- Go 1.26.5 or newer.
+- Go 1.26.6 or newer.
 - `golang.org/x/crypto` v0.54.0.
 
 ## Install
