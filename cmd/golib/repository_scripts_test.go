@@ -101,7 +101,7 @@ func TestGateInputDigestDoesNotInspectLiveDockerForServiceModule(t *testing.T) {
 	writeTestFile(t, filepath.Join(bin, "docker"), "#!/bin/sh\nprintf 'called\\n' >>\"$FAKE_DOCKER_LOG\"\nprintf '29.6.2\\n'\n")
 	writeTestFile(t, filepath.Join(bin, "go"), `#!/bin/sh
 case "$2" in
-    GOVERSION) printf '%s\n' go1.26.5 ;;
+    GOVERSION) printf '%s\n' go1.26.6 ;;
     GOOS) printf '%s\n' linux ;;
     GOARCH) printf '%s\n' amd64 ;;
     CGO_ENABLED) printf '%s\n' 0 ;;
@@ -201,7 +201,7 @@ func TestGateInputDigestDoesNotInspectDockerForServiceFreeModule(t *testing.T) {
 	writeTestFile(t, filepath.Join(bin, "docker"), "#!/bin/sh\nprintf 'called\\n' >>\"$FAKE_DOCKER_LOG\"\nprintf '29.0.0\\n'\n")
 	writeTestFile(t, filepath.Join(bin, "go"), `#!/bin/sh
 case "$2" in
-    GOVERSION) printf '%s\n' go1.26.5 ;;
+    GOVERSION) printf '%s\n' go1.26.6 ;;
     GOOS) printf '%s\n' linux ;;
     GOARCH) printf '%s\n' amd64 ;;
     CGO_ENABLED) printf '%s\n' 0 ;;
@@ -251,7 +251,7 @@ func TestVerificationSnapshotDisablesInheritedFileSystemMonitor(t *testing.T) {
 	if err := os.MkdirAll(repository, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, filepath.Join(repository, "go.mod"), "module example.test/snapshot\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(repository, "go.mod"), "module example.test/snapshot\n\ngo 1.26.6\n")
 	for _, arguments := range [][]string{
 		{"init", "--initial-branch=main"},
 		{"config", "user.email", "golib@example.test"},
@@ -1008,7 +1008,7 @@ func TestIsolatedGoUsesTemporarySumsForOwnedModules(t *testing.T) {
 	module := t.TempDir()
 	writeTestFile(t, filepath.Join(module, "go.mod"), `module example.test/consumer
 
-go 1.26.5
+go 1.26.6
 
 require github.com/faustbrian/golib/pkg/dependency v0.0.0
 `)
@@ -1917,8 +1917,8 @@ func TestMutationDigestTracksIntegrationInputsInsteadOfDocumentation(t *testing.
 			t.Fatal(err)
 		}
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/root\n\ngo 1.26.5\n")
-	writeFile(t, filepath.Join(repository, "go.work"), `go 1.26.5
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
+	writeFile(t, filepath.Join(repository, "go.work"), `go 1.26.6
 
 use (
 	./pkg/example
@@ -1927,7 +1927,7 @@ use (
 `)
 	writeFile(t, filepath.Join(repository, "pkg", "unrelated", "go.mod"), `module example.test/unrelated
 
-go 1.26.5
+go 1.26.6
 
 require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
 `)
@@ -1939,7 +1939,7 @@ require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
     "owned_dependencies": [],
     "test_tags": [],
     "required_services": ["postgresql"],
-    "go_version": "1.26.5",
+    "go_version": "1.26.6",
     "gates": {"mutation": true},
     "packages": [
       {"directory": ".", "coverage_required": true},
@@ -1977,7 +1977,7 @@ KEYCLOAK_IMAGE=keycloak:first
 	if err := os.Chmod(filepath.Join(repository, "scripts", "gate-input-digest.sh"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(repository, "pkg", "dependency", "go.mod"), "module example.test/dependency\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "pkg", "dependency", "go.mod"), "module example.test/dependency\n\ngo 1.26.6\n")
 	dependencySum := filepath.Join(repository, "pkg", "dependency", "go.sum")
 	writeFile(t, dependencySum, "example.test/archive v0.1.0 h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n")
 	dependencySource := filepath.Join(repository, "pkg", "dependency", "dependency.go")
@@ -1988,7 +1988,7 @@ KEYCLOAK_IMAGE=keycloak:first
 	writeFile(t, dependencyFixture, "one\n")
 	writeFile(t, filepath.Join(repository, "pkg", "example", "go.mod"), `module example.test/example
 
-go 1.26.5
+go 1.26.6
 
 require example.test/dependency v0.0.0
 
@@ -2358,10 +2358,10 @@ func TestGateInputDigestTracksDocumentationOnlyForRelevantGates(t *testing.T) {
 `)
 	writeTestFile(t, filepath.Join(root, "pkg", "example", "go.mod"), `module example.test/example
 
-go 1.26.5
+go 1.26.6
 `)
 	workspace := filepath.Join(root, "go.work")
-	writeTestFile(t, workspace, "go 1.26.5\n")
+	writeTestFile(t, workspace, "go 1.26.6\n")
 	agentPolicy := filepath.Join(root, "AGENTS.md")
 	writeTestFile(t, agentPolicy, "# Agent policy\n")
 	gitleaksConfig := filepath.Join(root, ".gitleaks.toml")
@@ -2506,7 +2506,7 @@ KEYCLOAK_IMAGE=keycloak:first
 		}
 	}
 	writeTestFile(t, agentPolicy, "# Agent policy\n")
-	writeTestFile(t, workspace, "go 1.26.5\n\nuse ./pkg/unrelated\n")
+	writeTestFile(t, workspace, "go 1.26.6\n\nuse ./pkg/unrelated\n")
 	if current := digest("test"); current != testBefore {
 		t.Fatalf(
 			"unrelated workspace change altered isolated test digest: %s != %s",
@@ -2517,7 +2517,7 @@ KEYCLOAK_IMAGE=keycloak:first
 	if current := digest("benchmark"); current == benchmarkBefore {
 		t.Fatal("workspace change did not alter workspace-backed benchmark digest")
 	}
-	writeTestFile(t, workspace, "go 1.26.5\n")
+	writeTestFile(t, workspace, "go 1.26.6\n")
 	writeTestFile(t, mutationInventory, "{\"packages\":[\"unrelated\"]}\n")
 	if current := digest("test"); current != testBefore {
 		t.Fatalf(
@@ -2827,7 +2827,7 @@ func TestGateInputDigestScopesRootSecretPolicyToSecrets(t *testing.T) {
 }
 `)
 	writeTestFile(t, filepath.Join(root, "packages.json"), `{"packages":[]}`)
-	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
 	writeTestFile(t, filepath.Join(root, ".golib", "versions.env"), "GITLEAKS_VERSION=v1.0.0\n")
 	writeTestFile(t, filepath.Join(root, "scripts", "check-module.sh"), "check module\n")
 	gitleaksConfig := filepath.Join(root, ".gitleaks.toml")
@@ -2896,7 +2896,7 @@ func TestGateInputDigestScopesAPIBaselineToAPIGate(t *testing.T) {
 }
 `)
 	writeTestFile(t, filepath.Join(root, "packages.json"), `{"packages":[]}`)
-	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
 	writeTestFile(t, filepath.Join(root, ".golib", "versions.env"), "APIDIFF_VERSION=v1.0.0\n")
 	writeTestFile(t, filepath.Join(root, "scripts", "check-module.sh"), "check module\n")
 	baseline := filepath.Join(root, "api", "baseline.txt")
@@ -2963,7 +2963,7 @@ func TestGateInputDigestIgnoresVerificationOrchestrationImplementation(t *testin
 }
 `)
 	writeTestFile(t, filepath.Join(repository, "packages.json"), `{"packages":[]}`)
-	writeTestFile(t, filepath.Join(repository, "pkg/example/go.mod"), "module example.test/package\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(repository, "pkg/example/go.mod"), "module example.test/package\n\ngo 1.26.6\n")
 	writeTestFile(t, filepath.Join(repository, ".golib", "versions.env"), "")
 	for _, script := range []string{
 		"check-module.sh",
@@ -4122,7 +4122,7 @@ func TestGateEvidenceSerializesConcurrentSameGate(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
 set -eu
 printf 'stable-input\n'
@@ -4205,7 +4205,7 @@ func TestGateEvidenceRecoversOwnerlessLock(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
 set -eu
 printf 'stable-input\n'
@@ -4397,7 +4397,7 @@ func TestGateEvidencePreservesEachInputDigestAcrossSharedArtifacts(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(repository, "input-digest"), "input-a\n")
 	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
 set -eu
@@ -4980,7 +4980,7 @@ func FuzzIdentity(fuzz *testing.F) {
 	writeFile(
 		t,
 		filepath.Join(directory, "nested", "go.mod"),
-		"module example.test/nested\n\ngo 1.26.5\n",
+		"module example.test/nested\n\ngo 1.26.6\n",
 	)
 	writeFile(t, filepath.Join(directory, "nested", "nested_test.go"), `package nested
 
@@ -4996,7 +4996,7 @@ func FuzzNestedModule(f *testing.F) {
 func standaloneModule(t *testing.T, source string) string {
 	t.Helper()
 	directory := t.TempDir()
-	writeFile(t, filepath.Join(directory, "go.mod"), "module example.test/fixture\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(directory, "go.mod"), "module example.test/fixture\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(directory, "fixture.go"), source)
 	return directory
 }

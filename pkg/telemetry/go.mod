@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/telemetry
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/service v0.0.0-20260729185121-c56b7cb53124

@@ -1,6 +1,6 @@
 # Compatibility
 
-The module requires Go 1.26.5. The core module has no runtime dependencies.
+The module requires Go 1.26.6. The core module has no runtime dependencies.
 The public API fingerprint and canonical JSON grammar are checked in CI.
 
 Within JSON version `1`, canonical field meanings, operator names, value type

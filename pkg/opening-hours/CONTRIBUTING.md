@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or later. Create a conventional or Linear-style branch from
+Use Go 1.26.6 or later. Create a conventional or Linear-style branch from
 `main`, keep changes focused, and use conventional commits with explanatory
 bodies.
 

@@ -11,7 +11,7 @@ programming model. It adds deterministic composition, groups, names, safe URL
 generation, metadata, introspection, mounts, and route-scoped middleware while
 keeping handlers as ordinary `http.Handler` values.
 
-The minimum supported toolchain is Go 1.26.5. The package has no runtime
+The minimum supported toolchain is Go 1.26.6. The package has no runtime
 dependencies and no global router, reflection discovery, controller resolver,
 container, session, template, or application lifecycle.
 

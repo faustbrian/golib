@@ -11,7 +11,7 @@ benchmarked, and held to meaningful 100% production coverage.
 
 ## Requirements
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 
 ## Installation
 

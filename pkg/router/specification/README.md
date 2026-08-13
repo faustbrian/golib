@@ -2,7 +2,7 @@
 
 `manifest.tsv` pins the normative sources used by the router decision register.
 RFC sources use immutable RFC Editor text. The matcher and request contract use
-the official Go 1.26.5 source archive. SHA-256 digests make source drift
+the official Go 1.26.6 source archive. SHA-256 digests make source drift
 explicit.
 
 The module claims only its documented routing and URL-generation surface. HTTP

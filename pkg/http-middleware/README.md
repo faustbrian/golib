@@ -111,7 +111,7 @@ authoritative sources and executable evidence.
 
 ## Compatibility
 
-The minimum toolchain is Go 1.26.5. Normal tracking and header wrappers preserve
+The minimum toolchain is Go 1.26.6. Normal tracking and header wrappers preserve
 the exact `Flusher`, `Hijacker`, `Pusher`, and `ReaderFrom` set of the underlying
 writer. Buffered timeout and compression intentionally do not expose streaming
 interfaces. See [the complete matrix](docs/responsewriter.md).

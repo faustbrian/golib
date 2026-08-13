@@ -26,7 +26,7 @@ import (
 
 const (
 	canonicalRoot = "github.com/faustbrian/golib"
-	requiredGo    = "1.26.5"
+	requiredGo    = "1.26.6"
 )
 
 var ownedDependencyPseudoVersionPattern = regexp.MustCompile(
@@ -1309,7 +1309,7 @@ func specifications(directory string) []string {
 	}
 	if directory == "pkg/http-middleware" {
 		return []string{
-			"Go 1.26.5 net/http and context contracts",
+			"Go 1.26.6 net/http and context contracts",
 			"RFC 9110 HTTP Semantics",
 			"RFC 9111 HTTP Caching",
 			"RFC 7239 Forwarded HTTP Extension",
@@ -1333,7 +1333,7 @@ func specifications(directory string) []string {
 	}
 	if directory == "pkg/router" {
 		return []string{
-			"Go 1.26.5 net/http and net/url contracts",
+			"Go 1.26.6 net/http and net/url contracts",
 			"RFC 3986 URI Generic Syntax",
 			"RFC 9110 HTTP Semantics",
 			"RFC 9112 HTTP/1.1 request-target forms",
@@ -1341,7 +1341,7 @@ func specifications(directory string) []string {
 	}
 	if directory == "pkg/wire" {
 		return []string{
-			"Go 1.26.5 encoding/json and encoding/xml contracts",
+			"Go 1.26.6 encoding/json and encoding/xml contracts",
 			"RFC 8259 JSON",
 			"XML 1.0 Fifth Edition and Namespaces in XML 1.0 Third Edition",
 			"SOAP 1.1 and SOAP 1.2 Part 1 Second Edition",
@@ -1380,7 +1380,7 @@ func specifications(directory string) []string {
 	}
 	if directory == "pkg/webhook" {
 		return []string{
-			"Go 1.26.5 cryptography, HTTP, URL, address, time, and encoding contracts",
+			"Go 1.26.6 cryptography, HTTP, URL, address, time, and encoding contracts",
 			"RFC 2104 HMAC and RFC 4231 HMAC-SHA-256/HMAC-SHA-512 vectors",
 			"RFC 4648 Base-N Encodings",
 			"RFC 3986 URI Generic Syntax",

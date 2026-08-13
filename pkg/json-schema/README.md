@@ -11,7 +11,7 @@ executable compatibility evidence, not by itself a `v1.0.0` release claim.
 The module remains pre-v1 until every gate in [Conformance](docs/conformance.md)
 and [Releasing](RELEASING.md) is satisfied.
 
-The minimum supported toolchain is Go 1.26.5.
+The minimum supported toolchain is Go 1.26.6.
 
 ## Quick start
 

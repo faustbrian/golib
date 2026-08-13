@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/IBM/sarama v1.60.1

@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/correlation
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/identifier v0.0.0-20260729183302-ac9562ceb0b5

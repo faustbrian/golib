@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 and make focused changes. New behavior starts with a failing test
+Use Go 1.26.6 and make focused changes. New behavior starts with a failing test
 that proves the missing contract. Security decisions need boundary, malformed,
 cancellation, panic, and ordering cases.
 

@@ -9,7 +9,7 @@ compatibility impact, and why the behavior belongs in this generic package.
 
 Requirements:
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - Git
 - `golangci-lint` v2
 - network access on the first mutation run so the pinned Gremlins binary can

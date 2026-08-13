@@ -117,7 +117,7 @@ mappings, phone validity, postal controls, dataset classification, and bounded
 parse-error kinds. These selected mutants remain in addition to, rather than
 as a substitute for, the automated branch/operator analysis.
 
-The 2026-07-16 reference run used Go 1.26.5 on darwin/arm64, Apple M4 Max:
+The 2026-07-16 reference run used Go 1.26.6 on darwin/arm64, Apple M4 Max:
 
 | Benchmark | Result | Allocations |
 |---|---:|---:|
@@ -131,7 +131,7 @@ These numbers are a reproducibility reference, not cross-hardware pass/fail
 thresholds. Compare regressions on the same Go version, architecture, and
 hardware.
 
-[Go 1.26.5](https://go.dev/doc/devel/release) is both the module minimum and
+[Go 1.26.6](https://go.dev/doc/devel/release) is both the module minimum and
 the official stable release verified at implementation time. Workflow actions,
 Go tools, module dependencies, dataset versions, source checksums, and
 generator identity are pinned.

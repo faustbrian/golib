@@ -19,7 +19,7 @@ also consume durable desired state through the typed client. See
 
 ## Five-minute local start
 
-Prerequisites: Go 1.26.5 or newer and an empty PostgreSQL database reachable
+Prerequisites: Go 1.26.6 or newer and an empty PostgreSQL database reachable
 through `DATABASE_URL`.
 
 Create `/tmp/queue-control-access.json` outside version control:

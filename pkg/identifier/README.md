@@ -7,7 +7,7 @@ clock, entropy, ordering, leakage, and persistence contract; an identifier is
 never treated as a secret, authorization fact, idempotency proof, or tracing
 context merely because it is unique.
 
-The minimum toolchain is Go 1.26.5. Random generators use `crypto/rand` by
+The minimum toolchain is Go 1.26.6. Random generators use `crypto/rand` by
 default and own all mutable state. Tests can inject deterministic clocks and
 entropy through `idtest`.
 

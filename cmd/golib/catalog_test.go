@@ -758,7 +758,7 @@ func TestHTTPClientSpecificationCatalogMetadata(t *testing.T) {
 func TestHTTPMiddlewareSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/http-middleware"); !slices.Equal(got, []string{
-		"Go 1.26.5 net/http and context contracts",
+		"Go 1.26.6 net/http and context contracts",
 		"RFC 9110 HTTP Semantics",
 		"RFC 9111 HTTP Caching",
 		"RFC 7239 Forwarded HTTP Extension",
@@ -780,7 +780,7 @@ func TestHTTPMiddlewareSpecificationCatalogMetadata(t *testing.T) {
 func TestRouterSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/router"); !slices.Equal(got, []string{
-		"Go 1.26.5 net/http and net/url contracts",
+		"Go 1.26.6 net/http and net/url contracts",
 		"RFC 3986 URI Generic Syntax",
 		"RFC 9110 HTTP Semantics",
 		"RFC 9112 HTTP/1.1 request-target forms",

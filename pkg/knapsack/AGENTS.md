@@ -1,7 +1,7 @@
 # Codex project rules
 
 Work in this module follows the repository instructions supplied with the
-project. Use Go 1.26.5, preserve exact arithmetic, write behavior tests first,
+project. Use Go 1.26.6, preserve exact arithmetic, write behavior tests first,
 run the relevant Make target before claiming success, and commit only explicit
 `knapsack` paths with conventional commit subjects and explanatory bodies.
 

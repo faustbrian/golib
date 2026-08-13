@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/idempotency v0.0.0

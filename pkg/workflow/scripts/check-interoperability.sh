@@ -23,7 +23,7 @@ export GOMODCACHE="${task_modcache}"
 export GOWORK=off
 
 go mod init workflow-interoperability.invalid/test
-go mod edit -go=1.26.5
+go mod edit -go=1.26.6
 go mod edit -require=github.com/faustbrian/golib/pkg/workflow@v0.0.0
 go mod edit -require=github.com/faustbrian/golib/pkg/outbox@v0.0.0
 go mod edit -require=github.com/faustbrian/golib/pkg/kafka@v0.0.0

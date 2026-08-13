@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or later. Keep civil values independent from instants, clocks,
+Use Go 1.26.6 or later. Keep civil values independent from instants, clocks,
 global state, and elapsed durations. New behavior starts with a failing focused
 test and must preserve exact production coverage.
 

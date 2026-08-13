@@ -607,7 +607,7 @@ review. Superseded entries remain in this file and link to their replacement.
   preserves explicit response metadata, and status and method rules determine
   whether zero content length is emitted. A zero-length response backed by a
   non-sentinel body is rejected because the writer determines its framing by
-  probing body bytes that canonicalization cannot consume safely. Go 1.26.5
+  probing body bytes that canonicalization cannot consume safely. Go 1.26.6
   `Response.Write` still classifies 205 as body-bearing despite RFC
   9110 Section 15.3.6 forbidding server-generated 205 content. The low-level
   `ResponseTransportWrite` model follows those actual Go wire bytes to prevent

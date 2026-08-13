@@ -68,7 +68,7 @@ fallback, virtual-terminal interaction, forms, progress, and tables.
 
 ## Development
 
-Go 1.26.5 is the initial minimum toolchain. All commands must run with
+Go 1.26.6 is the initial minimum toolchain. All commands must run with
 `GOWORK=off` so the module is verified independently of sibling checkouts.
 
 ```sh

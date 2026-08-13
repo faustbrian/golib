@@ -90,7 +90,7 @@
     }
   },
   "go": {
-    "minimum": "1.26.5",
+    "minimum": "1.26.6",
     "verified": "2026-07-18",
     "source": "https://go.dev/dl/"
   }

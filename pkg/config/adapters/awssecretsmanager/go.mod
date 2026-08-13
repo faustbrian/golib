@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/config/adapters/awssecretsmanager
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.2

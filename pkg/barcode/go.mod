@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/barcode
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/ericlevine/zxinggo v0.1.0

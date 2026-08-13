@@ -44,7 +44,7 @@ separate registers because they are independent modules and standards surfaces.
 
 ## Audited dependency lines
 
-The July 2026 audit used Go 1.26.5 with JWX v3.1.1, `httprc` v3.0.5,
+The July 2026 audit used Go 1.26.6 with JWX v3.1.1, `httprc` v3.0.5,
 coreos/go-oidc v3.20.0, go-jose v4.1.4, and OpenTelemetry v1.44.0. CI's
 optional-module matrices test the declared versions and latest compatible
 minor versions. This list records the audited baseline; module files and CI

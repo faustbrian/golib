@@ -46,7 +46,7 @@ The repository pins the following release-verification inputs in
 
 | Tool or runtime | Version |
 | --- | --- |
-| Go | 1.26.5 |
+| Go | 1.26.6 |
 | golangci-lint | 2.12.2 |
 | Staticcheck | 0.7.0 |
 | NilAway | `9fd1b8d7bac8` pseudo-version |

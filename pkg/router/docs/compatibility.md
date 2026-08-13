@@ -1,6 +1,6 @@
 # Standard-library Compatibility
 
-The minimum supported Go release and development toolchain are 1.26.5, the
+The minimum supported Go release and development toolchain are 1.26.6, the
 latest stable release when this contract was written.
 
 ## Preserved behavior

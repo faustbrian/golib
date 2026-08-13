@@ -123,7 +123,7 @@ expect_failure "$missing_windows_gate" \
 
 hardcoded_toolchain="$temporary/hardcoded-toolchain"
 write_valid_workflow "$hardcoded_toolchain"
-sed -i.bak 's/go-version-file: .go-version/go-version: 1.26.5/' \
+sed -i.bak 's/go-version-file: .go-version/go-version: 1.26.6/' \
 	"$hardcoded_toolchain/ci.yml"
 rm "$hardcoded_toolchain/ci.yml.bak"
 expect_failure "$hardcoded_toolchain" \

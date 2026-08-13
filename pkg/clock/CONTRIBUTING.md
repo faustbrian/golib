@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or newer within the Go 1.26 release line. Keep the module focused
+Use Go 1.26.6 or newer within the Go 1.26 release line. Keep the module focused
 on clock capabilities; calendar arithmetic, scheduling, and distributed-time
 protocols are out of scope.
 

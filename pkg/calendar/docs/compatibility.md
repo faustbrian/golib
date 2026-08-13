@@ -1,6 +1,6 @@
 # Compatibility
 
-The minimum toolchain is Go 1.26.5, the latest stable release at implementation
+The minimum toolchain is Go 1.26.6, the latest stable release at implementation
 time. The module supports standard-library IANA behavior on Linux, macOS, and
 Windows. Timezone results follow the installed or embedded tzdata snapshot.
 

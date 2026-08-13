@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/knapsack/objective/gomoney
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/international v0.0.0

@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/fault-injection/integration/resilience
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/circuit-breaker v0.0.0

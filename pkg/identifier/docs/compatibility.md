@@ -1,6 +1,6 @@
 # Compatibility
 
-The module requires Go 1.26.5. Public compatibility follows semantic
+The module requires Go 1.26.6. Public compatibility follows semantic
 versioning. Canonical text and binary encodings are persistence contracts.
 
 UUID behavior follows RFC 9562 canonical text and RFC variant/version bits.

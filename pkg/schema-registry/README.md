@@ -56,7 +56,7 @@ hidden network I/O.
 - [Conformance and hardening matrix](docs/conformance.md)
 - [FAQ](docs/faq.md)
 
-The minimum supported toolchain is Go 1.26.5. The module is pre-v1; see
+The minimum supported toolchain is Go 1.26.6. The module is pre-v1; see
 [CHANGELOG.md](CHANGELOG.md) and [RELEASING.md](RELEASING.md).
 
 `make clean-consumer` compiles the core, all format adapters, and both provider

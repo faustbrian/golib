@@ -13,7 +13,7 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; router maintainers; Go
   interoperability policy.
-- **Source and issue:** Go 1.26.5 [`ServeMux`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+- **Source and issue:** Go 1.26.6 [`ServeMux`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go)
   defines patterns, specificity, wildcards, path values, and redirects, but a
   router could copy or reinterpret those rules.
 - **Interpretations and peer behavior:** Delegate, copy internals, implement a
@@ -35,8 +35,8 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   startup policy.
-- **Source and issue:** Go 1.26.5
-  [`ServeMux.Handle`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+- **Source and issue:** Go 1.26.6
+  [`ServeMux.Handle`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go)
   panics for malformed or conflicting patterns. A reusable startup API must
   decide which panics become errors and whether failed compilation mutates
   publication state.
@@ -111,7 +111,7 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; Go-compatible
   redirect behavior with explicit defensive override.
-- **Source and issue:** Go 1.26.5 ServeMux canonicalizes paths and subtree roots;
+- **Source and issue:** Go 1.26.6 ServeMux canonicalizes paths and subtree roots;
   RFC 3986 [path syntax](https://www.rfc-editor.org/rfc/rfc3986.html#section-3.3)
   distinguishes separators from percent-encoded data. Rejecting redirects by
   decoded path can misclassify encoded slash or dot text.
@@ -161,7 +161,7 @@ Superseded decisions remain linked from their replacements.
 - **Status, owner, and classification:** `resolved`; maintainers; application
   composition policy.
 - **Source and issue:** Go's
-  [`net/http.Handler`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+  [`net/http.Handler`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go)
   and HTTP do not define route groups, prefix joining, metadata merge, naming,
   or callback failure semantics.
 - **Interpretations and peer behavior:** Mutate a shared group, clean paths,
@@ -187,7 +187,7 @@ Superseded decisions remain linked from their replacements.
 - **Status, owner, and classification:** `resolved`; maintainers; explicit
   composition and lifecycle policy.
 - **Source and issue:** Go's
-  [`http.Handler`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+  [`http.Handler`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go)
   permits decorators but defines no router, group, mount, route order,
   exclusion, duplicate-name, panic, or recovery behavior.
 - **Interpretations and peer behavior:** Resolve aliases globally, instantiate
@@ -212,7 +212,7 @@ Superseded decisions remain linked from their replacements.
 - **Status, owner, and classification:** `resolved`; maintainers; Go request
   interoperability and defensive path policy.
 - **Source and issue:** Go's
-  [`StripPrefix`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+  [`StripPrefix`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go)
   and HTTP do not define this package's mounted-handler prefix stripping,
   `RawPath`, `RequestURI`, inherited path values, or mutation ownership.
 - **Interpretations and peer behavior:** Mutate the original request, use
@@ -234,8 +234,8 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; Go-compatible
   parameter behavior plus bounded application metadata policy.
-- **Source and issue:** Go 1.26.5
-  [`Request.PathValue`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/request.go)
+- **Source and issue:** Go 1.26.6
+  [`Request.PathValue`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/request.go)
   owns route parameters but does not expose a public immutable route table or
   matched-route descriptor.
   A parallel parameter API risks divergence; raw metadata risks disclosure and

@@ -16,7 +16,7 @@ and a purpose-built secret manager for storage and distribution.
 go get github.com/faustbrian/golib/pkg/keyphrase
 ```
 
-The module requires Go 1.26.5 or later.
+The module requires Go 1.26.6 or later.
 
 ## Password quick start
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5, keep public values immutable, and preserve the distinction
+Use Go 1.26.6, keep public values immutable, and preserve the distinction
 between instants, civil dates, local times, and fixed elapsed durations.
 
 Behavior changes start with a failing test. Mathematical changes require an

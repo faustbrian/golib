@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or newer within the Go 1 compatibility promise. Preserve strict
+Use Go 1.26.6 or newer within the Go 1 compatibility promise. Preserve strict
 FIFO admission, exact permit conservation, bounded identity and queues,
 callback-outside-lock behavior, and explicit process-local semantics.
 

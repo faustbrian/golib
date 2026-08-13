@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/outbox/adapters/otel
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/outbox v0.0.0-20260731034205-0d6ce6b909dd

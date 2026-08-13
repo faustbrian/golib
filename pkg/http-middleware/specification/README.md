@@ -4,7 +4,7 @@
 decision register. RFC sources use immutable RFC Editor text. Fetch, URL, and
 Referrer Policy use exact commits from their official standards repositories
 because their published specifications are living documents. The Go runtime
-contract uses the official Go 1.26.5 source archive. SHA-256 digests make
+contract uses the official Go 1.26.6 source archive. SHA-256 digests make
 source drift explicit.
 
 The canonical

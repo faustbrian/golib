@@ -27,7 +27,7 @@ type Generated struct{}
 `)
 
 	current := catalog{
-		GoVersion: "1.26.5",
+		GoVersion: "1.26.6",
 		Modules: []module{{
 			Directory: "pkg/clock",
 			Path:      "example.com/clock",

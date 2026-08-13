@@ -1,6 +1,6 @@
 # Compatibility
 
-The module targets Go 1.26.5. Public API compatibility is checked against
+The module targets Go 1.26.6. Public API compatibility is checked against
 `api/baseline.txt`. The only runtime dependencies are `identifier` for
 secure default generation and OpenTelemetry trace contracts for optional
 links.

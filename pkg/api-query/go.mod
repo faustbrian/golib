@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/api-query
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/jsonapi v0.0.0

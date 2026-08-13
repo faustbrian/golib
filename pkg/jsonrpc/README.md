@@ -12,7 +12,7 @@ code is held to meaningful 100% statement coverage.
 
 ## Requirements
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - no runtime dependencies outside the standard library
 
 ## Installation

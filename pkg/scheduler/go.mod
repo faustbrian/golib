@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/scheduler
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/correlation v0.0.0-20260729185016-600a2ffaf74d

@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or newer. Keep changes focused, format with `gofmt`, and run
+Use Go 1.26.6 or newer. Keep changes focused, format with `gofmt`, and run
 `make check` plus `go test -race ./...` before review.
 Use `make check-release` for the tool-backed coverage, mutation, static
 analysis, API, documentation, vulnerability, workflow, and benchmark gates.

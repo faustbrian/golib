@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/international
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/config v0.0.0-20260726073655-a21275ce5b48

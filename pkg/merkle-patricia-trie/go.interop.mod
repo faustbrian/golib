@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/merkle-patricia-trie
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/ethereum/go-ethereum v1.17.3

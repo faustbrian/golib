@@ -18,7 +18,7 @@ trap cleanup EXIT
 cd "$consumer"
 export GOWORK=off GOCACHE="$go_cache" GOMODCACHE="$module_cache" GOPATH="$go_path"
 go mod init example.com/schema-registry-consumer >/dev/null
-go mod edit -go=1.26.5 \
+go mod edit -go=1.26.6 \
 	-require=github.com/faustbrian/golib/pkg/schema-registry@v0.0.0 \
 	-require=github.com/faustbrian/golib/pkg/schema-registry/providers/confluent@v0.0.0 \
 	-require=github.com/faustbrian/golib/pkg/schema-registry/providers/glue@v0.0.0 \

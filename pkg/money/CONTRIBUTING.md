@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or newer and work from the repository's required branch workflow.
+Use Go 1.26.6 or newer and work from the repository's required branch workflow.
 Behavior changes begin with a failing focused test and preserve the exact
 currency, context, and conservation contracts.
 

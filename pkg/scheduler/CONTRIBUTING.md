@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or later. Run `make check` before submitting a change. Behavior
+Use Go 1.26.6 or later. Run `make check` before submitting a change. Behavior
 changes require a failing test first and meaningful assertions.
 
 Live adapter tests use:

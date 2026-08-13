@@ -81,7 +81,7 @@ See [usage](docs/usage.md), [API](docs/api.md), [model](docs/model.md),
 
 ## Development
 
-Go 1.26.5 is the initial minimum toolchain. `make check` is the ordinary local
+Go 1.26.6 is the initial minimum toolchain. `make check` is the ordinary local
 and pull-request gate. `make release-check` adds complete mutation and
 benchmark comparison for the current monorepo workspace. `make publish-check`
 additionally requires versioned dependencies without local replacements. No

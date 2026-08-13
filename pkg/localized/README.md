@@ -19,7 +19,7 @@ translation loading, language detection, or global locale policy.
 go get github.com/faustbrian/golib/pkg/localized
 ```
 
-Go 1.26.5 or later is required.
+Go 1.26.6 or later is required.
 
 ## Five-minute tour
 

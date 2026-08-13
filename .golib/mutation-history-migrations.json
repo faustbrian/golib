@@ -4242,6 +4242,156 @@
       "gremlins_version": "v0.6.0",
       "report_sha256": "99a7874cfd79bebf768ae365e355816a64bf88279f6f72e0f822451490f4c680",
       "migration_reason": "corrected-real-cluster-alias-observer"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "alerts",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "7a4fac7bf12007cc468b0928449d3968ead7001f012d19878c00b163b638701a",
+      "replacement_gate_input_digest": "803eedc2fac51f775babc957f67bf5ea4140e21c580d43fe106b0dc73806c635",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "ac0c51d808f4b81892647e3b78ccbf1abdb0b931940d7d64ba8459da9bffaa1c",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "apihttp",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "14b9432cb077b047465f3384b3e027b0aac774d85194a126d1877f9574617ac2",
+      "replacement_gate_input_digest": "90cc4d536ba45bc35ca72563c2fbc50b941b4d3be6afbd2f06a6910572a45b6c",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "69d4275d0f4ab56d7be87cbc55e5fbcbd3aaa328069a267cc0ec25a137a13d64",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "authz",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "2019c7e6cd0bdf728aa8c174ae9df2a5751ea4543719847b67cfafa5be4a13e2",
+      "replacement_gate_input_digest": "7229f4b5f67250f66167bdb07c057a2afad26780dbe98005cb77b11c2423550b",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "14b8aee0d41949c2335a573d189dafc97d7dc92c0618302074a42c53ceccd9d4",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "cli",
+      "execution_revision": "6c43418f7bbf85f31adcda331dabb6d6439aae94",
+      "gate_input_digest": "675ec9c1ad95c3b67c819225f0a43694b4c570c47e5029c6863eaf0cf1e1bb0f",
+      "replacement_gate_input_digest": "028577a90445ad2172d67a4d81e47c568e61cb69cd9ffc82a6e8194e40123b23",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "d5766dc90a655d5e960fe2040d56a0af70522842758eba6b5e03d9a1ef66ea3c",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "client",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "70f115896e25e0c900680f3b362c63747671e636b8be72cb6b87293b8630abe2",
+      "replacement_gate_input_digest": "6deb2c6d0e962d586691650cf1c1a6f22f9a587a502908708ccb964566abfbfb",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "2d459671223048fc1f4f6812721794bc6ea08d768653fe9c85a1b8884250f826",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "cmd/queue-control",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "0d5426876cadfe3c0fef878df456ff70d7a3eaed6d576ba4ccc2be6e738ae8bd",
+      "replacement_gate_input_digest": "0acc87c764bb6c28e16a346f5187492872052748ffedc1e2aa6f62901a436c6b",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "6099e22f117ee245f34dd063d0a1e502d44ac74714f1012514a4ddae4bf5ac0d",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "control",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "8021c24e5579af4715fc814f5c50f985ca24ad0e8e309f668c47d1cf009af457",
+      "replacement_gate_input_digest": "c3a9bfb934957c2db67815dd4d4520addf7d82b878fc1c3300e67163d905992c",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "54ce207b67aa9668bff274bdaec4b9dc155c619f31a0da696f77d764790f4e33",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "dataplane",
+      "execution_revision": "98d426983abd9e0462c67e92d7a94015dd066efc",
+      "gate_input_digest": "f71c1c62559b909e2bee4a05bf609a24d62cfc5ee786ed95d98e01bc1f99af15",
+      "replacement_gate_input_digest": "e9dc886cbafb4a5bb051927475fc75c2f8cccbfdf9e58de022f3bf6ff7fe4101",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "6d7cb1988583e820752500f463e3bbdaeab163c9b249fb2f93eab56ba196178e",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "fleet",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "8e1f6453052520907137a9130646f22f5efd93b884fe9fa6aa69731bb66e3580",
+      "replacement_gate_input_digest": "712e45ccb9ab4c8d4a118be3830a2ad075b1b4cac596fb460f822e1084a50111",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "9100666cb7f1720a9b17ec7bb95d9de425a9cc5377113672880cb7c5638d769a",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "history",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "1f2e66a86817ec690d4b8036a30312e1738445e7d12c2c13518fba18051cc831",
+      "replacement_gate_input_digest": "1b980c0d32798813a6d426c8e8e041ed93f94ce64c2a215cebf548b064d7da5f",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "01d7c39fcf0a7793d41ac429e35449d5fd5d1638e45d88bfa3ca05042ef90cb6",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "kubernetes",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "b77d57d82cb7c3fdef8588a39f009f44786a163c53bc0ab550fc4011e95178d6",
+      "replacement_gate_input_digest": "0620cba59dcfd0241dd6c6e23e114c5723f519bb0a981c08a225add63097505b",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "853688a97dbab227ae230152f790ac2fc0725e532c0c229f9de3816c4eb36ef3",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "postgres",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "3509d5c4cfb86472cf131c0f092ab14ef17b8fe8bdd9710d8f0c38b4a0798cc6",
+      "replacement_gate_input_digest": "2333d2b08d76ac9bf2e7e11ce4d9936294d54af7981cc843a3f7b771984bbeb4",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "3288580c42de42a648e6a4ec83005d5ea63f3c8bd884435e8b5ac423c724e048",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": ".",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "48a970036bd11fdf3eef2f0d8110fcce62e456a9c420b30f7f894e5d5aa2b956",
+      "replacement_gate_input_digest": "34ab012cd60290ae1dd693e91698dd9f12dffc88779f5d3c5120c421682b5b95",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "860a94eff9f82428aec26b54267ce210e466a8216b78427a3866977029764c5b",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "server",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "8c80be2595aca35d46a9dfe14bed959414670a6a128f58784682387915e1c1f6",
+      "replacement_gate_input_digest": "8c9ed6314c383df90694f07ae82e5bc7fc0b9f777a81d232320c2292ea51b0e6",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "f52a0c664d2a437b731b7ce4c6ebfd914d5c1a8832bd08c8e973e79c6e3190a4",
+      "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "package": "ui",
+      "execution_revision": "350a565dff8d9a0d42b870af80adccba4b9f65a9",
+      "gate_input_digest": "4a00cd80922c9b506b64368e5745c961b31ddac163957fd3c597b6eee5050ab5",
+      "replacement_gate_input_digest": "ef656120472bd8bd722b84207b5588d2f793ae60dd9c1d7e895a8f3661420dfb",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "72094c8b2dcf0bfb4f1d7ef1e19f4be87352e3165051f0a9f28b3169215a5896",
+      "migration_reason": "go-patch-toolchain-migration"
     }
   ]
 }

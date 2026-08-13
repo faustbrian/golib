@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/http-client
 
-go 1.26.5
+go 1.26.6
 
 require golang.org/x/oauth2 v0.36.0
 

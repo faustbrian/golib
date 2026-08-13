@@ -4,7 +4,7 @@
 
 | Component | Pinned baseline | Role |
 |---|---|---|
-| Go | 1.26.5 | minimum language and iterator contract |
+| Go | 1.26.6 | minimum language and iterator contract |
 | `international/locale` | `v0.0.0-20260717012043-f6e9bbc622bd` | public BCP 47 identity and provenance |
 | `golang.org/x/text` | v0.40.0 | private CLDR matching and Unicode normalization |
 | pgx | v5.10.0 | JSONB and PostgreSQL integration |

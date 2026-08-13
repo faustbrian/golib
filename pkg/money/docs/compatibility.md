@@ -1,6 +1,6 @@
 # Compatibility
 
-The minimum supported toolchain is Go 1.26.5. Public API compatibility is
+The minimum supported toolchain is Go 1.26.6. Public API compatibility is
 captured in `api/v1.txt` and checked with `x/exp/cmd/apidiff`.
 
 Persistence compatibility is independent of Go API compatibility. Version-1

@@ -5,7 +5,7 @@ immutable, storage-neutral plan. It covers field projection, relationships,
 typed filters, deterministic sorting, cursor or offset pagination, conservative
 costs, and strict transport adapters without becoming an ORM or SQL language.
 
-The minimum supported toolchain is Go 1.26.5.
+The minimum supported toolchain is Go 1.26.6.
 
 ## Five-minute JSON-RPC quickstart
 

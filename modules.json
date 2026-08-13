@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "repository": "github.com/faustbrian/golib",
-  "go_version": "1.26.5",
+  "go_version": "1.26.6",
   "modules": [
     {
       "directory": ".",
       "module_path": "github.com/faustbrian/golib",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": ".",
@@ -804,7 +804,7 @@
     {
       "directory": "pkg/adaptive-throttle",
       "module_path": "github.com/faustbrian/golib/pkg/adaptive-throttle",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/adaptive-throttle",
@@ -935,7 +935,7 @@
     {
       "directory": "pkg/analysis",
       "module_path": "github.com/faustbrian/golib/pkg/analysis",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/analysis",
@@ -1391,7 +1391,7 @@
     {
       "directory": "pkg/analysis/testdata/coverage",
       "module_path": "example.com/analysis-coverage",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/analysis/testdata/coverage",
@@ -1441,7 +1441,7 @@
     {
       "directory": "pkg/api-query",
       "module_path": "github.com/faustbrian/golib/pkg/api-query",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/api-query",
@@ -1677,7 +1677,7 @@
     {
       "directory": "pkg/audit",
       "module_path": "github.com/faustbrian/golib/pkg/audit",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/audit",
@@ -1826,7 +1826,7 @@
     {
       "directory": "pkg/audit/postgres",
       "module_path": "github.com/faustbrian/golib/pkg/audit/postgres",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/audit/postgres",
@@ -1889,7 +1889,7 @@
     {
       "directory": "pkg/authentication",
       "module_path": "github.com/faustbrian/golib/pkg/authentication",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/authentication",
@@ -2152,7 +2152,7 @@
     {
       "directory": "pkg/authentication/authotel",
       "module_path": "github.com/faustbrian/golib/pkg/authentication/authotel",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/authentication/authotel",
@@ -2284,7 +2284,7 @@
     {
       "directory": "pkg/authentication/jwt",
       "module_path": "github.com/faustbrian/golib/pkg/authentication/jwt",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/authentication/jwt",
@@ -2436,7 +2436,7 @@
     {
       "directory": "pkg/authentication/oidc",
       "module_path": "github.com/faustbrian/golib/pkg/authentication/oidc",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/authentication/oidc",
@@ -2587,7 +2587,7 @@
     {
       "directory": "pkg/authorization",
       "module_path": "github.com/faustbrian/golib/pkg/authorization",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/authorization",
@@ -2935,7 +2935,7 @@
     {
       "directory": "pkg/authorization/integration/contracts",
       "module_path": "github.com/faustbrian/golib/pkg/authorization/integration/contracts",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -2981,7 +2981,7 @@
     {
       "directory": "pkg/barcode",
       "module_path": "github.com/faustbrian/golib/pkg/barcode",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/barcode",
@@ -3354,7 +3354,7 @@
     {
       "directory": "pkg/bulkhead",
       "module_path": "github.com/faustbrian/golib/pkg/bulkhead",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/bulkhead",
@@ -3498,7 +3498,7 @@
     {
       "directory": "pkg/bulkhead/benchmarks/comparison",
       "module_path": "github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "This non-releasable benchmark module isolates comparison dependencies from the public bulkhead module. It measures capacity-one admitted and saturated paths for the local bulkhead, direct `x/sync/semaphore`, Failsafe-Go, and Fortify.",
       "lifecycle": "internal",
@@ -3541,7 +3541,7 @@
     {
       "directory": "pkg/bulkhead/integration/resilience",
       "module_path": "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "This non-releasable integration module proves the application-owned resilience ordering through the public bulkhead, retry, and circuit-breaker contracts. Local bulkhead admission failure remains a permanent retry outcome and occurs before circuit-breaker admission, so it neither amplifies attempts nor records a downstream failure.",
       "lifecycle": "internal",
@@ -3583,7 +3583,7 @@
     {
       "directory": "pkg/cache",
       "module_path": "github.com/faustbrian/golib/pkg/cache",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/cache",
@@ -3924,7 +3924,7 @@
     {
       "directory": "pkg/calendar",
       "module_path": "github.com/faustbrian/golib/pkg/calendar",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/calendar",
@@ -4059,7 +4059,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`calendar` provides immutable civil dates, Gregorian calendar arithmetic, typed calendar periods, explicit DST conversion, and bounded business calendars for Go 1.26.5 and later.",
+      "purpose": "`calendar` provides immutable civil dates, Gregorian calendar arithmetic, typed calendar periods, explicit DST conversion, and bounded business calendars for Go 1.26.6 and later.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -4189,7 +4189,7 @@
     {
       "directory": "pkg/capability",
       "module_path": "github.com/faustbrian/golib/pkg/capability",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/capability",
@@ -4388,7 +4388,7 @@
     {
       "directory": "pkg/circuit-breaker",
       "module_path": "github.com/faustbrian/golib/pkg/circuit-breaker",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/circuit-breaker",
@@ -4618,7 +4618,7 @@
     {
       "directory": "pkg/circuit-breaker/integration/consumers",
       "module_path": "github.com/faustbrian/golib/pkg/circuit-breaker/integration/consumers",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -4658,7 +4658,7 @@
     {
       "directory": "pkg/cli",
       "module_path": "github.com/faustbrian/golib/pkg/cli",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/cli",
@@ -4866,7 +4866,7 @@
     {
       "directory": "pkg/cli/benchmarks",
       "module_path": "github.com/faustbrian/golib/pkg/cli/benchmarks",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -4910,7 +4910,7 @@
     {
       "directory": "pkg/clock",
       "module_path": "github.com/faustbrian/golib/pkg/clock",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/clock",
@@ -5079,7 +5079,7 @@
     {
       "directory": "pkg/cloudevents",
       "module_path": "github.com/faustbrian/golib/pkg/cloudevents",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/cloudevents",
@@ -5223,7 +5223,7 @@
     {
       "directory": "pkg/cloudevents/adapters/golib",
       "module_path": "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/cloudevents/adapters/golib",
@@ -5364,7 +5364,7 @@
     {
       "directory": "pkg/concurrency-limit",
       "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/concurrency-limit",
@@ -5498,7 +5498,7 @@
     {
       "directory": "pkg/concurrency-limit/benchmarks/comparison",
       "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/concurrency-limit/benchmarks/comparison",
@@ -5565,7 +5565,7 @@
     {
       "directory": "pkg/concurrency-limit/integration/resilience",
       "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "This non-releasable integration module proves application-owned composition through the public adaptive limiter, retry, and hedge contracts. Local admission rejection remains a permanent retry outcome, and every hedge attempt must acquire its own limiter permit before invoking downstream work.",
       "lifecycle": "internal",
@@ -5607,7 +5607,7 @@
     {
       "directory": "pkg/config",
       "module_path": "github.com/faustbrian/golib/pkg/config",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/config",
@@ -6017,7 +6017,7 @@
     {
       "directory": "pkg/config/adapters/awssecretsmanager",
       "module_path": "github.com/faustbrian/golib/pkg/config/adapters/awssecretsmanager",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/config/adapters/awssecretsmanager",
@@ -6076,7 +6076,7 @@
     {
       "directory": "pkg/correlation",
       "module_path": "github.com/faustbrian/golib/pkg/correlation",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/correlation",
@@ -6329,7 +6329,7 @@
     {
       "directory": "pkg/correlation/integration/siblings",
       "module_path": "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -6374,7 +6374,7 @@
     {
       "directory": "pkg/ecma-regexp",
       "module_path": "github.com/faustbrian/golib/pkg/ecma-regexp",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/ecma-regexp",
@@ -6543,7 +6543,7 @@
     {
       "directory": "pkg/event-sourcing",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/event-sourcing",
@@ -6740,7 +6740,7 @@
     {
       "directory": "pkg/event-sourcing/adapters/gokafka",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/event-sourcing/adapters/gokafka",
@@ -6875,7 +6875,7 @@
     {
       "directory": "pkg/event-sourcing/adapters/gotelemetry",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/event-sourcing/adapters/gotelemetry",
@@ -7007,7 +7007,7 @@
     {
       "directory": "pkg/event-sourcing/adapters/outbox",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/event-sourcing/adapters/outbox",
@@ -7141,7 +7141,7 @@
     {
       "directory": "pkg/event-sourcing/adapters/queue",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/event-sourcing/adapters/queue",
@@ -7273,7 +7273,7 @@
     {
       "directory": "pkg/event-sourcing/benchmarks/competitors",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "This non-releasable module isolates comparison dependencies from the event-sourcing core. It compares equivalent observable work and keeps correctness checks separate from timing.",
       "lifecycle": "internal",
@@ -7317,7 +7317,7 @@
     {
       "directory": "pkg/event-sourcing/postgres",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/postgres",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/event-sourcing/postgres",
@@ -7451,7 +7451,7 @@
     {
       "directory": "pkg/external-sort",
       "module_path": "github.com/faustbrian/golib/pkg/external-sort",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/external-sort",
@@ -7584,7 +7584,7 @@
     {
       "directory": "pkg/fault-injection",
       "module_path": "github.com/faustbrian/golib/pkg/fault-injection",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/fault-injection",
@@ -7716,7 +7716,7 @@
     {
       "directory": "pkg/fault-injection/benchmarks/comparison",
       "module_path": "github.com/faustbrian/golib/pkg/fault-injection/benchmarks/comparison",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "This non-releasable module isolates comparison dependencies from the core fault-injection module. All candidates return a caller-visible error. The fault-injection and goresilience cases prevent the wrapped operation from running; the direct double is the minimum equivalent test outcome.",
       "lifecycle": "internal",
@@ -7758,7 +7758,7 @@
     {
       "directory": "pkg/fault-injection/integration/resilience",
       "module_path": "github.com/faustbrian/golib/pkg/fault-injection/integration/resilience",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "This non-releasable module proves that `fault-injection` can drive deterministic campaigns through the public retry and circuit-breaker contracts. The resilience modules do not import fault-injection in production; the dependency direction exists only in this integration module.",
       "lifecycle": "internal",
@@ -7800,7 +7800,7 @@
     {
       "directory": "pkg/feature-flags",
       "module_path": "github.com/faustbrian/golib/pkg/feature-flags",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/feature-flags",
@@ -8055,7 +8055,7 @@
     {
       "directory": "pkg/filesystem",
       "module_path": "github.com/faustbrian/golib/pkg/filesystem",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/filesystem",
@@ -8312,7 +8312,7 @@
     {
       "directory": "pkg/geo",
       "module_path": "github.com/faustbrian/golib/pkg/geo",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/geo",
@@ -8646,7 +8646,7 @@
     {
       "directory": "pkg/hedge",
       "module_path": "github.com/faustbrian/golib/pkg/hedge",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/hedge",
@@ -8782,7 +8782,7 @@
     {
       "directory": "pkg/http-client",
       "module_path": "github.com/faustbrian/golib/pkg/http-client",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/http-client",
@@ -9014,7 +9014,7 @@
     {
       "directory": "pkg/http-middleware",
       "module_path": "github.com/faustbrian/golib/pkg/http-middleware",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/http-middleware",
@@ -9235,7 +9235,7 @@
       "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
-        "Go 1.26.5 net/http and context contracts",
+        "Go 1.26.6 net/http and context contracts",
         "RFC 9110 HTTP Semantics",
         "RFC 9111 HTTP Caching",
         "RFC 7239 Forwarded HTTP Extension",
@@ -9393,7 +9393,7 @@
     {
       "directory": "pkg/http-middleware/integration/siblings",
       "module_path": "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -9445,7 +9445,7 @@
     {
       "directory": "pkg/http-signature",
       "module_path": "github.com/faustbrian/golib/pkg/http-signature",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/http-signature",
@@ -9612,7 +9612,7 @@
     {
       "directory": "pkg/http-signature/benchmarks/comparison",
       "module_path": "github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "This non-releasable module isolates the comparison dependency from the public HTTP Message Signatures module. It compares an equivalent HMAC-SHA256 request operation with the maintained `github.com/yaronf/httpsign` implementation at commit `de382d35c1add89cc09b9355161d61471fb7f632` and `github.com/dadrus/httpsig` at commit `0f24bf7dd9b76727af985d9a6f7ce87207a18387`.",
       "lifecycle": "internal",
@@ -9654,7 +9654,7 @@
     {
       "directory": "pkg/http-signature/differential/shared-corpus",
       "module_path": "github.com/faustbrian/golib/pkg/http-signature/differential/shared-corpus",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "This standalone module executes one checked-in corpus through this module and maintained independent Go implementations. It does not run peer self-tests.",
       "lifecycle": "internal",
@@ -9697,7 +9697,7 @@
     {
       "directory": "pkg/idempotency",
       "module_path": "github.com/faustbrian/golib/pkg/idempotency",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/idempotency",
@@ -10002,7 +10002,7 @@
     {
       "directory": "pkg/idempotency/compatibility/ecosystem",
       "module_path": "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -10051,7 +10051,7 @@
     {
       "directory": "pkg/identifier",
       "module_path": "github.com/faustbrian/golib/pkg/identifier",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/identifier",
@@ -10298,7 +10298,7 @@
     {
       "directory": "pkg/international",
       "module_path": "github.com/faustbrian/golib/pkg/international",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/international",
@@ -10625,7 +10625,7 @@
     {
       "directory": "pkg/json-schema",
       "module_path": "github.com/faustbrian/golib/pkg/json-schema",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/json-schema",
@@ -10838,7 +10838,7 @@
     {
       "directory": "pkg/json-schema/benchmarks/comparison",
       "module_path": "github.com/faustbrian/golib/pkg/json-schema/benchmarks/comparison",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -10886,7 +10886,7 @@
     {
       "directory": "pkg/jsonapi",
       "module_path": "github.com/faustbrian/golib/pkg/jsonapi",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/jsonapi",
@@ -11084,7 +11084,7 @@
     {
       "directory": "pkg/jsonrpc",
       "module_path": "github.com/faustbrian/golib/pkg/jsonrpc",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/jsonrpc",
@@ -11336,7 +11336,7 @@
     {
       "directory": "pkg/kafka",
       "module_path": "github.com/faustbrian/golib/pkg/kafka",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/kafka",
@@ -11531,7 +11531,7 @@
     {
       "directory": "pkg/kafka/adapters/gotelemetry",
       "module_path": "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/kafka/adapters/gotelemetry",
@@ -11666,7 +11666,7 @@
     {
       "directory": "pkg/kafka/adapters/mskiam",
       "module_path": "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/kafka/adapters/mskiam",
@@ -11801,7 +11801,7 @@
     {
       "directory": "pkg/kafka/benchmarks/clients",
       "module_path": "github.com/faustbrian/golib/pkg/kafka/benchmarks/clients",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/kafka/benchmarks/clients",
@@ -11869,7 +11869,7 @@
     {
       "directory": "pkg/kafka/kafkaservice",
       "module_path": "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/kafka/kafkaservice",
@@ -12005,7 +12005,7 @@
     {
       "directory": "pkg/keyphrase",
       "module_path": "github.com/faustbrian/golib/pkg/keyphrase",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/keyphrase",
@@ -12207,7 +12207,7 @@
     {
       "directory": "pkg/knapsack",
       "module_path": "github.com/faustbrian/golib/pkg/knapsack",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/knapsack",
@@ -12438,7 +12438,7 @@
     {
       "directory": "pkg/knapsack/integration/references",
       "module_path": "github.com/faustbrian/golib/pkg/knapsack/integration/references",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/knapsack/integration/references",
@@ -12495,7 +12495,7 @@
     {
       "directory": "pkg/knapsack/objective/gomoney",
       "module_path": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/knapsack/objective/gomoney",
@@ -12624,7 +12624,7 @@
     {
       "directory": "pkg/lease",
       "module_path": "github.com/faustbrian/golib/pkg/lease",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/lease",
@@ -12783,7 +12783,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`lease` is a fenced, time-bounded distributed lease primitive for Go 1.26.5 and newer. It provides explicit owners, backend-anchored expiry, renewal, validation, compare-and-release, and monotonically increasing fencing tokens for native Valkey and PostgreSQL backends.",
+      "purpose": "`lease` is a fenced, time-bounded distributed lease primitive for Go 1.26.6 and newer. It provides explicit owners, backend-anchored expiry, renewal, validation, compare-and-release, and monotonically increasing fencing tokens for native Valkey and PostgreSQL backends.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -12918,7 +12918,7 @@
     {
       "directory": "pkg/localized",
       "module_path": "github.com/faustbrian/golib/pkg/localized",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/localized",
@@ -13190,7 +13190,7 @@
     {
       "directory": "pkg/log",
       "module_path": "github.com/faustbrian/golib/pkg/log",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/log",
@@ -13445,7 +13445,7 @@
     {
       "directory": "pkg/math",
       "module_path": "github.com/faustbrian/golib/pkg/math",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/math",
@@ -13662,7 +13662,7 @@
     {
       "directory": "pkg/measurement",
       "module_path": "github.com/faustbrian/golib/pkg/measurement",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/measurement",
@@ -13815,7 +13815,7 @@
     {
       "directory": "pkg/merkle-patricia-trie",
       "module_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/merkle-patricia-trie",
@@ -13995,7 +13995,7 @@
     {
       "directory": "pkg/merkle-tree",
       "module_path": "github.com/faustbrian/golib/pkg/merkle-tree",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/merkle-tree",
@@ -14134,7 +14134,7 @@
     {
       "directory": "pkg/migrations",
       "module_path": "github.com/faustbrian/golib/pkg/migrations",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/migrations",
@@ -14350,7 +14350,7 @@
     {
       "directory": "pkg/money",
       "module_path": "github.com/faustbrian/golib/pkg/money",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/money",
@@ -14526,7 +14526,7 @@
     {
       "directory": "pkg/openapi",
       "module_path": "github.com/faustbrian/golib/pkg/openapi",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/openapi",
@@ -15109,7 +15109,7 @@
     {
       "directory": "pkg/openapi/interoperability",
       "module_path": "github.com/faustbrian/golib/pkg/openapi/interoperability",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/openapi/interoperability",
@@ -15182,7 +15182,7 @@
     {
       "directory": "pkg/opening-hours",
       "module_path": "github.com/faustbrian/golib/pkg/opening-hours",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/opening-hours",
@@ -15305,7 +15305,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "Immutable, deterministic, timezone-safe recurring opening hours and dated exceptions for Go 1.26.5 and later.",
+      "purpose": "Immutable, deterministic, timezone-safe recurring opening hours and dated exceptions for Go 1.26.6 and later.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -15440,7 +15440,7 @@
     {
       "directory": "pkg/openrpc",
       "module_path": "github.com/faustbrian/golib/pkg/openrpc",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/openrpc",
@@ -15811,7 +15811,7 @@
     {
       "directory": "pkg/outbox",
       "module_path": "github.com/faustbrian/golib/pkg/outbox",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/outbox",
@@ -15983,7 +15983,7 @@
     {
       "directory": "pkg/outbox/adapters/gokafka",
       "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/outbox/adapters/gokafka",
@@ -16119,7 +16119,7 @@
     {
       "directory": "pkg/outbox/adapters/otel",
       "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/outbox/adapters/otel",
@@ -16252,7 +16252,7 @@
     {
       "directory": "pkg/outbox/adapters/queue",
       "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/outbox/adapters/queue",
@@ -16388,7 +16388,7 @@
     {
       "directory": "pkg/password",
       "module_path": "github.com/faustbrian/golib/pkg/password",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/password",
@@ -16593,7 +16593,7 @@
     {
       "directory": "pkg/postgres",
       "module_path": "github.com/faustbrian/golib/pkg/postgres",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/postgres",
@@ -16826,7 +16826,7 @@
     {
       "directory": "pkg/postgres/examples/migrations",
       "module_path": "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/postgres/examples/migrations",
@@ -16883,7 +16883,7 @@
     {
       "directory": "pkg/prompts",
       "module_path": "github.com/faustbrian/golib/pkg/prompts",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/prompts",
@@ -17046,7 +17046,7 @@
     {
       "directory": "pkg/prompts/benchmarks/comparison",
       "module_path": "github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/prompts/benchmarks/comparison",
@@ -17155,7 +17155,7 @@
     {
       "directory": "pkg/queue",
       "module_path": "github.com/faustbrian/golib/pkg/queue",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/queue",
@@ -17652,7 +17652,7 @@
     {
       "directory": "pkg/queue-control-plane",
       "module_path": "github.com/faustbrian/golib/pkg/queue-control-plane",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/queue-control-plane",
@@ -18033,7 +18033,7 @@
     {
       "directory": "pkg/queue/queueservice",
       "module_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/queue/queueservice",
@@ -18176,7 +18176,7 @@
     {
       "directory": "pkg/rate-limit",
       "module_path": "github.com/faustbrian/golib/pkg/rate-limit",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/rate-limit",
@@ -18523,7 +18523,7 @@
     {
       "directory": "pkg/resilience",
       "module_path": "github.com/faustbrian/golib/pkg/resilience",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/resilience",
@@ -18662,7 +18662,7 @@
     {
       "directory": "pkg/retry",
       "module_path": "github.com/faustbrian/golib/pkg/retry",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/retry",
@@ -18935,7 +18935,7 @@
     {
       "directory": "pkg/router",
       "module_path": "github.com/faustbrian/golib/pkg/router",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/router",
@@ -18983,7 +18983,7 @@
       "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
-        "Go 1.26.5 net/http and net/url contracts",
+        "Go 1.26.6 net/http and net/url contracts",
         "RFC 3986 URI Generic Syntax",
         "RFC 9110 HTTP Semantics",
         "RFC 9112 HTTP/1.1 request-target forms"
@@ -19133,7 +19133,7 @@
     {
       "directory": "pkg/rule-engine",
       "module_path": "github.com/faustbrian/golib/pkg/rule-engine",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/rule-engine",
@@ -19279,7 +19279,7 @@
     {
       "directory": "pkg/rule-engine/adapters/math",
       "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/math",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/rule-engine/adapters/math",
@@ -19405,7 +19405,7 @@
     {
       "directory": "pkg/rule-engine/adapters/measurement",
       "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/rule-engine/adapters/measurement",
@@ -19538,7 +19538,7 @@
     {
       "directory": "pkg/rule-engine/adapters/temporal",
       "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/rule-engine/adapters/temporal",
@@ -19665,7 +19665,7 @@
     {
       "directory": "pkg/rule-engine/benchmarks/competitors",
       "module_path": "github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -19707,7 +19707,7 @@
     {
       "directory": "pkg/scheduler",
       "module_path": "github.com/faustbrian/golib/pkg/scheduler",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/scheduler",
@@ -20062,7 +20062,7 @@
     {
       "directory": "pkg/schema-registry",
       "module_path": "github.com/faustbrian/golib/pkg/schema-registry",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/schema-registry",
@@ -20239,7 +20239,7 @@
     {
       "directory": "pkg/schema-registry/providers/confluent",
       "module_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/confluent",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/schema-registry/providers/confluent",
@@ -20300,7 +20300,7 @@
     {
       "directory": "pkg/schema-registry/providers/glue",
       "module_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/glue",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/schema-registry/providers/glue",
@@ -20366,7 +20366,7 @@
     {
       "directory": "pkg/search",
       "module_path": "github.com/faustbrian/golib/pkg/search",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/search",
@@ -20509,7 +20509,7 @@
     {
       "directory": "pkg/search/adapters/opensearch",
       "module_path": "github.com/faustbrian/golib/pkg/search/adapters/opensearch",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/search/adapters/opensearch",
@@ -20660,7 +20660,7 @@
     {
       "directory": "pkg/secret-envelope",
       "module_path": "github.com/faustbrian/golib/pkg/secret-envelope",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/secret-envelope",
@@ -20820,7 +20820,7 @@
     {
       "directory": "pkg/secret-store/adapters/awssecretsmanager",
       "module_path": "github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/secret-store/adapters/awssecretsmanager",
@@ -20955,7 +20955,7 @@
     {
       "directory": "pkg/semaphore",
       "module_path": "github.com/faustbrian/golib/pkg/semaphore",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/semaphore",
@@ -20970,7 +20970,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`semaphore` is a process-local, FIFO weighted counting semaphore for Go 1.26.5 and newer. It adds bounded waiting, owned exactly-once permits, deterministic shutdown, immutable snapshots, and bounded observation events to the basic counting-semaphore pattern.",
+      "purpose": "`semaphore` is a process-local, FIFO weighted counting semaphore for Go 1.26.6 and newer. It adds bounded waiting, owned exactly-once permits, deterministic shutdown, immutable snapshots, and bounded observation events to the basic counting-semaphore pattern.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -21087,7 +21087,7 @@
     {
       "directory": "pkg/sequencer",
       "module_path": "github.com/faustbrian/golib/pkg/sequencer",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/sequencer",
@@ -21426,7 +21426,7 @@
     {
       "directory": "pkg/service",
       "module_path": "github.com/faustbrian/golib/pkg/service",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/service",
@@ -21891,7 +21891,7 @@
     {
       "directory": "pkg/service/benchmarks/platform",
       "module_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/service/benchmarks/platform",
@@ -22115,7 +22115,7 @@
     {
       "directory": "pkg/service/compatibility",
       "module_path": "github.com/faustbrian/golib/pkg/service/compatibility",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [],
       "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
@@ -22165,7 +22165,7 @@
     {
       "directory": "pkg/service/integration/adoption",
       "module_path": "github.com/faustbrian/golib/pkg/service/integration/adoption",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/service/integration/adoption",
@@ -22238,7 +22238,7 @@
     {
       "directory": "pkg/service/integration/reference-durability",
       "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/service/integration/reference-durability",
@@ -22314,7 +22314,7 @@
     {
       "directory": "pkg/service/integration/reference-external",
       "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-external",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/service/integration/reference-external",
@@ -22381,7 +22381,7 @@
     {
       "directory": "pkg/service/integration/reference-http",
       "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-http",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/service/integration/reference-http",
@@ -22449,7 +22449,7 @@
     {
       "directory": "pkg/service/integration/reference-platform",
       "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/service/integration/reference-platform",
@@ -22540,7 +22540,7 @@
     {
       "directory": "pkg/settings",
       "module_path": "github.com/faustbrian/golib/pkg/settings",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/settings",
@@ -22816,7 +22816,7 @@
     {
       "directory": "pkg/state-machine",
       "module_path": "github.com/faustbrian/golib/pkg/state-machine",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/state-machine",
@@ -23024,7 +23024,7 @@
     {
       "directory": "pkg/tabular",
       "module_path": "github.com/faustbrian/golib/pkg/tabular",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/tabular",
@@ -23176,7 +23176,7 @@
     {
       "directory": "pkg/telemetry",
       "module_path": "github.com/faustbrian/golib/pkg/telemetry",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/telemetry",
@@ -23508,7 +23508,7 @@
     {
       "directory": "pkg/temporal",
       "module_path": "github.com/faustbrian/golib/pkg/temporal",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/temporal",
@@ -23763,7 +23763,7 @@
     {
       "directory": "pkg/tenancy",
       "module_path": "github.com/faustbrian/golib/pkg/tenancy",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/tenancy",
@@ -23948,7 +23948,7 @@
     {
       "directory": "pkg/validation",
       "module_path": "github.com/faustbrian/golib/pkg/validation",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/validation",
@@ -24210,7 +24210,7 @@
     {
       "directory": "pkg/verkle-tree",
       "module_path": "github.com/faustbrian/golib/pkg/verkle-tree",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/verkle-tree",
@@ -24472,7 +24472,7 @@
     {
       "directory": "pkg/webhook",
       "module_path": "github.com/faustbrian/golib/pkg/webhook",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/webhook",
@@ -24594,7 +24594,7 @@
         "Python 3 standard-library HMAC-SHA-256 and HMAC-SHA-512 vectors"
       ],
       "specifications": [
-        "Go 1.26.5 cryptography, HTTP, URL, address, time, and encoding contracts",
+        "Go 1.26.6 cryptography, HTTP, URL, address, time, and encoding contracts",
         "RFC 2104 HMAC and RFC 4231 HMAC-SHA-256/HMAC-SHA-512 vectors",
         "RFC 4648 Base-N Encodings",
         "RFC 3986 URI Generic Syntax",
@@ -24707,7 +24707,7 @@
     {
       "directory": "pkg/wire",
       "module_path": "github.com/faustbrian/golib/pkg/wire",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/wire",
@@ -24897,7 +24897,7 @@
       "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
-        "Go 1.26.5 encoding/json and encoding/xml contracts",
+        "Go 1.26.6 encoding/json and encoding/xml contracts",
         "RFC 8259 JSON",
         "XML 1.0 Fifth Edition and Namespaces in XML 1.0 Third Edition",
         "SOAP 1.1 and SOAP 1.2 Part 1 Second Edition",
@@ -25017,7 +25017,7 @@
     {
       "directory": "pkg/workflow",
       "module_path": "github.com/faustbrian/golib/pkg/workflow",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/workflow",
@@ -25163,7 +25163,7 @@
     {
       "directory": "pkg/wsdl",
       "module_path": "github.com/faustbrian/golib/pkg/wsdl",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/wsdl",
@@ -25381,7 +25381,7 @@
     {
       "directory": "pkg/xsd",
       "module_path": "github.com/faustbrian/golib/pkg/xsd",
-      "go_version": "1.26.5",
+      "go_version": "1.26.6",
       "packages": [
         {
           "module_directory": "pkg/xsd",
