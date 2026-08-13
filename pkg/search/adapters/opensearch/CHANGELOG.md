@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+
+- Complete the destructive-cleanup decision record with explicit security,
+  compatibility, and wire consequences for the required durable lifecycle
+  mutation guard.
+
 - Reject unsupported locale mappings and foreign raw-query extensions before
   creating a point-in-time search context.
 - Add an auditable OpenSearch REST decision register, pinned source provenance,
@@ -20,8 +26,6 @@
   tenant/source/target-bound reindex cursors; live target-definition
   fingerprint attestation; and an application-owned write fence across final
   verification and migration cutover.
-
-### Changed
 
 - Require one application-owned durable lifecycle mutation coordinator across
   index creation, alias changes, cutover, and cleanup so final deletion
