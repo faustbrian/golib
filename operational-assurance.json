@@ -262,6 +262,25 @@
           "input_digests": {
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-MIGRATIONS-POSTGRES-RECOVERY.md",
+          "sha256": "d4e9c21e8fd2303367789b675d5a13c8813b26dca129a7c2f2a7edb1717402f6",
+          "observed_utc": "2026-08-13T09:08:32Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL 18.4-alpine",
+          "module_scope": [
+            "pkg/migrations"
+          ],
+          "input_digests": {
+            "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
+            "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
+            "pkg/lease": "607211c70c0faf76497cc468f5128adf279055c559e206cdaf8a8784481f5f18",
+            "pkg/migrations": "b81a23b09192155f3e5d8649c5f857bc978afa8abae15409dddc3ea5395d9483",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
+            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+          }
         }
       ],
       "accepted_risks": []
@@ -497,6 +516,25 @@
           "input_digests": {
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-MIGRATIONS-POSTGRES-RECOVERY.md",
+          "sha256": "d4e9c21e8fd2303367789b675d5a13c8813b26dca129a7c2f2a7edb1717402f6",
+          "observed_utc": "2026-08-13T09:08:32Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL 18.4-alpine",
+          "module_scope": [
+            "pkg/migrations"
+          ],
+          "input_digests": {
+            "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
+            "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
+            "pkg/lease": "607211c70c0faf76497cc468f5128adf279055c559e206cdaf8a8784481f5f18",
+            "pkg/migrations": "b81a23b09192155f3e5d8649c5f857bc978afa8abae15409dddc3ea5395d9483",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
+            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+          }
         }
       ],
       "accepted_risks": []
@@ -518,6 +556,25 @@
           ],
           "input_digests": {
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-MIGRATIONS-POSTGRES-RECOVERY.md",
+          "sha256": "d4e9c21e8fd2303367789b675d5a13c8813b26dca129a7c2f2a7edb1717402f6",
+          "observed_utc": "2026-08-13T09:08:32Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL 18.4-alpine",
+          "module_scope": [
+            "pkg/migrations"
+          ],
+          "input_digests": {
+            "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
+            "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
+            "pkg/lease": "607211c70c0faf76497cc468f5128adf279055c559e206cdaf8a8784481f5f18",
+            "pkg/migrations": "b81a23b09192155f3e5d8649c5f857bc978afa8abae15409dddc3ea5395d9483",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
+            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
           }
         }
       ],
