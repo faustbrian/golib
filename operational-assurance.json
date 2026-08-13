@@ -1439,6 +1439,14 @@
   "risk_acceptances": [],
   "input_digest_migrations": [
     {
+      "module": "pkg/search/adapters/opensearch",
+      "from_sha256": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690",
+      "to_sha256": "410c977b9a7bca12f86af19a0a3c0a1b2c52b43554b55d63f90cfcd65ee7b967",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OPENSEARCH-ALIAS-OBSERVER.md",
+      "evidence_sha256": "075644b15e5c3fbfaf810f5abfe373b1acc5764b048ae45bae42598524f031a6",
+      "rationale": "The corrected real-cluster alias observer changes test expectations only; the full pinned version matrix was rerun successfully against the replacement input."
+    },
+    {
       "module": "pkg/cloudevents/adapters/golib",
       "from_sha256": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
       "to_sha256": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",

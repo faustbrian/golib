@@ -98,6 +98,10 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Enforce `v1.0.0` as every unpublished module's first public release even
+  when an obsolete package-local pre-v1 policy file remains present.
+- Preserve reviewed OpenSearch operational evidence across the corrected
+  real-cluster alias observer while retaining original observation times.
 - Preserve operational evidence across reviewed, exact transitive input-digest
   migrations without rewriting observation times or accepting unlisted digest
   changes, while still failing closed on stale artifacts and behavioral inputs.
