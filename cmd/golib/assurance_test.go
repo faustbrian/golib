@@ -38,12 +38,13 @@ func TestValidateOperationalAssurance(t *testing.T) {
 			})
 		}
 		return map[string]any{
-			"schema_version":   1,
-			"verdict":          "not ready",
-			"modules":          []string{"pkg/a", "pkg/b"},
-			"scenarios":        scenarios,
-			"residual_risks":   []string{"GL-RISK-001"},
-			"risk_acceptances": []any{},
+			"schema_version":          1,
+			"verdict":                 "not ready",
+			"modules":                 []string{"pkg/a", "pkg/b"},
+			"scenarios":               scenarios,
+			"residual_risks":          []string{"GL-RISK-001"},
+			"risk_acceptances":        []any{},
+			"input_digest_migrations": []any{},
 		}
 	}
 	current := catalog{Modules: []module{
@@ -201,6 +202,150 @@ func TestValidateOperationalAssurance(t *testing.T) {
 			wantSubstr: "input digest mismatch",
 		},
 		{
+			name: "reviewed input digest migration preserves evidence",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				artifact := filepath.Join(root, "digest-migration.md")
+				contents := []byte("reviewed non-behavioral digest transition\n")
+				if err := os.WriteFile(artifact, contents, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				digest := sha256.Sum256(contents)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_digests"].(map[string]string)["pkg/a"] =
+					strings.Repeat("0", 64)
+				record["input_digest_migrations"] = []map[string]any{{
+					"module":          "pkg/a",
+					"from_sha256":     strings.Repeat("0", 64),
+					"to_sha256":       strings.Repeat("a", 64),
+					"evidence_path":   "digest-migration.md",
+					"evidence_sha256": hex.EncodeToString(digest[:]),
+					"rationale":       "reviewed non-behavioral digest transition",
+				}}
+			},
+		},
+		{
+			name: "input digest migration artifact mismatch",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				artifact := filepath.Join(root, "digest-migration.md")
+				if err := os.WriteFile(artifact, []byte("reviewed\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_digests"].(map[string]string)["pkg/a"] =
+					strings.Repeat("0", 64)
+				record["input_digest_migrations"] = []map[string]any{{
+					"module":          "pkg/a",
+					"from_sha256":     strings.Repeat("0", 64),
+					"to_sha256":       strings.Repeat("a", 64),
+					"evidence_path":   "digest-migration.md",
+					"evidence_sha256": strings.Repeat("f", 64),
+					"rationale":       "reviewed non-behavioral digest transition",
+				}}
+			},
+			wantSubstr: "migration evidence digest mismatch",
+		},
+		{
+			name: "input digest migration chain preserves evidence",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				evidenceSHA := writeDigestMigrationEvidence(t, root)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_digests"].(map[string]string)["pkg/a"] =
+					strings.Repeat("0", 64)
+				record["input_digest_migrations"] = []map[string]any{
+					newDigestMigration(
+						"pkg/a",
+						strings.Repeat("0", 64),
+						strings.Repeat("1", 64),
+						evidenceSHA,
+					),
+					newDigestMigration(
+						"pkg/a",
+						strings.Repeat("1", 64),
+						strings.Repeat("a", 64),
+						evidenceSHA,
+					),
+				}
+			},
+		},
+		{
+			name: "input digest migration does not authorize another digest",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				evidenceSHA := writeDigestMigrationEvidence(t, root)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_digests"].(map[string]string)["pkg/a"] =
+					strings.Repeat("2", 64)
+				record["input_digest_migrations"] = []map[string]any{
+					newDigestMigration(
+						"pkg/a",
+						strings.Repeat("0", 64),
+						strings.Repeat("a", 64),
+						evidenceSHA,
+					),
+				}
+			},
+			wantSubstr: "input digest mismatch for pkg/a",
+		},
+		{
+			name: "duplicate input digest migration",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				evidenceSHA := writeDigestMigrationEvidence(t, root)
+				migration := newDigestMigration(
+					"pkg/a",
+					strings.Repeat("0", 64),
+					strings.Repeat("a", 64),
+					evidenceSHA,
+				)
+				record["input_digest_migrations"] = []map[string]any{
+					migration,
+					migration,
+				}
+			},
+			wantSubstr: "duplicate input digest migration",
+		},
+		{
+			name: "input digest migration rejects unknown module",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				evidenceSHA := writeDigestMigrationEvidence(t, root)
+				record["input_digest_migrations"] = []map[string]any{
+					newDigestMigration(
+						"pkg/unknown",
+						strings.Repeat("0", 64),
+						strings.Repeat("a", 64),
+						evidenceSHA,
+					),
+				}
+			},
+			wantSubstr: "unknown module pkg/unknown",
+		},
+		{
+			name: "input digest migration supports explicit fixture input",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				evidenceSHA := writeDigestMigrationEvidence(t, root)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_modules"] = []string{"pkg/fixture"}
+				evidence[0]["input_digests"].(map[string]string)["pkg/fixture"] =
+					strings.Repeat("0", 64)
+				record["input_digest_migrations"] = []map[string]any{
+					newDigestMigration(
+						"pkg/fixture",
+						strings.Repeat("0", 64),
+						strings.Repeat("c", 64),
+						evidenceSHA,
+					),
+				}
+			},
+		},
+		{
 			name: "named module evidence includes reverse dependant input",
 			mutate: func(t *testing.T, root string, record map[string]any) {
 				markScenariosPassed(t, root, record)
@@ -300,6 +445,31 @@ func TestValidateOperationalAssurance(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func writeDigestMigrationEvidence(t *testing.T, root string) string {
+	t.Helper()
+	contents := []byte("reviewed digest migration\n")
+	if err := os.WriteFile(
+		filepath.Join(root, "digest-migration.md"),
+		contents,
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(contents)
+	return hex.EncodeToString(digest[:])
+}
+
+func newDigestMigration(module, from, to, evidenceSHA string) map[string]any {
+	return map[string]any{
+		"module":          module,
+		"from_sha256":     from,
+		"to_sha256":       to,
+		"evidence_path":   "digest-migration.md",
+		"evidence_sha256": evidenceSHA,
+		"rationale":       "reviewed non-behavioral digest transition",
 	}
 }
 

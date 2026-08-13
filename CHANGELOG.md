@@ -79,6 +79,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Preserve operational evidence across reviewed, exact transitive input-digest
+  migrations without rewriting observation times or accepting unlisted digest
+  changes, while still failing closed on stale artifacts and behavioral inputs.
 - Make release plans report operational readiness and make every future
   mutating release path fail before verification or publication when assurance
   is not ready.

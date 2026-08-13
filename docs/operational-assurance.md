@@ -44,10 +44,11 @@ deadlocks, process death, unknown activity outcomes, snapshot restore, replica
 promotion, fencing, audited dead-letter resolution, scheduler ambiguity,
 migration interruption, and local audit backup/restore reconciliation. It
 also retains local JWT/OIDC outage, retired-key rollback, revocation-store
-outage, and fail-closed key-lifecycle evidence. It remains pending for managed
-database backup and failover, storage exhaustion, network partitions, Kafka,
-OpenSearch, live credential providers, and broader external-side-effect
-reconciliation.
+outage, fail-closed key-lifecycle evidence, and real Collector outage recovery
+without interrupting business traffic. It remains pending for managed database
+backup and failover, storage exhaustion, network partitions, Kafka,
+OpenSearch, live credential providers, prolonged telemetry outages, and broader
+external-side-effect reconciliation.
 
 `OA-DEPLOYMENT-COMPATIBILITY` now retains bounded queue-worker rolling
 replacement and scale-up evidence on Redis and Valkey, plus migration history,
@@ -65,9 +66,12 @@ bounded evidence for signed requests, fail-closed authorization and tenancy,
 correlation, in-memory telemetry and audit, readiness recovery, and graceful
 shutdown. Both also retain a local PostgreSQL audit campaign proving immutable
 history, privacy validation, least privilege, legal holds, retention, and
-backup/restore reconciliation. They remain pending for complete privacy
-lifecycle, dependency response, signed provenance, production exporters, SLOs,
-dashboards, alerts, and operator drills.
+backup/restore reconciliation. A real Collector campaign now proves local
+OTLP/gRPC trace and metric export, bounded operation during a short Collector
+outage, recovery, graceful flush, and omission of an injected sensitive marker.
+They remain pending for complete privacy lifecycle, dependency response, signed
+provenance, production Better Stack export, SLOs, dashboards, alerts, and
+operator drills.
 
 `OA-SECURITY-PRIVACY-SUPPLY-CHAIN` additionally retains a bounded cross-package
 key-lifecycle campaign covering atomic replacement, overlap, refresh,
@@ -129,6 +133,12 @@ module and releasable reverse dependant. Evidence produced by a non-releasable
 harness records that harness as an explicit input module, so harness changes
 also invalidate the proof. A current input change invalidates only evidence
 whose expanded scope contains that module; a Git-history-only change does not.
+When a broad fingerprint changes solely because an audited transitive input is
+irrelevant to an earlier campaign, the register may retain the original
+observation through an exact one-way input-digest migration. Each migration is
+bound to one module, one previous digest, one current digest, a reviewed
+repository artifact and its SHA-256 digest, and a rationale. Migrations may
+form an explicit chain but cannot match another module or an unlisted digest.
 Absolute paths, traversal, symlink escapes, stale artifact or input digests,
 unknown modules, missing scenarios, duplicate records, and unsupported statuses
 fail validation.

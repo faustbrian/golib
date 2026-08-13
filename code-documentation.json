@@ -10,9 +10,9 @@
       "documented_packages": 0,
       "missing_package_comments": 1,
       "duplicate_package_comments": 0,
-      "exported_declarations": 121,
+      "exported_declarations": 128,
       "documented_declarations": 0,
-      "missing_declaration_comments": 121,
+      "missing_declaration_comments": 128,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -70,120 +70,169 @@
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 46,
-          "symbol": "ID",
+          "line": 43,
+          "symbol": "InputDigestMigrations",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
           "line": 47,
-          "symbol": "Status",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 48,
-          "symbol": "AffectedModules",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 49,
-          "symbol": "Evidence",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 50,
-          "symbol": "AcceptedRisks",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 54,
-          "symbol": "Path",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 55,
-          "symbol": "SHA256",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 56,
-          "symbol": "ObservedUTC",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 57,
-          "symbol": "Environment",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 58,
-          "symbol": "ModuleScope",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 59,
-          "symbol": "InputModules",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 60,
-          "symbol": "InputDigests",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "cmd/golib/assurance.go",
-          "line": 64,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
+          "line": 48,
+          "symbol": "Status",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 49,
+          "symbol": "AffectedModules",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 50,
+          "symbol": "Evidence",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 51,
+          "symbol": "AcceptedRisks",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 55,
+          "symbol": "Path",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 56,
+          "symbol": "SHA256",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 57,
+          "symbol": "ObservedUTC",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 58,
+          "symbol": "Environment",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 59,
+          "symbol": "ModuleScope",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 60,
+          "symbol": "InputModules",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 61,
+          "symbol": "InputDigests",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
           "line": 65,
-          "symbol": "AcceptedBy",
+          "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
           "line": 66,
-          "symbol": "AcceptedUTC",
+          "symbol": "AcceptedBy",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
           "line": 67,
-          "symbol": "Rationale",
+          "symbol": "AcceptedUTC",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
           "line": 68,
+          "symbol": "Rationale",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 69,
           "symbol": "Scenarios",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 73,
+          "symbol": "Module",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 74,
+          "symbol": "FromSHA256",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 75,
+          "symbol": "ToSHA256",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 76,
+          "symbol": "EvidencePath",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 77,
+          "symbol": "EvidenceSHA256",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 78,
+          "symbol": "Rationale",
           "message": "exported declaration has no documentation comment"
         },
         {
@@ -88848,12 +88897,12 @@
     {
       "directory": "pkg/telemetry",
       "module_path": "github.com/faustbrian/golib/pkg/telemetry",
-      "packages": 14,
-      "documented_packages": 12,
+      "packages": 15,
+      "documented_packages": 13,
       "missing_package_comments": 2,
       "duplicate_package_comments": 0,
-      "exported_declarations": 242,
-      "documented_declarations": 137,
+      "exported_declarations": 243,
+      "documented_declarations": 138,
       "missing_declaration_comments": 105,
       "malformed_comments": 0,
       "generated_files": 0,

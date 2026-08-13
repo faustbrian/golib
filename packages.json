@@ -7344,6 +7344,18 @@
     },
     {
       "module_directory": "pkg/telemetry",
+      "directory": "examples/internal/exampleconfig",
+      "name": "exampleconfig",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/examples/internal/exampleconfig",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/telemetry",
       "directory": "examples/service",
       "name": "main",
       "import_path": "github.com/faustbrian/golib/pkg/telemetry/examples/service",

@@ -6,7 +6,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 
 | Module | Packages | Package gaps | Exported declarations | Missing comments | Malformed comments | Generated gaps | Markers |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `.` | 1 | 1 | 121 | 121 | 0 | 0 | 0 |
+| `.` | 1 | 1 | 128 | 128 | 0 | 0 | 0 |
 | `pkg/adaptive-throttle` | 1 | 0 | 106 | 66 | 0 | 0 | 0 |
 | `pkg/analysis` | 28 | 1 | 442 | 283 | 0 | 0 | 0 |
 | `pkg/analysis/testdata/coverage` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -134,7 +134,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/settings` | 7 | 0 | 479 | 325 | 0 | 0 | 0 |
 | `pkg/state-machine` | 7 | 0 | 375 | 230 | 0 | 0 | 0 |
 | `pkg/tabular` | 2 | 0 | 149 | 76 | 0 | 0 | 0 |
-| `pkg/telemetry` | 14 | 2 | 242 | 105 | 0 | 0 | 0 |
+| `pkg/telemetry` | 15 | 2 | 243 | 105 | 0 | 0 | 0 |
 | `pkg/temporal` | 10 | 0 | 412 | 73 | 0 | 0 | 0 |
 | `pkg/tenancy` | 5 | 0 | 238 | 45 | 0 | 0 | 0 |
 | `pkg/validation` | 11 | 0 | 261 | 63 | 0 | 0 | 0 |

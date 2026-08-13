@@ -1,6 +1,6 @@
 # OA-RESOURCE-PERFORMANCE Constrained Load Evidence
 
-Observed at `2026-08-12T20:28:12Z` on Docker Engine `29.6.2` running a native
+Observed at `2026-08-13T10:30:09Z` on Docker Engine `29.6.2` running a native
 `linux/arm64` container, with Go `1.26.5`.
 
 ## Executed Proof
@@ -10,9 +10,9 @@ Observed at `2026-08-12T20:28:12Z` on Docker Engine `29.6.2` running a native
   non-root identity, read-only root filesystem, and dropped capabilities.
 - A bounded driver completed 20,000 equivalent business requests at concurrency
   16 with zero request failures and zero process-sampling failures.
-- The campaign measured 8,856.91 requests per second over 2.258 seconds, with
-  0.689 ms p50, 1.430 ms p95, and 60.377 ms p99 response latency.
-- Observed process maxima were 3,675,120 bytes allocated heap, 7,798,784 bytes
+- The campaign measured 8,939.86 requests per second over 2.237 seconds, with
+  0.586 ms p50, 1.191 ms p95, and 63.438 ms p99 response latency.
+- Observed process maxima were 3,723,072 bytes allocated heap, 11,763,712 bytes
   reserved heap, 30 goroutines, and 28 open file descriptors.
 - The executable gate required at least 500 requests per second, at most 250 ms
   p99, at most 32 MiB reserved heap, at most 128 goroutines and descriptors,

@@ -133,8 +133,8 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
-          "sha256": "959c4efe4a17df72d7d07ff520b1d8e0c466a36768961d54de031e244874ae52",
-          "observed_utc": "2026-08-12T18:48:11Z",
+          "sha256": "5bf2b0353961067d439d15b4329502a839fc55abd474185086519bd708d03c96",
+          "observed_utc": "2026-08-13T10:27:45Z",
           "environment": "darwin/arm64; Go 1.26.5; loopback listeners; in-memory audit and telemetry",
           "module_scope": [
             "pkg/audit",
@@ -163,7 +163,7 @@
             "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
             "pkg/cache": "66d7c84a7e1dfddab97c83d46b3dbc23456e03d2178de649aad947abe1c63ea1",
             "pkg/capability": "adf4e1fd2cfbdfd00ed1d3043a74510149013952dcd518816b97f034b2e0fe1f",
-            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
             "pkg/config": "177b8d97d7fe2cdb8e475b06ddb0c2b0a75d06e9e34fdd4282d97e07bc861bf9",
             "pkg/config/adapters/awssecretsmanager": "0b2e328a145f6626fb110ed3d3127ace06e2e3c9bb8129a64ecea1369236b630",
             "pkg/correlation": "7160fe3e2a935f7dec2a83400b716461c8deed070b6745ad01a6ce551b7ef1ed",
@@ -180,18 +180,18 @@
             "pkg/money": "d6caa052ab763b0c4be676394544ace2384aaf036a5a53f82fb8e614df8ac00f",
             "pkg/opening-hours": "d7e7348c2b6954f3f50088fc4322bf5d56271701323c763ac29d42e51442beb8",
             "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
-            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/router": "4b6ab92c5679ad381f755ab4b97d8c8133d9f94a6d7a2912682b4c2b63e04635",
             "pkg/rule-engine/adapters/temporal": "16ae218566e6865baab52e40ad90792edaed631c57cf761e20c401892cd1b231",
-            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/service": "e917f70b11bc54e0d1befb425c608bd5edc3e70aa73d8c5553ac81b7fde0baa0",
-            "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
             "pkg/tenancy": "37605e9638bef041b6b5ee28f437aea5c1b441b6122c073416091e9da26194c8",
             "pkg/validation": "ff2b45c24e440416681ce24729668dfb5cafe06ba7a4bb3ba3eab334ef2d1ccc",
-            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
           }
         }
       ],
@@ -362,8 +362,8 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-PLATFORM-MATRIX-LOCAL.md",
-          "sha256": "25181b5564e8e87067366bd7e595710065d113dc1ef386805d2f36f88e35bdcd",
-          "observed_utc": "2026-08-12T19:36:13Z",
+          "sha256": "3d4db8c01f0b37a5f888358890f9e9e224cb9bc1a38a4ddde4259406086894d9",
+          "observed_utc": "2026-08-13T10:29:28Z",
           "environment": "Docker Engine 29.6.2 linux/arm64; BuildKit 0.31.2; Go 1.26.5; emulated linux/amd64 and native linux/arm64 containers",
           "module_scope": [
             "pkg/service"
@@ -372,7 +372,7 @@
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
             "pkg/cache": "66d7c84a7e1dfddab97c83d46b3dbc23456e03d2178de649aad947abe1c63ea1",
-            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
             "pkg/config": "177b8d97d7fe2cdb8e475b06ddb0c2b0a75d06e9e34fdd4282d97e07bc861bf9",
             "pkg/config/adapters/awssecretsmanager": "0b2e328a145f6626fb110ed3d3127ace06e2e3c9bb8129a64ecea1369236b630",
             "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
@@ -385,15 +385,15 @@
             "pkg/money": "d6caa052ab763b0c4be676394544ace2384aaf036a5a53f82fb8e614df8ac00f",
             "pkg/opening-hours": "d7e7348c2b6954f3f50088fc4322bf5d56271701323c763ac29d42e51442beb8",
             "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
-            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/rule-engine/adapters/temporal": "16ae218566e6865baab52e40ad90792edaed631c57cf761e20c401892cd1b231",
-            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/service": "e917f70b11bc54e0d1befb425c608bd5edc3e70aa73d8c5553ac81b7fde0baa0",
-            "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
-            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
           }
         }
       ],
@@ -408,8 +408,8 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-RESOURCE-PERFORMANCE-CONSTRAINED.md",
-          "sha256": "0ac96b02823181814af47fed9e652129285f827f2263f60e61388e44495e4d5d",
-          "observed_utc": "2026-08-12T20:28:12Z",
+          "sha256": "fba3d4daa43c430e51a076f8d4c80f25ddf7f8e5028b18692a99193757f6c9f3",
+          "observed_utc": "2026-08-13T10:30:09Z",
           "environment": "Docker Engine 29.6.2 linux/arm64; Go 1.26.5; native linux/arm64 container; 64 MiB memory and 0.25 CPU limits",
           "module_scope": [
             "pkg/service"
@@ -421,7 +421,7 @@
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
             "pkg/cache": "66d7c84a7e1dfddab97c83d46b3dbc23456e03d2178de649aad947abe1c63ea1",
-            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
             "pkg/config": "177b8d97d7fe2cdb8e475b06ddb0c2b0a75d06e9e34fdd4282d97e07bc861bf9",
             "pkg/config/adapters/awssecretsmanager": "0b2e328a145f6626fb110ed3d3127ace06e2e3c9bb8129a64ecea1369236b630",
             "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
@@ -434,16 +434,16 @@
             "pkg/money": "d6caa052ab763b0c4be676394544ace2384aaf036a5a53f82fb8e614df8ac00f",
             "pkg/opening-hours": "d7e7348c2b6954f3f50088fc4322bf5d56271701323c763ac29d42e51442beb8",
             "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
-            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/rule-engine/adapters/temporal": "16ae218566e6865baab52e40ad90792edaed631c57cf761e20c401892cd1b231",
-            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/service": "e917f70b11bc54e0d1befb425c608bd5edc3e70aa73d8c5553ac81b7fde0baa0",
             "pkg/service/integration/reference-platform": "af7f84cbbbb60351d512d7b6a862b33b744a79ee0ff9c16d7045ca58e08140bd",
-            "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
-            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
           }
         }
       ],
@@ -590,6 +590,22 @@
             "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
             "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-TELEMETRY-COLLECTOR-OPERATIONS.md",
+          "sha256": "0c2ef79b976d3e3b1d66a8c8c3cf750550048f259ef755702a5d4f7565add858",
+          "observed_utc": "2026-08-13T10:13:51Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenTelemetry Collector Contrib 0.157.0",
+          "module_scope": [
+            "pkg/telemetry"
+          ],
+          "input_digests": {
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
+          }
         }
       ],
       "accepted_risks": []
@@ -684,8 +700,8 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
-          "sha256": "959c4efe4a17df72d7d07ff520b1d8e0c466a36768961d54de031e244874ae52",
-          "observed_utc": "2026-08-12T18:48:11Z",
+          "sha256": "5bf2b0353961067d439d15b4329502a839fc55abd474185086519bd708d03c96",
+          "observed_utc": "2026-08-13T10:27:45Z",
           "environment": "darwin/arm64; Go 1.26.5; loopback listeners; in-memory audit and telemetry",
           "module_scope": [
             "pkg/audit",
@@ -714,7 +730,7 @@
             "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
             "pkg/cache": "66d7c84a7e1dfddab97c83d46b3dbc23456e03d2178de649aad947abe1c63ea1",
             "pkg/capability": "adf4e1fd2cfbdfd00ed1d3043a74510149013952dcd518816b97f034b2e0fe1f",
-            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
             "pkg/config": "177b8d97d7fe2cdb8e475b06ddb0c2b0a75d06e9e34fdd4282d97e07bc861bf9",
             "pkg/config/adapters/awssecretsmanager": "0b2e328a145f6626fb110ed3d3127ace06e2e3c9bb8129a64ecea1369236b630",
             "pkg/correlation": "7160fe3e2a935f7dec2a83400b716461c8deed070b6745ad01a6ce551b7ef1ed",
@@ -731,18 +747,18 @@
             "pkg/money": "d6caa052ab763b0c4be676394544ace2384aaf036a5a53f82fb8e614df8ac00f",
             "pkg/opening-hours": "d7e7348c2b6954f3f50088fc4322bf5d56271701323c763ac29d42e51442beb8",
             "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
-            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/router": "4b6ab92c5679ad381f755ab4b97d8c8133d9f94a6d7a2912682b4c2b63e04635",
             "pkg/rule-engine/adapters/temporal": "16ae218566e6865baab52e40ad90792edaed631c57cf761e20c401892cd1b231",
-            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/service": "e917f70b11bc54e0d1befb425c608bd5edc3e70aa73d8c5553ac81b7fde0baa0",
-            "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
             "pkg/tenancy": "37605e9638bef041b6b5ee28f437aea5c1b441b6122c073416091e9da26194c8",
             "pkg/validation": "ff2b45c24e440416681ce24729668dfb5cafe06ba7a4bb3ba3eab334ef2d1ccc",
-            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
           }
         },
         {
@@ -784,6 +800,22 @@
             "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
             "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-TELEMETRY-COLLECTOR-OPERATIONS.md",
+          "sha256": "0c2ef79b976d3e3b1d66a8c8c3cf750550048f259ef755702a5d4f7565add858",
+          "observed_utc": "2026-08-13T10:13:51Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenTelemetry Collector Contrib 0.157.0",
+          "module_scope": [
+            "pkg/telemetry"
+          ],
+          "input_digests": {
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
+          }
         }
       ],
       "accepted_risks": []
@@ -797,8 +829,8 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
-          "sha256": "959c4efe4a17df72d7d07ff520b1d8e0c466a36768961d54de031e244874ae52",
-          "observed_utc": "2026-08-12T18:48:11Z",
+          "sha256": "5bf2b0353961067d439d15b4329502a839fc55abd474185086519bd708d03c96",
+          "observed_utc": "2026-08-13T10:27:45Z",
           "environment": "darwin/arm64; Go 1.26.5; loopback listeners; in-memory audit and telemetry",
           "module_scope": [
             "pkg/audit",
@@ -827,7 +859,7 @@
             "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
             "pkg/cache": "66d7c84a7e1dfddab97c83d46b3dbc23456e03d2178de649aad947abe1c63ea1",
             "pkg/capability": "adf4e1fd2cfbdfd00ed1d3043a74510149013952dcd518816b97f034b2e0fe1f",
-            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
             "pkg/config": "177b8d97d7fe2cdb8e475b06ddb0c2b0a75d06e9e34fdd4282d97e07bc861bf9",
             "pkg/config/adapters/awssecretsmanager": "0b2e328a145f6626fb110ed3d3127ace06e2e3c9bb8129a64ecea1369236b630",
             "pkg/correlation": "7160fe3e2a935f7dec2a83400b716461c8deed070b6745ad01a6ce551b7ef1ed",
@@ -844,18 +876,18 @@
             "pkg/money": "d6caa052ab763b0c4be676394544ace2384aaf036a5a53f82fb8e614df8ac00f",
             "pkg/opening-hours": "d7e7348c2b6954f3f50088fc4322bf5d56271701323c763ac29d42e51442beb8",
             "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
-            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/router": "4b6ab92c5679ad381f755ab4b97d8c8133d9f94a6d7a2912682b4c2b63e04635",
             "pkg/rule-engine/adapters/temporal": "16ae218566e6865baab52e40ad90792edaed631c57cf761e20c401892cd1b231",
-            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/service": "e917f70b11bc54e0d1befb425c608bd5edc3e70aa73d8c5553ac81b7fde0baa0",
-            "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
             "pkg/tenancy": "37605e9638bef041b6b5ee28f437aea5c1b441b6122c073416091e9da26194c8",
             "pkg/validation": "ff2b45c24e440416681ce24729668dfb5cafe06ba7a4bb3ba3eab334ef2d1ccc",
-            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
           }
         },
         {
@@ -872,6 +904,22 @@
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-TELEMETRY-COLLECTOR-OPERATIONS.md",
+          "sha256": "0c2ef79b976d3e3b1d66a8c8c3cf750550048f259ef755702a5d4f7565add858",
+          "observed_utc": "2026-08-13T10:13:51Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenTelemetry Collector Contrib 0.157.0",
+          "module_scope": [
+            "pkg/telemetry"
+          ],
+          "input_digests": {
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
+          }
         }
       ],
       "accepted_risks": []
@@ -885,8 +933,8 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-CROSS-PACKAGE-ADOPTION.md",
-          "sha256": "bd2e58314073b35461e2aa29b97ca6f1211bdc77851fff79b3a0fa1b89e959f5",
-          "observed_utc": "2026-08-13T02:00:11Z",
+          "sha256": "0298e710038237efa63e556d7734e14a8280e31434f5eb4c6d929a9023bc8742",
+          "observed_utc": "2026-08-13T10:27:45Z",
           "environment": "darwin/arm64; Go 1.26.5; loopback listeners; in-memory service adapters",
           "module_scope": [
             "pkg/adaptive-throttle",
@@ -923,7 +971,7 @@
             "pkg/cache": "66d7c84a7e1dfddab97c83d46b3dbc23456e03d2178de649aad947abe1c63ea1",
             "pkg/circuit-breaker": "67ca601c4659c6759dd454eafdcca60c2e1b271f40476135ae9a411803a7f117",
             "pkg/cli": "e384c4c8998e78cdb8edb9505273546772f7a89b87043daea79beda9d457a9f9",
-            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
             "pkg/concurrency-limit": "6aef88abd165d0d4d625fc9c3979c0d05563085709c9357c32be74f61d28eb85",
             "pkg/config": "177b8d97d7fe2cdb8e475b06ddb0c2b0a75d06e9e34fdd4282d97e07bc861bf9",
             "pkg/config/adapters/awssecretsmanager": "0b2e328a145f6626fb110ed3d3127ace06e2e3c9bb8129a64ecea1369236b630",
@@ -950,19 +998,19 @@
             "pkg/outbox/adapters/queue": "f0dbec17dd2852a74abf24f53d7c0c1efea89fc4f104e3d32a2f913a3219ac1b",
             "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
             "pkg/queue": "a378ce1eda3cbd23028155aedf08a3d385f5b86685edf4010dd55fb755fa624e",
-            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/resilience": "50bcea914858e6447612cc17f6f4d67c4eee25f67508ac7352bb0092f086d829",
             "pkg/retry": "f479b58871b1ed27d1a159dadabb19ec0cb8b270241a498bf302cce0080dc21d",
             "pkg/rule-engine/adapters/temporal": "16ae218566e6865baab52e40ad90792edaed631c57cf761e20c401892cd1b231",
-            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/semaphore": "0c7b78a2fbc1637be0dc89488aea5c66f2aefd5a6fc0e40828915cdafc71d7fb",
             "pkg/service": "e917f70b11bc54e0d1befb425c608bd5edc3e70aa73d8c5553ac81b7fde0baa0",
-            "pkg/service/integration/adoption": "5d9849a849ef6959c3b58cd96dfd41ba5f7ddad3d641c12f36728ea2f074bbeb",
-            "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
+            "pkg/service/integration/adoption": "5ed77c4c3af7f523cafa87f81b7f0c911b2baf3d0686e60e96033c177a4b31a3",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
-            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
           }
         },
         {
@@ -1014,8 +1062,8 @@
         },
         {
           "path": "docs/assurance/evidence/OA-RELEASE-CONSUMER-ALL-LOCAL.md",
-          "sha256": "072e57d891fd3fd79a40ec25b0853ea2c9342104ccc77d75a8a5e3f46cf66f60",
-          "observed_utc": "2026-08-13T09:31:28Z",
+          "sha256": "cdf0de93e7a58f483fd841d1e82affc0d3575d967f57764c0c018df9b28eeb36",
+          "observed_utc": "2026-08-13T10:32:58Z",
           "environment": "darwin/arm64; Go 1.26.5; two deterministic task-owned local proxies; clean GOWORK=off consumer",
           "module_scope": [
             "*"
@@ -1040,7 +1088,7 @@
             "pkg/cli": "e384c4c8998e78cdb8edb9505273546772f7a89b87043daea79beda9d457a9f9",
             "pkg/clock": "34d7f4bf56802e5bf7cc33964988a5cd5539e12884224fec7bd31c85a83e38c3",
             "pkg/cloudevents": "514fc884c27970de1a2187561552ecb1ef9dbdb7a67b8f74773c3cec9c2a9d74",
-            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
             "pkg/concurrency-limit": "6aef88abd165d0d4d625fc9c3979c0d05563085709c9357c32be74f61d28eb85",
             "pkg/config": "177b8d97d7fe2cdb8e475b06ddb0c2b0a75d06e9e34fdd4282d97e07bc861bf9",
             "pkg/config/adapters/awssecretsmanager": "0b2e328a145f6626fb110ed3d3127ace06e2e3c9bb8129a64ecea1369236b630",
@@ -1094,7 +1142,7 @@
             "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
             "pkg/prompts": "15f8ca59296127971ed78ec0a9c5e1f7675333e8131d49996658fe6645218ceb",
             "pkg/queue": "a378ce1eda3cbd23028155aedf08a3d385f5b86685edf4010dd55fb755fa624e",
-            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/resilience": "50bcea914858e6447612cc17f6f4d67c4eee25f67508ac7352bb0092f086d829",
@@ -1104,7 +1152,7 @@
             "pkg/rule-engine/adapters/math": "f0ec622edd7653f5b3dc5fe3ab8fd29cf2c80796c18225cf4a509039b17c8c83",
             "pkg/rule-engine/adapters/measurement": "bd942915cf3dadb16aaa158206505f63f78fa112f3fc71ca35b01ace89be1062",
             "pkg/rule-engine/adapters/temporal": "16ae218566e6865baab52e40ad90792edaed631c57cf761e20c401892cd1b231",
-            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/schema-registry": "f3ff280c215b6e466287e1a572fce60c1d897497343ed31ebc4b739c582f211c",
             "pkg/schema-registry/providers/confluent": "d43020b100b3f9355338be1449cd1d88f082c75bcdecb76e142b12a8ee8270fc",
             "pkg/schema-registry/providers/glue": "e63b3d5670d377591a4fa076a3fa87493987748e9eed9f127844c3f86548da1b",
@@ -1118,12 +1166,12 @@
             "pkg/settings": "16760d6647ebd851aa78c6cbd9d75e97bb1d2d1ffc71a5763a2d7ceaadbcfde4",
             "pkg/state-machine": "9ffd55ef25a72e22520ab1e81d9d13db07eda2d0fbdbcd487c4e2b26a6bc25e3",
             "pkg/tabular": "b96019b522a78401bbd722508725686c681afe6bd8c7caa45eff7ff782aec941",
-            "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
+            "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
             "pkg/tenancy": "37605e9638bef041b6b5ee28f437aea5c1b441b6122c073416091e9da26194c8",
             "pkg/validation": "ff2b45c24e440416681ce24729668dfb5cafe06ba7a4bb3ba3eab334ef2d1ccc",
             "pkg/verkle-tree": "5e37c7b0d9562f77afadce7e4f1ef689a5afc20204a27572bf49b2ba84c59206",
-            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788",
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e",
             "pkg/wire": "29db1f39fc56c2c41fc8f4abaf5d8095288d997e905f69205c58964f5822158f",
             "pkg/workflow": "9167c81877300b7c711ff061ac5e349f5e6d72f8d4ec0dc2586e60718ced4b37",
             "pkg/wsdl": "57034f1b12bd447876174e1df9abff05aef24eba158850a0a2b2affd978ffc32",
@@ -1142,5 +1190,39 @@
     "GL-RISK-005",
     "GL-RISK-006"
   ],
-  "risk_acceptances": []
+  "risk_acceptances": [],
+  "input_digest_migrations": [
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+      "to_sha256": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
+      "evidence_sha256": "9da7a2ad8abe537b9b38b28874c17009c62178bfc40368c95d26337eda241df6",
+      "rationale": "The telemetry endpoint correction changed only transitive example inputs, not this module or the behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+      "to_sha256": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
+      "evidence_sha256": "9da7a2ad8abe537b9b38b28874c17009c62178bfc40368c95d26337eda241df6",
+      "rationale": "The telemetry endpoint correction changed only transitive example inputs, not this module or the behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/scheduler",
+      "from_sha256": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+      "to_sha256": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
+      "evidence_sha256": "9da7a2ad8abe537b9b38b28874c17009c62178bfc40368c95d26337eda241df6",
+      "rationale": "The telemetry endpoint correction changed only transitive example inputs, not this module or the behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/webhook",
+      "from_sha256": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788",
+      "to_sha256": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
+      "evidence_sha256": "9da7a2ad8abe537b9b38b28874c17009c62178bfc40368c95d26337eda241df6",
+      "rationale": "The telemetry endpoint correction changed only transitive example inputs, not this module or the behavior exercised by retained evidence."
+    }
+  ]
 }

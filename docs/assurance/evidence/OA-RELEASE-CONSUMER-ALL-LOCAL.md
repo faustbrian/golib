@@ -1,6 +1,6 @@
 # All-Module Local Release Consumer Evidence
 
-Observed at `2026-08-13T09:31:28Z` on `darwin/arm64` with Go `1.26.5`.
+Observed at `2026-08-13T10:32:58Z` on `darwin/arm64` with Go `1.26.5`.
 
 ## Executed Proof
 

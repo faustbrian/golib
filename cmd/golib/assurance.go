@@ -34,12 +34,13 @@ var requiredAssuranceScenarios = []string{
 }
 
 type operationalAssuranceRecord struct {
-	SchemaVersion   int                       `json:"schema_version"`
-	Verdict         string                    `json:"verdict"`
-	Modules         []string                  `json:"modules"`
-	Scenarios       []operationalScenario     `json:"scenarios"`
-	ResidualRisks   []string                  `json:"residual_risks"`
-	RiskAcceptances []operationalRiskApproval `json:"risk_acceptances"`
+	SchemaVersion         int                       `json:"schema_version"`
+	Verdict               string                    `json:"verdict"`
+	Modules               []string                  `json:"modules"`
+	Scenarios             []operationalScenario     `json:"scenarios"`
+	ResidualRisks         []string                  `json:"residual_risks"`
+	RiskAcceptances       []operationalRiskApproval `json:"risk_acceptances"`
+	InputDigestMigrations []inputDigestMigration    `json:"input_digest_migrations"`
 }
 
 type operationalScenario struct {
@@ -66,6 +67,15 @@ type operationalRiskApproval struct {
 	AcceptedUTC string   `json:"accepted_utc"`
 	Rationale   string   `json:"rationale"`
 	Scenarios   []string `json:"scenarios"`
+}
+
+type inputDigestMigration struct {
+	Module         string `json:"module"`
+	FromSHA256     string `json:"from_sha256"`
+	ToSHA256       string `json:"to_sha256"`
+	EvidencePath   string `json:"evidence_path"`
+	EvidenceSHA256 string `json:"evidence_sha256"`
+	Rationale      string `json:"rationale"`
 }
 
 func assurance(root string, arguments []string) {
@@ -168,6 +178,14 @@ func validateOperationalAssurance(root string, current catalog, contents []byte)
 	for _, directory := range record.Modules {
 		moduleSet[directory] = true
 	}
+	digestMigrations, err := validateInputDigestMigrations(
+		root,
+		current,
+		record.InputDigestMigrations,
+	)
+	if err != nil {
+		return err
+	}
 
 	riskSet, err := validateOperationalRisks(record)
 	if err != nil {
@@ -189,6 +207,7 @@ func validateOperationalAssurance(root string, current catalog, contents []byte)
 			current,
 			moduleSet,
 			riskSet,
+			digestMigrations,
 			currentInputDigests,
 			scenario,
 		); err != nil {
@@ -261,6 +280,7 @@ func validateOperationalScenario(
 	current catalog,
 	modules map[string]bool,
 	risks map[string]bool,
+	digestMigrations map[string]inputDigestMigration,
 	currentInputDigests map[string]string,
 	scenario operationalScenario,
 ) error {
@@ -287,6 +307,7 @@ func validateOperationalScenario(
 			root,
 			current,
 			modules,
+			digestMigrations,
 			currentInputDigests,
 			evidence,
 		); err != nil {
@@ -311,6 +332,7 @@ func validateOperationalEvidence(
 	root string,
 	current catalog,
 	modules map[string]bool,
+	digestMigrations map[string]inputDigestMigration,
 	currentInputDigests map[string]string,
 	evidence operationalEvidence,
 ) error {
@@ -326,40 +348,13 @@ func validateOperationalEvidence(
 	if !isUTCRFC3339(evidence.ObservedUTC) {
 		return fmt.Errorf("evidence observed_utc %q is not UTC RFC3339", evidence.ObservedUTC)
 	}
-	if filepath.IsAbs(evidence.Path) || filepath.Clean(evidence.Path) != evidence.Path ||
-		evidence.Path == "." || strings.HasPrefix(evidence.Path, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("evidence path %q is not a clean repository-relative path", evidence.Path)
-	}
-	resolvedRoot, err := filepath.EvalSymlinks(root)
-	if err != nil {
-		return fmt.Errorf("resolve repository root: %w", err)
-	}
-	resolved, err := filepath.EvalSymlinks(filepath.Join(root, evidence.Path))
-	if err != nil {
-		return fmt.Errorf("resolve evidence %s: %w", evidence.Path, err)
-	}
-	relative, err := filepath.Rel(resolvedRoot, resolved)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("evidence path %q escapes the repository", evidence.Path)
-	}
-	info, err := os.Stat(resolved)
-	if err != nil {
-		return fmt.Errorf("stat evidence %s: %w", evidence.Path, err)
-	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("evidence %s is not a regular file", evidence.Path)
-	}
-	contents, err := os.ReadFile(resolved)
-	if err != nil {
-		return fmt.Errorf("read evidence %s: %w", evidence.Path, err)
-	}
-	want, err := hex.DecodeString(evidence.SHA256)
-	if err != nil || len(want) != sha256.Size {
-		return fmt.Errorf("evidence %s has invalid SHA-256", evidence.Path)
-	}
-	got := sha256.Sum256(contents)
-	if !slices.Equal(want, got[:]) {
-		return fmt.Errorf("evidence %s digest mismatch", evidence.Path)
+	if err := validateRepositoryArtifact(
+		root,
+		evidence.Path,
+		evidence.SHA256,
+		"evidence",
+	); err != nil {
+		return err
 	}
 	if err := validateAssuranceInputDigests(
 		root,
@@ -367,6 +362,7 @@ func validateOperationalEvidence(
 		evidence.ModuleScope,
 		evidence.InputModules,
 		evidence.InputDigests,
+		digestMigrations,
 		currentInputDigests,
 	); err != nil {
 		return fmt.Errorf("evidence %s: %w", evidence.Path, err)
@@ -380,6 +376,7 @@ func validateAssuranceInputDigests(
 	scope []string,
 	inputModules []string,
 	recorded map[string]string,
+	migrations map[string]inputDigestMigration,
 	cache map[string]string,
 ) error {
 	required := assuranceInputModules(current, scope, inputModules)
@@ -414,7 +411,7 @@ func validateAssuranceInputDigests(
 			}
 			cache[directory] = currentDigest
 		}
-		if stored != currentDigest {
+		if !inputDigestMatches(stored, currentDigest, directory, migrations) {
 			return fmt.Errorf("input digest mismatch for %s", directory)
 		}
 	}
@@ -422,6 +419,118 @@ func validateAssuranceInputDigests(
 		if !slices.Contains(required, directory) {
 			return fmt.Errorf("input digest for out-of-scope module %s", directory)
 		}
+	}
+	return nil
+}
+
+func validateInputDigestMigrations(
+	root string,
+	current catalog,
+	migrations []inputDigestMigration,
+) (map[string]inputDigestMigration, error) {
+	indexed := make(map[string]inputDigestMigration, len(migrations))
+	modules := make(map[string]bool, len(current.Modules))
+	for _, item := range current.Modules {
+		modules[item.Directory] = true
+	}
+	for _, migration := range migrations {
+		if !modules[migration.Module] {
+			return nil, fmt.Errorf("input digest migration has unknown module %s", migration.Module)
+		}
+		if !validSHA256(migration.FromSHA256) || !validSHA256(migration.ToSHA256) {
+			return nil, fmt.Errorf("input digest migration for %s has invalid SHA-256", migration.Module)
+		}
+		if migration.FromSHA256 == migration.ToSHA256 {
+			return nil, fmt.Errorf("input digest migration for %s does not change the digest", migration.Module)
+		}
+		if strings.TrimSpace(migration.Rationale) == "" {
+			return nil, fmt.Errorf("input digest migration for %s has empty rationale", migration.Module)
+		}
+		if err := validateRepositoryArtifact(
+			root,
+			migration.EvidencePath,
+			migration.EvidenceSHA256,
+			"migration evidence",
+		); err != nil {
+			return nil, err
+		}
+		key := digestMigrationKey(migration.Module, migration.FromSHA256)
+		if _, exists := indexed[key]; exists {
+			return nil, fmt.Errorf(
+				"duplicate input digest migration for %s from %s",
+				migration.Module,
+				migration.FromSHA256,
+			)
+		}
+		indexed[key] = migration
+	}
+	return indexed, nil
+}
+
+func inputDigestMatches(
+	stored string,
+	current string,
+	module string,
+	migrations map[string]inputDigestMigration,
+) bool {
+	seen := make(map[string]bool, len(migrations))
+	for stored != current {
+		if seen[stored] {
+			return false
+		}
+		seen[stored] = true
+		migration, exists := migrations[digestMigrationKey(module, stored)]
+		if !exists {
+			return false
+		}
+		stored = migration.ToSHA256
+	}
+	return true
+}
+
+func digestMigrationKey(module, from string) string {
+	return module + "\x00" + from
+}
+
+func validSHA256(value string) bool {
+	decoded, err := hex.DecodeString(value)
+	return err == nil && len(decoded) == sha256.Size
+}
+
+func validateRepositoryArtifact(root, path, expected, label string) error {
+	if filepath.IsAbs(path) || filepath.Clean(path) != path ||
+		path == "." || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("%s path %q is not a clean repository-relative path", label, path)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("resolve repository root: %w", err)
+	}
+	resolved, err := filepath.EvalSymlinks(filepath.Join(root, path))
+	if err != nil {
+		return fmt.Errorf("resolve %s %s: %w", label, path, err)
+	}
+	relative, err := filepath.Rel(resolvedRoot, resolved)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("%s path %q escapes the repository", label, path)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return fmt.Errorf("stat %s %s: %w", label, path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%s %s is not a regular file", label, path)
+	}
+	contents, err := os.ReadFile(resolved)
+	if err != nil {
+		return fmt.Errorf("read %s %s: %w", label, path, err)
+	}
+	if !validSHA256(expected) {
+		return fmt.Errorf("%s %s has invalid SHA-256", label, path)
+	}
+	got := sha256.Sum256(contents)
+	if expected != hex.EncodeToString(got[:]) {
+		return fmt.Errorf("%s digest mismatch for %s", label, path)
 	}
 	return nil
 }
