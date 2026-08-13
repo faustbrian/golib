@@ -19,7 +19,9 @@ boundaries.
 `OA-REFERENCE-DURABILITY` now retains passing PostgreSQL and Valkey evidence
 for transaction rollback, atomic business/idempotency/outbox commit, relay,
 unacknowledged-task reclamation, acknowledgement, and command replay. It
-remains pending for the other required durability systems and recovery cases.
+also retains queue-service lifecycle evidence for timeout redelivery,
+dead-letter recovery, and Redis/Valkey settlement. It remains pending for the
+other required durability systems and recovery cases.
 
 `OA-RELEASE-CONSUMER` now retains one current local `v1.0.0` source-proxy and
 clean-consumer proof. It remains pending for the complete module matrix,
@@ -38,6 +40,12 @@ deadlocks, process death, unknown activity outcomes, snapshot restore, replica
 promotion, fencing, and audited dead-letter resolution. It remains pending for
 managed database backup and failover, storage exhaustion, network partitions,
 Kafka, OpenSearch, and broader external-side-effect reconciliation.
+
+`OA-DEPLOYMENT-COMPATIBILITY` now retains bounded queue-worker rolling
+replacement and scale-up evidence on Redis and Valkey. It remains pending for
+mixed binary and data versions, ECS rolling deployment and canary behavior,
+schema compatibility, complete rollback, key overlap, and interrupted
+migrations.
 
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256

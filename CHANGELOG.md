@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Record Redis and Valkey queue lifecycle evidence for deadline redelivery,
+  dead-letter recovery, rolling worker replacement, process termination, and
+  the explicit at-least-once duplicate window.
 - Record focused workflow process-death, deadlock, snapshot-restore,
   replica-promotion, unknown-outcome, fencing, and dead-letter recovery
   evidence without expanding it into managed-service claims.

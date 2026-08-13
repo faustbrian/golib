@@ -238,6 +238,18 @@
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
+          "sha256": "ecd1bbf3841a2748b31c6be0fd4d3ba370cb5219c20fa5023a1b575e08bc7ac3",
+          "observed_utc": "2026-08-13T01:42:02Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Redis 8.6.4-alpine; Valkey 9.1.0-alpine",
+          "module_scope": [
+            "pkg/queue/queueservice"
+          ],
+          "input_digests": {
+            "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
+          }
         }
       ],
       "accepted_risks": []
@@ -449,6 +461,18 @@
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
             "pkg/workflow": "9167c81877300b7c711ff061ac5e349f5e6d72f8d4ec0dc2586e60718ced4b37"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
+          "sha256": "ecd1bbf3841a2748b31c6be0fd4d3ba370cb5219c20fa5023a1b575e08bc7ac3",
+          "observed_utc": "2026-08-13T01:42:02Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Redis 8.6.4-alpine; Valkey 9.1.0-alpine",
+          "module_scope": [
+            "pkg/queue/queueservice"
+          ],
+          "input_digests": {
+            "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
+          }
         }
       ],
       "accepted_risks": []
@@ -459,7 +483,20 @@
       "affected_modules": [
         "*"
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "path": "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
+          "sha256": "ecd1bbf3841a2748b31c6be0fd4d3ba370cb5219c20fa5023a1b575e08bc7ac3",
+          "observed_utc": "2026-08-13T01:42:02Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Redis 8.6.4-alpine; Valkey 9.1.0-alpine",
+          "module_scope": [
+            "pkg/queue/queueservice"
+          ],
+          "input_digests": {
+            "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
+          }
+        }
+      ],
       "accepted_risks": []
     },
     {

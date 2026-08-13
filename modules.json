@@ -399,6 +399,7 @@
             "docs/assurance/evidence/OA-FAILURE-RECOVERY-POSTGRES-VALKEY.md",
             "docs/assurance/evidence/OA-FAILURE-RECOVERY-WORKFLOW.md",
             "docs/assurance/evidence/OA-PLATFORM-MATRIX-LOCAL.md",
+            "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
             "docs/assurance/evidence/OA-REFERENCE-DURABILITY-POSTGRES-VALKEY.md",
             "docs/assurance/evidence/OA-REFERENCE-EXTERNAL.md",
             "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
@@ -514,6 +515,7 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
+            "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
             "docs/hardening-report.md",
             "docs/performance.md",
             "docs/security/threat-model.md"
