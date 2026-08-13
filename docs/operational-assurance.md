@@ -52,8 +52,10 @@ outage, fail-closed key-lifecycle evidence, and real Collector outage recovery
 without interrupting business traffic. A real two-node OpenSearch campaign
 also proves bounded endpoint and complete-cluster outages, unknown-write
 reconciliation, mixed-version operation, and recovery through a rolling
-2.19.6-to-3.8.0 replacement. It remains pending for managed database and
-OpenSearch failover, storage exhaustion, network partitions, Kafka, live
+2.19.6-to-3.8.0 replacement. A secured-engine matrix adds TLS trust failure,
+credential rotation, DNS target replacement, degraded-health detection, and
+recovery on both supported versions. It remains pending for managed database
+and OpenSearch failover, storage exhaustion, network partitions, Kafka, live
 credential providers, prolonged telemetry outages, full search rebuild, and
 broader external-side-effect reconciliation.
 
@@ -65,9 +67,10 @@ pending for released mixed application binary and data versions, ECS rolling
 deployment and canary behavior, the complete PostgreSQL and engine matrix,
 complete application rollback, and live key rotation. The OpenSearch campaign
 does prove a real engine rolling upgrade with old/new nodes serving the same
-fixture throughout. Local bearer, API-key, JWT, OIDC, capability,
-HTTP-signature, and cursor tests now prove bounded overlap and retirement under
-the race detector.
+fixture throughout, while its security matrix proves runtime credential
+rotation without client reconstruction. Local bearer, API-key, JWT, OIDC,
+capability, HTTP-signature, and cursor tests now prove bounded overlap and
+retirement under the race detector.
 
 `OA-SECURITY-PRIVACY-SUPPLY-CHAIN` and
 `OA-OBSERVABILITY-OPERATIONS` reuse the unchanged reference HTTP campaign as
@@ -86,7 +89,9 @@ operator drills.
 key-lifecycle campaign covering atomic replacement, overlap, refresh,
 retirement, revocation, compromise response, rollback rejection, and fail-closed
 provider outages. Live provider, KMS, secret-distribution, and incident drills
-remain unproved.
+remain unproved. A separate secured OpenSearch matrix proves peer-verified TLS,
+fail-closed trust, least-privilege tenant isolation, credential rotation, and
+denial of cross-tenant and operator surfaces on both supported engine versions.
 
 `OA-CROSS-PACKAGE-CONSISTENCY` retains the representative Track, Postal, and
 Location adoption fixture for public package construction, role isolation,
@@ -96,8 +101,10 @@ revocation, and outage behavior across six security-facing modules. The
 OpenSearch matrix additionally proves that the search core and production
 adapter preserve shared semantics across rebuild, reconciliation, rollback,
 mixed application versions, and both supported engine versions. The scenario
-remains pending for the other durable dependencies, tenant and idempotency
-propagation, redaction, exported telemetry, and real service business paths.
+also retains real adapter-level tenant isolation and operator/runtime role
+separation. It remains pending for the other durable dependencies, tenant and
+idempotency propagation through a composed service, redaction, exported
+telemetry, and real service business paths.
 
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256

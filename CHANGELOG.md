@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Record secured OpenSearch 2.19.6 and 3.8.0 TLS, least-privilege,
+  tenant-isolation, credential-rotation, DNS-change, and recovery evidence
+  without treating local test PKI as production identity proof.
 - Record real OpenSearch 2.19.6 and 3.8.0 version-matrix, snapshot/restore,
   rebuild, reconciliation, bounded-load, mixed-version, outage-recovery, and
   rolling-upgrade evidence without expanding it into managed-service or

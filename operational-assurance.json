@@ -662,6 +662,20 @@
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-OPENSEARCH-SECURITY-MATRIX.md",
+          "sha256": "3db52facfc85d4d84cfe8df81ade4e1869d6b514f97d57eca086b68a02da4385",
+          "observed_utc": "2026-08-13T12:03:19Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch Security 2.19.6 and 3.8.0",
+          "module_scope": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ],
+          "input_digests": {
+            "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
+            "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
+          }
         }
       ],
       "accepted_risks": []
@@ -763,6 +777,20 @@
           "sha256": "56cc2f13d7af7edea9dd4586595a454da2f472920956bd5aa99db11a5c3aefa3",
           "observed_utc": "2026-08-13T11:54:28Z",
           "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch 2.19.6 and 3.8.0",
+          "module_scope": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ],
+          "input_digests": {
+            "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
+            "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-OPENSEARCH-SECURITY-MATRIX.md",
+          "sha256": "3db52facfc85d4d84cfe8df81ade4e1869d6b514f97d57eca086b68a02da4385",
+          "observed_utc": "2026-08-13T12:03:19Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch Security 2.19.6 and 3.8.0",
           "module_scope": [
             "pkg/search",
             "pkg/search/adapters/opensearch"
@@ -899,6 +927,20 @@
             "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-OPENSEARCH-SECURITY-MATRIX.md",
+          "sha256": "3db52facfc85d4d84cfe8df81ade4e1869d6b514f97d57eca086b68a02da4385",
+          "observed_utc": "2026-08-13T12:03:19Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch Security 2.19.6 and 3.8.0",
+          "module_scope": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ],
+          "input_digests": {
+            "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
+            "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
           }
         }
       ],
@@ -1127,6 +1169,20 @@
           "sha256": "56cc2f13d7af7edea9dd4586595a454da2f472920956bd5aa99db11a5c3aefa3",
           "observed_utc": "2026-08-13T11:54:28Z",
           "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch 2.19.6 and 3.8.0",
+          "module_scope": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ],
+          "input_digests": {
+            "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
+            "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-OPENSEARCH-SECURITY-MATRIX.md",
+          "sha256": "3db52facfc85d4d84cfe8df81ade4e1869d6b514f97d57eca086b68a02da4385",
+          "observed_utc": "2026-08-13T12:03:19Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch Security 2.19.6 and 3.8.0",
           "module_scope": [
             "pkg/search",
             "pkg/search/adapters/opensearch"
