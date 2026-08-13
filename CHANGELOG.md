@@ -7,6 +7,10 @@ documented in each module's changelog.
 
 ### Added
 
+- Record real OpenSearch 2.19.6 and 3.8.0 version-matrix, snapshot/restore,
+  rebuild, reconciliation, bounded-load, mixed-version, outage-recovery, and
+  rolling-upgrade evidence without expanding it into managed-service or
+  production-capacity claims.
 - Reuse the unchanged HTTP composition proof as bounded observability evidence
   for correlation, in-memory telemetry and audit, readiness recovery, graceful
   shutdown, and restart without implying production operations readiness.

@@ -403,6 +403,8 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
             "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
             "docs/assurance/evidence/OA-MIGRATIONS-POSTGRES-RECOVERY.md",
+            "docs/assurance/evidence/OA-OPENSEARCH-ROLLING-RECOVERY.md",
+            "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
             "docs/assurance/evidence/OA-PLATFORM-MATRIX-LOCAL.md",
             "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
             "docs/assurance/evidence/OA-REFERENCE-DURABILITY-POSTGRES-VALKEY.md",

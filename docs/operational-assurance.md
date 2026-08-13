@@ -22,8 +22,10 @@ unacknowledged-task reclamation, acknowledgement, and command replay. It
 also retains queue-service lifecycle evidence for timeout redelivery,
 dead-letter recovery, Redis/Valkey settlement, scheduler lease fencing,
 migration interruption recovery, and audit backup/restore with retained legal
-holds. It remains pending for the other required durability systems and
-recovery cases.
+holds. A real OpenSearch matrix adds snapshot/restore, durable stale-write
+rejection, rebuild, reconciliation, rollback, and mixed application-protocol
+evidence on both supported engine versions. It remains pending for the other
+required durability systems and production recovery cases.
 
 `OA-RELEASE-CONSUMER` now retains a deterministic local `v1.0.0` source-proxy
 and clean-consumer proof for all 107 releasable modules. Every module resolved
@@ -34,7 +36,9 @@ authorization.
 
 `OA-RESOURCE-PERFORMANCE` now retains a passing constrained native-Linux
 service campaign with explicit throughput, latency, heap, goroutine,
-descriptor, and error budgets. It remains pending for soak, stress-to-failure,
+descriptor, and error budgets. The OpenSearch matrix adds bounded real-engine
+load and equivalent adapter/direct-client comparisons on both supported
+versions. It remains pending for multi-hour soak, stress-to-failure, broader
 realistic dependency load, fleet behavior, exhaustion recovery, and production
 capacity proof.
 
@@ -45,18 +49,23 @@ promotion, fencing, audited dead-letter resolution, scheduler ambiguity,
 migration interruption, and local audit backup/restore reconciliation. It
 also retains local JWT/OIDC outage, retired-key rollback, revocation-store
 outage, fail-closed key-lifecycle evidence, and real Collector outage recovery
-without interrupting business traffic. It remains pending for managed database
-backup and failover, storage exhaustion, network partitions, Kafka,
-OpenSearch, live credential providers, prolonged telemetry outages, and broader
-external-side-effect reconciliation.
+without interrupting business traffic. A real two-node OpenSearch campaign
+also proves bounded endpoint and complete-cluster outages, unknown-write
+reconciliation, mixed-version operation, and recovery through a rolling
+2.19.6-to-3.8.0 replacement. It remains pending for managed database and
+OpenSearch failover, storage exhaustion, network partitions, Kafka, live
+credential providers, prolonged telemetry outages, full search rebuild, and
+broader external-side-effect reconciliation.
 
 `OA-DEPLOYMENT-COMPATIBILITY` now retains bounded queue-worker rolling
 replacement and scale-up evidence on Redis and Valkey, plus migration history,
 Laravel baseline, interrupted-migration recovery, and audit protocol-compatible
 writer behavior across a durability migration on PostgreSQL 18.4. It remains
-pending for released mixed binary and data versions, ECS rolling deployment and
-canary behavior, the complete PostgreSQL and engine matrix, complete rollback,
-and live key rotation. Local bearer, API-key, JWT, OIDC, capability,
+pending for released mixed application binary and data versions, ECS rolling
+deployment and canary behavior, the complete PostgreSQL and engine matrix,
+complete application rollback, and live key rotation. The OpenSearch campaign
+does prove a real engine rolling upgrade with old/new nodes serving the same
+fixture throughout. Local bearer, API-key, JWT, OIDC, capability,
 HTTP-signature, and cursor tests now prove bounded overlap and retirement under
 the race detector.
 
@@ -84,7 +93,10 @@ Location adoption fixture for public package construction, role isolation,
 correlation, bounded resilience, fleet behavior, and lifecycle consistency. A
 separate race-enabled key campaign proves aligned overlap, retirement,
 revocation, and outage behavior across six security-facing modules. The
-scenario remains pending for durable dependencies, tenant and idempotency
+OpenSearch matrix additionally proves that the search core and production
+adapter preserve shared semantics across rebuild, reconciliation, rollback,
+mixed application versions, and both supported engine versions. The scenario
+remains pending for the other durable dependencies, tenant and idempotency
 propagation, redaction, exported telemetry, and real service business paths.
 
 `operational-assurance.json` is the machine-readable authority. It catalogs
