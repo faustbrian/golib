@@ -185,7 +185,7 @@ func (w *Worker) Stats(ctx context.Context) (Stats, error) {
 		SettlementFailures: w.metrics.settlementFailures.Load(),
 	}
 	if state.OldestPendingID != "" {
-		stats.OldestPendingAge, err = streamqueue.MessageAge(state.OldestPendingID, time.Now())
+		stats.OldestPendingAge, err = streamqueue.MessageAge(state.OldestPendingID, w.statusNow())
 		if err != nil {
 			return Stats{}, fmt.Errorf("valkeystream: inspect oldest pending delivery: %w", err)
 		}

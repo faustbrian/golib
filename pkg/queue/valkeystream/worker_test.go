@@ -386,6 +386,7 @@ func TestWorkerStatsReportsOutstandingWorkAndLifecycleCounters(t *testing.T) {
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = worker.Shutdown() })
+	worker.now = func() time.Time { return now }
 
 	message := job.NewMessage(rawMessage("observed"))
 	require.NoError(t, worker.Queue(&message))
@@ -397,7 +398,7 @@ func TestWorkerStatsReportsOutstandingWorkAndLifecycleCounters(t *testing.T) {
 	assert.Equal(t, int64(1), stats.Pending)
 	assert.True(t, stats.LagKnown)
 	assert.Equal(t, stats.Pending+stats.Lag, stats.Depth)
-	assert.InDelta(t, float64(2*time.Second), float64(stats.OldestPendingAge), float64(100*time.Millisecond))
+	assert.Equal(t, 2*time.Second, stats.OldestPendingAge)
 	assert.Equal(t, uint64(1), stats.Enqueued)
 	assert.Equal(t, uint64(1), stats.Delivered)
 	assert.Zero(t, stats.Reclaimed)
