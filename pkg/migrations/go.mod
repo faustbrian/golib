@@ -30,7 +30,7 @@ require (
 	github.com/faustbrian/golib/pkg/cli v0.0.0-20260729183302-ac9562ceb0b5 // indirect
 	github.com/faustbrian/golib/pkg/correlation v0.0.0-20260729185016-600a2ffaf74d // indirect
 	github.com/faustbrian/golib/pkg/identifier v0.0.0-20260729183302-ac9562ceb0b5 // indirect
-	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect

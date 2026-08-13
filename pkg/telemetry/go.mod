@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/faustbrian/golib/pkg/service v0.0.0-20260729185121-c56b7cb53124
-	github.com/felixge/httpsnoop v1.0.4
+	github.com/felixge/httpsnoop v1.1.0
 	github.com/jackc/pgx/v5 v5.10.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.44.0
