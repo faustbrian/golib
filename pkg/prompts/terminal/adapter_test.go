@@ -20,7 +20,11 @@ func TestAdapterReadsQueuedEventsAndEOF(t *testing.T) {
 		t.Fatalf("Pipe() error = %v", err)
 	}
 	defer reader.Close()
-	adapter, err := terminal.New(reader, writer, terminal.Config{PollInterval: time.Millisecond})
+	adapter, err := terminal.New(
+		reader,
+		writer,
+		terminal.Config{PollInterval: time.Millisecond},
+	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -53,9 +57,11 @@ func TestAdapterDecodesBytePasteWithoutStringPayload(t *testing.T) {
 		t.Fatalf("Pipe() error = %v", err)
 	}
 	defer reader.Close()
-	adapter, err := terminal.New(reader, writer, terminal.Config{
-		Decoder: prompts.DecoderConfig{ByteInput: true},
-	})
+	adapter, err := terminal.New(
+		reader,
+		writer,
+		terminal.Config{Decoder: prompts.DecoderConfig{ByteInput: true}},
+	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -75,34 +81,35 @@ func TestAdapterDecodesBytePasteWithoutStringPayload(t *testing.T) {
 func TestAdapterFlushesEscapeAndRejectsTruncation(t *testing.T) {
 	t.Parallel()
 
-	for name, input := range map[string][]byte{
-		"escape":    {0x1b},
-		"truncated": []byte("\x1b["),
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			reader, writer, err := os.Pipe()
-			if err != nil {
-				t.Fatalf("Pipe() error = %v", err)
-			}
-			defer reader.Close()
-			adapter, err := terminal.New(reader, writer, terminal.Config{})
-			if err != nil {
-				t.Fatalf("New() error = %v", err)
-			}
-			_, _ = writer.Write(input)
-			_ = writer.Close()
-			event, nextErr := adapter.Next(context.Background())
-			if name == "escape" {
-				if nextErr != nil || event != prompts.KeyEvent(prompts.KeyEscape) {
-					t.Fatalf("Next() = %#v, %v", event, nextErr)
+	for name, input := range map[string][]byte{"escape": {0x1b}, "truncated": []byte("\x1b[")} {
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
+				reader, writer, err := os.Pipe()
+				if err != nil {
+					t.Fatalf("Pipe() error = %v", err)
 				}
-				return
-			}
-			if !errors.Is(nextErr, prompts.ErrReader) {
-				t.Fatalf("Next() error = %v", nextErr)
-			}
-		})
+				defer reader.Close()
+				adapter, err := terminal.New(reader, writer, terminal.Config{})
+				if err != nil {
+					t.Fatalf("New() error = %v", err)
+				}
+				_, _ = writer.Write(input)
+				_ = writer.Close()
+				event, nextErr := adapter.Next(context.Background())
+				if name == "escape" {
+					if nextErr != nil ||
+						event != prompts.KeyEvent(prompts.KeyEscape) {
+						t.Fatalf("Next() = %#v, %v", event, nextErr)
+					}
+					return
+				}
+				if !errors.Is(nextErr, prompts.ErrReader) {
+					t.Fatalf("Next() error = %v", nextErr)
+				}
+			},
+		)
 	}
 }
 
@@ -115,7 +122,11 @@ func TestAdapterResolvesEscapeWhileInputRemainsOpen(t *testing.T) {
 	}
 	defer reader.Close()
 	defer writer.Close()
-	adapter, err := terminal.New(reader, writer, terminal.Config{PollInterval: time.Millisecond})
+	adapter, err := terminal.New(
+		reader,
+		writer,
+		terminal.Config{PollInterval: time.Millisecond},
+	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -139,7 +150,11 @@ func TestAdapterRejectsTimedOutPartialSequence(t *testing.T) {
 	}
 	defer reader.Close()
 	defer writer.Close()
-	adapter, err := terminal.New(reader, writer, terminal.Config{PollInterval: time.Millisecond})
+	adapter, err := terminal.New(
+		reader,
+		writer,
+		terminal.Config{PollInterval: time.Millisecond},
+	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -181,7 +196,8 @@ func TestAdapterCancellationAndReadFailures(t *testing.T) {
 	closedAdapter, _ := terminal.New(closedReader, closedWriter, terminal.Config{})
 	_ = closedReader.Close()
 	defer closedWriter.Close()
-	if _, err := closedAdapter.Next(context.Background()); !errors.Is(err, prompts.ErrTerminalDetached) {
+	if _, err := closedAdapter.Next(context.Background());
+		!errors.Is(err, prompts.ErrTerminalDetached) {
 		t.Fatalf("closed Next() error = %v", err)
 	}
 
@@ -205,19 +221,30 @@ func TestAdapterValidatesConfigAndNonTerminalControl(t *testing.T) {
 	}
 	defer reader.Close()
 	defer writer.Close()
-	for _, test := range []struct {
-		input, output *os.File
-		config        terminal.Config
-	}{
-		{nil, writer, terminal.Config{}},
-		{reader, nil, terminal.Config{}},
-		{reader, writer, terminal.Config{ReadBuffer: -1}},
-		{reader, writer, terminal.Config{ReadBuffer: 1 << 21}},
-		{reader, writer, terminal.Config{PollInterval: -1}},
-		{reader, writer, terminal.Config{PollInterval: 2 * time.Second}},
-		{reader, writer, terminal.Config{Decoder: prompts.DecoderConfig{MaxPasteBytes: 2, MaxBufferBytes: 1}}},
-	} {
-		if _, err := terminal.New(test.input, test.output, test.config); !errors.Is(err, prompts.ErrInvalidDefinition) {
+	for _, test := range
+		[]struct {
+			input, output *os.File
+			config terminal.Config
+		}{
+			{nil, writer, terminal.Config{}},
+			{reader, nil, terminal.Config{}},
+			{reader, writer, terminal.Config{ReadBuffer: -1}},
+			{reader, writer, terminal.Config{ReadBuffer: 1 << 21}},
+			{reader, writer, terminal.Config{PollInterval: -1}},
+			{reader, writer, terminal.Config{PollInterval: 2 * time.Second}},
+			{
+				reader,
+				writer,
+				terminal.Config{
+					Decoder: prompts.DecoderConfig{
+						MaxPasteBytes: 2,
+						MaxBufferBytes: 1,
+					},
+				},
+			},
+		} {
+		if _, err := terminal.New(test.input, test.output, test.config);
+			!errors.Is(err, prompts.ErrInvalidDefinition) {
 			t.Fatalf("New(%#v) error = %v", test.config, err)
 		}
 	}
@@ -226,8 +253,11 @@ func TestAdapterValidatesConfigAndNonTerminalControl(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	capabilities := adapter.Capabilities()
-	if capabilities.InputTerminal || capabilities.OutputTerminal || capabilities.Width != 0 ||
-		capabilities.Height != 0 || !capabilities.Unicode {
+	if capabilities.InputTerminal ||
+		capabilities.OutputTerminal ||
+		capabilities.Width != 0 ||
+		capabilities.Height != 0 ||
+		!capabilities.Unicode {
 		t.Fatalf("Capabilities() = %#v", capabilities)
 	}
 	if err := adapter.SetEcho(false); !errors.Is(err, prompts.ErrAdapter) {

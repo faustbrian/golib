@@ -37,7 +37,7 @@ func readWithoutDeadlineUsing(
 	if err != nil {
 		return 0, err
 	}
-	if info.Mode()&(os.ModeCharDevice|os.ModeNamedPipe|os.ModeSocket) == 0 {
+	if info.Mode() & (os.ModeCharDevice | os.ModeNamedPipe | os.ModeSocket) == 0 {
 		return 0, os.ErrNoDeadline
 	}
 	fds := []unix.PollFd{{Fd: int32(descriptor), Events: unix.POLLIN}}
@@ -52,7 +52,7 @@ func readWithoutDeadlineUsing(
 				wait = remaining
 			}
 		}
-		milliseconds := max(1, int((wait+time.Millisecond-1)/time.Millisecond))
+		milliseconds := max(1, int((wait + time.Millisecond - 1) / time.Millisecond))
 		fds[0].Revents = 0
 		ready, err := poll(fds, milliseconds)
 		if errors.Is(err, unix.EINTR) {
@@ -65,10 +65,10 @@ func readWithoutDeadlineUsing(
 			return 0, os.ErrDeadlineExceeded
 		}
 		events := fds[0].Revents
-		if events&unix.POLLNVAL != 0 {
+		if events & unix.POLLNVAL != 0 {
 			return 0, os.ErrClosed
 		}
-		if events&(unix.POLLIN|unix.POLLHUP|unix.POLLERR) != 0 {
+		if events & (unix.POLLIN | unix.POLLHUP | unix.POLLERR) != 0 {
 			return input.Read(buffer)
 		}
 	}

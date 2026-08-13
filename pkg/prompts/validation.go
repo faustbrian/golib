@@ -20,9 +20,9 @@ type Transformer[T any] func(context.Context, T, ValidationContext) (T, error)
 
 // ValidationIssue is a safe, stable, field-addressable validation failure.
 type ValidationIssue struct {
-	code    string
+	code string
 	message string
-	fields  []string
+	fields []string
 }
 
 // NewValidationIssue creates a validation failure with defensively copied,
@@ -34,9 +34,9 @@ func NewValidationIssue(code string, message string, fields ...string) *Validati
 	}
 
 	return &ValidationIssue{
-		code:    safeText(code),
+		code: safeText(code),
 		message: safeText(message),
-		fields:  safeFields,
+		fields: safeFields,
 	}
 }
 

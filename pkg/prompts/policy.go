@@ -13,17 +13,17 @@ const (
 // AutoRules are caller-selected conditions for AutoDetect. Terminal detection
 // is never sufficient without PermitInteraction.
 type AutoRules struct {
-	RequireInputTerminal  bool
+	RequireInputTerminal bool
 	RequireOutputTerminal bool
 }
 
 // InteractionPolicy records the caller's explicit authority to interact.
 type InteractionPolicy struct {
-	Mode                   InteractionMode
-	PermitInteraction      bool
-	PermitDefaults         bool
+	Mode InteractionMode
+	PermitInteraction bool
+	PermitDefaults bool
 	PermitUnlimitedRetries bool
-	Auto                   AutoRules
+	Auto AutoRules
 }
 
 // HeadlessBehavior defines how a prompt behaves without interactive input.
@@ -47,13 +47,13 @@ const (
 
 // Capabilities are supplied by the caller or an explicit application adapter.
 type Capabilities struct {
-	InputTerminal  bool
+	InputTerminal bool
 	OutputTerminal bool
-	Width          int
-	Height         int
-	Color          ColorProfile
+	Width int
+	Height int
+	Color ColorProfile
 	CursorMovement bool
-	Hyperlinks     bool
-	Animation      bool
-	Unicode        bool
+	Hyperlinks bool
+	Animation bool
+	Unicode bool
 }

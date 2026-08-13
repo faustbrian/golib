@@ -10,14 +10,14 @@ import (
 // TaskGroupConfig defines explicit ordered task presentation ownership.
 type TaskGroupConfig struct {
 	ID, Label string
-	MaxTasks  int
+	MaxTasks int
 }
 
 // TaskConfig defines one caller-owned task state.
 type TaskConfig struct {
-	ID, Label       string
-	ParentID        string
-	Total           int64
+	ID, Label string
+	ParentID string
+	Total int64
 	AllowRegression bool
 }
 
@@ -40,11 +40,11 @@ func (task *Task) Snapshot() TaskSnapshot {
 
 // TaskGroup preserves Add order and explicit nesting.
 type TaskGroup struct {
-	mu       sync.RWMutex
-	id       string
-	label    string
-	maximum  int
-	tasks    []*Task
+	mu sync.RWMutex
+	id string
+	label string
+	maximum int
+	tasks []*Task
 	identity map[string]*Task
 }
 
@@ -55,11 +55,18 @@ func NewTaskGroup(config TaskGroupConfig) (*TaskGroup, error) {
 		maximum = 100
 	}
 	if config.ID == "" || config.Label == "" || maximum < 1 {
-		return nil, invalidBehaviorDefinition("define task group", config.ID, ErrInvalidDefinition)
+		return nil, invalidBehaviorDefinition(
+			"define task group",
+			config.ID,
+			ErrInvalidDefinition,
+		)
 	}
 	return &TaskGroup{
-		id: config.ID, label: config.Label, maximum: maximum,
-		tasks: make([]*Task, 0, maximum), identity: make(map[string]*Task, maximum),
+		id: config.ID,
+		label: config.Label,
+		maximum: maximum,
+		tasks: make([]*Task, 0, maximum),
+		identity: make(map[string]*Task, maximum),
 	}, nil
 }
 
@@ -68,20 +75,39 @@ func (group *TaskGroup) Add(config TaskConfig) (*Task, error) {
 	group.mu.Lock()
 	defer group.mu.Unlock()
 	if _, duplicate := group.identity[config.ID]; duplicate {
-		return nil, invalidBehaviorDefinition("add task", config.ID, fmt.Errorf("%w: duplicate task identity", ErrInvalidDefinition))
+		return nil, invalidBehaviorDefinition(
+			"add task",
+			config.ID,
+			fmt.Errorf("%w: duplicate task identity", ErrInvalidDefinition),
+		)
 	}
 	if len(group.tasks) >= group.maximum {
-		return nil, invalidBehaviorDefinition("add task", config.ID, fmt.Errorf("%w: task capacity reached", ErrInvalidDefinition))
+		return nil, invalidBehaviorDefinition(
+			"add task",
+			config.ID,
+			fmt.Errorf("%w: task capacity reached", ErrInvalidDefinition),
+		)
 	}
 	if config.ParentID != "" {
 		if _, exists := group.identity[config.ParentID]; !exists {
-			return nil, invalidBehaviorDefinition("add task", config.ID, fmt.Errorf("%w: task parent must already exist", ErrInvalidDefinition))
+			return nil, invalidBehaviorDefinition(
+				"add task",
+				config.ID,
+				fmt.Errorf(
+					"%w: task parent must already exist",
+					ErrInvalidDefinition,
+				),
+			)
 		}
 	}
-	progress, err := NewProgress(ProgressConfig{
-		ID: config.ID, Label: config.Label, Total: config.Total,
-		AllowRegression: config.AllowRegression,
-	})
+	progress, err := NewProgress(
+		ProgressConfig{
+			ID: config.ID,
+			Label: config.Label,
+			Total: config.Total,
+			AllowRegression: config.AllowRegression,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +138,7 @@ func (group *TaskGroup) Snapshot() []TaskSnapshot {
 // Render writes a deterministic nested task summary in Add order.
 func (group *TaskGroup) Render(ctx context.Context, execution Execution) error {
 	snapshots := group.Snapshot()
-	lines := make([]SemanticLine, 0, len(snapshots)+1)
+	lines := make([]SemanticLine, 0, len(snapshots) + 1)
 	lines = append(lines, Line(Text(RoleLabel, group.label)))
 	parents := make(map[string]string, len(snapshots))
 	for _, snapshot := range snapshots {
@@ -132,7 +158,12 @@ func (group *TaskGroup) Render(ctx context.Context, execution Execution) error {
 		case ProgressCanceled:
 			role = RoleWarning
 		}
-		text := fmt.Sprintf("%s%s: %d", strings.Repeat("  ", depth), snapshot.Label, snapshot.Current)
+		text := fmt.Sprintf(
+			"%s%s: %d",
+			strings.Repeat("  ", depth),
+			snapshot.Label,
+			snapshot.Current,
+		)
 		if snapshot.Total > 0 {
 			text += fmt.Sprintf("/%d", snapshot.Total)
 		}

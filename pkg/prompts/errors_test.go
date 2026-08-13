@@ -13,13 +13,14 @@ func TestErrorClassificationAndSafeFormatting(t *testing.T) {
 
 	cause := errors.New("unsafe cause containing a secret")
 	err := &prompts.Error{
-		Kind:      prompts.ErrorReader,
+		Kind: prompts.ErrorReader,
 		Operation: "read\x1b input",
-		PromptID:  "name\rforged",
-		Cause:     cause,
+		PromptID: "name\rforged",
+		Cause: cause,
 	}
 
-	if got, want := err.Error(), "read� input: reader_failure (prompt \"name�forged\")"; got != want {
+	if got, want := err.Error(), "read� input: reader_failure (prompt \"name�forged\")";
+		got != want {
 		t.Fatalf("Error() = %q, want %q", got, want)
 	}
 	if errors.Is(err, prompts.ErrWriter) {
@@ -54,7 +55,7 @@ func TestStableErrorSentinels(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		kind     prompts.ErrorKind
+		kind prompts.ErrorKind
 		sentinel error
 	}{
 		{prompts.ErrorInteractionNotPermitted, prompts.ErrInteractionNotPermitted},
@@ -74,16 +75,22 @@ func TestStableErrorSentinels(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(string(test.kind), func(t *testing.T) {
-			t.Parallel()
+		t.Run(
+			string(test.kind),
+			func(t *testing.T) {
+				t.Parallel()
 
-			if got := test.sentinel.Error(); got != string(test.kind) {
-				t.Fatalf("sentinel Error() = %q, want %q", got, test.kind)
-			}
-			if !errors.Is(&prompts.Error{Kind: test.kind}, test.sentinel) {
-				t.Fatalf("Error kind %q did not match its sentinel", test.kind)
-			}
-		})
+				if got := test.sentinel.Error(); got != string(test.kind) {
+					t.Fatalf("sentinel Error() = %q, want %q", got, test.kind)
+				}
+				if !errors.Is(&prompts.Error{Kind: test.kind}, test.sentinel) {
+					t.Fatalf(
+						"Error kind %q did not match its sentinel",
+						test.kind,
+					)
+				}
+			},
+		)
 	}
 }
 

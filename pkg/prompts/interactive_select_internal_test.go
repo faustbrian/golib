@@ -11,20 +11,37 @@ func TestInteractiveSelectionContainsOwnedParserFailure(t *testing.T) {
 	t.Parallel()
 
 	details := selectionDetails{
-		options: []selectionOption{{id: "one", label: "One"}}, maximum: 1,
+		options: []selectionOption{{id: "one", label: "One"}},
+		maximum: 1,
 	}
-	prompt := Prompt[string]{definition: definition[string]{
-		kind: KindSelect, id: "choice", label: "Choice",
-		retry: RetryPolicy{MaxAttempts: 1}, selection: &details,
-		parse: func(string) (string, error) { return "", errors.New("owned parser failed") },
-	}}
+	prompt := Prompt[string]{
+		definition: definition[string]{
+			kind: KindSelect,
+			id: "choice",
+			label: "Choice",
+			retry: RetryPolicy{MaxAttempts: 1},
+			selection: &details,
+			parse: func(string) (string, error) {
+				return "", errors.New("owned parser failed")
+			},
+		},
+	}
 	terminal := NewVirtualTerminal(40, 8)
 	terminal.Push(KeyEvent(KeyEnter))
-	_, err := Run(context.Background(), prompt, Execution{
-		Output: terminal, Events: terminal, Terminal: terminal,
-		Capabilities: Capabilities{InputTerminal: true, OutputTerminal: true},
-		Policy:       InteractionPolicy{Mode: InteractiveRequired, PermitInteraction: true},
-	})
+	_, err := Run(
+		context.Background(),
+		prompt,
+		Execution{
+			Output: terminal,
+			Events: terminal,
+			Terminal: terminal,
+			Capabilities: Capabilities{InputTerminal: true, OutputTerminal: true},
+			Policy: InteractionPolicy{
+				Mode: InteractiveRequired,
+				PermitInteraction: true,
+			},
+		},
+	)
 	if !errors.Is(err, ErrValidationExhausted) || !terminal.Released() {
 		t.Fatalf("Run() error = %v, released %v", err, terminal.Released())
 	}
@@ -38,7 +55,8 @@ func TestSelectionStateEmptyAndDisabledOperationsAreStable(t *testing.T) {
 	empty.move(1)
 	empty.focusLast()
 	empty.toggle()
-	if input, ok := empty.submission(); ok || input != "" || empty.message != "No selectable options" {
+	if input, ok := empty.submission();
+		ok || input != "" || empty.message != "No selectable options" {
 		t.Fatalf("empty submission = %q, %v, message %q", input, ok, empty.message)
 	}
 
@@ -47,7 +65,8 @@ func TestSelectionStateEmptyAndDisabledOperationsAreStable(t *testing.T) {
 			options: []selectionOption{{id: "off", label: "Off", disabled: true}},
 			maximum: 1,
 		},
-		visible: []int{0}, selected: map[string]bool{},
+		visible: []int{0},
+		selected: map[string]bool{},
 	}
 	disabled.ensureEnabled(1)
 	disabled.toggle()
@@ -64,7 +83,9 @@ func TestSelectionStateFocusToggleAndRanking(t *testing.T) {
 			{id: "alpha", label: "Alpha", description: "first token"},
 			{id: "beta", label: "Beta", description: "second match"},
 		},
-		initialIDs: []string{"alpha"}, multiple: true, maximum: 2,
+		initialIDs: []string{"alpha"},
+		multiple: true,
+		maximum: 2,
 		searchPolicy: SearchPolicy{MaxOptions: 2, MaxResults: 1, MaxQueryRunes: 10},
 	}
 	state := newSelectionState(details, 20, 4)
@@ -111,15 +132,21 @@ func TestSelectionStateAppliesFormReplayDefensively(t *testing.T) {
 			{id: "disabled", label: "Disabled", disabled: true},
 			{id: "active", label: "Active"},
 		},
-		multiple: true, maximum: 2,
+		multiple: true,
+		maximum: 2,
 		searchPolicy: SearchPolicy{MaxOptions: 2, MaxResults: 2, MaxQueryRunes: 10},
 	}
 	state := newSelectionState(details, 20, 4)
-	state.applyReplay(selectionReplay{
-		selected: []string{"missing", "disabled", "active"},
-		focusID:  "active", query: "act",
-	})
-	if len(state.selected) != 1 || !state.selected["active"] || state.replay().focusID != "active" {
+	state.applyReplay(
+		selectionReplay{
+			selected: []string{"missing", "disabled", "active"},
+			focusID: "active",
+			query: "act",
+		},
+	)
+	if len(state.selected) != 1 ||
+		!state.selected["active"] ||
+		state.replay().focusID != "active" {
 		t.Fatalf("replayed state = %#v, %#v", state.selected, state.replay())
 	}
 }

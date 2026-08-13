@@ -31,9 +31,11 @@ func TestAdapterRestoresWhenOutputConfigurationFails(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	outputFailure := errors.New("output configuration failed")
-	adapter.setOutput = func(uintptr) error { return outputFailure }
-	if err := adapter.Acquire(context.Background()); !errors.Is(err, prompts.ErrAdapter) ||
-		!errors.Is(err, outputFailure) {
+	adapter.setOutput = func(uintptr) error {
+		return outputFailure
+	}
+	if err := adapter.Acquire(context.Background());
+		!errors.Is(err, prompts.ErrAdapter) || !errors.Is(err, outputFailure) {
 		t.Fatalf("Acquire() error = %v", err)
 	}
 	after, err := term.GetState(int(replica.Fd()))
@@ -58,7 +60,9 @@ func TestAdapterPropagatesDecoderAndReaderFailures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	adapter.setDeadline = func(time.Time) error { return nil }
+	adapter.setDeadline = func(time.Time) error {
+		return nil
+	}
 	adapter.read = func(buffer []byte) (int, error) {
 		buffer[0] = 0xff
 		return 1, nil
@@ -68,8 +72,11 @@ func TestAdapterPropagatesDecoderAndReaderFailures(t *testing.T) {
 	}
 
 	readFailure := errors.New("read failed")
-	adapter.read = func([]byte) (int, error) { return 0, readFailure }
-	if _, err := adapter.Next(context.Background()); !errors.Is(err, prompts.ErrReader) || !errors.Is(err, readFailure) {
+	adapter.read = func([]byte) (int, error) {
+		return 0, readFailure
+	}
+	if _, err := adapter.Next(context.Background());
+		!errors.Is(err, prompts.ErrReader) || !errors.Is(err, readFailure) {
 		t.Fatalf("reader Next() error = %v", err)
 	}
 }
@@ -88,8 +95,11 @@ func TestAdapterRejectsUnsupportedDeadlineFailure(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	deadlineFailure := errors.New("deadline failed")
-	adapter.setDeadline = func(time.Time) error { return deadlineFailure }
-	if _, err := adapter.Next(context.Background()); !errors.Is(err, prompts.ErrAdapter) || !errors.Is(err, deadlineFailure) {
+	adapter.setDeadline = func(time.Time) error {
+		return deadlineFailure
+	}
+	if _, err := adapter.Next(context.Background());
+		!errors.Is(err, prompts.ErrAdapter) || !errors.Is(err, deadlineFailure) {
 		t.Fatalf("Next() error = %v", err)
 	}
 }
@@ -118,7 +128,9 @@ func TestAdapterUsesEarlierContextDeadline(t *testing.T) {
 
 		return nil
 	}
-	adapter.read = func([]byte) (int, error) { return 0, os.ErrClosed }
+	adapter.read = func([]byte) (int, error) {
+		return 0, os.ErrClosed
+	}
 	if _, err := adapter.Next(ctx); !errors.Is(err, prompts.ErrTerminalDetached) {
 		t.Fatalf("Next() error = %v", err)
 	}

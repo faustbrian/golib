@@ -11,19 +11,19 @@ type ErrorKind string
 
 const (
 	ErrorInteractionNotPermitted ErrorKind = "interaction_not_permitted"
-	ErrorTerminalUnavailable     ErrorKind = "terminal_unavailable"
-	ErrorCanceled                ErrorKind = "canceled"
-	ErrorDeadlineExceeded        ErrorKind = "deadline_exceeded"
-	ErrorEndOfInput              ErrorKind = "end_of_input"
-	ErrorTerminalDetached        ErrorKind = "terminal_detached"
-	ErrorInvalidDefinition       ErrorKind = "invalid_definition"
-	ErrorUnsupported             ErrorKind = "unsupported_configuration"
-	ErrorValidationExhausted     ErrorKind = "validation_exhausted"
-	ErrorRenderer                ErrorKind = "renderer_failure"
-	ErrorReader                  ErrorKind = "reader_failure"
-	ErrorWriter                  ErrorKind = "writer_failure"
-	ErrorTerminalControl         ErrorKind = "terminal_control_failure"
-	ErrorAdapter                 ErrorKind = "adapter_failure"
+	ErrorTerminalUnavailable ErrorKind = "terminal_unavailable"
+	ErrorCanceled ErrorKind = "canceled"
+	ErrorDeadlineExceeded ErrorKind = "deadline_exceeded"
+	ErrorEndOfInput ErrorKind = "end_of_input"
+	ErrorTerminalDetached ErrorKind = "terminal_detached"
+	ErrorInvalidDefinition ErrorKind = "invalid_definition"
+	ErrorUnsupported ErrorKind = "unsupported_configuration"
+	ErrorValidationExhausted ErrorKind = "validation_exhausted"
+	ErrorRenderer ErrorKind = "renderer_failure"
+	ErrorReader ErrorKind = "reader_failure"
+	ErrorWriter ErrorKind = "writer_failure"
+	ErrorTerminalControl ErrorKind = "terminal_control_failure"
+	ErrorAdapter ErrorKind = "adapter_failure"
 )
 
 type sentinelError ErrorKind
@@ -34,27 +34,27 @@ func (err sentinelError) Error() string {
 
 var (
 	ErrInteractionNotPermitted error = sentinelError(ErrorInteractionNotPermitted)
-	ErrTerminalUnavailable     error = sentinelError(ErrorTerminalUnavailable)
-	ErrCanceled                error = sentinelError(ErrorCanceled)
-	ErrDeadlineExceeded        error = sentinelError(ErrorDeadlineExceeded)
-	ErrEndOfInput              error = sentinelError(ErrorEndOfInput)
-	ErrTerminalDetached        error = sentinelError(ErrorTerminalDetached)
-	ErrInvalidDefinition       error = sentinelError(ErrorInvalidDefinition)
-	ErrUnsupported             error = sentinelError(ErrorUnsupported)
-	ErrValidationExhausted     error = sentinelError(ErrorValidationExhausted)
-	ErrRenderer                error = sentinelError(ErrorRenderer)
-	ErrReader                  error = sentinelError(ErrorReader)
-	ErrWriter                  error = sentinelError(ErrorWriter)
-	ErrTerminalControl         error = sentinelError(ErrorTerminalControl)
-	ErrAdapter                 error = sentinelError(ErrorAdapter)
+	ErrTerminalUnavailable error = sentinelError(ErrorTerminalUnavailable)
+	ErrCanceled error = sentinelError(ErrorCanceled)
+	ErrDeadlineExceeded error = sentinelError(ErrorDeadlineExceeded)
+	ErrEndOfInput error = sentinelError(ErrorEndOfInput)
+	ErrTerminalDetached error = sentinelError(ErrorTerminalDetached)
+	ErrInvalidDefinition error = sentinelError(ErrorInvalidDefinition)
+	ErrUnsupported error = sentinelError(ErrorUnsupported)
+	ErrValidationExhausted error = sentinelError(ErrorValidationExhausted)
+	ErrRenderer error = sentinelError(ErrorRenderer)
+	ErrReader error = sentinelError(ErrorReader)
+	ErrWriter error = sentinelError(ErrorWriter)
+	ErrTerminalControl error = sentinelError(ErrorTerminalControl)
+	ErrAdapter error = sentinelError(ErrorAdapter)
 )
 
 // Error describes a prompt failure without incorporating unsafe cause text.
 type Error struct {
-	Kind      ErrorKind
+	Kind ErrorKind
 	Operation string
-	PromptID  string
-	Cause     error
+	PromptID string
+	Cause error
 }
 
 func (err *Error) Error() string {
@@ -96,11 +96,14 @@ func (err *Error) Unwrap() error {
 }
 
 func safeText(value string) string {
-	return strings.Map(func(char rune) rune {
-		if char < ' ' || char == '\u007f' {
-			return '\ufffd'
-		}
+	return strings.Map(
+		func(char rune) rune {
+			if char < ' ' || char == '\u007f' {
+				return '\ufffd'
+			}
 
-		return char
-	}, value)
+			return char
+		},
+		value,
+	)
 }

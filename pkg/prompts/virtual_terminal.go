@@ -10,19 +10,24 @@ import (
 // VirtualTerminal is a parallel-safe deterministic event source, terminal
 // controller, and output capture for tests. It never touches a real terminal.
 type VirtualTerminal struct {
-	mu                              sync.RWMutex
-	events                          chan InputEvent
-	output                          bytes.Buffer
-	width, height                   int
+	mu sync.RWMutex
+	events chan InputEvent
+	output bytes.Buffer
+	width, height int
 	acquired, released, echoEnabled bool
-	closed                          bool
+	closed bool
 	acquireErr, echoErr, releaseErr error
 }
 
 // NewVirtualTerminal creates a fixed-capability terminal with a bounded event
 // queue.
 func NewVirtualTerminal(width, height int) *VirtualTerminal {
-	return &VirtualTerminal{events: make(chan InputEvent, 4096), width: width, height: height, echoEnabled: true}
+	return &VirtualTerminal{
+		events: make(chan InputEvent, 4096),
+		width: width,
+		height: height,
+		echoEnabled: true,
+	}
 }
 
 // Push queues deterministic events in declaration order.
@@ -30,13 +35,22 @@ func (terminal *VirtualTerminal) Push(events ...InputEvent) error {
 	terminal.mu.RLock()
 	defer terminal.mu.RUnlock()
 	if terminal.closed {
-		return streamFailure("virtual-terminal", ErrorEndOfInput, "queue virtual event", ErrEndOfInput)
+		return streamFailure(
+			"virtual-terminal",
+			ErrorEndOfInput,
+			"queue virtual event",
+			ErrEndOfInput,
+		)
 	}
 	for _, event := range events {
 		select {
 		case terminal.events <- event:
 		default:
-			return invalidBehaviorDefinition("queue virtual event", "virtual-terminal", ErrInvalidDefinition)
+			return invalidBehaviorDefinition(
+				"queue virtual event",
+				"virtual-terminal",
+				ErrInvalidDefinition,
+			)
 		}
 	}
 	return nil
@@ -168,5 +182,7 @@ func (terminal *VirtualTerminal) FailRelease(err error) {
 }
 
 var _ EventSource = (*VirtualTerminal)(nil)
+
 var _ TerminalController = (*VirtualTerminal)(nil)
+
 var _ io.Writer = (*VirtualTerminal)(nil)

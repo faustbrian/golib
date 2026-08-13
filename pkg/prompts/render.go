@@ -13,14 +13,14 @@ import (
 type Role string
 
 const (
-	RoleLabel    Role = "label"
-	RoleValue    Role = "value"
-	RoleHint     Role = "hint"
-	RoleHelp     Role = "help"
-	RoleError    Role = "error"
-	RoleSuccess  Role = "success"
-	RoleWarning  Role = "warning"
-	RoleFocus    Role = "focus"
+	RoleLabel Role = "label"
+	RoleValue Role = "value"
+	RoleHint Role = "hint"
+	RoleHelp Role = "help"
+	RoleError Role = "error"
+	RoleSuccess Role = "success"
+	RoleWarning Role = "warning"
+	RoleFocus Role = "focus"
 	RoleSelected Role = "selected"
 	RoleDisabled Role = "disabled"
 	RoleProgress Role = "progress"
@@ -28,9 +28,9 @@ const (
 
 // Segment is a semantic unit of untrusted caller-facing text.
 type Segment struct {
-	Role    Role
+	Role Role
 	Content string
-	target  string
+	target string
 }
 
 // Text creates a semantic text segment.
@@ -43,14 +43,20 @@ func Text(role Role, content string) Segment {
 func Hyperlink(role Role, content, target string) (Segment, error) {
 	parsed, err := url.ParseRequestURI(target)
 	if content == "" || err != nil || !safeLinkTarget(parsed, target) {
-		return Segment{}, invalidBehaviorDefinition("define hyperlink", "", ErrInvalidDefinition)
+		return Segment{}, invalidBehaviorDefinition(
+			"define hyperlink",
+			"",
+			ErrInvalidDefinition,
+		)
 	}
 
 	return Segment{Role: role, Content: content, target: parsed.String()}, nil
 }
 
 // Target returns the link target, or an empty string for ordinary text.
-func (segment Segment) Target() string { return segment.target }
+func (segment Segment) Target() string {
+	return segment.target
+}
 
 func safeLinkTarget(parsed *url.URL, target string) bool {
 	for _, char := range target {
@@ -108,9 +114,9 @@ func (frame Frame) Lines() []SemanticLine {
 
 // RenderOptions are explicit output capabilities.
 type RenderOptions struct {
-	Width      int
-	Color      ColorProfile
-	ASCIIOnly  bool
+	Width int
+	Color ColorProfile
+	ASCIIOnly bool
 	Hyperlinks bool
 }
 
@@ -141,8 +147,8 @@ func (renderer ANSIRenderer) Render(frame Frame, options RenderOptions) (string,
 }
 
 type renderCell struct {
-	text   string
-	role   Role
+	text string
+	role Role
 	target string
 }
 
@@ -154,15 +160,24 @@ func renderSemantic(
 	hyperlinks bool,
 ) (string, error) {
 	if options.Width < 0 || options.Color > ColorTrueColor {
-		return "", &Error{Kind: ErrorRenderer, Operation: "render frame", Cause: ErrRenderer}
+		return "", &Error{
+			Kind: ErrorRenderer,
+			Operation: "render frame",
+			Cause: ErrRenderer,
+		}
 	}
 
 	var output strings.Builder
 	for _, line := range frame.lines {
-		cells := make([]renderCell, 0, len(line.segments)*2)
+		cells := make([]renderCell, 0, len(line.segments) * 2)
 		for _, segment := range line.segments {
 			if marker := theme.Marker(segment.Role); marker != "" {
-				cells = appendCells(cells, renderText(marker, options.ASCIIOnly), segment.Role, "")
+				cells = appendCells(
+					cells,
+					renderText(marker, options.ASCIIOnly),
+					segment.Role,
+					"",
+				)
 			}
 			content := renderText(segment.Content, options.ASCIIOnly)
 			target := segment.target
@@ -236,7 +251,7 @@ func writeCells(
 			continue
 		}
 		cellWidth := uniseg.StringWidth(cell.text)
-		if options.Width > 0 && lineStarted && width+cellWidth > options.Width {
+		if options.Width > 0 && lineStarted && width + cellWidth > options.Width {
 			breakLine()
 		}
 		if hyperlinks && activeTarget != cell.target {
@@ -254,7 +269,8 @@ func writeCells(
 			if active != "" {
 				output.WriteString("\x1b[0m")
 			}
-			if prefix := ansiStyle(theme.Style(cell.role), options.Color); prefix != "" {
+			if prefix := ansiStyle(theme.Style(cell.role), options.Color);
+				prefix != "" {
 				output.WriteString(prefix)
 				active = cell.role
 			} else {
@@ -288,7 +304,9 @@ func Sanitize(content string) string {
 }
 
 func isBidiControl(char rune) bool {
-	return char == '\u061c' || char == '\u200e' || char == '\u200f' ||
+	return char == '\u061c' ||
+		char == '\u200e' ||
+		char == '\u200f' ||
 		(char >= '\u202a' && char <= '\u202e') ||
 		(char >= '\u2066' && char <= '\u2069')
 }

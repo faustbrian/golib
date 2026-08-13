@@ -12,8 +12,8 @@ import (
 
 // SearchPolicy bounds deterministic static option search.
 type SearchPolicy struct {
-	MaxOptions    int
-	MaxResults    int
+	MaxOptions int
+	MaxResults int
 	MaxQueryRunes int
 }
 
@@ -27,7 +27,11 @@ type SearchSelectConfig[T any] struct {
 func NewSearchSelect[T any](config SearchSelectConfig[T]) (Prompt[T], error) {
 	policy, err := normalizeSearchPolicy(config.Search)
 	if err != nil {
-		return Prompt[T]{}, invalidBehaviorDefinition("define search-select prompt", config.Select.ID, err)
+		return Prompt[T]{}, invalidBehaviorDefinition(
+			"define search-select prompt",
+			config.Select.ID,
+			err,
+		)
 	}
 	prompt, err := newSelect(KindSearchSelect, config.Select)
 	if err != nil {
@@ -43,23 +47,33 @@ func NewSearchSelect[T any](config SearchSelectConfig[T]) (Prompt[T], error) {
 // Search returns ranked option copies with stable declaration-order ties.
 func Search[T any](options []Option[T], query string, policy SearchPolicy) ([]Option[T], error) {
 	normalizedPolicy, err := normalizeSearchPolicy(policy)
-	if err != nil || len(options) > normalizedPolicy.MaxOptions || utf8.RuneCountInString(query) > normalizedPolicy.MaxQueryRunes {
-		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
+	if err != nil ||
+		len(options) > normalizedPolicy.MaxOptions ||
+		utf8.RuneCountInString(query) > normalizedPolicy.MaxQueryRunes {
+		return nil, &Error{
+			Kind: ErrorUnsupported,
+			Operation: "search options",
+			Cause: ErrUnsupported,
+		}
 	}
 	if len(options) == 0 {
 		return []Option[T]{}, nil
 	}
 	owned, _, err := ownOptions(options, normalizedPolicy.MaxOptions)
 	if err != nil {
-		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
+		return nil, &Error{
+			Kind: ErrorUnsupported,
+			Operation: "search options",
+			Cause: ErrUnsupported,
+		}
 	}
 	options = owned
 	normalizedQuery := normalizeSearchText(query)
 	queryTokens := strings.Fields(normalizedQuery)
 	type match struct {
 		option Option[T]
-		rank   int
-		index  int
+		rank int
+		index int
 	}
 	matches := make([]match, 0, min(len(options), normalizedPolicy.MaxResults))
 	for index, option := range options {
@@ -68,13 +82,16 @@ func Search[T any](options []Option[T], query string, policy SearchPolicy) ([]Op
 			matches = append(matches, match{option: option, rank: rank, index: index})
 		}
 	}
-	sort.SliceStable(matches, func(left, right int) bool {
-		if matches[left].rank != matches[right].rank {
-			return matches[left].rank < matches[right].rank
-		}
+	sort.SliceStable(
+		matches,
+		func(left, right int) bool {
+			if matches[left].rank != matches[right].rank {
+				return matches[left].rank < matches[right].rank
+			}
 
-		return matches[left].index < matches[right].index
-	})
+			return matches[left].index < matches[right].index
+		},
+	)
 	if len(matches) > normalizedPolicy.MaxResults {
 		matches = matches[:normalizedPolicy.MaxResults]
 	}

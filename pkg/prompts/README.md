@@ -72,9 +72,15 @@ Go 1.26.5 is the initial minimum toolchain. All commands must run with
 `GOWORK=off` so the module is verified independently of sibling checkouts.
 
 ```sh
+make format
+make format-check
 make check
 make fuzz
 make benchmark
 ```
+
+Formatting uses the exact Gox development revision pinned in the module
+Makefile. Do not run gofmt, goimports, gofumpt, or golines over this module;
+their output is not compatible with the canonical Gox layout.
 
 Licensed under Apache-2.0.

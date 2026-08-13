@@ -22,10 +22,17 @@ func NewSecretValue(value string) SecretValue {
 }
 
 // Reveal returns the underlying immutable Go string explicitly.
-func (secret SecretValue) Reveal() string { return secret.value }
+func (secret SecretValue) Reveal() string {
+	return secret.value
+}
 
-func (SecretValue) String() string   { return redactedSecret }
-func (SecretValue) GoString() string { return redactedSecret }
+func (SecretValue) String() string {
+	return redactedSecret
+}
+
+func (SecretValue) GoString() string {
+	return redactedSecret
+}
 
 // Format redacts every fmt formatting verb.
 func (SecretValue) Format(state fmt.State, _ rune) {
@@ -50,35 +57,58 @@ func (SecretValue) LogValue() slog.Value {
 // SecretConfig defines a string-backed secret prompt.
 type SecretConfig struct {
 	ID, Label, Description, Placeholder, Hint, Help string
-	Default, Fallback                               Optional[SecretValue]
-	Headless                                        HeadlessBehavior
-	Accessibility                                   Accessibility
-	PreValidate, PostValidate                       []Validator[SecretValue]
-	Transform                                       []Transformer[SecretValue]
-	Retry                                           RetryPolicy
-	Cancel                                          CancelBehavior
-	EndOfInput                                      EOFBehavior
-	Class                                           SecretClass
+	Default, Fallback Optional[SecretValue]
+	Headless HeadlessBehavior
+	Accessibility Accessibility
+	PreValidate, PostValidate []Validator[SecretValue]
+	Transform []Transformer[SecretValue]
+	Retry RetryPolicy
+	Cancel CancelBehavior
+	EndOfInput EOFBehavior
+	Class SecretClass
 }
 
 // NewSecret creates a classified redacting string secret prompt.
 func NewSecret(config SecretConfig) (Prompt[SecretValue], error) {
 	if config.Class == SecretNone || config.Class > SecretOther {
-		return Prompt[SecretValue]{}, invalidBehaviorDefinition("define secret prompt", config.ID, fmt.Errorf("%w: secret classification is required", ErrInvalidDefinition))
+		return Prompt[SecretValue]{}, invalidBehaviorDefinition(
+			"define secret prompt",
+			config.ID,
+			fmt.Errorf("%w: secret classification is required", ErrInvalidDefinition),
+		)
 	}
-	parser := func(input string) (SecretValue, error) { return NewSecretValue(input), nil }
+	parser := func(input string) (SecretValue, error) {
+		return NewSecretValue(input), nil
+	}
 
-	return newTypedPrompt(KindSecret, "define secret prompt", config.ID, config.Label,
-		config.Description, config.Placeholder, config.Hint, config.Help, config.Default,
-		config.Fallback, config.Headless, config.Accessibility, config.PreValidate,
-		config.Transform, config.PostValidate, config.Retry, config.Cancel,
-		config.EndOfInput, config.Class, parser)
+	return newTypedPrompt(
+		KindSecret,
+		"define secret prompt",
+		config.ID,
+		config.Label,
+		config.Description,
+		config.Placeholder,
+		config.Hint,
+		config.Help,
+		config.Default,
+		config.Fallback,
+		config.Headless,
+		config.Accessibility,
+		config.PreValidate,
+		config.Transform,
+		config.PostValidate,
+		config.Retry,
+		config.Cancel,
+		config.EndOfInput,
+		config.Class,
+		parser,
+	)
 }
 
 // SecretBytes owns mutable secret bytes that can be overwritten with Destroy.
 type SecretBytes struct {
-	mu        sync.RWMutex
-	value     []byte
+	mu sync.RWMutex
+	value []byte
 	destroyed bool
 }
 
@@ -134,8 +164,13 @@ func (secret *SecretBytes) Destroyed() bool {
 	return secret.destroyed
 }
 
-func (*SecretBytes) String() string   { return redactedSecret }
-func (*SecretBytes) GoString() string { return redactedSecret }
+func (*SecretBytes) String() string {
+	return redactedSecret
+}
+
+func (*SecretBytes) GoString() string {
+	return redactedSecret
+}
 
 // Format redacts every fmt formatting verb.
 func (*SecretBytes) Format(state fmt.State, _ rune) {
@@ -164,38 +199,65 @@ func (secret *SecretBytes) clone() *SecretBytes {
 // SecretBytesConfig defines a cleanup-capable byte secret prompt.
 type SecretBytesConfig struct {
 	ID, Label, Description, Placeholder, Hint, Help string
-	Default, Fallback                               Optional[*SecretBytes]
-	Headless                                        HeadlessBehavior
-	Accessibility                                   Accessibility
-	PreValidate, PostValidate                       []Validator[*SecretBytes]
-	Transform                                       []Transformer[*SecretBytes]
-	Retry                                           RetryPolicy
-	Cancel                                          CancelBehavior
-	EndOfInput                                      EOFBehavior
-	Class                                           SecretClass
+	Default, Fallback Optional[*SecretBytes]
+	Headless HeadlessBehavior
+	Accessibility Accessibility
+	PreValidate, PostValidate []Validator[*SecretBytes]
+	Transform []Transformer[*SecretBytes]
+	Retry RetryPolicy
+	Cancel CancelBehavior
+	EndOfInput EOFBehavior
+	Class SecretClass
 }
 
 // NewSecretBytesPrompt creates a classified cleanup-capable secret prompt.
 func NewSecretBytesPrompt(config SecretBytesConfig) (Prompt[*SecretBytes], error) {
 	if config.Class == SecretNone || config.Class > SecretOther {
-		return Prompt[*SecretBytes]{}, invalidBehaviorDefinition("define secret bytes prompt", config.ID, fmt.Errorf("%w: secret classification is required", ErrInvalidDefinition))
+		return Prompt[*SecretBytes]{}, invalidBehaviorDefinition(
+			"define secret bytes prompt",
+			config.ID,
+			fmt.Errorf("%w: secret classification is required", ErrInvalidDefinition),
+		)
 	}
 	defaultValue := cloneOptionalSecret(config.Default)
 	fallbackValue := cloneOptionalSecret(config.Fallback)
-	parser := func(input string) (*SecretBytes, error) { return NewSecretBytes([]byte(input)), nil }
-	prompt, err := newTypedPrompt(KindSecretBytes, "define secret bytes prompt", config.ID, config.Label,
-		config.Description, config.Placeholder, config.Hint, config.Help, defaultValue,
-		fallbackValue, config.Headless, config.Accessibility, config.PreValidate,
-		config.Transform, config.PostValidate, config.Retry, config.Cancel,
-		config.EndOfInput, config.Class, parser)
+	parser := func(input string) (*SecretBytes, error) {
+		return NewSecretBytes([]byte(input)), nil
+	}
+	prompt, err := newTypedPrompt(
+		KindSecretBytes,
+		"define secret bytes prompt",
+		config.ID,
+		config.Label,
+		config.Description,
+		config.Placeholder,
+		config.Hint,
+		config.Help,
+		defaultValue,
+		fallbackValue,
+		config.Headless,
+		config.Accessibility,
+		config.PreValidate,
+		config.Transform,
+		config.PostValidate,
+		config.Retry,
+		config.Cancel,
+		config.EndOfInput,
+		config.Class,
+		parser,
+	)
 	if err != nil {
 		return Prompt[*SecretBytes]{}, err
 	}
-	prompt.definition.clone = func(secret *SecretBytes) *SecretBytes { return secret.clone() }
+	prompt.definition.clone = func(secret *SecretBytes) *SecretBytes {
+		return secret.clone()
+	}
 	prompt.definition.parseBytes = func(input []byte) (*SecretBytes, error) {
 		return NewSecretBytes(input), nil
 	}
-	prompt.definition.destroy = func(secret *SecretBytes) { secret.Destroy() }
+	prompt.definition.destroy = func(secret *SecretBytes) {
+		secret.Destroy()
+	}
 
 	return prompt, nil
 }
@@ -211,9 +273,18 @@ func cloneOptionalSecret(optional Optional[*SecretBytes]) Optional[*SecretBytes]
 
 // ParseBytes copies explicit caller-owned bytes and validates them without
 // converting the input into an immutable Go string.
-func ParseBytes(ctx context.Context, prompt Prompt[*SecretBytes], input []byte, dependencies any) (*SecretBytes, error) {
+func ParseBytes(
+	ctx context.Context,
+	prompt Prompt[*SecretBytes],
+	input []byte,
+	dependencies any,
+) (*SecretBytes, error) {
 	if ctx == nil {
-		return nil, invalidBehaviorDefinition("parse secret bytes", prompt.ID(), ErrInvalidDefinition)
+		return nil, invalidBehaviorDefinition(
+			"parse secret bytes",
+			prompt.ID(),
+			ErrInvalidDefinition,
+		)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, contextFailure(prompt.ID(), err)

@@ -6,14 +6,14 @@ const keyCount = 21
 // KeyBinding assigns one physical semantic key to an existing prompt meaning.
 // KeyRune is not configurable because text runes carry their own value.
 type KeyBinding struct {
-	Input   Key
+	Input Key
 	Meaning Key
 }
 
 // KeyMap is an immutable execution-local key translation table.
 type KeyMap struct {
-	mappings   [keyCount]Key
-	bound      [keyCount]bool
+	mappings [keyCount]Key
+	bound [keyCount]bool
 	configured bool
 }
 
@@ -25,13 +25,15 @@ func NewKeyMap(bindings ...KeyBinding) (KeyMap, error) {
 	for _, binding := range bindings {
 		if !bindableKey(binding.Input) || !bindableKey(binding.Meaning) {
 			return KeyMap{}, &Error{
-				Kind: ErrorInvalidDefinition, Operation: "define key map",
+				Kind: ErrorInvalidDefinition,
+				Operation: "define key map",
 				Cause: ErrInvalidDefinition,
 			}
 		}
 		if seen[binding.Input] {
 			return KeyMap{}, &Error{
-				Kind: ErrorInvalidDefinition, Operation: "define key map",
+				Kind: ErrorInvalidDefinition,
+				Operation: "define key map",
 				Cause: ErrInvalidDefinition,
 			}
 		}

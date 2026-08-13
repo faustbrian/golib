@@ -6,6 +6,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Adopt Gox as the sole formatter authority for module source, checks, and
+  contributor workflows, replacing gofmt and goimports formatting passes.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   instead of maintaining package-local thresholds and exclusions.
 

@@ -6,27 +6,27 @@ import "fmt"
 type PromptKind string
 
 const (
-	KindText         PromptKind = "text"
-	KindMultiline    PromptKind = "multiline"
-	KindInteger      PromptKind = "integer"
-	KindDecimal      PromptKind = "decimal"
-	KindDuration     PromptKind = "duration"
-	KindDate         PromptKind = "date"
-	KindTime         PromptKind = "time"
-	KindPath         PromptKind = "path"
-	KindConfirm      PromptKind = "confirm"
-	KindSelect       PromptKind = "select"
-	KindMultiSelect  PromptKind = "multi_select"
+	KindText PromptKind = "text"
+	KindMultiline PromptKind = "multiline"
+	KindInteger PromptKind = "integer"
+	KindDecimal PromptKind = "decimal"
+	KindDuration PromptKind = "duration"
+	KindDate PromptKind = "date"
+	KindTime PromptKind = "time"
+	KindPath PromptKind = "path"
+	KindConfirm PromptKind = "confirm"
+	KindSelect PromptKind = "select"
+	KindMultiSelect PromptKind = "multi_select"
 	KindSearchSelect PromptKind = "search_select"
-	KindSecret       PromptKind = "secret"
-	KindSecretBytes  PromptKind = "secret_bytes"
+	KindSecret PromptKind = "secret"
+	KindSecretBytes PromptKind = "secret_bytes"
 )
 
 // RetryPolicy bounds invalid submissions. Unlimited retry requires separate
 // authority in the interactive execution policy.
 type RetryPolicy struct {
 	MaxAttempts uint
-	Unlimited   bool
+	Unlimited bool
 }
 
 // CancelBehavior defines the result of an explicit cancel event.
@@ -59,35 +59,51 @@ const (
 
 // Descriptor is an immutable value snapshot used by renderers and tests.
 type Descriptor struct {
-	Kind          PromptKind
-	ID            string
-	Label         string
-	Description   string
-	Placeholder   string
-	Hint          string
-	Help          string
-	Retry         RetryPolicy
-	Cancel        CancelBehavior
-	EndOfInput    EOFBehavior
-	Secret        SecretClass
-	Headless      HeadlessBehavior
+	Kind PromptKind
+	ID string
+	Label string
+	Description string
+	Placeholder string
+	Hint string
+	Help string
+	Retry RetryPolicy
+	Cancel CancelBehavior
+	EndOfInput EOFBehavior
+	Secret SecretClass
+	Headless HeadlessBehavior
 	Accessibility Accessibility
 }
 
-func normalizeBehavior(retry RetryPolicy, cancel CancelBehavior, eof EOFBehavior, secret SecretClass) (RetryPolicy, error) {
+func normalizeBehavior(
+	retry RetryPolicy,
+	cancel CancelBehavior,
+	eof EOFBehavior,
+	secret SecretClass,
+) (RetryPolicy, error) {
 	if retry.Unlimited && retry.MaxAttempts != 0 {
-		return RetryPolicy{}, fmt.Errorf("%w: retry cannot be both bounded and unlimited", ErrInvalidDefinition)
+		return RetryPolicy{}, fmt.Errorf(
+			"%w: retry cannot be both bounded and unlimited",
+			ErrInvalidDefinition,
+		)
 	}
 	if !retry.Unlimited && retry.MaxAttempts == 0 {
 		retry.MaxAttempts = 3
 	}
 	if cancel > CancelUseFallback || eof > EOFUseFallback || secret > SecretOther {
-		return RetryPolicy{}, fmt.Errorf("%w: invalid execution behavior", ErrInvalidDefinition)
+		return RetryPolicy{}, fmt.Errorf(
+			"%w: invalid execution behavior",
+			ErrInvalidDefinition,
+		)
 	}
 
 	return retry, nil
 }
 
 func invalidBehaviorDefinition(operation string, promptID string, cause error) error {
-	return &Error{Kind: ErrorInvalidDefinition, Operation: operation, PromptID: promptID, Cause: cause}
+	return &Error{
+		Kind: ErrorInvalidDefinition,
+		Operation: operation,
+		PromptID: promptID,
+		Cause: cause,
+	}
 }

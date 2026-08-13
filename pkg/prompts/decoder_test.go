@@ -21,10 +21,13 @@ func TestDecoderIncrementallyDecodesTextAndKeys(t *testing.T) {
 	}
 	second, err := decoder.Feed([]byte("\x91\xa9\n\r\t\x7f\x03\x04"))
 	want := []prompts.InputEvent{
-		prompts.RuneEvent('👩'), prompts.KeyEvent(prompts.KeyNewline),
+		prompts.RuneEvent('👩'),
+		prompts.KeyEvent(prompts.KeyNewline),
 		prompts.KeyEvent(prompts.KeyEnter),
-		prompts.KeyEvent(prompts.KeyTab), prompts.KeyEvent(prompts.KeyBackspace),
-		prompts.KeyEvent(prompts.KeyCtrlC), prompts.KeyEvent(prompts.KeyCtrlD),
+		prompts.KeyEvent(prompts.KeyTab),
+		prompts.KeyEvent(prompts.KeyBackspace),
+		prompts.KeyEvent(prompts.KeyCtrlC),
+		prompts.KeyEvent(prompts.KeyCtrlD),
 	}
 	if err != nil || !reflect.DeepEqual(second, want) {
 		t.Fatalf("second Feed() = %#v, %v", second, err)
@@ -46,10 +49,20 @@ func TestDecoderDecodesNavigationSequences(t *testing.T) {
 		"\x1b[3~\x1b[5~\x1b[6~\x1b[Z\x1b[1;5D\x1b[1;5C"
 	events, err := decoder.Feed([]byte(input))
 	wantKeys := []prompts.Key{
-		prompts.KeyUp, prompts.KeyDown, prompts.KeyRight, prompts.KeyLeft,
-		prompts.KeyHome, prompts.KeyEnd, prompts.KeyHome, prompts.KeyEnd,
-		prompts.KeyDelete, prompts.KeyPageUp, prompts.KeyPageDown,
-		prompts.KeyShiftTab, prompts.KeyWordLeft, prompts.KeyWordRight,
+		prompts.KeyUp,
+		prompts.KeyDown,
+		prompts.KeyRight,
+		prompts.KeyLeft,
+		prompts.KeyHome,
+		prompts.KeyEnd,
+		prompts.KeyHome,
+		prompts.KeyEnd,
+		prompts.KeyDelete,
+		prompts.KeyPageUp,
+		prompts.KeyPageDown,
+		prompts.KeyShiftTab,
+		prompts.KeyWordLeft,
+		prompts.KeyWordRight,
 	}
 	want := make([]prompts.InputEvent, len(wantKeys))
 	for index, key := range wantKeys {
@@ -63,7 +76,9 @@ func TestDecoderDecodesNavigationSequences(t *testing.T) {
 func TestDecoderBoundsAndDecodesBracketedPaste(t *testing.T) {
 	t.Parallel()
 
-	decoder, err := prompts.NewDecoder(prompts.DecoderConfig{MaxPasteBytes: 16, MaxBufferBytes: 32})
+	decoder, err := prompts.NewDecoder(
+		prompts.DecoderConfig{MaxPasteBytes: 16, MaxBufferBytes: 32},
+	)
 	if err != nil {
 		t.Fatalf("NewDecoder() error = %v", err)
 	}
@@ -77,21 +92,29 @@ func TestDecoderBoundsAndDecodesBracketedPaste(t *testing.T) {
 		t.Fatalf("complete Feed() = %#v, %v", events, err)
 	}
 
-	limited, err := prompts.NewDecoder(prompts.DecoderConfig{MaxPasteBytes: 3, MaxBufferBytes: 32})
+	limited, err := prompts.NewDecoder(
+		prompts.DecoderConfig{MaxPasteBytes: 3, MaxBufferBytes: 32},
+	)
 	if err != nil {
 		t.Fatalf("NewDecoder() error = %v", err)
 	}
 	if _, err := limited.Feed([]byte("\x1b[200~four")); !errors.Is(err, prompts.ErrReader) {
 		t.Fatalf("oversized paste error = %v", err)
 	}
-	if _, err := limited.Feed([]byte("\x1b[200~four\x1b[201~")); !errors.Is(err, prompts.ErrReader) {
+	if _, err := limited.Feed([]byte("\x1b[200~four\x1b[201~"));
+		!errors.Is(err, prompts.ErrReader) {
 		t.Fatalf("completed oversized paste error = %v", err)
 	}
-	if _, err := limited.Feed([]byte("\x1b[200~\xff\x1b[201~")); !errors.Is(err, prompts.ErrReader) {
+	if _, err := limited.Feed([]byte("\x1b[200~\xff\x1b[201~"));
+		!errors.Is(err, prompts.ErrReader) {
 		t.Fatalf("invalid paste error = %v", err)
 	}
 	events, err = limited.Feed([]byte("ok"))
-	if err != nil || !reflect.DeepEqual(events, []prompts.InputEvent{prompts.RuneEvent('o'), prompts.RuneEvent('k')}) {
+	if err != nil ||
+		!reflect.DeepEqual(
+			events,
+			[]prompts.InputEvent{prompts.RuneEvent('o'), prompts.RuneEvent('k')},
+		) {
 		t.Fatalf("Feed() after reset = %#v, %v", events, err)
 	}
 }
@@ -99,9 +122,9 @@ func TestDecoderBoundsAndDecodesBracketedPaste(t *testing.T) {
 func TestDecoderByteModeAvoidsStringPastePayload(t *testing.T) {
 	t.Parallel()
 
-	decoder, err := prompts.NewDecoder(prompts.DecoderConfig{
-		MaxPasteBytes: 32, MaxBufferBytes: 64, ByteInput: true,
-	})
+	decoder, err := prompts.NewDecoder(
+		prompts.DecoderConfig{MaxPasteBytes: 32, MaxBufferBytes: 64, ByteInput: true},
+	)
 	if err != nil {
 		t.Fatalf("NewDecoder() error = %v", err)
 	}
@@ -110,7 +133,8 @@ func TestDecoderByteModeAvoidsStringPastePayload(t *testing.T) {
 		t.Fatalf("Feed() = %#v, %v", events, err)
 	}
 	event := &events[0]
-	if event.Kind != prompts.EventPaste || event.Text != "" ||
+	if event.Kind != prompts.EventPaste ||
+		event.Text != "" ||
 		string(event.Bytes.Reveal()) != "secret-👩‍💻" {
 		t.Fatalf("byte event = %#v", event)
 	}
@@ -124,23 +148,27 @@ func TestDecoderRejectsUnsafeAndIncompleteInput(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string][]byte{
-		"invalid UTF-8":      {0xff},
+		"invalid UTF-8": {0xff},
 		"unsupported escape": []byte("\x1b[9~"),
-		"control":            {0x01},
-		"bidi control":       []byte("\u202e"),
-		"stray paste end":    []byte("\x1b[201~"),
+		"control": {0x01},
+		"bidi control": []byte("\u202e"),
+		"stray paste end": []byte("\x1b[201~"),
 	}
 	for name, input := range tests {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			decoder, err := prompts.NewDecoder(prompts.DecoderConfig{})
-			if err != nil {
-				t.Fatalf("NewDecoder() error = %v", err)
-			}
-			if _, err := decoder.Feed(input); !errors.Is(err, prompts.ErrReader) {
-				t.Fatalf("Feed() error = %v", err)
-			}
-		})
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
+				decoder, err := prompts.NewDecoder(prompts.DecoderConfig{})
+				if err != nil {
+					t.Fatalf("NewDecoder() error = %v", err)
+				}
+				if _, err := decoder.Feed(input);
+					!errors.Is(err, prompts.ErrReader) {
+					t.Fatalf("Feed() error = %v", err)
+				}
+			},
+		)
 	}
 
 	decoder, _ := prompts.NewDecoder(prompts.DecoderConfig{})
@@ -148,7 +176,11 @@ func TestDecoderRejectsUnsafeAndIncompleteInput(t *testing.T) {
 		t.Fatalf("escape Feed() = %#v, %v", events, err)
 	}
 	events, err := decoder.Flush()
-	if err != nil || !reflect.DeepEqual(events, []prompts.InputEvent{prompts.KeyEvent(prompts.KeyEscape)}) {
+	if err != nil ||
+		!reflect.DeepEqual(
+			events,
+			[]prompts.InputEvent{prompts.KeyEvent(prompts.KeyEscape)},
+		) {
 		t.Fatalf("escape Flush() = %#v, %v", events, err)
 	}
 	_, _ = decoder.Feed([]byte("\x1b["))
@@ -168,16 +200,20 @@ func TestDecoderRejectsUnsafeAndIncompleteInput(t *testing.T) {
 func TestDecoderValidatesLimitsAndBufferBound(t *testing.T) {
 	t.Parallel()
 
-	for _, config := range []prompts.DecoderConfig{
-		{MaxPasteBytes: -1},
-		{MaxBufferBytes: -1},
-		{MaxPasteBytes: 2, MaxBufferBytes: 1},
-	} {
-		if _, err := prompts.NewDecoder(config); !errors.Is(err, prompts.ErrInvalidDefinition) {
+	for _, config := range
+		[]prompts.DecoderConfig{
+			{MaxPasteBytes: -1},
+			{MaxBufferBytes: -1},
+			{MaxPasteBytes: 2, MaxBufferBytes: 1},
+		} {
+		if _, err := prompts.NewDecoder(config);
+			!errors.Is(err, prompts.ErrInvalidDefinition) {
 			t.Fatalf("NewDecoder(%#v) error = %v", config, err)
 		}
 	}
-	decoder, err := prompts.NewDecoder(prompts.DecoderConfig{MaxPasteBytes: 4, MaxBufferBytes: 4})
+	decoder, err := prompts.NewDecoder(
+		prompts.DecoderConfig{MaxPasteBytes: 4, MaxBufferBytes: 4},
+	)
 	if err != nil {
 		t.Fatalf("NewDecoder() error = %v", err)
 	}

@@ -10,21 +10,32 @@ import (
 )
 
 type selectionState struct {
-	details  selectionDetails
-	visible  []int
-	focus    int
+	details selectionDetails
+	visible []int
+	focus int
 	selected map[string]bool
-	query    lineEditor
-	message  string
-	width    int
-	height   int
+	query lineEditor
+	message string
+	width int
+	height int
 	metadata int
 }
 
-func runInteractiveSelection[T any](ctx context.Context, prompt Prompt[T], execution Execution, details selectionDetails) (T, error) {
-	state := newSelectionState(details, execution.Capabilities.Width, execution.Capabilities.Height)
+func runInteractiveSelection[T any](
+	ctx context.Context,
+	prompt Prompt[T],
+	execution Execution,
+	details selectionDetails,
+) (T, error) {
+	state := newSelectionState(
+		details,
+		execution.Capabilities.Width,
+		execution.Capabilities.Height,
+	)
 	navigation := formInteractionFrom(ctx)
-	if navigation != nil && navigation.initial != nil && navigation.initial.kind == formReplaySelection {
+	if navigation != nil &&
+		navigation.initial != nil &&
+		navigation.initial.kind == formReplaySelection {
 		state.applyReplay(navigation.initial.selection)
 	}
 	state.metadata = len(presentationMetadata(prompt.definition))
@@ -52,32 +63,69 @@ func runInteractiveSelection[T any](ctx context.Context, prompt Prompt[T], execu
 			return resolveEOF(ctx, prompt, execution.Dependencies)
 		case EventDetached:
 			var zero T
-			return zero, streamFailure(prompt.ID(), ErrorTerminalDetached, "read selection event", ErrTerminalDetached)
+			return zero, streamFailure(
+				prompt.ID(),
+				ErrorTerminalDetached,
+				"read selection event",
+				ErrTerminalDetached,
+			)
 		case EventResize:
 			if event.Width < 0 || event.Height < 0 {
 				var zero T
-				return zero, streamFailure(prompt.ID(), ErrorReader, "resize selection", ErrReader)
+				return zero, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"resize selection",
+					ErrReader,
+				)
 			}
 			state.width, state.height = event.Width, event.Height
 		case EventCapabilities:
 			if err := applyCapabilityChange(
-				&execution, event.Capabilities, &state.width, &state.height,
-			); err != nil {
+				&execution,
+				event.Capabilities,
+				&state.width,
+				&state.height,
+			);
+				err != nil {
 				var zero T
 				if errors.Is(err, ErrTerminalDetached) {
-					return zero, streamFailure(prompt.ID(), ErrorTerminalDetached, "update selection capabilities", err)
+					return zero, streamFailure(
+						prompt.ID(),
+						ErrorTerminalDetached,
+						"update selection capabilities",
+						err,
+					)
 				}
-				return zero, streamFailure(prompt.ID(), ErrorReader, "update selection capabilities", err)
+				return zero, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"update selection capabilities",
+					err,
+				)
 			}
 		case EventPaste:
-			if details.searchPolicy == (SearchPolicy{}) || !utf8.ValidString(event.Text) ||
-				utf8.RuneCountInString(state.query.text())+utf8.RuneCountInString(event.Text) > details.searchPolicy.MaxQueryRunes {
+			if details.searchPolicy == (SearchPolicy{}) ||
+				!utf8.ValidString(event.Text) ||
+				utf8.RuneCountInString(state.query.text()) +
+					utf8.RuneCountInString(event.Text) >
+					details.searchPolicy.MaxQueryRunes {
 				var zero T
-				return zero, streamFailure(prompt.ID(), ErrorReader, "search selection", ErrReader)
+				return zero, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"search selection",
+					ErrReader,
+				)
 			}
 			if err := state.query.insert(event.Text, false); err != nil {
 				var zero T
-				return zero, streamFailure(prompt.ID(), ErrorReader, "search selection", err)
+				return zero, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"search selection",
+					err,
+				)
 			}
 			state.filter()
 		case EventKey:
@@ -110,13 +158,24 @@ func runInteractiveSelection[T any](ctx context.Context, prompt Prompt[T], execu
 				if details.multiple && event.Rune == ' ' {
 					state.toggle()
 				} else if details.searchPolicy != (SearchPolicy{}) {
-					if utf8.RuneCountInString(state.query.text()) >= details.searchPolicy.MaxQueryRunes {
+					if utf8.RuneCountInString(state.query.text()) >=
+						details.searchPolicy.MaxQueryRunes {
 						var zero T
-						return zero, streamFailure(prompt.ID(), ErrorReader, "search selection", ErrReader)
+						return zero, streamFailure(
+							prompt.ID(),
+							ErrorReader,
+							"search selection",
+							ErrReader,
+						)
 					}
 					if err := state.query.applyKey(event); err != nil {
 						var zero T
-						return zero, streamFailure(prompt.ID(), ErrorReader, "search selection", err)
+						return zero, streamFailure(
+							prompt.ID(),
+							ErrorReader,
+							"search selection",
+							err,
+						)
 					}
 					state.filter()
 				}
@@ -134,22 +193,37 @@ func runInteractiveSelection[T any](ctx context.Context, prompt Prompt[T], execu
 			case KeyShiftTab:
 				state.move(-1)
 			case KeyNewline:
-				// Newlines have no selection meaning unless rebound by the caller.
+			// Newlines have no selection meaning unless rebound by the caller.
 			case KeyIgnored:
-				// An old chord for a rebound meaning is intentionally inert.
+			// An old chord for a rebound meaning is intentionally inert.
 			}
 		default:
 			var zero T
-			return zero, streamFailure(prompt.ID(), ErrorReader, "read selection event", ErrReader)
+			return zero, streamFailure(
+				prompt.ID(),
+				ErrorReader,
+				"read selection event",
+				ErrReader,
+			)
 		}
 		if submit {
 			input, ok := state.submission()
 			if ok {
 				value, submitErr := prompt.definition.parse(input)
 				if submitErr == nil {
-					value, submitErr = applyPipeline(ctx, prompt.definition, value, execution.Dependencies, false)
+					value, submitErr = applyPipeline(
+						ctx,
+						prompt.definition,
+						value,
+						execution.Dependencies,
+						false,
+					)
 				} else {
-					submitErr = validationFailure(prompt.ID(), submitErr, SecretNone)
+					submitErr = validationFailure(
+						prompt.ID(),
+						submitErr,
+						SecretNone,
+					)
 				}
 				if submitErr == nil {
 					navigation.captureSelection(state.replay())
@@ -161,7 +235,8 @@ func runInteractiveSelection[T any](ctx context.Context, prompt Prompt[T], execu
 				}
 				attempts++
 				state.message = validationMessage(submitErr)
-				if !prompt.definition.retry.Unlimited && attempts >= prompt.definition.retry.MaxAttempts {
+				if !prompt.definition.retry.Unlimited &&
+					attempts >= prompt.definition.retry.MaxAttempts {
 					var zero T
 					return zero, submitErr
 				}
@@ -176,8 +251,11 @@ func runInteractiveSelection[T any](ctx context.Context, prompt Prompt[T], execu
 
 func newSelectionState(details selectionDetails, width, height int) selectionState {
 	state := selectionState{
-		details: details, selected: make(map[string]bool), width: width, height: height,
-		query: lineEditor{maxBytes: max(1, details.searchPolicy.MaxQueryRunes*4)},
+		details: details,
+		selected: make(map[string]bool),
+		width: width,
+		height: height,
+		query: lineEditor{maxBytes: max(1, details.searchPolicy.MaxQueryRunes * 4)},
 	}
 	for _, id := range details.initialIDs {
 		if id != "" {
@@ -200,7 +278,9 @@ func newSelectionState(details selectionDetails, width, height int) selectionSta
 func (state *selectionState) filter() {
 	query := normalizeSearchText(state.query.text())
 	tokens := strings.Fields(query)
-	type match struct{ index, rank int }
+	type match struct {
+		index, rank int
+	}
 	matches := make([]match, 0, len(state.details.options))
 	for index, option := range state.details.options {
 		rank, ok := selectionRank(option, query, tokens)
@@ -208,9 +288,15 @@ func (state *selectionState) filter() {
 			matches = append(matches, match{index: index, rank: rank})
 		}
 	}
-	sort.SliceStable(matches, func(left, right int) bool { return matches[left].rank < matches[right].rank })
+	sort.SliceStable(
+		matches,
+		func(left, right int) bool {
+			return matches[left].rank < matches[right].rank
+		},
+	)
 	limit := len(matches)
-	if policy := state.details.searchPolicy; policy != (SearchPolicy{}) && limit > policy.MaxResults {
+	if policy := state.details.searchPolicy;
+		policy != (SearchPolicy{}) && limit > policy.MaxResults {
 		limit = policy.MaxResults
 	}
 	state.visible = make([]int, limit)
@@ -245,7 +331,7 @@ func (state *selectionState) applyReplay(replay selectionReplay) {
 			}
 		}
 	}
-	state.query = lineEditor{maxBytes: max(1, state.details.searchPolicy.MaxQueryRunes*4)}
+	state.query = lineEditor{maxBytes: max(1, state.details.searchPolicy.MaxQueryRunes * 4)}
 	_ = state.query.insert(replay.query, false)
 	state.filter()
 	for position, index := range state.visible {
@@ -341,7 +427,8 @@ func (state *selectionState) toggle() {
 
 func (state *selectionState) submission() (string, bool) {
 	if !state.details.multiple {
-		if len(state.visible) == 0 || state.details.options[state.visible[state.focus]].disabled {
+		if len(state.visible) == 0 ||
+			state.details.options[state.visible[state.focus]].disabled {
 			state.message = "No selectable options"
 			return "", false
 		}
@@ -365,10 +452,14 @@ func (state *selectionState) pageSize() int {
 	if state.message != "" {
 		reserved++
 	}
-	return max(1, state.height-reserved)
+	return max(1, state.height - reserved)
 }
 
-func writeSelection[T any](execution Execution, definition definition[T], state selectionState) error {
+func writeSelection[T any](
+	execution Execution,
+	definition definition[T],
+	state selectionState,
+) error {
 	renderer := execution.Renderer
 	if renderer == nil {
 		renderer = PlainRenderer{Theme: execution.Theme}
@@ -379,14 +470,14 @@ func writeSelection[T any](execution Execution, definition definition[T], state 
 	lines := []SemanticLine{Line(Text(RoleLabel, presentationLabel(definition)))}
 	lines = append(lines, presentationMetadata(definition)...)
 	if state.details.searchPolicy != (SearchPolicy{}) {
-		lines = append(lines, Line(Text(RoleHint, "search: "+state.query.text())))
+		lines = append(lines, Line(Text(RoleHint, "search: " + state.query.text())))
 	}
 	pageSize := state.pageSize()
 	start := 0
 	if state.focus >= pageSize {
 		start = (state.focus / pageSize) * pageSize
 	}
-	end := min(len(state.visible), start+pageSize)
+	end := min(len(state.visible), start + pageSize)
 	for position := start; position < end; position++ {
 		option := state.details.options[state.visible[position]]
 		segments := make([]Segment, 0, 2)
@@ -405,18 +496,26 @@ func writeSelection[T any](execution Execution, definition definition[T], state 
 		}
 		segments = append(segments, Text(role, label))
 		if option.description != "" {
-			segments = append(segments, Text(RoleValue, " - "), Text(RoleHint, option.description))
+			segments = append(
+				segments,
+				Text(RoleValue, " - "),
+				Text(RoleHint, option.description),
+			)
 		}
 		lines = append(lines, Line(segments...))
 	}
 	if state.message != "" {
 		lines = append(lines, Line(Text(RoleError, state.message)))
 	}
-	output, err := renderer.Render(NewFrame(lines...), RenderOptions{
-		Width: state.width, Color: execution.Capabilities.Color,
-		ASCIIOnly:  !execution.Capabilities.Unicode,
-		Hyperlinks: execution.Capabilities.Hyperlinks,
-	})
+	output, err := renderer.Render(
+		NewFrame(lines...),
+		RenderOptions{
+			Width: state.width,
+			Color: execution.Capabilities.Color,
+			ASCIIOnly: !execution.Capabilities.Unicode,
+			Hyperlinks: execution.Capabilities.Hyperlinks,
+		},
+	)
 	if err != nil {
 		return streamFailure(definition.id, ErrorRenderer, "render selection", err)
 	}

@@ -21,34 +21,38 @@ type OptionProvider[T any] func(context.Context, string) ([]Option[T], error)
 // DynamicOptionsConfig defines a caller-driven, deterministic dynamic-option
 // session. Debouncing is checked against Clock without timers or goroutines.
 type DynamicOptionsConfig[T any] struct {
-	Clock         Clock
-	Provider      OptionProvider[T]
-	Debounce      time.Duration
-	MaxOptions    int
+	Clock Clock
+	Provider OptionProvider[T]
+	Debounce time.Duration
+	MaxOptions int
 	MaxQueryRunes int
 }
 
 // DynamicOptions owns scheduling and generation-safe option replacement. The
 // caller schedules a query and calls Resolve after the debounce deadline.
 type DynamicOptions[T any] struct {
-	mutex          sync.RWMutex
-	clock          Clock
-	provider       OptionProvider[T]
-	debounce       time.Duration
-	maxOptions     int
-	maxQueryRunes  int
-	generation     QueryGeneration
-	query          string
-	due            time.Time
+	mutex sync.RWMutex
+	clock Clock
+	provider OptionProvider[T]
+	debounce time.Duration
+	maxOptions int
+	maxQueryRunes int
+	generation QueryGeneration
+	query string
+	due time.Time
 	currentOptions []Option[T]
 }
 
 // NewDynamicOptions creates an explicit dynamic-option session.
 func NewDynamicOptions[T any](config DynamicOptionsConfig[T]) (*DynamicOptions[T], error) {
-	if config.Clock == nil || config.Provider == nil || config.Debounce < 0 ||
-		config.MaxOptions < 0 || config.MaxQueryRunes < 0 {
+	if config.Clock == nil ||
+		config.Provider == nil ||
+		config.Debounce < 0 ||
+		config.MaxOptions < 0 ||
+		config.MaxQueryRunes < 0 {
 		return nil, &Error{
-			Kind: ErrorInvalidDefinition, Operation: "define dynamic options",
+			Kind: ErrorInvalidDefinition,
+			Operation: "define dynamic options",
 			Cause: ErrInvalidDefinition,
 		}
 	}
@@ -60,8 +64,11 @@ func NewDynamicOptions[T any](config DynamicOptionsConfig[T]) (*DynamicOptions[T
 	}
 
 	return &DynamicOptions[T]{
-		clock: config.Clock, provider: config.Provider, debounce: config.Debounce,
-		maxOptions: config.MaxOptions, maxQueryRunes: config.MaxQueryRunes,
+		clock: config.Clock,
+		provider: config.Provider,
+		debounce: config.Debounce,
+		maxOptions: config.MaxOptions,
+		maxQueryRunes: config.MaxQueryRunes,
 	}, nil
 }
 
@@ -69,7 +76,8 @@ func NewDynamicOptions[T any](config DynamicOptionsConfig[T]) (*DynamicOptions[T
 func (dynamic *DynamicOptions[T]) Schedule(query string) (QueryGeneration, error) {
 	if !utf8.ValidString(query) || utf8.RuneCountInString(query) > dynamic.maxQueryRunes {
 		return 0, &Error{
-			Kind: ErrorUnsupported, Operation: "schedule dynamic options",
+			Kind: ErrorUnsupported,
+			Operation: "schedule dynamic options",
 			Cause: ErrUnsupported,
 		}
 	}
@@ -91,7 +99,8 @@ func (dynamic *DynamicOptions[T]) Resolve(
 ) ([]Option[T], bool, error) {
 	if ctx == nil {
 		return nil, false, &Error{
-			Kind: ErrorInvalidDefinition, Operation: "resolve dynamic options",
+			Kind: ErrorInvalidDefinition,
+			Operation: "resolve dynamic options",
 			Cause: ErrInvalidDefinition,
 		}
 	}
@@ -100,7 +109,9 @@ func (dynamic *DynamicOptions[T]) Resolve(
 	}
 
 	dynamic.mutex.RLock()
-	if generation == 0 || generation != dynamic.generation || dynamic.clock.Now().Before(dynamic.due) {
+	if generation == 0 ||
+		generation != dynamic.generation ||
+		dynamic.clock.Now().Before(dynamic.due) {
 		dynamic.mutex.RUnlock()
 		return nil, false, nil
 	}
@@ -114,12 +125,16 @@ func (dynamic *DynamicOptions[T]) Resolve(
 		}
 
 		return nil, false, &Error{
-			Kind: ErrorAdapter, Operation: "resolve dynamic options", Cause: err,
+			Kind: ErrorAdapter,
+			Operation: "resolve dynamic options",
+			Cause: err,
 		}
 	}
 	if err := validateDynamicOptions(options, dynamic.maxOptions); err != nil {
 		return nil, false, &Error{
-			Kind: ErrorAdapter, Operation: "resolve dynamic options", Cause: ErrAdapter,
+			Kind: ErrorAdapter,
+			Operation: "resolve dynamic options",
+			Cause: ErrAdapter,
 		}
 	}
 	owned := append([]Option[T](nil), options...)

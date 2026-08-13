@@ -37,13 +37,20 @@ func TestInteractiveTextDoesNotEnableKernelEcho(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewText() error = %v", err)
 	}
-	result, err := prompts.Run(context.Background(), prompt, prompts.Execution{
-		Output: replica, Events: observer, Terminal: adapter,
-		Capabilities: adapter.Capabilities(),
-		Policy: prompts.InteractionPolicy{
-			Mode: prompts.InteractiveRequired, PermitInteraction: true,
+	result, err := prompts.Run(
+		context.Background(),
+		prompt,
+		prompts.Execution{
+			Output: replica,
+			Events: observer,
+			Terminal: adapter,
+			Capabilities: adapter.Capabilities(),
+			Policy: prompts.InteractionPolicy{
+				Mode: prompts.InteractiveRequired,
+				PermitInteraction: true,
+			},
 		},
-	})
+	)
 	if err != nil || result != "ab" {
 		t.Fatalf("Run() = %q, %v", result, err)
 	}
@@ -55,8 +62,8 @@ func TestInteractiveTextDoesNotEnableKernelEcho(t *testing.T) {
 type echoObserver struct {
 	*terminal.Adapter
 	primary *os.File
-	wrote   bool
-	echoed  []byte
+	wrote bool
+	echoed []byte
 }
 
 func (observer *echoObserver) Next(ctx context.Context) (prompts.InputEvent, error) {
@@ -96,7 +103,7 @@ func (observer *echoObserver) readAvailable() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if ready == 0 || poll[0].Revents&unix.POLLIN == 0 {
+	if ready == 0 || poll[0].Revents & unix.POLLIN == 0 {
 		return nil, nil
 	}
 	buffer := make([]byte, 4096)
@@ -189,25 +196,34 @@ func TestAdapterRestoresSecretPTYAfterWriterFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetState() error = %v", err)
 	}
-	adapter, err := terminal.New(replica, replica, terminal.Config{
-		Decoder: prompts.DecoderConfig{ByteInput: true},
-	})
+	adapter, err := terminal.New(
+		replica,
+		replica,
+		terminal.Config{Decoder: prompts.DecoderConfig{ByteInput: true}},
+	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-	})
+	prompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{ID: "token", Label: "Token", Class: prompts.SecretToken},
+	)
 	if err != nil {
 		t.Fatalf("NewSecretBytesPrompt() error = %v", err)
 	}
-	_, err = prompts.Run(context.Background(), prompt, prompts.Execution{
-		Output: terminalErrorWriter{}, Events: adapter, Terminal: adapter,
-		Capabilities: adapter.Capabilities(),
-		Policy: prompts.InteractionPolicy{
-			Mode: prompts.InteractiveRequired, PermitInteraction: true,
+	_, err = prompts.Run(
+		context.Background(),
+		prompt,
+		prompts.Execution{
+			Output: terminalErrorWriter{},
+			Events: adapter,
+			Terminal: adapter,
+			Capabilities: adapter.Capabilities(),
+			Policy: prompts.InteractionPolicy{
+				Mode: prompts.InteractiveRequired,
+				PermitInteraction: true,
+			},
 		},
-	})
+	)
 	if !errors.Is(err, prompts.ErrWriter) {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -226,73 +242,99 @@ func (terminalErrorWriter) Write([]byte) (int, error) {
 func TestAdapterRestoresByteSecretPromptPTY(t *testing.T) {
 	t.Parallel()
 
-	for name, input := range map[string][]byte{
-		"submit": []byte("\x1b[200~secret-value\x1b[201~\r"),
-		"cancel": {0x03},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			primary, replica, err := pty.Open()
-			if err != nil {
-				t.Fatalf("Open() error = %v", err)
-			}
-			defer primary.Close()
-			defer replica.Close()
-			before, err := term.GetState(int(replica.Fd()))
-			if err != nil {
-				t.Fatalf("GetState() error = %v", err)
-			}
-			adapter, err := terminal.New(replica, replica, terminal.Config{
-				Decoder: prompts.DecoderConfig{ByteInput: true},
-			})
-			if err != nil {
-				t.Fatalf("New() error = %v", err)
-			}
-			prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-				ID: "token", Label: "Token", Class: prompts.SecretToken,
-			})
-			if err != nil {
-				t.Fatalf("NewSecretBytesPrompt() error = %v", err)
-			}
-			interaction := make(chan error, 1)
-			go func() {
-				buffer := make([]byte, 4096)
-				for {
-					count, readErr := primary.Read(buffer)
-					if bytes.Contains(buffer[:count], []byte("Token")) {
-						_, writeErr := primary.Write(input)
-						interaction <- writeErr
-						return
-					}
-					if readErr != nil {
-						interaction <- readErr
-						return
-					}
+	for name, input := range
+		map[string][]byte{
+			"submit": []byte("\x1b[200~secret-value\x1b[201~\r"),
+			"cancel": {0x03},
+		} {
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
+				primary, replica, err := pty.Open()
+				if err != nil {
+					t.Fatalf("Open() error = %v", err)
 				}
-			}()
-			result, runErr := prompts.Run(context.Background(), prompt, prompts.Execution{
-				Output: replica, Error: replica, Events: adapter, Terminal: adapter,
-				Capabilities: adapter.Capabilities(),
-				Policy: prompts.InteractionPolicy{
-					Mode: prompts.InteractiveRequired, PermitInteraction: true,
-				},
-			})
-			if err := <-interaction; err != nil {
-				t.Fatalf("interaction error = %v", err)
-			}
-			if name == "submit" {
-				if runErr != nil || string(result.Reveal()) != "secret-value" {
-					t.Fatalf("Run() = %v, %v", result, runErr)
+				defer primary.Close()
+				defer replica.Close()
+				before, err := term.GetState(int(replica.Fd()))
+				if err != nil {
+					t.Fatalf("GetState() error = %v", err)
 				}
-				result.Destroy()
-			} else if !errors.Is(runErr, prompts.ErrCanceled) {
-				t.Fatalf("cancel Run() error = %v", runErr)
-			}
-			after, err := term.GetState(int(replica.Fd()))
-			if err != nil || !reflect.DeepEqual(before, after) {
-				t.Fatalf("restored state = %#v, %v; want %#v", after, err, before)
-			}
-		})
+				adapter, err := terminal.New(
+					replica,
+					replica,
+					terminal.Config{
+						Decoder: prompts.DecoderConfig{ByteInput: true},
+					},
+				)
+				if err != nil {
+					t.Fatalf("New() error = %v", err)
+				}
+				prompt, err := prompts.NewSecretBytesPrompt(
+					prompts.SecretBytesConfig{
+						ID: "token",
+						Label: "Token",
+						Class: prompts.SecretToken,
+					},
+				)
+				if err != nil {
+					t.Fatalf("NewSecretBytesPrompt() error = %v", err)
+				}
+				interaction := make(chan error, 1)
+				go func() {
+					buffer := make([]byte, 4096)
+					for {
+						count, readErr := primary.Read(buffer)
+						if bytes.Contains(buffer[:count], []byte("Token")) {
+							_, writeErr := primary.Write(input)
+							interaction <- writeErr
+							return
+						}
+						if readErr != nil {
+							interaction <- readErr
+							return
+						}
+					}
+				}()
+				result, runErr := prompts.Run(
+					context.Background(),
+					prompt,
+					prompts.Execution{
+						Output: replica,
+						Error: replica,
+						Events: adapter,
+						Terminal: adapter,
+						Capabilities: adapter.Capabilities(),
+						Policy: prompts.InteractionPolicy{
+							Mode: prompts.InteractiveRequired,
+							PermitInteraction: true,
+						},
+					},
+				)
+				if err := <-interaction; err != nil {
+					t.Fatalf("interaction error = %v", err)
+				}
+				if name == "submit" {
+					if runErr != nil ||
+						string(result.Reveal()) != "secret-value" {
+						t.Fatalf("Run() = %v, %v", result, runErr)
+					}
+					result.Destroy()
+				} else if !errors.Is(runErr, prompts.ErrCanceled) {
+					t.Fatalf("cancel Run() error = %v", runErr)
+				}
+				after, err := term.GetState(int(replica.Fd()))
+				if err != nil || !reflect.DeepEqual(before, after) {
+					t.Fatalf(
+						"restored state = %#v, %v; want %#v",
+						after,
+						err,
+						before,
+					)
+				}
+			},
+		)
 	}
 }
 

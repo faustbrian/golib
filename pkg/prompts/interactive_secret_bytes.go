@@ -28,7 +28,9 @@ func runInteractiveSecretBytes[T any](
 	editor := byteLineEditor{maxBytes: limits.MaxInputBytes}
 	defer editor.destroy()
 	navigation := formInteractionFrom(ctx)
-	if navigation != nil && navigation.initial != nil && navigation.initial.kind == formReplayBytes {
+	if navigation != nil &&
+		navigation.initial != nil &&
+		navigation.initial.kind == formReplayBytes {
 		initial := navigation.initial.bytes.Reveal()
 		_ = editor.insert(initial)
 		clear(initial)
@@ -50,17 +52,37 @@ func runInteractiveSecretBytes[T any](
 			return result, eventReadFailure(prompt.ID(), "read terminal event", err)
 		}
 		if event.Kind == EventCapabilities {
-			eventErr := applyCapabilityChange(&execution, event.Capabilities, &width, nil)
+			eventErr := applyCapabilityChange(
+				&execution,
+				event.Capabilities,
+				&width,
+				nil,
+			)
 			event.Destroy()
 			if eventErr != nil {
 				if errors.Is(eventErr, ErrTerminalDetached) {
 					return result, streamFailure(
-						prompt.ID(), ErrorTerminalDetached, "update terminal capabilities", eventErr,
+						prompt.ID(),
+						ErrorTerminalDetached,
+						"update terminal capabilities",
+						eventErr,
 					)
 				}
-				return result, streamFailure(prompt.ID(), ErrorReader, "update terminal capabilities", eventErr)
+				return result, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"update terminal capabilities",
+					eventErr,
+				)
 			}
-			if err := writeInteractive(execution, prompt.definition, editor.renderValue(), "", width); err != nil {
+			if err := writeInteractive(
+				execution,
+				prompt.definition,
+				editor.renderValue(),
+				"",
+				width,
+			);
+				err != nil {
 				return result, err
 			}
 			continue
@@ -86,10 +108,18 @@ func runInteractiveSecretBytes[T any](
 		if eventErr != nil {
 			if errors.Is(eventErr, ErrTerminalDetached) {
 				return result, streamFailure(
-					prompt.ID(), ErrorTerminalDetached, "read terminal event", eventErr,
+					prompt.ID(),
+					ErrorTerminalDetached,
+					"read terminal event",
+					eventErr,
 				)
 			}
-			return result, streamFailure(prompt.ID(), ErrorReader, "edit terminal input", eventErr)
+			return result, streamFailure(
+				prompt.ID(),
+				ErrorReader,
+				"edit terminal input",
+				eventErr,
+			)
 		}
 		switch action {
 		case secretCancel:
@@ -101,9 +131,19 @@ func runInteractiveSecretBytes[T any](
 			value, parseErr := prompt.definition.parseBytes(input)
 			clear(input)
 			if parseErr == nil {
-				value, parseErr = applyPipeline(ctx, prompt.definition, value, execution.Dependencies, false)
+				value, parseErr = applyPipeline(
+					ctx,
+					prompt.definition,
+					value,
+					execution.Dependencies,
+					false,
+				)
 			} else {
-				parseErr = validationFailure(prompt.ID(), parseErr, prompt.definition.secret)
+				parseErr = validationFailure(
+					prompt.ID(),
+					parseErr,
+					prompt.definition.secret,
+				)
 			}
 			if parseErr == nil {
 				draft := editor.bytes()
@@ -116,17 +156,30 @@ func runInteractiveSecretBytes[T any](
 				return result, parseErr
 			}
 			attempts++
-			if !prompt.definition.retry.Unlimited && attempts >= prompt.definition.retry.MaxAttempts {
+			if !prompt.definition.retry.Unlimited &&
+				attempts >= prompt.definition.retry.MaxAttempts {
 				return result, parseErr
 			}
 			if err := writeInteractive(
-				execution, prompt.definition, "secret entered", validationMessage(parseErr), width,
-			); err != nil {
+				execution,
+				prompt.definition,
+				"secret entered",
+				validationMessage(parseErr),
+				width,
+			);
+				err != nil {
 				return result, err
 			}
 			continue
 		case secretContinue:
-			if err := writeInteractive(execution, prompt.definition, editor.renderValue(), "", width); err != nil {
+			if err := writeInteractive(
+				execution,
+				prompt.definition,
+				editor.renderValue(),
+				"",
+				width,
+			);
+				err != nil {
 				return result, err
 			}
 		}
@@ -185,9 +238,9 @@ func handleSecretByteEvent(
 }
 
 type byteLineEditor struct {
-	cells    [][]byte
-	cursor   int
-	size     int
+	cells [][]byte
+	cursor int
+	size int
 	maxBytes int
 }
 
@@ -208,12 +261,12 @@ func (editor *byteLineEditor) insert(input []byte) error {
 		input = input[size:]
 	}
 	defer clear(clean)
-	if editor.size+len(clean) > editor.maxBytes {
+	if editor.size + len(clean) > editor.maxBytes {
 		return ErrReader
 	}
 	inserted := splitByteGraphemes(clean)
 	editor.cells = append(editor.cells, make([][]byte, len(inserted))...)
-	copy(editor.cells[editor.cursor+len(inserted):], editor.cells[editor.cursor:])
+	copy(editor.cells[editor.cursor + len(inserted):], editor.cells[editor.cursor:])
 	copy(editor.cells[editor.cursor:], inserted)
 	editor.cursor += len(inserted)
 	editor.size += len(clean)
@@ -267,16 +320,16 @@ func (editor *byteLineEditor) applyKey(event InputEvent) error {
 func (editor *byteLineEditor) remove(index int) {
 	editor.size -= len(editor.cells[index])
 	clear(editor.cells[index])
-	copy(editor.cells[index:], editor.cells[index+1:])
-	editor.cells[len(editor.cells)-1] = nil
-	editor.cells = editor.cells[:len(editor.cells)-1]
+	copy(editor.cells[index:], editor.cells[index + 1:])
+	editor.cells[len(editor.cells) - 1] = nil
+	editor.cells = editor.cells[:len(editor.cells) - 1]
 }
 
 func (editor *byteLineEditor) wordLeft() {
-	for editor.cursor > 0 && byteClusterSpace(editor.cells[editor.cursor-1]) {
+	for editor.cursor > 0 && byteClusterSpace(editor.cells[editor.cursor - 1]) {
 		editor.cursor--
 	}
-	for editor.cursor > 0 && !byteClusterSpace(editor.cells[editor.cursor-1]) {
+	for editor.cursor > 0 && !byteClusterSpace(editor.cells[editor.cursor - 1]) {
 		editor.cursor--
 	}
 }

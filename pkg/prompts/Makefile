@@ -1,4 +1,6 @@
 GO ?= go
+GOX_VERSION ?= v0.0.0-20260813010603-d84842b08ff9
+GOX ?= $(GO) run github.com/faustbrian/gox/cmd/gox@$(GOX_VERSION)
 GOLANGCI_LINT ?= $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 STATICCHECK ?= $(GO) run honnef.co/go/tools/cmd/staticcheck@v0.7.0
 GOVULNCHECK ?= $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.6.0
@@ -21,10 +23,10 @@ api:
 		test ! -s "$$output" || { cat "$$output"; exit 1; }
 
 format:
-	gofmt -w .
+	GOWORK=off $(GOX) fmt --write .
 
 format-check:
-	test -z "$$(gofmt -l .)"
+	GOWORK=off $(GOX) fmt --check .
 
 tidy-check:
 	GOWORK=off $(GO) mod tidy -diff

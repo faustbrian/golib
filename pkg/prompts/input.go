@@ -48,23 +48,29 @@ const (
 
 // InputEvent is a secret-redacting semantic input event.
 type InputEvent struct {
-	Kind          EventKind
-	Key           Key
-	Rune          rune
-	Text          string
-	Bytes         *SecretBytes
+	Kind EventKind
+	Key Key
+	Rune rune
+	Text string
+	Bytes *SecretBytes
 	Width, Height int
-	Capabilities  Capabilities
+	Capabilities Capabilities
 }
 
 // RuneEvent creates a text insertion event.
-func RuneEvent(value rune) InputEvent { return InputEvent{Kind: EventKey, Key: KeyRune, Rune: value} }
+func RuneEvent(value rune) InputEvent {
+	return InputEvent{Kind: EventKey, Key: KeyRune, Rune: value}
+}
 
 // KeyEvent creates a non-text key event.
-func KeyEvent(key Key) InputEvent { return InputEvent{Kind: EventKey, Key: key} }
+func KeyEvent(key Key) InputEvent {
+	return InputEvent{Kind: EventKey, Key: key}
+}
 
 // PasteEvent creates a bracketed or ordinary paste event.
-func PasteEvent(value string) InputEvent { return InputEvent{Kind: EventPaste, Text: value} }
+func PasteEvent(value string) InputEvent {
+	return InputEvent{Kind: EventPaste, Text: value}
+}
 
 // PasteBytesEvent creates an owned byte-oriented paste event. Call Destroy
 // when the event is not transferred to prompt execution.
@@ -93,20 +99,33 @@ func (event *InputEvent) Destroy() {
 	event.Capabilities = Capabilities{}
 }
 
-func (InputEvent) String() string   { return "[INPUT EVENT]" }
-func (InputEvent) GoString() string { return "[INPUT EVENT]" }
+func (InputEvent) String() string {
+	return "[INPUT EVENT]"
+}
+
+func (InputEvent) GoString() string {
+	return "[INPUT EVENT]"
+}
 
 // Format prevents pasted or typed input from appearing through fmt.
-func (InputEvent) Format(state fmt.State, _ rune) { _, _ = state.Write([]byte("[INPUT EVENT]")) }
+func (InputEvent) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte("[INPUT EVENT]"))
+}
 
 // MarshalText redacts event payloads.
-func (InputEvent) MarshalText() ([]byte, error) { return []byte("[INPUT EVENT]"), nil }
+func (InputEvent) MarshalText() ([]byte, error) {
+	return []byte("[INPUT EVENT]"), nil
+}
 
 // MarshalJSON redacts event payloads.
-func (InputEvent) MarshalJSON() ([]byte, error) { return json.Marshal("[INPUT EVENT]") }
+func (InputEvent) MarshalJSON() ([]byte, error) {
+	return json.Marshal("[INPUT EVENT]")
+}
 
 // LogValue redacts event payloads in structured logging.
-func (InputEvent) LogValue() slog.Value { return slog.StringValue("[INPUT EVENT]") }
+func (InputEvent) LogValue() slog.Value {
+	return slog.StringValue("[INPUT EVENT]")
+}
 
 // EventSource supplies decoded, cancellable semantic terminal events. It must
 // honor context cancellation; the core never starts a goroutine around it.

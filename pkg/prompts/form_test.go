@@ -14,28 +14,44 @@ func TestFormRunsTypedFieldsAndConditionalFollowUp(t *testing.T) {
 	t.Parallel()
 
 	name := newTextPrompt(t, prompts.TextConfig{ID: "name", Label: "Name"})
-	advanced, err := prompts.NewConfirm(prompts.ConfirmConfig{ID: "advanced", Label: "Advanced"})
+	advanced, err := prompts.NewConfirm(
+		prompts.ConfirmConfig{ID: "advanced", Label: "Advanced"},
+	)
 	if err != nil {
 		t.Fatalf("NewConfirm() error = %v", err)
 	}
 	note := newTextPrompt(t, prompts.TextConfig{ID: "note", Label: "Note"})
-	form, err := prompts.NewForm(prompts.FormConfig{
-		ID: "setup",
-		Fields: []prompts.FormField{
-			prompts.AsField(name), prompts.AsField(advanced),
-			prompts.When(prompts.AsField(note), func(result prompts.FormResult) bool {
-				value, present := prompts.FormValue[bool](result, "advanced")
-				return present && value
-			}),
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "setup",
+			Fields: []prompts.FormField{
+				prompts.AsField(name),
+				prompts.AsField(advanced),
+				prompts.When(
+					prompts.AsField(note),
+					func(result prompts.FormResult) bool {
+						value, present := prompts.FormValue[bool](
+							result,
+							"advanced",
+						)
+						return present && value
+					},
+				),
+			},
 		},
-	})
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
 	terminal := prompts.NewVirtualTerminal(40, 8)
-	terminal.Push(prompts.PasteEvent("Brian"), prompts.KeyEvent(prompts.KeyEnter),
-		prompts.PasteEvent("yes"), prompts.KeyEvent(prompts.KeyEnter),
-		prompts.PasteEvent("details"), prompts.KeyEvent(prompts.KeyEnter))
+	terminal.Push(
+		prompts.PasteEvent("Brian"),
+		prompts.KeyEvent(prompts.KeyEnter),
+		prompts.PasteEvent("yes"),
+		prompts.KeyEvent(prompts.KeyEnter),
+		prompts.PasteEvent("details"),
+		prompts.KeyEvent(prompts.KeyEnter),
+	)
 	result, err := prompts.RunForm(context.Background(), form, interactiveExecution(terminal))
 	if err != nil {
 		t.Fatalf("RunForm() error = %v", err)
@@ -55,32 +71,49 @@ func TestInteractiveFormBackNavigationRetainsDraftsAndReevaluatesConditions(t *t
 	t.Parallel()
 
 	name := newTextPrompt(t, prompts.TextConfig{ID: "name", Label: "Name"})
-	advanced, err := prompts.NewConfirm(prompts.ConfirmConfig{ID: "advanced", Label: "Advanced"})
+	advanced, err := prompts.NewConfirm(
+		prompts.ConfirmConfig{ID: "advanced", Label: "Advanced"},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	details := newTextPrompt(t, prompts.TextConfig{ID: "details", Label: "Details"})
-	form, err := prompts.NewForm(prompts.FormConfig{
-		ID: "navigation",
-		Fields: []prompts.FormField{
-			prompts.AsField(name), prompts.AsField(advanced),
-			prompts.When(prompts.AsField(details), func(result prompts.FormResult) bool {
-				value, ok := prompts.FormValue[bool](result, "advanced")
-				return ok && value
-			}),
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "navigation",
+			Fields: []prompts.FormField{
+				prompts.AsField(name),
+				prompts.AsField(advanced),
+				prompts.When(
+					prompts.AsField(details),
+					func(result prompts.FormResult) bool {
+						value, ok := prompts.FormValue[bool](
+							result,
+							"advanced",
+						)
+						return ok && value
+					},
+				),
+			},
 		},
-	})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	terminal := prompts.NewVirtualTerminal(80, 24)
 	terminal.Push(
-		prompts.PasteEvent("Ada"), prompts.KeyEvent(prompts.KeyTab),
-		prompts.PasteEvent("yes"), prompts.KeyEvent(prompts.KeyEnter),
-		prompts.PasteEvent("retained draft"), prompts.KeyEvent(prompts.KeyShiftTab),
-		prompts.KeyEvent(prompts.KeyHome), prompts.KeyEvent(prompts.KeyDelete),
-		prompts.KeyEvent(prompts.KeyDelete), prompts.KeyEvent(prompts.KeyDelete),
-		prompts.PasteEvent("no"), prompts.KeyEvent(prompts.KeyEnter),
+		prompts.PasteEvent("Ada"),
+		prompts.KeyEvent(prompts.KeyTab),
+		prompts.PasteEvent("yes"),
+		prompts.KeyEvent(prompts.KeyEnter),
+		prompts.PasteEvent("retained draft"),
+		prompts.KeyEvent(prompts.KeyShiftTab),
+		prompts.KeyEvent(prompts.KeyHome),
+		prompts.KeyEvent(prompts.KeyDelete),
+		prompts.KeyEvent(prompts.KeyDelete),
+		prompts.KeyEvent(prompts.KeyDelete),
+		prompts.PasteEvent("no"),
+		prompts.KeyEvent(prompts.KeyEnter),
 	)
 	terminal.CloseInput()
 	result, err := prompts.RunForm(context.Background(), form, interactiveExecution(terminal))
@@ -101,38 +134,50 @@ func TestInteractiveFormBackNavigationRetainsDraftsAndReevaluatesConditions(t *t
 func TestInteractiveFormRetainsTextSelectionAndByteSecretDrafts(t *testing.T) {
 	t.Parallel()
 
-	option, err := prompts.NewOption(prompts.OptionConfig[string]{
-		ID: "prod", Label: "Production", Value: "production",
-	})
+	option, err := prompts.NewOption(
+		prompts.OptionConfig[string]{ID: "prod", Label: "Production", Value: "production"},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	selection, err := prompts.NewSelect(prompts.SelectConfig[string]{
-		ID: "environment", Label: "Environment", Options: []prompts.Option[string]{option},
-	})
+	selection, err := prompts.NewSelect(
+		prompts.SelectConfig[string]{
+			ID: "environment",
+			Label: "Environment",
+			Options: []prompts.Option[string]{option},
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	secret, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-	})
+	secret, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{ID: "token", Label: "Token", Class: prompts.SecretToken},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	note := newTextPrompt(t, prompts.TextConfig{ID: "note", Label: "Note"})
-	form, err := prompts.NewForm(prompts.FormConfig{
-		ID: "drafts", Fields: []prompts.FormField{
-			prompts.AsField(selection), prompts.AsField(secret), prompts.AsField(note),
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "drafts",
+			Fields: []prompts.FormField{
+				prompts.AsField(selection),
+				prompts.AsField(secret),
+				prompts.AsField(note),
+			},
 		},
-	})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	terminal := prompts.NewVirtualTerminal(80, 24)
 	terminal.Push(
-		prompts.KeyEvent(prompts.KeyShiftTab), prompts.KeyEvent(prompts.KeyTab),
-		prompts.PasteBytesEvent([]byte("secret")), prompts.KeyEvent(prompts.KeyEnter),
-		prompts.PasteEvent("draft"), prompts.KeyEvent(prompts.KeyShiftTab),
+		prompts.KeyEvent(prompts.KeyShiftTab),
+		prompts.KeyEvent(prompts.KeyTab),
+		prompts.PasteBytesEvent([]byte("secret")),
+		prompts.KeyEvent(prompts.KeyEnter),
+		prompts.PasteEvent("draft"),
+		prompts.KeyEvent(prompts.KeyShiftTab),
 		prompts.KeyEvent(prompts.KeyShiftTab),
 		prompts.KeyEvent(prompts.KeyTab),
 		prompts.KeyEvent(prompts.KeyTab),
@@ -143,7 +188,8 @@ func TestInteractiveFormRetainsTextSelectionAndByteSecretDrafts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunForm() error = %v", err)
 	}
-	if environment, ok := prompts.FormValue[string](result, "environment"); !ok || environment != "production" {
+	if environment, ok := prompts.FormValue[string](result, "environment");
+		!ok || environment != "production" {
 		t.Fatalf("environment = %q, %v", environment, ok)
 	}
 	token, ok := prompts.FormValue[*prompts.SecretBytes](result, "token")
@@ -163,23 +209,36 @@ func TestInteractiveFormBackNavigationSkipsInactiveFields(t *testing.T) {
 	first := newTextPrompt(t, prompts.TextConfig{ID: "first", Label: "First"})
 	hidden := newTextPrompt(t, prompts.TextConfig{ID: "hidden", Label: "Hidden"})
 	last := newTextPrompt(t, prompts.TextConfig{ID: "last", Label: "Last"})
-	form, err := prompts.NewForm(prompts.FormConfig{
-		ID: "skip-inactive", Fields: []prompts.FormField{
-			prompts.AsField(first),
-			prompts.When(prompts.AsField(hidden), func(prompts.FormResult) bool { return false }),
-			prompts.AsField(last),
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "skip-inactive",
+			Fields: []prompts.FormField{
+				prompts.AsField(first),
+				prompts.When(
+					prompts.AsField(hidden),
+					func(prompts.FormResult) bool {
+						return false
+					},
+				),
+				prompts.AsField(last),
+			},
 		},
-	})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	terminal := prompts.NewVirtualTerminal(80, 24)
 	terminal.Push(
-		prompts.PasteEvent("one"), prompts.KeyEvent(prompts.KeyEnter),
-		prompts.PasteEvent("three"), prompts.KeyEvent(prompts.KeyShiftTab),
-		prompts.KeyEvent(prompts.KeyHome), prompts.KeyEvent(prompts.KeyDelete),
-		prompts.KeyEvent(prompts.KeyDelete), prompts.KeyEvent(prompts.KeyDelete),
-		prompts.PasteEvent("updated"), prompts.KeyEvent(prompts.KeyEnter),
+		prompts.PasteEvent("one"),
+		prompts.KeyEvent(prompts.KeyEnter),
+		prompts.PasteEvent("three"),
+		prompts.KeyEvent(prompts.KeyShiftTab),
+		prompts.KeyEvent(prompts.KeyHome),
+		prompts.KeyEvent(prompts.KeyDelete),
+		prompts.KeyEvent(prompts.KeyDelete),
+		prompts.KeyEvent(prompts.KeyDelete),
+		prompts.PasteEvent("updated"),
+		prompts.KeyEvent(prompts.KeyEnter),
 		prompts.KeyEvent(prompts.KeyEnter),
 	)
 	terminal.CloseInput()
@@ -198,31 +257,49 @@ func TestInteractiveFormBackNavigationSkipsInactiveFields(t *testing.T) {
 func TestFormSkipsFalseConditionAndDefensivelyCopiesResults(t *testing.T) {
 	t.Parallel()
 
-	optionA, err := prompts.NewOption(prompts.OptionConfig[string]{ID: "a", Label: "A", Value: "a"})
+	optionA, err := prompts.NewOption(
+		prompts.OptionConfig[string]{ID: "a", Label: "A", Value: "a"},
+	)
 	if err != nil {
 		t.Fatalf("NewOption() error = %v", err)
 	}
-	selectMany, err := prompts.NewMultiSelect(prompts.MultiSelectConfig[string]{
-		ID: "many", Label: "Many", Options: []prompts.Option[string]{optionA},
-		FallbackIDs: prompts.Some([]string{"a"}), Headless: prompts.HeadlessUseFallback,
-	})
+	selectMany, err := prompts.NewMultiSelect(
+		prompts.MultiSelectConfig[string]{
+			ID: "many",
+			Label: "Many",
+			Options: []prompts.Option[string]{optionA},
+			FallbackIDs: prompts.Some([]string{"a"}),
+			Headless: prompts.HeadlessUseFallback,
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewMultiSelect() error = %v", err)
 	}
 	skipped := newTextPrompt(t, prompts.TextConfig{ID: "skipped", Label: "Skipped"})
-	form, err := prompts.NewForm(prompts.FormConfig{
-		ID: "copy",
-		Fields: []prompts.FormField{
-			prompts.AsField(selectMany),
-			prompts.When(prompts.AsField(skipped), func(prompts.FormResult) bool { return false }),
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "copy",
+			Fields: []prompts.FormField{
+				prompts.AsField(selectMany),
+				prompts.When(
+					prompts.AsField(skipped),
+					func(prompts.FormResult) bool {
+						return false
+					},
+				),
+			},
 		},
-	})
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	result, err := prompts.RunForm(context.Background(), form, prompts.Execution{
-		Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
-	})
+	result, err := prompts.RunForm(
+		context.Background(),
+		form,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	if err != nil {
 		t.Fatalf("RunForm() error = %v", err)
 	}
@@ -248,31 +325,55 @@ func TestFormSkipsFalseConditionAndDefensivelyCopiesResults(t *testing.T) {
 func TestFormValidationIdentifiesFieldsAndRedactsSecrets(t *testing.T) {
 	t.Parallel()
 
-	secret, err := prompts.NewSecret(prompts.SecretConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-		Fallback: prompts.Some(prompts.NewSecretValue(secretCanary)),
-		Headless: prompts.HeadlessUseFallback,
-	})
+	secret, err := prompts.NewSecret(
+		prompts.SecretConfig{
+			ID: "token",
+			Label: "Token",
+			Class: prompts.SecretToken,
+			Fallback: prompts.Some(prompts.NewSecretValue(secretCanary)),
+			Headless: prompts.HeadlessUseFallback,
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewSecret() error = %v", err)
 	}
-	form, err := prompts.NewForm(prompts.FormConfig{
-		ID: "secure", Fields: []prompts.FormField{prompts.AsField(secret)},
-		Validate: []prompts.FormValidator{func(context.Context, prompts.FormResult, prompts.ValidationContext) error {
-			return prompts.NewValidationIssue("mismatch", secretCanary, "token")
-		}},
-	})
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "secure",
+			Fields: []prompts.FormField{prompts.AsField(secret)},
+			Validate: []prompts.FormValidator{
+				func(
+					context.Context,
+					prompts.FormResult,
+					prompts.ValidationContext,
+				) error {
+					return prompts.NewValidationIssue(
+						"mismatch",
+						secretCanary,
+						"token",
+					)
+				},
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	_, err = prompts.RunForm(context.Background(), form, prompts.Execution{
-		Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
-	})
-	if !errors.Is(err, prompts.ErrValidationExhausted) || strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
+	_, err = prompts.RunForm(
+		context.Background(),
+		form,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
+	if !errors.Is(err, prompts.ErrValidationExhausted) ||
+		strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
 		t.Fatalf("form validation error = %v", err)
 	}
 	var issue *prompts.ValidationIssue
-	if !errors.As(err, &issue) || issue.Code() != "form_validation" || fmt.Sprint(issue.Fields()) != "[token]" {
+	if !errors.As(err, &issue) ||
+		issue.Code() != "form_validation" ||
+		fmt.Sprint(issue.Fields()) != "[token]" {
 		t.Fatalf("form validation issue = %#v", issue)
 	}
 }
@@ -284,33 +385,60 @@ func TestFormRejectsInvalidDefinitionsAndCallbackPanic(t *testing.T) {
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("empty form error = %v", err)
 	}
-	if prompts.When(nil, func(prompts.FormResult) bool { return true }) != nil {
+	if prompts.When(
+		nil,
+		func(prompts.FormResult) bool {
+			return true
+		},
+	) !=
+		nil {
 		t.Fatal("When() did not preserve a nil field")
 	}
 	_, err = prompts.NewForm(prompts.FormConfig{ID: "nil", Fields: []prompts.FormField{nil}})
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("nil form field error = %v", err)
 	}
-	field := newTextPrompt(t, prompts.TextConfig{
-		ID: "name", Label: "Name", Fallback: prompts.Some("value"),
-		Headless: prompts.HeadlessUseFallback,
-	})
-	_, err = prompts.NewForm(prompts.FormConfig{
-		ID: "duplicate", Fields: []prompts.FormField{prompts.AsField(field), prompts.AsField(field)},
-	})
+	field := newTextPrompt(
+		t,
+		prompts.TextConfig{
+			ID: "name",
+			Label: "Name",
+			Fallback: prompts.Some("value"),
+			Headless: prompts.HeadlessUseFallback,
+		},
+	)
+	_, err = prompts.NewForm(
+		prompts.FormConfig{
+			ID: "duplicate",
+			Fields: []prompts.FormField{prompts.AsField(field), prompts.AsField(field)},
+		},
+	)
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("duplicate form field error = %v", err)
 	}
-	form, err := prompts.NewForm(prompts.FormConfig{
-		ID: "panic",
-		Fields: []prompts.FormField{prompts.When(prompts.AsField(field), func(prompts.FormResult) bool {
-			panic("condition")
-		})},
-	})
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "panic",
+			Fields: []prompts.FormField{
+				prompts.When(
+					prompts.AsField(field),
+					func(prompts.FormResult) bool {
+						panic("condition")
+					},
+				),
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	_, err = prompts.RunForm(context.Background(), form, prompts.Execution{Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly}})
+	_, err = prompts.RunForm(
+		context.Background(),
+		form,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	if !errors.Is(err, prompts.ErrAdapter) {
 		t.Fatalf("condition panic error = %v", err)
 	}
@@ -320,23 +448,41 @@ func TestRunFormPropagatesFieldAndMidExecutionCancellation(t *testing.T) {
 	t.Parallel()
 
 	field := newTextPrompt(t, prompts.TextConfig{ID: "name", Label: "Name"})
-	form, err := prompts.NewForm(prompts.FormConfig{ID: "failure", Fields: []prompts.FormField{prompts.AsField(field)}})
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "failure",
+			Fields: []prompts.FormField{prompts.AsField(field)},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	_, err = prompts.RunForm(context.Background(), form, prompts.Execution{Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly}})
+	_, err = prompts.RunForm(
+		context.Background(),
+		form,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	if !errors.Is(err, prompts.ErrInteractionNotPermitted) {
 		t.Fatalf("field error = %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	conditional, err := prompts.NewForm(prompts.FormConfig{
-		ID: "conditional",
-		Fields: []prompts.FormField{prompts.When(prompts.AsField(field), func(prompts.FormResult) bool {
-			cancel()
-			return false
-		})},
-	})
+	conditional, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "conditional",
+			Fields: []prompts.FormField{
+				prompts.When(
+					prompts.AsField(field),
+					func(prompts.FormResult) bool {
+						cancel()
+						return false
+					},
+				),
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
@@ -346,20 +492,44 @@ func TestRunFormPropagatesFieldAndMidExecutionCancellation(t *testing.T) {
 	}
 
 	ctx, cancel = context.WithCancel(context.Background())
-	validated, err := prompts.NewForm(prompts.FormConfig{
-		ID: "validated",
-		Fields: []prompts.FormField{prompts.AsField(newTextPrompt(t, prompts.TextConfig{
-			ID: "value", Label: "Value", Fallback: prompts.Some("ok"), Headless: prompts.HeadlessUseFallback,
-		}))},
-		Validate: []prompts.FormValidator{func(context.Context, prompts.FormResult, prompts.ValidationContext) error {
-			cancel()
-			return nil
-		}},
-	})
+	validated, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "validated",
+			Fields: []prompts.FormField{
+				prompts.AsField(
+					newTextPrompt(
+						t,
+						prompts.TextConfig{
+							ID: "value",
+							Label: "Value",
+							Fallback: prompts.Some("ok"),
+							Headless: prompts.HeadlessUseFallback,
+						},
+					),
+				),
+			},
+			Validate: []prompts.FormValidator{
+				func(
+					context.Context,
+					prompts.FormResult,
+					prompts.ValidationContext,
+				) error {
+					cancel()
+					return nil
+				},
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	_, err = prompts.RunForm(ctx, validated, prompts.Execution{Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly}})
+	_, err = prompts.RunForm(
+		ctx,
+		validated,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("validator cancellation = %v", err)
 	}
@@ -369,33 +539,63 @@ func TestFormValidationHandlesSafeErrorsAndByteSecrets(t *testing.T) {
 	t.Parallel()
 
 	secret := prompts.NewSecretBytes([]byte(secretCanary))
-	prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-		Fallback: prompts.Some(secret), Headless: prompts.HeadlessUseFallback,
-	})
+	prompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{
+			ID: "token",
+			Label: "Token",
+			Class: prompts.SecretToken,
+			Fallback: prompts.Some(secret),
+			Headless: prompts.HeadlessUseFallback,
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewSecretBytesPrompt() error = %v", err)
 	}
-	form, err := prompts.NewForm(prompts.FormConfig{
-		ID: "bytes", Fields: []prompts.FormField{prompts.AsField(prompt)},
-		Validate: []prompts.FormValidator{func(context.Context, prompts.FormResult, prompts.ValidationContext) error {
-			return errors.New(secretCanary)
-		}},
-	})
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "bytes",
+			Fields: []prompts.FormField{prompts.AsField(prompt)},
+			Validate: []prompts.FormValidator{
+				func(
+					context.Context,
+					prompts.FormResult,
+					prompts.ValidationContext,
+				) error {
+					return errors.New(secretCanary)
+				},
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	_, err = prompts.RunForm(context.Background(), form, prompts.Execution{Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly}})
-	if !errors.Is(err, prompts.ErrValidationExhausted) || strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
+	_, err = prompts.RunForm(
+		context.Background(),
+		form,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
+	if !errors.Is(err, prompts.ErrValidationExhausted) ||
+		strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
 		t.Fatalf("byte secret validation error = %v", err)
 	}
-	ownedForm, err := prompts.NewForm(prompts.FormConfig{
-		ID: "owned", Fields: []prompts.FormField{prompts.AsField(prompt)},
-	})
+	ownedForm, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "owned",
+			Fields: []prompts.FormField{prompts.AsField(prompt)},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	owned, err := prompts.RunForm(context.Background(), ownedForm, prompts.Execution{Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly}})
+	owned, err := prompts.RunForm(
+		context.Background(),
+		ownedForm,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	if err != nil {
 		t.Fatalf("RunForm() error = %v", err)
 	}
@@ -409,21 +609,48 @@ func TestFormValidationHandlesSafeErrorsAndByteSecrets(t *testing.T) {
 		t.Fatal("DestroySecrets() did not isolate caller copies")
 	}
 
-	safe := newTextPrompt(t, prompts.TextConfig{
-		ID: "name", Label: "Name", Fallback: prompts.Some("value"), Headless: prompts.HeadlessUseFallback,
-	})
-	safeForm, err := prompts.NewForm(prompts.FormConfig{
-		ID: "safe", Fields: []prompts.FormField{prompts.AsField(safe)},
-		Validate: []prompts.FormValidator{func(context.Context, prompts.FormResult, prompts.ValidationContext) error {
-			return prompts.NewValidationIssue("cross_field", "Values disagree", "name")
-		}},
-	})
+	safe := newTextPrompt(
+		t,
+		prompts.TextConfig{
+			ID: "name",
+			Label: "Name",
+			Fallback: prompts.Some("value"),
+			Headless: prompts.HeadlessUseFallback,
+		},
+	)
+	safeForm, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "safe",
+			Fields: []prompts.FormField{prompts.AsField(safe)},
+			Validate: []prompts.FormValidator{
+				func(
+					context.Context,
+					prompts.FormResult,
+					prompts.ValidationContext,
+				) error {
+					return prompts.NewValidationIssue(
+						"cross_field",
+						"Values disagree",
+						"name",
+					)
+				},
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	_, err = prompts.RunForm(context.Background(), safeForm, prompts.Execution{Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly}})
+	_, err = prompts.RunForm(
+		context.Background(),
+		safeForm,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	var issue *prompts.ValidationIssue
-	if !errors.As(err, &issue) || issue.Code() != "cross_field" || issue.Message() != "Values disagree" {
+	if !errors.As(err, &issue) ||
+		issue.Code() != "cross_field" ||
+		issue.Message() != "Values disagree" {
 		t.Fatalf("safe form validation error = %v", err)
 	}
 }
@@ -432,7 +659,12 @@ func TestRunFormRejectsNilAndCanceledContexts(t *testing.T) {
 	t.Parallel()
 
 	field := newTextPrompt(t, prompts.TextConfig{ID: "name", Label: "Name"})
-	form, err := prompts.NewForm(prompts.FormConfig{ID: "setup", Fields: []prompts.FormField{prompts.AsField(field)}})
+	form, err := prompts.NewForm(
+		prompts.FormConfig{
+			ID: "setup",
+			Fields: []prompts.FormField{prompts.AsField(field)},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
