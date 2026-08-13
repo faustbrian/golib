@@ -130,9 +130,13 @@ go run ./cmd/golib assurance --format json
 go run ./cmd/golib assurance --require-ready
 ```
 
-Validation succeeds when the register is structurally complete and all stored
-evidence still matches its content digest. `--require-ready` additionally
-fails unless the verdict is `ready` or `ready with named accepted risks`.
+Validation succeeds when the register is structurally complete, every stored
+artifact still matches its content digest, and evidence supporting a passed or
+accepted-risk scenario matches current inputs. Evidence retained under a
+pending, failed, or unavailable scenario is historical partial evidence: its
+recorded input scope remains validated, but it does not block repository
+maintenance and cannot support readiness. `--require-ready` additionally fails
+unless the verdict is `ready` or `ready with named accepted risks`.
 Release planning reports the current verdict; any future mutating release path
 must pass the ready check before package gates or publication begin.
 
@@ -160,17 +164,19 @@ description, and coverage of every affected module. Each evidence item also
 records the canonical gate-input fingerprint for every scoped releasable
 module and releasable reverse dependant. Evidence produced by a non-releasable
 harness records that harness as an explicit input module, so harness changes
-also invalidate the proof. A current input change invalidates only evidence
-whose expanded scope contains that module; a Git-history-only change does not.
+also invalidate current proof. A current input change invalidates current
+evidence whose expanded scope contains that module; a Git-history-only change
+does not. Evidence under a non-ready scenario remains attributable historical
+context until that scenario is rerun and promoted, but it is not current proof.
 When a broad fingerprint changes solely because an audited transitive input is
 irrelevant to an earlier campaign, the register may retain the original
 observation through an exact one-way input-digest migration. Each migration is
 bound to one module, one previous digest, one current digest, a reviewed
 repository artifact and its SHA-256 digest, and a rationale. Migrations may
 form an explicit chain but cannot match another module or an unlisted digest.
-Absolute paths, traversal, symlink escapes, stale artifact or input digests,
-unknown modules, missing scenarios, duplicate records, and unsupported statuses
-fail validation.
+Absolute paths, traversal, symlink escapes, stale artifacts, stale current
+evidence, unknown modules, missing scenarios, duplicate records, and
+unsupported statuses fail validation.
 
 Only the user may accept a residual production risk. A `ready with named
 accepted risks` verdict requires a complete acceptance naming the decision

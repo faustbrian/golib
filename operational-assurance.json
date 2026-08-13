@@ -890,9 +890,9 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
-          "sha256": "5bf2b0353961067d439d15b4329502a839fc55abd474185086519bd708d03c96",
-          "observed_utc": "2026-08-13T10:27:45Z",
-          "environment": "darwin/arm64; Go 1.26.5; loopback listeners; in-memory audit and telemetry",
+          "sha256": "7a735b8f682bbd8fe05f6d94e494402a65b30188d65f7db165a0a68ce40b2d54",
+          "observed_utc": "2026-08-13T23:24:20Z",
+          "environment": "darwin/arm64; Go 1.26.6; loopback listeners; in-memory audit and telemetry",
           "module_scope": [
             "pkg/audit",
             "pkg/authentication",
@@ -1033,9 +1033,9 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
-          "sha256": "5bf2b0353961067d439d15b4329502a839fc55abd474185086519bd708d03c96",
-          "observed_utc": "2026-08-13T10:27:45Z",
-          "environment": "darwin/arm64; Go 1.26.5; loopback listeners; in-memory audit and telemetry",
+          "sha256": "7a735b8f682bbd8fe05f6d94e494402a65b30188d65f7db165a0a68ce40b2d54",
+          "observed_utc": "2026-08-13T23:24:20Z",
+          "environment": "darwin/arm64; Go 1.26.6; loopback listeners; in-memory audit and telemetry",
           "module_scope": [
             "pkg/audit",
             "pkg/authentication",

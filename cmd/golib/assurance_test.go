@@ -66,6 +66,29 @@ func TestValidateOperationalAssurance(t *testing.T) {
 	}{
 		{name: "complete pending register"},
 		{
+			name: "pending scenario retains historical evidence",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				artifact := filepath.Join(root, "historical-evidence.txt")
+				contents := []byte("historical evidence\n")
+				if err := os.WriteFile(artifact, contents, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				digest := sha256.Sum256(contents)
+				scenarios := record["scenarios"].([]map[string]any)
+				scenarios[0]["evidence"] = []map[string]any{{
+					"path":         "historical-evidence.txt",
+					"sha256":       hex.EncodeToString(digest[:]),
+					"observed_utc": "2026-08-12T00:00:00Z",
+					"environment":  "historical test",
+					"module_scope": []string{"*"},
+					"input_digests": map[string]string{
+						"pkg/a": strings.Repeat("0", 64),
+						"pkg/b": strings.Repeat("1", 64),
+					},
+				}}
+			},
+		},
+		{
 			name: "missing releasable module",
 			mutate: func(_ *testing.T, _ string, record map[string]any) {
 				record["modules"] = []string{"pkg/a"}
@@ -194,6 +217,18 @@ func TestValidateOperationalAssurance(t *testing.T) {
 			name: "passed evidence input digest mismatch",
 			mutate: func(t *testing.T, root string, record map[string]any) {
 				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				inputDigests := evidence[0]["input_digests"].(map[string]string)
+				inputDigests["pkg/a"] = strings.Repeat("0", 64)
+			},
+			wantSubstr: "input digest mismatch",
+		},
+		{
+			name: "accepted-risk evidence input digest mismatch",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				markScenarioRiskAccepted(record, 0, 0)
 				scenarios := record["scenarios"].([]map[string]any)
 				evidence := scenarios[0]["evidence"].([]map[string]any)
 				inputDigests := evidence[0]["input_digests"].(map[string]string)

@@ -309,6 +309,7 @@ func validateOperationalScenario(
 			modules,
 			digestMigrations,
 			currentInputDigests,
+			scenario.Status == "passed" || scenario.Status == "accepted risk",
 			evidence,
 		); err != nil {
 			return err
@@ -334,6 +335,7 @@ func validateOperationalEvidence(
 	modules map[string]bool,
 	digestMigrations map[string]inputDigestMigration,
 	currentInputDigests map[string]string,
+	requireCurrentInputs bool,
 	evidence operationalEvidence,
 ) error {
 	if err := validateAssuranceModuleScope(evidence.ModuleScope, modules); err != nil {
@@ -364,6 +366,7 @@ func validateOperationalEvidence(
 		evidence.InputDigests,
 		digestMigrations,
 		currentInputDigests,
+		requireCurrentInputs,
 	); err != nil {
 		return fmt.Errorf("evidence %s: %w", evidence.Path, err)
 	}
@@ -378,6 +381,7 @@ func validateAssuranceInputDigests(
 	recorded map[string]string,
 	migrations map[string]inputDigestMigration,
 	cache map[string]string,
+	requireCurrent bool,
 ) error {
 	required := assuranceInputModules(current, scope, inputModules)
 	if len(recorded) != len(required) {
@@ -391,6 +395,9 @@ func validateAssuranceInputDigests(
 		decoded, err := hex.DecodeString(stored)
 		if err != nil || len(decoded) != sha256.Size {
 			return fmt.Errorf("input digest for %s is invalid", directory)
+		}
+		if !requireCurrent {
+			continue
 		}
 		currentDigest, exists := cache[directory]
 		if !exists {
