@@ -397,6 +397,7 @@
             "README.md",
             "docs/architecture.md",
             "docs/assurance/evidence/OA-FAILURE-RECOVERY-POSTGRES-VALKEY.md",
+            "docs/assurance/evidence/OA-FAILURE-RECOVERY-WORKFLOW.md",
             "docs/assurance/evidence/OA-PLATFORM-MATRIX-LOCAL.md",
             "docs/assurance/evidence/OA-REFERENCE-DURABILITY-POSTGRES-VALKEY.md",
             "docs/assurance/evidence/OA-REFERENCE-EXTERNAL.md",

@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Record focused workflow process-death, deadlock, snapshot-restore,
+  replica-promotion, unknown-outcome, fencing, and dead-letter recovery
+  evidence without expanding it into managed-service claims.
 - Add a task-owned process-death and PostgreSQL/Valkey replacement campaign
   that proves fail-closed outages, exact replay, abandoned-task reclamation,
   and acknowledgement persistence without claiming managed failover.

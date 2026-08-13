@@ -436,6 +436,19 @@
             "pkg/service/integration/reference-durability": "455bdad5d44463f786da9b5eac9d5e06c02f3afdbde63b03408b4ff6d4ea5b54",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-FAILURE-RECOVERY-WORKFLOW.md",
+          "sha256": "9824badb43b0fc30eb4ac896babdd81a94601d57070e23296385b346a7dded78",
+          "observed_utc": "2026-08-13T01:34:13Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; Testcontainers 0.43.0; PostgreSQL 18-alpine",
+          "module_scope": [
+            "pkg/workflow"
+          ],
+          "input_digests": {
+            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/workflow": "9167c81877300b7c711ff061ac5e349f5e6d72f8d4ec0dc2586e60718ced4b37"
+          }
         }
       ],
       "accepted_risks": []
