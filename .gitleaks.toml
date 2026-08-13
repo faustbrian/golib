@@ -55,7 +55,7 @@ regexes = ['''^\s*"api(?:_eip7594)?\.go"\s*:\s*"[0-9a-f]{64}",?\s*$''']
 
 [[allowlists]]
 description = "Operational-assurance module fingerprints are checksums, not credentials."
-targetRules = ["generic-api-key"]
+targetRules = ["generic-api-key", "confluent-secret-key"]
 condition = "AND"
 regexTarget = "line"
 paths = ['''^operational-assurance\.json$''']

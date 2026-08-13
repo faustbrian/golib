@@ -25,9 +25,11 @@ migration interruption recovery, and audit backup/restore with retained legal
 holds. It remains pending for the other required durability systems and
 recovery cases.
 
-`OA-RELEASE-CONSUMER` now retains one current local `v1.0.0` source-proxy and
-clean-consumer proof. It remains pending for the complete module matrix,
-public proxy and checksum resolution, signatures, attestations, and release
+`OA-RELEASE-CONSUMER` now retains a deterministic local `v1.0.0` source-proxy
+and clean-consumer proof for all 107 releasable modules. Every module resolved
+at exact `v1.0.0` with `GOWORK=off`, no replacements, and one listed public
+package. It remains pending for package release gates, public proxy and
+checksum resolution, signatures, attestations, upgrade policy, and release
 authorization.
 
 `OA-RESOURCE-PERFORMANCE` now retains a passing constrained native-Linux
