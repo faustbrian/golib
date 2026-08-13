@@ -146,13 +146,13 @@ func TestSharedToolingContract(t *testing.T) {
 			"release-minor:",
 			"release-major:",
 		},
-		"llms.txt":                   {"# " + repositoryName, "llms-full.txt", "docs/quickstart.md"},
-		"scripts/check-coverage.sh":  {"100.0%"},
-		"scripts/check-go-safety.sh": {"unsafe", "go:linkname"},
-		"scripts/check-docs.sh":      {"relative Markdown links", "generate-llms.py --check"},
-		"scripts/generate-llms.py":   {"README.md", "--check"},
-		"scripts/release.sh":         {"origin/main", "make check", "git tag -a"},
-		".github/dependabot.yml":     {"gomod", "github-actions"},
+		"llms.txt":                     {"# " + repositoryName, "llms-full.txt", "docs/quickstart.md"},
+		"scripts/check-coverage.sh":    {"100.0%"},
+		"scripts/check-go-safety.sh":   {"unsafe", "go:linkname"},
+		"scripts/check-docs.sh":        {"relative Markdown links", "generate-llms.py --check"},
+		"scripts/generate-llms.py":     {"README.md", "--check"},
+		"scripts/release.sh":           {"origin/main", "make check", "git tag -a"},
+		"../../.github/dependabot.yml": {"gomod", "github-actions"},
 	}
 
 	for path, fragments := range required {
