@@ -13,6 +13,7 @@ import (
 	"time"
 
 	telemetry "github.com/faustbrian/golib/pkg/telemetry"
+	"github.com/faustbrian/golib/pkg/telemetry/examples/internal/exampleconfig"
 	"github.com/faustbrian/golib/pkg/telemetry/instrumentation/nethttp"
 )
 
@@ -26,7 +27,9 @@ func main() {
 
 func run(ctx context.Context) error {
 	config := telemetry.DefaultConfig("example-service", "dev")
-	applyEnvironment(&config)
+	if err := applyEnvironment(&config); err != nil {
+		return fmt.Errorf("configure telemetry: %w", err)
+	}
 	runtime, err := telemetry.Init(ctx, config)
 	if err != nil {
 		return fmt.Errorf("initialize telemetry: %w", err)
@@ -66,19 +69,9 @@ func run(ctx context.Context) error {
 	return <-shutdown
 }
 
-func applyEnvironment(config *telemetry.Config) {
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if endpoint != "" {
-		config.Traces.Exporter.Endpoint = endpoint
-		config.Metrics.Exporter.Endpoint = endpoint
-	}
-	if os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL") == string(telemetry.ProtocolHTTPProtobuf) {
-		config.Traces.Exporter.Protocol = telemetry.ProtocolHTTPProtobuf
-		config.Metrics.Exporter.Protocol = telemetry.ProtocolHTTPProtobuf
-		config.Traces.Exporter.URLPath = "/v1/traces"
-		config.Metrics.Exporter.URLPath = "/v1/metrics"
-	}
+func applyEnvironment(config *telemetry.Config) error {
 	config.Environment = environment("DEPLOYMENT_ENVIRONMENT", "local")
+	return exampleconfig.ApplyEnvironment(config)
 }
 
 func environment(key, fallback string) string {

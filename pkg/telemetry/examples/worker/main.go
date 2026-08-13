@@ -5,12 +5,12 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	telemetry "github.com/faustbrian/golib/pkg/telemetry"
+	"github.com/faustbrian/golib/pkg/telemetry/examples/internal/exampleconfig"
 )
 
 func main() {
@@ -23,9 +23,8 @@ func main() {
 
 func run(ctx context.Context) error {
 	config := telemetry.DefaultConfig("example-worker", "dev")
-	if endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); endpoint != "" {
-		config.Traces.Exporter.Endpoint = endpoint
-		config.Metrics.Exporter.Endpoint = endpoint
+	if err := exampleconfig.ApplyEnvironment(&config); err != nil {
+		return err
 	}
 	config.Environment = "local"
 	runtime, err := telemetry.Init(ctx, config)

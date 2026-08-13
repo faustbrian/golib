@@ -37,6 +37,9 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ### Fixed
 
+- Normalize standard OTLP endpoint URLs in the runnable service and worker
+  examples so explicit exporter configuration does not emit misleading SDK
+  parse errors or mis-handle transport security and HTTP path prefixes.
 - Resolve the unreleased service platform and its sibling modules from their
   main-branch pseudo-versions so clean consumers can install telemetry.
 - Select each independently versioned OpenTelemetry module explicitly in the
