@@ -4260,6 +4260,121 @@ printf 'gate passed\n'
 	}
 }
 
+func TestGateEvidenceVerifierWaitsForAtomicPublication(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	repository := filepath.Join(t.TempDir(), "repository")
+	for _, directory := range []string{
+		"scripts",
+		".artifacts/evidence/.locks",
+		".artifacts/evidence/by-input/test",
+	} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, script := range []string{"verify-gate-evidence.sh"} {
+		contents, err := os.ReadFile(filepath.Join(root, "scripts", script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(repository, "scripts", script)
+		writeFile(t, path, string(contents))
+		if err := os.Chmod(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
+printf 'stable-input\n'
+`)
+	if err := os.Chmod(filepath.Join(repository, "scripts", "gate-input-digest.sh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if output, err := exec.Command("git", "-C", repository, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("initialize evidence repository: %v\n%s", err, output)
+	}
+
+	evidenceDirectory := filepath.Join(
+		repository,
+		".artifacts/evidence/by-input/test",
+	)
+	logPath := filepath.Join(evidenceDirectory, "stable-input.log")
+	evidencePath := filepath.Join(evidenceDirectory, "stable-input.json")
+	writeFile(t, logPath, "publication in progress\n")
+	writeFile(t, evidencePath, "{}\n")
+	validLog := "gate passed\n"
+	validLogDigest := sha256.Sum256([]byte(validLog))
+	validEvidence := fmt.Sprintf(`{
+  "schema_version": 1,
+  "module": ".",
+  "gate": "test",
+  "result": "passed",
+  "exit_code": 0,
+  "input_digest": "stable-input",
+  "completed_input_digest": "stable-input",
+  "log_sha256": "%x"
+}`, validLogDigest)
+	validLogPath := filepath.Join(repository, "valid.log")
+	validEvidencePath := filepath.Join(repository, "valid.json")
+	writeFile(t, validLogPath, validLog)
+	writeFile(t, validEvidencePath, validEvidence)
+	ready := filepath.Join(repository, "writer-ready")
+	lock := filepath.Join(repository, ".artifacts/evidence/.locks/test.lock")
+
+	writer := exec.Command("sh", "-c", `
+set -eu
+ln -s "$$" "$LOCK"
+: >"$READY"
+sleep 0.2
+cp "$VALID_LOG" "$LOG"
+sleep 0.05
+cp "$VALID_EVIDENCE" "$EVIDENCE"
+rm "$LOCK"
+`)
+	writer.Env = append(os.Environ(),
+		"LOCK="+lock,
+		"READY="+ready,
+		"VALID_LOG="+validLogPath,
+		"VALID_EVIDENCE="+validEvidencePath,
+		"LOG="+logPath,
+		"EVIDENCE="+evidencePath,
+	)
+	writer.Dir = repository
+	if err := writer.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if writer.ProcessState == nil {
+			_ = writer.Process.Kill()
+			_ = writer.Wait()
+		}
+	})
+	deadline := time.Now().Add(time.Second)
+	for {
+		if _, err := os.Stat(ready); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("evidence writer did not acquire its lock")
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	verify := exec.Command(
+		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
+		".",
+		"test",
+	)
+	verify.Dir = repository
+	if output, err := verify.CombinedOutput(); err != nil {
+		t.Fatalf("verify during publication: %v\n%s", err, output)
+	}
+	if err := writer.Wait(); err != nil {
+		t.Fatalf("evidence writer: %v", err)
+	}
+}
+
 func TestGateEvidencePreservesEachInputDigestAcrossSharedArtifacts(t *testing.T) {
 	t.Parallel()
 
