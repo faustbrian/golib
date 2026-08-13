@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Reuse the unchanged HTTP composition proof as bounded observability evidence
+  for correlation, in-memory telemetry and audit, readiness recovery, graceful
+  shutdown, and restart without implying production operations readiness.
 - Reuse the unchanged HTTP composition proof as bounded security evidence for
   signed requests, capabilities, authentication, tenant isolation, validation,
   fail-closed audit delivery, and correlation without implying supply-chain or
