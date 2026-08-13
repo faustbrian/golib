@@ -994,13 +994,13 @@ assurance scope.
 | Field | Record |
 | --- | --- |
 | Goal | `.ai/GOAL_RELEASE.md` and repository normalization Phase 10 clean-consumer proof. |
-| Scope | All 96 releasable modules whose owned dependency closure excludes the active Kafka, OpenSearch, and Verkle specialist scopes. |
-| Status | Release dry-run evidence complete for the unaffected release set; the repository release goal remains `pending`. |
-| Evidence | `./scripts/run-modules.sh release-dry-run --jobs 8 --modules <96-unaffected-releasable-modules>` after isolating each module's generated service environment in its own process. |
-| Result | All 96 modules passed isolated tidy, test, API compatibility, dependency-order, `v1.0.0` tag planning, local module-proxy publication, and clean external-consumer resolution. The run first reproduced cross-module environment leakage when `pkg/audit/postgres` inherited `POSTGRES_VERSION=18.4`; a focused regression failed before the root runner fix and passed afterward, and the original release dry-run then passed. |
+| Scope | All 107 releasable modules in the current catalog. |
+| Status | Deterministic local packaging and clean-consumer evidence is complete for the full release set; the repository release goal remains `pending`. |
+| Evidence | `docs/assurance/evidence/OA-RELEASE-CONSUMER-ALL-LOCAL.md`: two clean-clone local-proxy builds plus one external `GOWORK=off` consumer requiring every module at exact `v1.0.0`. |
+| Result | All 107 modules were packaged twice into byte-identical local proxies. The clean external consumer downloaded and listed one public package from every module at exact `v1.0.0`, with no module replacement. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; gate-managed PostgreSQL, Valkey, Redis, NATS, NSQ, and RabbitMQ services where cataloged. |
-| Observed | 2026-08-12T17:48:14Z |
-| Gaps | Release dry-runs remain for Kafka, OpenSearch, Verkle, and four releasable adapters whose dependency closure includes Kafka. Public proxy resolution, operational assurance, release signing and attestations, and explicit release authority remain outstanding; no tag or release was created. |
+| Observed | 2026-08-13T10:32:58Z |
+| Gaps | This composed proof does not replace each module's release gate. Public proxy and checksum resolution, tags, signatures, attestations, upgrade policy, operational assurance, and explicit release authority remain outstanding; no tag or release was created. |
 
 ### Operational assurance register
 
@@ -1008,12 +1008,12 @@ assurance scope.
 | --- | --- |
 | Goal | `.ai/GOAL_OPERATIONAL_ASSURANCE.md` and the assurance prerequisite in `.ai/GOAL_RELEASE.md`. |
 | Scope | All 107 releasable modules and the eleven mandatory reference-service, platform, failure/recovery, deployment, performance, security/privacy/supply-chain, operations, consistency, and release-consumer scenarios. |
-| Status | Remains `pending`; machine-readable governance and release enforcement are implemented, but scenario execution has not started. |
+| Status | Remains `pending`; machine-readable governance and release enforcement are implemented, two scenarios pass, and nine remain pending. |
 | Evidence | `operational-assurance.json`, `cmd/golib/assurance.go`, focused hostile-record and release-guard regression tests, `make operational-assurance`, and `docs/operational-assurance.md`. |
-| Result | The repository now validates exact releasable-module scope, required scenarios, statuses, evidence paths, content digests, current gate-input fingerprints for scoped modules and releasable reverse dependants, UTC observations, environment and module coverage, residual risks, and explicit named acceptances. Release plans expose the verdict and future mutating release execution fails before package work when the verdict is not ready. The current register truthfully reports `not ready`, 0/11 passed scenarios, six residual risks, and zero accepted risks. |
-| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run. |
-| Observed | 2026-08-12T18:10:00Z |
-| Gaps | Every operational scenario still requires real composed evidence. No reference-service, Linux platform matrix, ECS-compatible container, failure/recovery, rolling deployment, load/soak, operator drill, public-proxy, signing, or attestation result is claimed by this governance batch. |
+| Result | The repository validates exact releasable-module scope, required scenarios, statuses, evidence paths, content digests, current-input fingerprints for passed and accepted-risk evidence, recorded scope for historical partial evidence, UTC observations, environment and module coverage, residual risks, and explicit named acceptances. The current register truthfully reports `not ready`, 2/11 passed scenarios, six residual risks, and zero accepted risks. |
+| Environment | Go 1.26.6 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; scenario artifacts retain their own exact environments. |
+| Observed | 2026-08-14T02:50:00Z |
+| Gaps | Nine scenarios remain pending. Their retained partial evidence and exact missing production, platform, recovery, operations, security, and release boundaries are recorded in `docs/operational-assurance.md` and `docs/assurance/requirement-matrix.md`. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
