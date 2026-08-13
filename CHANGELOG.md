@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Record executable OpenSearch dashboard, alert, incident-drill, and runbook
+  consistency evidence without treating repository artifacts as installed
+  production operations.
 - Record secured OpenSearch 2.19.6 and 3.8.0 TLS, least-privilege,
   tenant-isolation, credential-rotation, DNS-change, and recovery evidence
   without treating local test PKI as production identity proof.

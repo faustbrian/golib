@@ -81,9 +81,12 @@ history, privacy validation, least privilege, legal holds, retention, and
 backup/restore reconciliation. A real Collector campaign now proves local
 OTLP/gRPC trace and metric export, bounded operation during a short Collector
 outage, recovery, graceful flush, and omission of an injected sensitive marker.
-They remain pending for complete privacy lifecycle, dependency response, signed
-provenance, production Better Stack export, SLOs, dashboards, alerts, and
-operator drills.
+The OpenSearch operations contract also validates bounded-cardinality dashboard
+signals, alert-to-runbook links, and procedures for every declared search
+incident drill, backed by the separate real-engine campaigns. They remain
+pending for complete privacy lifecycle, dependency response, signed
+provenance, production Better Stack export, production SLO installation,
+dashboard and alert delivery, and human operator drills.
 
 `OA-SECURITY-PRIVACY-SUPPLY-CHAIN` additionally retains a bounded cross-package
 key-lifecycle campaign covering atomic replacement, overlap, refresh,

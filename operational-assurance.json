@@ -1046,6 +1046,20 @@
             "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-OPENSEARCH-OPERATIONS.md",
+          "sha256": "ecf78bc5b721cc498e363d3526e957346a2a0b6f4a5a953902af1a940f0f9b5c",
+          "observed_utc": "2026-08-13T12:09:43Z",
+          "environment": "darwin/arm64; Go 1.26.5; focused operations contract",
+          "module_scope": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ],
+          "input_digests": {
+            "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
+            "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
+          }
         }
       ],
       "accepted_risks": []
