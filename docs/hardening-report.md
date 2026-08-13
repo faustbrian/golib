@@ -1,13 +1,13 @@
 # Repository hardening report
 
-Audit date: 2026-08-11
+Audit date: 2026-08-13
 
 ## Scope and status
 
 This report covers the normalization and strict hardening of the complete
 `github.com/faustbrian/golib` multi-module repository. The authoritative
-catalog currently contains 134 modules, of which 107 are independently
-releasable, and 684 Go packages, of which 548 are production packages. Exact
+catalog currently contains 138 modules, of which 107 are independently
+releasable, and 693 Go packages, of which 548 are production packages. Exact
 statement coverage applies to the 546 production packages with executable
 statements; declaration-only production packages remain cataloged but have no
 statement denominator.
@@ -99,21 +99,20 @@ processes, or classify their intermediate results as failures or blockers.
 Repository-wide release approval will consume their independently produced
 evidence when their work reaches its final boundary.
 
-The remaining owned scope is still being verified. Every completed mutation
-campaign enforces 100% efficacy and 100% mutant coverage, but this intermediate
-report is not a substitute for the final matrix. Before release this section
-will be replaced with exact package-attributable outcomes and completion
-timestamps from the final tree.
+Current local goal audits exist for 103 of the 104 goal-bearing modules. The
+remaining owned module is `pkg/search/adapters/opensearch`: 18 of its 21
+canonical gates have current input-bound evidence, including its real-cluster
+test, race, exact 1908/1908 statement coverage, fuzz, and retained 1377/1377
+mutation result. Its conformance, interoperability, and benchmark checkpoints
+still require final current-input evidence. This intermediate report is not a
+substitute for the final package matrix.
 
-The 2026-08-11 root audit validated all 134 module records, all 684 package
-records, and cohesion policy for all 107 releasable modules. Root tooling tests
-and authoritative workflow lint passed. The aggregate repository check remains
-red only at specification governance: Kafka specialist modules still lack
-their final specification metadata and decision registers, while the active
-OpenSearch hardening scope must add security, compatibility, and wire
-consequences to `OPENSEARCH-DEC-023`. These are unresolved release boundaries,
-not reasons to discard current package-attributable evidence or restart
-unaffected campaigns.
+The current root catalog validates 138 module records, 693 package records,
+and cohesion policy for all 107 releasable modules. OpenSearch specification
+governance and its security, compatibility, recovery, and operations evidence
+are complete. Kafka and Verkle Tree remain specialist-owned execution scopes;
+their eventual evidence must be consumed at the aggregate boundary without
+discarding or restarting unaffected package checkpoints.
 
 ## Specification and interoperability evidence
 
@@ -147,7 +146,9 @@ gate.
 
 ## Release readiness
 
-Release readiness is currently **not established**. It requires all 107
+Release readiness is currently **not established**. Operational assurance is
+currently `not ready`: 2 of 11 scenarios pass and six residual risks remain
+open. Release readiness also requires all 107
 releasable modules to have current dependency-ordered `v1.0.0` dry-run and
 clean-consumer proof, all root and package gates to pass from the final tree, a
 clean worktree, and the final GitHub Actions matrix plus required summary and
