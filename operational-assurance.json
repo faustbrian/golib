@@ -240,6 +240,45 @@
           }
         },
         {
+          "path": "docs/assurance/evidence/OA-REFERENCE-DURABILITY-POSTGRES-MATRIX.md",
+          "sha256": "7c2a0050775deab897a84bd8b3c44b526f5da41765cf68cb0dd62962ed6e5be3",
+          "observed_utc": "2026-08-13T12:35:16Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; PostgreSQL 14.23, 15.18, 16.14, 17.10, and 18.4; Valkey 9.1.0",
+          "module_scope": [
+            "pkg/idempotency",
+            "pkg/migrations",
+            "pkg/outbox",
+            "pkg/outbox/adapters/queue",
+            "pkg/postgres",
+            "pkg/queue"
+          ],
+          "input_modules": [
+            "pkg/service/integration/reference-durability"
+          ],
+          "input_digests": {
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
+            "pkg/event-sourcing/adapters/outbox": "303a3a180c0fd87d5f4382a7a85ea691d98d1e0a5749b023140c9cccc8ac34ed",
+            "pkg/event-sourcing/adapters/queue": "0a9ef3eda2142c8e0a093ffb8877363d8a9c326952ca804617af758e6158617c",
+            "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
+            "pkg/lease": "607211c70c0faf76497cc468f5128adf279055c559e206cdaf8a8784481f5f18",
+            "pkg/migrations": "b81a23b09192155f3e5d8649c5f857bc978afa8abae15409dddc3ea5395d9483",
+            "pkg/outbox": "6c6770035d8dc8f2175f3d3594ab868f91216adb6cbd0efd4211ba3d27f18f21",
+            "pkg/outbox/adapters/gokafka": "87f0bf675966f68ea1a72cf82016fa1525184b22d6c8cb68ceb27b59593b7ee4",
+            "pkg/outbox/adapters/otel": "1d3743b3f8291e5baa794e79704b0ddf06576c4412862229d8da1b227207d3ad",
+            "pkg/outbox/adapters/queue": "f0dbec17dd2852a74abf24f53d7c0c1efea89fc4f104e3d32a2f913a3219ac1b",
+            "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
+            "pkg/queue": "a378ce1eda3cbd23028155aedf08a3d385f5b86685edf4010dd55fb755fa624e",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
+            "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
+            "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
+            "pkg/service/integration/reference-durability": "196df1b199dfba931e7ccdd2da6e511695b9060444f1a763d26b1500a42ac51f",
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
+          }
+        },
+        {
           "path": "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
           "sha256": "ecd1bbf3841a2748b31c6be0fd4d3ba370cb5219c20fa5023a1b575e08bc7ac3",
           "observed_utc": "2026-08-13T01:42:02Z",
@@ -299,7 +338,7 @@
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
-          "sha256": "56cc2f13d7af7edea9dd4586595a454da2f472920956bd5aa99db11a5c3aefa3",
+          "sha256": "711727c6f041f741479e3f7b47aa0a364ebfff3e89942899227adce2d670c77c",
           "observed_utc": "2026-08-13T11:54:28Z",
           "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch 2.19.6 and 3.8.0",
           "module_scope": [
@@ -462,7 +501,7 @@
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
-          "sha256": "56cc2f13d7af7edea9dd4586595a454da2f472920956bd5aa99db11a5c3aefa3",
+          "sha256": "711727c6f041f741479e3f7b47aa0a364ebfff3e89942899227adce2d670c77c",
           "observed_utc": "2026-08-13T11:54:28Z",
           "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch 2.19.6 and 3.8.0",
           "module_scope": [
@@ -651,7 +690,7 @@
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
-          "sha256": "56cc2f13d7af7edea9dd4586595a454da2f472920956bd5aa99db11a5c3aefa3",
+          "sha256": "711727c6f041f741479e3f7b47aa0a364ebfff3e89942899227adce2d670c77c",
           "observed_utc": "2026-08-13T11:54:28Z",
           "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch 2.19.6 and 3.8.0",
           "module_scope": [
@@ -687,6 +726,45 @@
         "*"
       ],
       "evidence": [
+        {
+          "path": "docs/assurance/evidence/OA-REFERENCE-DURABILITY-POSTGRES-MATRIX.md",
+          "sha256": "7c2a0050775deab897a84bd8b3c44b526f5da41765cf68cb0dd62962ed6e5be3",
+          "observed_utc": "2026-08-13T12:35:16Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; PostgreSQL 14.23, 15.18, 16.14, 17.10, and 18.4; Valkey 9.1.0",
+          "module_scope": [
+            "pkg/idempotency",
+            "pkg/migrations",
+            "pkg/outbox",
+            "pkg/outbox/adapters/queue",
+            "pkg/postgres",
+            "pkg/queue"
+          ],
+          "input_modules": [
+            "pkg/service/integration/reference-durability"
+          ],
+          "input_digests": {
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
+            "pkg/cloudevents/adapters/golib": "ef6e6e20715a9dc5b9a3acdcd7bfed4730954bc76e7c361cb317fe2c8ca662d3",
+            "pkg/event-sourcing/adapters/outbox": "303a3a180c0fd87d5f4382a7a85ea691d98d1e0a5749b023140c9cccc8ac34ed",
+            "pkg/event-sourcing/adapters/queue": "0a9ef3eda2142c8e0a093ffb8877363d8a9c326952ca804617af758e6158617c",
+            "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
+            "pkg/lease": "607211c70c0faf76497cc468f5128adf279055c559e206cdaf8a8784481f5f18",
+            "pkg/migrations": "b81a23b09192155f3e5d8649c5f857bc978afa8abae15409dddc3ea5395d9483",
+            "pkg/outbox": "6c6770035d8dc8f2175f3d3594ab868f91216adb6cbd0efd4211ba3d27f18f21",
+            "pkg/outbox/adapters/gokafka": "87f0bf675966f68ea1a72cf82016fa1525184b22d6c8cb68ceb27b59593b7ee4",
+            "pkg/outbox/adapters/otel": "1d3743b3f8291e5baa794e79704b0ddf06576c4412862229d8da1b227207d3ad",
+            "pkg/outbox/adapters/queue": "f0dbec17dd2852a74abf24f53d7c0c1efea89fc4f104e3d32a2f913a3219ac1b",
+            "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
+            "pkg/queue": "a378ce1eda3cbd23028155aedf08a3d385f5b86685edf4010dd55fb755fa624e",
+            "pkg/queue-control-plane": "095a3b94cd0b133befe3a495d02efae7131b9fd93c8124e0aa8fd4737d17c84c",
+            "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
+            "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
+            "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
+            "pkg/service/integration/reference-durability": "196df1b199dfba931e7ccdd2da6e511695b9060444f1a763d26b1500a42ac51f",
+            "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
+          }
+        },
         {
           "path": "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
           "sha256": "ecd1bbf3841a2748b31c6be0fd4d3ba370cb5219c20fa5023a1b575e08bc7ac3",
@@ -774,7 +852,7 @@
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
-          "sha256": "56cc2f13d7af7edea9dd4586595a454da2f472920956bd5aa99db11a5c3aefa3",
+          "sha256": "711727c6f041f741479e3f7b47aa0a364ebfff3e89942899227adce2d670c77c",
           "observed_utc": "2026-08-13T11:54:28Z",
           "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch 2.19.6 and 3.8.0",
           "module_scope": [
@@ -1180,7 +1258,7 @@
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
-          "sha256": "56cc2f13d7af7edea9dd4586595a454da2f472920956bd5aa99db11a5c3aefa3",
+          "sha256": "711727c6f041f741479e3f7b47aa0a364ebfff3e89942899227adce2d670c77c",
           "observed_utc": "2026-08-13T11:54:28Z",
           "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; OpenSearch 2.19.6 and 3.8.0",
           "module_scope": [
@@ -1391,6 +1469,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
       "evidence_sha256": "9da7a2ad8abe537b9b38b28874c17009c62178bfc40368c95d26337eda241df6",
       "rationale": "The telemetry endpoint correction changed only transitive example inputs, not this module or the behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/service/integration/reference-durability",
+      "from_sha256": "455bdad5d44463f786da9b5eac9d5e06c02f3afdbde63b03408b4ff6d4ea5b54",
+      "to_sha256": "196df1b199dfba931e7ccdd2da6e511695b9060444f1a763d26b1500a42ac51f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-REFERENCE-DURABILITY-MATRIX.md",
+      "evidence_sha256": "a915e733f566a674287ba0919ac830260d29e74528568ea32c1721574271b3a3",
+      "rationale": "The added version-matrix runner, immutable image identities, and documentation do not alter the retained process-death and dependency-replacement recovery campaign."
     }
   ]
 }

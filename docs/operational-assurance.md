@@ -28,8 +28,10 @@ dead-letter recovery, Redis/Valkey settlement, scheduler lease fencing,
 migration interruption recovery, and audit backup/restore with retained legal
 holds. A real OpenSearch matrix adds snapshot/restore, durable stale-write
 rejection, rebuild, reconciliation, rollback, and mixed application-protocol
-evidence on both supported engine versions. It remains pending for the other
-required durability systems and production recovery cases.
+evidence on both supported engine versions. A separate reference campaign now
+proves the same PostgreSQL/Valkey composition on every supported PostgreSQL
+major from 14 through 18. It remains pending for the other required durability
+systems and production recovery cases.
 
 `OA-RELEASE-CONSUMER` now retains a deterministic local `v1.0.0` source-proxy
 and clean-consumer proof for all 107 releasable modules. Every module resolved
@@ -68,13 +70,14 @@ replacement and scale-up evidence on Redis and Valkey, plus migration history,
 Laravel baseline, interrupted-migration recovery, and audit protocol-compatible
 writer behavior across a durability migration on PostgreSQL 18.4. It remains
 pending for released mixed application binary and data versions, ECS rolling
-deployment and canary behavior, the complete PostgreSQL and engine matrix,
-complete application rollback, and live key rotation. The OpenSearch campaign
-does prove a real engine rolling upgrade with old/new nodes serving the same
-fixture throughout, while its security matrix proves runtime credential
-rotation without client reconstruction. Local bearer, API-key, JWT, OIDC,
-capability, HTTP-signature, and cursor tests now prove bounded overlap and
-retirement under the race detector.
+deployment and canary behavior, complete application rollback, and live key
+rotation. The reference durability campaign proves the public composition on
+PostgreSQL 14 through 18, while the OpenSearch campaign proves a real engine
+rolling upgrade with old/new nodes serving the same fixture throughout. Its
+security matrix proves runtime credential rotation without client
+reconstruction. Local bearer, API-key, JWT, OIDC, capability, HTTP-signature,
+and cursor tests now prove bounded overlap and retirement under the race
+detector.
 
 `OA-SECURITY-PRIVACY-SUPPLY-CHAIN` and
 `OA-OBSERVABILITY-OPERATIONS` reuse the unchanged reference HTTP campaign as

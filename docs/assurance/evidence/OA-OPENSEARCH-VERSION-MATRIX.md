@@ -20,6 +20,9 @@ Both engine versions passed the same real-backend contracts:
 - snapshot creation, deletion, restore, and restored-content verification;
 - durable stale-write rejection after backend delete-version garbage
   collection;
+- partial-shard diagnostics, partial bulk outcomes, point-in-time expiry,
+  cluster-block recovery, malformed response rejection, and ambiguous applied
+  write reconciliation;
 - mixed application protocol-version operation;
 - rebuild, reconciliation, rollback, cleanup safety, and concurrent-application
   behavior; and
@@ -35,6 +38,7 @@ production capacity claim.
 
 This is real local OpenSearch interoperability, recovery, compatibility, and
 bounded-resource evidence. It does not prove a multi-hour soak, managed
-OpenSearch failover, production network behavior, an application-owned live
-source-of-truth rebuild, or ECS deployment. The associated
+OpenSearch failover, prolonged overload or network partition behavior,
+storage exhaustion, a production-sized application-owned live source-of-truth
+rebuild, or ECS deployment. The associated
 operational-assurance scenarios therefore remain pending.

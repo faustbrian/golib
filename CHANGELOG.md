@@ -7,6 +7,12 @@ documented in each module's changelog.
 
 ### Added
 
+- Record the public durability composition across digest-pinned PostgreSQL 14
+  through 18 with Valkey 9.1.0 and correct already-proved OpenSearch partial
+  result and point-in-time failure coverage.
+- Add a maintained PostgreSQL 14 through 18 reference durability matrix against
+  Valkey 9.1.0 so supported database versions exercise the same public
+  idempotency, outbox, queue, and transaction composition.
 - Add a complete operational-assurance requirement matrix that distinguishes
   proved, partial, external, specialist-owned, and consumer-owned work while
   preserving the current `not ready` verdict and exact remaining proof.
