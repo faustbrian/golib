@@ -41,8 +41,10 @@ PostgreSQL/Valkey replacement evidence, plus focused workflow evidence for
 deadlocks, process death, unknown activity outcomes, snapshot restore, replica
 promotion, fencing, audited dead-letter resolution, scheduler ambiguity,
 migration interruption, and local audit backup/restore reconciliation. It
-remains pending for managed database backup and failover, storage exhaustion,
-network partitions, Kafka, OpenSearch, and broader external-side-effect
+also retains local JWT/OIDC outage, retired-key rollback, revocation-store
+outage, and fail-closed key-lifecycle evidence. It remains pending for managed
+database backup and failover, storage exhaustion, network partitions, Kafka,
+OpenSearch, live credential providers, and broader external-side-effect
 reconciliation.
 
 `OA-DEPLOYMENT-COMPATIBILITY` now retains bounded queue-worker rolling
@@ -51,7 +53,9 @@ Laravel baseline, interrupted-migration recovery, and audit protocol-compatible
 writer behavior across a durability migration on PostgreSQL 18.4. It remains
 pending for released mixed binary and data versions, ECS rolling deployment and
 canary behavior, the complete PostgreSQL and engine matrix, complete rollback,
-and key overlap.
+and live key rotation. Local bearer, API-key, JWT, OIDC, capability,
+HTTP-signature, and cursor tests now prove bounded overlap and retirement under
+the race detector.
 
 `OA-SECURITY-PRIVACY-SUPPLY-CHAIN` and
 `OA-OBSERVABILITY-OPERATIONS` reuse the unchanged reference HTTP campaign as
@@ -63,11 +67,19 @@ backup/restore reconciliation. They remain pending for complete privacy
 lifecycle, dependency response, signed provenance, production exporters, SLOs,
 dashboards, alerts, and operator drills.
 
+`OA-SECURITY-PRIVACY-SUPPLY-CHAIN` additionally retains a bounded cross-package
+key-lifecycle campaign covering atomic replacement, overlap, refresh,
+retirement, revocation, compromise response, rollback rejection, and fail-closed
+provider outages. Live provider, KMS, secret-distribution, and incident drills
+remain unproved.
+
 `OA-CROSS-PACKAGE-CONSISTENCY` retains the representative Track, Postal, and
 Location adoption fixture for public package construction, role isolation,
-correlation, bounded resilience, fleet behavior, and lifecycle consistency. It
-remains pending for durable dependencies, tenant and idempotency propagation,
-redaction, exported telemetry, and real service business paths.
+correlation, bounded resilience, fleet behavior, and lifecycle consistency. A
+separate race-enabled key campaign proves aligned overlap, retirement,
+revocation, and outage behavior across six security-facing modules. The
+scenario remains pending for durable dependencies, tenant and idempotency
+propagation, redaction, exported telemetry, and real service business paths.
 
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256

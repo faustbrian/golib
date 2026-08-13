@@ -565,6 +565,31 @@
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
+          "sha256": "f80364d9529bab73a849ea53702c1aeda75fa2695deb9ab3a209df9e6ddb3470",
+          "observed_utc": "2026-08-13T09:24:31Z",
+          "environment": "darwin/arm64; Go 1.26.5; race detector; loopback JWT and OIDC issuers",
+          "module_scope": [
+            "pkg/api-query",
+            "pkg/authentication",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/capability",
+            "pkg/http-signature"
+          ],
+          "input_digests": {
+            "pkg/api-query": "ac29cd283c2f86f6aa3b6d9b2ebdfbcffc8e154cb6b2fb066d4a975b402d8782",
+            "pkg/authentication": "476700d98e8200294a7c548cde06d379041c9300790ad79375b937b6324d3bac",
+            "pkg/authentication/authotel": "f2b02eaa9abd4a86868509b00bda4cd5055d0c36a62a02e59f9b69f36150b785",
+            "pkg/authentication/jwt": "6eb4fb55b483cdb05d39eb9a23573cb76d1b717e0b195461bc21b111ca63c778",
+            "pkg/authentication/oidc": "6001cf01ba841933094dd1971d1f113671fc82f2ea783fbf901a62d2e742988d",
+            "pkg/capability": "adf4e1fd2cfbdfd00ed1d3043a74510149013952dcd518816b97f034b2e0fe1f",
+            "pkg/http-signature": "7fc90a79e81483b752cc58d5184024b5c4bb5a3eebd45ff3e46e4a8fe168644d",
+            "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
+          }
         }
       ],
       "accepted_risks": []
@@ -620,6 +645,31 @@
             "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
+          "sha256": "f80364d9529bab73a849ea53702c1aeda75fa2695deb9ab3a209df9e6ddb3470",
+          "observed_utc": "2026-08-13T09:24:31Z",
+          "environment": "darwin/arm64; Go 1.26.5; race detector; loopback JWT and OIDC issuers",
+          "module_scope": [
+            "pkg/api-query",
+            "pkg/authentication",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/capability",
+            "pkg/http-signature"
+          ],
+          "input_digests": {
+            "pkg/api-query": "ac29cd283c2f86f6aa3b6d9b2ebdfbcffc8e154cb6b2fb066d4a975b402d8782",
+            "pkg/authentication": "476700d98e8200294a7c548cde06d379041c9300790ad79375b937b6324d3bac",
+            "pkg/authentication/authotel": "f2b02eaa9abd4a86868509b00bda4cd5055d0c36a62a02e59f9b69f36150b785",
+            "pkg/authentication/jwt": "6eb4fb55b483cdb05d39eb9a23573cb76d1b717e0b195461bc21b111ca63c778",
+            "pkg/authentication/oidc": "6001cf01ba841933094dd1971d1f113671fc82f2ea783fbf901a62d2e742988d",
+            "pkg/capability": "adf4e1fd2cfbdfd00ed1d3043a74510149013952dcd518816b97f034b2e0fe1f",
+            "pkg/http-signature": "7fc90a79e81483b752cc58d5184024b5c4bb5a3eebd45ff3e46e4a8fe168644d",
+            "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
           }
         }
       ],
@@ -708,6 +758,31 @@
             "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
+          "sha256": "f80364d9529bab73a849ea53702c1aeda75fa2695deb9ab3a209df9e6ddb3470",
+          "observed_utc": "2026-08-13T09:24:31Z",
+          "environment": "darwin/arm64; Go 1.26.5; race detector; loopback JWT and OIDC issuers",
+          "module_scope": [
+            "pkg/api-query",
+            "pkg/authentication",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/capability",
+            "pkg/http-signature"
+          ],
+          "input_digests": {
+            "pkg/api-query": "ac29cd283c2f86f6aa3b6d9b2ebdfbcffc8e154cb6b2fb066d4a975b402d8782",
+            "pkg/authentication": "476700d98e8200294a7c548cde06d379041c9300790ad79375b937b6324d3bac",
+            "pkg/authentication/authotel": "f2b02eaa9abd4a86868509b00bda4cd5055d0c36a62a02e59f9b69f36150b785",
+            "pkg/authentication/jwt": "6eb4fb55b483cdb05d39eb9a23573cb76d1b717e0b195461bc21b111ca63c778",
+            "pkg/authentication/oidc": "6001cf01ba841933094dd1971d1f113671fc82f2ea783fbf901a62d2e742988d",
+            "pkg/capability": "adf4e1fd2cfbdfd00ed1d3043a74510149013952dcd518816b97f034b2e0fe1f",
+            "pkg/http-signature": "7fc90a79e81483b752cc58d5184024b5c4bb5a3eebd45ff3e46e4a8fe168644d",
+            "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
           }
         }
       ],
@@ -888,6 +963,31 @@
             "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
+          "sha256": "f80364d9529bab73a849ea53702c1aeda75fa2695deb9ab3a209df9e6ddb3470",
+          "observed_utc": "2026-08-13T09:24:31Z",
+          "environment": "darwin/arm64; Go 1.26.5; race detector; loopback JWT and OIDC issuers",
+          "module_scope": [
+            "pkg/api-query",
+            "pkg/authentication",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/capability",
+            "pkg/http-signature"
+          ],
+          "input_digests": {
+            "pkg/api-query": "ac29cd283c2f86f6aa3b6d9b2ebdfbcffc8e154cb6b2fb066d4a975b402d8782",
+            "pkg/authentication": "476700d98e8200294a7c548cde06d379041c9300790ad79375b937b6324d3bac",
+            "pkg/authentication/authotel": "f2b02eaa9abd4a86868509b00bda4cd5055d0c36a62a02e59f9b69f36150b785",
+            "pkg/authentication/jwt": "6eb4fb55b483cdb05d39eb9a23573cb76d1b717e0b195461bc21b111ca63c778",
+            "pkg/authentication/oidc": "6001cf01ba841933094dd1971d1f113671fc82f2ea783fbf901a62d2e742988d",
+            "pkg/capability": "adf4e1fd2cfbdfd00ed1d3043a74510149013952dcd518816b97f034b2e0fe1f",
+            "pkg/http-signature": "7fc90a79e81483b752cc58d5184024b5c4bb5a3eebd45ff3e46e4a8fe168644d",
+            "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
           }
         }
       ],
