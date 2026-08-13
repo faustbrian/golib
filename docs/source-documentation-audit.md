@@ -127,7 +127,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/service/benchmarks/platform` | 12 | 8 | 122 | 41 | 0 | 0 | 0 |
 | `pkg/service/compatibility` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/service/integration/adoption` | 1 | 0 | 39 | 0 | 0 | 0 | 0 |
-| `pkg/service/integration/reference-durability` | 1 | 0 | 17 | 0 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-durability` | 2 | 0 | 36 | 0 | 0 | 0 | 0 |
 | `pkg/service/integration/reference-external` | 1 | 0 | 24 | 10 | 0 | 0 | 0 |
 | `pkg/service/integration/reference-http` | 1 | 1 | 32 | 22 | 0 | 0 | 0 |
 | `pkg/service/integration/reference-platform` | 4 | 4 | 49 | 43 | 0 | 0 | 0 |

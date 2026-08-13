@@ -392,16 +392,56 @@
       "accepted_risks": []
     },
     {
-      "id": "OA-DEPLOYMENT-COMPATIBILITY",
+      "id": "OA-FAILURE-RECOVERY",
       "status": "pending",
       "affected_modules": [
         "*"
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "path": "docs/assurance/evidence/OA-FAILURE-RECOVERY-POSTGRES-VALKEY.md",
+          "sha256": "1a2d0d95a94a11fd2d1f3282132c284430c8ea0a38722f77d6e7b1ef146b9351",
+          "observed_utc": "2026-08-13T01:12:01Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; PostgreSQL 18.4-alpine; Valkey 9.1.0-alpine; task-owned durable volumes",
+          "module_scope": [
+            "pkg/idempotency",
+            "pkg/migrations",
+            "pkg/outbox",
+            "pkg/outbox/adapters/queue",
+            "pkg/postgres",
+            "pkg/queue"
+          ],
+          "input_modules": [
+            "pkg/service/integration/reference-durability"
+          ],
+          "input_digests": {
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
+            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/event-sourcing/adapters/outbox": "303a3a180c0fd87d5f4382a7a85ea691d98d1e0a5749b023140c9cccc8ac34ed",
+            "pkg/event-sourcing/adapters/queue": "0a9ef3eda2142c8e0a093ffb8877363d8a9c326952ca804617af758e6158617c",
+            "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
+            "pkg/lease": "607211c70c0faf76497cc468f5128adf279055c559e206cdaf8a8784481f5f18",
+            "pkg/migrations": "b81a23b09192155f3e5d8649c5f857bc978afa8abae15409dddc3ea5395d9483",
+            "pkg/outbox": "6c6770035d8dc8f2175f3d3594ab868f91216adb6cbd0efd4211ba3d27f18f21",
+            "pkg/outbox/adapters/gokafka": "87f0bf675966f68ea1a72cf82016fa1525184b22d6c8cb68ceb27b59593b7ee4",
+            "pkg/outbox/adapters/otel": "1d3743b3f8291e5baa794e79704b0ddf06576c4412862229d8da1b227207d3ad",
+            "pkg/outbox/adapters/queue": "f0dbec17dd2852a74abf24f53d7c0c1efea89fc4f104e3d32a2f913a3219ac1b",
+            "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
+            "pkg/queue": "a378ce1eda3cbd23028155aedf08a3d385f5b86685edf4010dd55fb755fa624e",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
+            "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
+            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/service/integration/reference-durability": "455bdad5d44463f786da9b5eac9d5e06c02f3afdbde63b03408b4ff6d4ea5b54",
+            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+          }
+        }
+      ],
       "accepted_risks": []
     },
     {
-      "id": "OA-FAILURE-RECOVERY",
+      "id": "OA-DEPLOYMENT-COMPATIBILITY",
       "status": "pending",
       "affected_modules": [
         "*"

@@ -32,6 +32,12 @@ descriptor, and error budgets. It remains pending for soak, stress-to-failure,
 realistic dependency load, fleet behavior, exhaustion recovery, and production
 capacity proof.
 
+`OA-FAILURE-RECOVERY` now retains passing local process-death and
+PostgreSQL/Valkey replacement evidence. It remains pending for ambiguous
+commits, database retries and restore, storage exhaustion, managed failover,
+network partitions, Kafka, OpenSearch, poison work, and external-side-effect
+reconciliation.
+
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256
 digests, complete current-input fingerprints, environments, UTC observation

@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Add a task-owned process-death and PostgreSQL/Valkey replacement campaign
+  that proves fail-closed outages, exact replay, abandoned-task reclamation,
+  and acknowledgement persistence without claiming managed failover.
 - Add a constrained native-Linux service load campaign with explicit latency,
   throughput, heap, goroutine, descriptor, and error budgets while preserving
   soak and production capacity as open assurance work, and bind its proof to
