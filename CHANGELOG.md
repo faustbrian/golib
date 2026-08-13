@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Record PostgreSQL and Valkey scheduler lease-store evidence for server-time
+  fencing, cancellation atomicity, ambiguous-outcome reconciliation, caller-
+  owned schemas, and reconnect recovery.
 - Record Redis and Valkey queue lifecycle evidence for deadline redelivery,
   dead-letter recovery, rolling worker replacement, process termination, and
   the explicit at-least-once duplicate window.

@@ -405,6 +405,7 @@
             "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
             "docs/assurance/evidence/OA-RELEASE-CONSUMER-LOCAL.md",
             "docs/assurance/evidence/OA-RESOURCE-PERFORMANCE-CONSTRAINED.md",
+            "docs/assurance/evidence/OA-SCHEDULER-POSTGRES-VALKEY.md",
             "docs/hardening-report.md",
             "docs/operational-assurance.md",
             "docs/performance.md",

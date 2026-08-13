@@ -250,6 +250,18 @@
           "input_digests": {
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
           }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-SCHEDULER-POSTGRES-VALKEY.md",
+          "sha256": "161e9491f6333915ca60ff24a987150ed6f0e0730ad1c4d4c76945c8d75ccade",
+          "observed_utc": "2026-08-13T01:52:23Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; PostgreSQL 18.4-alpine; Valkey 9.1.0-alpine",
+          "module_scope": [
+            "pkg/scheduler"
+          ],
+          "input_digests": {
+            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd"
+          }
         }
       ],
       "accepted_risks": []
@@ -472,6 +484,18 @@
           ],
           "input_digests": {
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
+          }
+        },
+        {
+          "path": "docs/assurance/evidence/OA-SCHEDULER-POSTGRES-VALKEY.md",
+          "sha256": "161e9491f6333915ca60ff24a987150ed6f0e0730ad1c4d4c76945c8d75ccade",
+          "observed_utc": "2026-08-13T01:52:23Z",
+          "environment": "darwin/arm64; Go 1.26.5; Docker Engine 29.6.2; PostgreSQL 18.4-alpine; Valkey 9.1.0-alpine",
+          "module_scope": [
+            "pkg/scheduler"
+          ],
+          "input_digests": {
+            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd"
           }
         }
       ],
