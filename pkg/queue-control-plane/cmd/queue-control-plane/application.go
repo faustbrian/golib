@@ -67,11 +67,7 @@ func buildApplication(config Config, dependencies applicationDependencies) (http
 	if len(capabilities) > 1 {
 		viewer = dependencies.Access.Authorizer
 	}
-	var sensitiveAudit apihttp.SensitiveAccessAuditor
-	if candidate, ok := dependencies.Audit.(apihttp.SensitiveAccessAuditor); ok &&
-		!missingDependency(candidate) {
-		sensitiveAudit = candidate
-	}
+	sensitiveAudit := sensitiveAccessAuditor(dependencies.Audit)
 	api, err := apihttp.NewHandler(apihttp.Config{
 		Commands:           service,
 		Readiness:          dependencies.Readiness,
@@ -117,6 +113,15 @@ func buildApplication(config Config, dependencies applicationDependencies) (http
 			RateLimiter:    dependencies.RateLimiter,
 		},
 	)
+}
+
+func sensitiveAccessAuditor(source apihttp.AuditSource) apihttp.SensitiveAccessAuditor {
+	candidate, ok := source.(apihttp.SensitiveAccessAuditor)
+	if !ok || missingDependency(candidate) {
+		return nil
+	}
+
+	return candidate
 }
 
 func applicationProtocolRange() fleet.ProtocolRange {

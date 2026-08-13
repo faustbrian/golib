@@ -58,11 +58,17 @@ type retentionAudit interface {
 }
 
 func loadRetentionPolicies(reader io.Reader, maxBytes int64) ([]retentionPolicy, error) {
-	if missingDependency(reader) || maxBytes < 1 {
+	if missingDependency(reader) {
+		return nil, ErrInvalidRetentionDocument
+	}
+	if !validRetentionDocumentSize(maxBytes) {
 		return nil, ErrInvalidRetentionDocument
 	}
 	encoded, err := io.ReadAll(io.LimitReader(reader, maxBytes+1))
-	if err != nil || int64(len(encoded)) > maxBytes {
+	if err != nil {
+		return nil, ErrInvalidRetentionDocument
+	}
+	if int64(len(encoded)) > maxBytes {
 		return nil, ErrInvalidRetentionDocument
 	}
 	var document retentionDocument
@@ -101,6 +107,10 @@ func loadRetentionPolicies(reader io.Reader, maxBytes int64) ([]retentionPolicy,
 	return policies, nil
 }
 
+func validRetentionDocumentSize(maxBytes int64) bool {
+	return maxBytes >= 1
+}
+
 func validRetentionPolicy(policy retentionPolicy) bool {
 	return policy.TenantID == strings.TrimSpace(policy.TenantID) &&
 		policy.TenantID != "" && len(policy.TenantID) <= controlplane.MaxIdentityBytes &&
@@ -115,9 +125,14 @@ func applyRetention(
 	policies []retentionPolicy,
 	now func() time.Time,
 ) error {
-	if audit == nil || missingDependency(audit) || len(policies) == 0 || now == nil {
+	checkedAudit, ok := presentRetentionAudit(audit)
+	if !ok {
 		return ErrInvalidRetentionPlan
 	}
+	if len(policies) == 0 || now == nil {
+		return ErrInvalidRetentionPlan
+	}
+	checkedAudit = requireRetentionAudit(checkedAudit)
 
 	var failures []error
 	for _, policy := range policies {
@@ -128,7 +143,7 @@ func applyRetention(
 		if policy.LegalHold {
 			continue
 		}
-		if _, err := audit.VerifyTenant(ctx, policy.TenantID, policy.BatchSize); err != nil {
+		if _, err := checkedAudit.VerifyTenant(ctx, policy.TenantID, policy.BatchSize); err != nil {
 			failures = append(failures, err)
 			continue
 		}
@@ -137,7 +152,7 @@ func applyRetention(
 		fullBatch := false
 		auditFailed := false
 		for range policy.MaxBatches {
-			result, err := audit.RetainBefore(ctx, policy.TenantID, cutoff, policy.BatchSize)
+			result, err := checkedAudit.RetainBefore(ctx, policy.TenantID, cutoff, policy.BatchSize)
 			if err != nil {
 				failures = append(failures, err)
 				auditFailed = true
@@ -149,7 +164,7 @@ func applyRetention(
 				break
 			}
 		}
-		if _, err := audit.VerifyTenant(ctx, policy.TenantID, policy.BatchSize); err != nil {
+		if _, err := checkedAudit.VerifyTenant(ctx, policy.TenantID, policy.BatchSize); err != nil {
 			failures = append(failures, err)
 			continue
 		}
@@ -162,7 +177,7 @@ func applyRetention(
 
 		fullBatch = false
 		for range policy.MaxBatches {
-			result, err := audit.RetainCommandsBefore(
+			result, err := checkedAudit.RetainCommandsBefore(
 				ctx,
 				policy.TenantID,
 				cutoff,
@@ -184,4 +199,20 @@ func applyRetention(
 	}
 
 	return errors.Join(failures...)
+}
+
+func presentRetentionAudit(audit retentionAudit) (retentionAudit, bool) {
+	if missingDependency(audit) {
+		return nil, false
+	}
+
+	return audit, true
+}
+
+func requireRetentionAudit(audit retentionAudit) retentionAudit {
+	if audit == nil {
+		panic("queue-control-plane: invalid checked retention audit")
+	}
+
+	return audit
 }

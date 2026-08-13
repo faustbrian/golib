@@ -86,9 +86,14 @@ func loadManagementRuntimeWithSource(
 	newFleet managementFleetFactory,
 	newDispatcher managementDispatcherFactory,
 ) (managementRuntime, error) {
-	if strings.TrimSpace(path) == "" || maxBytes < 1 ||
-		maxBytes > defaultAccessDocumentSize || open == nil || newStatus == nil ||
-		newSource == nil || newRecords == nil || newFleet == nil || newDispatcher == nil {
+	if strings.TrimSpace(path) == "" {
+		return managementRuntime{}, ErrInvalidManagementRuntime
+	}
+	if !validManagementDocumentSize(maxBytes) {
+		return managementRuntime{}, ErrInvalidManagementRuntime
+	}
+	if open == nil || newStatus == nil || newSource == nil || newRecords == nil ||
+		newFleet == nil || newDispatcher == nil {
 		return managementRuntime{}, ErrInvalidManagementRuntime
 	}
 	file, err := open(path)
@@ -127,11 +132,11 @@ func loadManagementRuntimeWithSource(
 			return managementRuntime{}, ErrInvalidManagementRuntime
 		}
 		controller, ok := reader.(queue.Controller)
-		if !ok || missingDependency(controller) {
+		if !ok {
 			return managementRuntime{}, ErrInvalidManagementRuntime
 		}
 		recordReader, ok := reader.(queue.RecordReader)
-		if !ok || missingDependency(recordReader) {
+		if !ok {
 			return managementRuntime{}, ErrInvalidManagementRuntime
 		}
 		readers[tenant.ID] = reader
@@ -162,6 +167,10 @@ func loadManagementRuntimeWithSource(
 		Workers: workers, Queues: source, Records: recordSource,
 		Dispatcher: dispatcher,
 	}, nil
+}
+
+func validManagementDocumentSize(maxBytes int64) bool {
+	return maxBytes >= 1 && maxBytes <= defaultAccessDocumentSize
 }
 
 func (r *managementStatusResolver) ResolveRecordReader(
