@@ -7,6 +7,10 @@ documented in each module's changelog.
 
 ### Added
 
+- Reuse the unchanged HTTP composition proof as bounded security evidence for
+  signed requests, capabilities, authentication, tenant isolation, validation,
+  fail-closed audit delivery, and correlation without implying supply-chain or
+  production privacy readiness.
 - Record bounded cross-package adoption evidence for Track, Postal, and
   Location role composition, correlation, resilience, lifecycle, and generic
   bootstrap budgets without treating the fixtures as production services, and
