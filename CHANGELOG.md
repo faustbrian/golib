@@ -5,6 +5,12 @@ documented in each module's changelog.
 
 ## Unreleased
 
+### Fixed
+
+- Preserve content-identical package gate evidence across the runner process-
+  isolation refactor while keeping service setup and gate commands in each
+  checkpoint fingerprint.
+
 ### Added
 
 - Record the public durability composition across digest-pinned PostgreSQL 14

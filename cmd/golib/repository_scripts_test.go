@@ -2941,6 +2941,227 @@ func TestGateInputDigestScopesAPIBaselineToAPIGate(t *testing.T) {
 	}
 }
 
+func TestGateInputDigestIgnoresVerificationOrchestrationImplementation(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{".golib", "pkg/example", "scripts"} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "module_path": "example.test/package",
+    "owned_dependencies": [],
+    "required_services": [],
+    "test_tags": [],
+    "interoperability_tools": [],
+    "gates": {},
+    "packages": []
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(repository, "packages.json"), `{"packages":[]}`)
+	writeTestFile(t, filepath.Join(repository, "pkg/example/go.mod"), "module example.test/package\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(repository, ".golib", "versions.env"), "")
+	for _, script := range []string{
+		"check-module.sh",
+		"create-verification-snapshot.sh",
+		"run-modules.sh",
+		"start-services.sh",
+		"stop-services.sh",
+	} {
+		writeTestFile(t, filepath.Join(repository, "scripts", script), script+" first\n")
+	}
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	add := exec.Command("git", "add", ".")
+	add.Dir = repository
+	if output, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture repository: %v\n%s", err, output)
+	}
+
+	digest := func(gate string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			gate,
+			"pkg/example",
+		)
+		command.Dir = repository
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("digest gate inputs: %v\n%s", err, output)
+		}
+
+		return strings.TrimSpace(string(output))
+	}
+
+	baseline := digest("format-check")
+	assuranceBaseline := digest("operational-assurance")
+	for _, script := range []string{
+		"create-verification-snapshot.sh",
+		"run-modules.sh",
+		"stop-services.sh",
+	} {
+		writeTestFile(t, filepath.Join(repository, "scripts", script), script+" second\n")
+		if current := digest("format-check"); current != baseline {
+			t.Fatalf("orchestration-only %s changed gate inputs: %s != %s", script, current, baseline)
+		}
+	}
+	if current := digest("operational-assurance"); current == assuranceBaseline {
+		t.Fatal("runner changes did not alter aggregate assurance inputs")
+	}
+
+	writeTestFile(t, filepath.Join(repository, "scripts", "start-services.sh"), "changed service contract\n")
+	if current := digest("format-check"); current == baseline {
+		t.Fatal("service setup did not change gate inputs")
+	}
+}
+
+func TestRunnerIsolationEvidenceMigrationPreservesExecutedProof(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{
+		"scripts",
+		".artifacts/pkg/example/evidence",
+	} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(repository, "scripts/check-gates.txt"), "test\n")
+	digestScript := filepath.Join(repository, "scripts/gate-input-digest.sh")
+	writeFile(t, digestScript, `#!/bin/sh
+if [ "${GOLIB_GATE_INPUT_POLICY:-current}" = legacy-runner-isolation ]; then
+    printf 'legacy-digest\n'
+else
+    printf 'current-digest\n'
+fi
+`)
+	if err := os.Chmod(digestScript, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	logContents := "test passed\n"
+	logPath := filepath.Join(repository, ".artifacts/pkg/example/evidence/test.log")
+	writeFile(t, logPath, logContents)
+	logDigest := sha256.Sum256([]byte(logContents))
+	writeFile(
+		t,
+		filepath.Join(repository, ".artifacts/pkg/example/evidence/test.json"),
+		fmt.Sprintf(`{
+  "schema_version": 1,
+  "module": "pkg/example",
+  "gate": "test",
+  "result": "passed",
+  "exit_code": 0,
+  "execution_revision": "executed-proof",
+  "completed_revision": "executed-proof",
+  "input_digest": "legacy-digest",
+  "completed_input_digest": "legacy-digest",
+  "log_sha256": "%x",
+  "started_at": "2026-08-11T00:00:00Z",
+  "completed_at": "2026-08-11T00:01:00Z"
+}`, logDigest),
+	)
+	if output, err := exec.Command("git", "-C", repository, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	commit := exec.Command(
+		"git", "-C", repository,
+		"-c", "user.name=Test", "-c", "user.email=test@example.test",
+		"commit", "--allow-empty", "-m", "test",
+	)
+	if output, err := commit.CombinedOutput(); err != nil {
+		t.Fatalf("create fixture revision: %v\n%s", err, output)
+	}
+
+	command := exec.Command(
+		filepath.Join(root, "scripts/internal/migrate-runner-isolation-evidence.sh"),
+		"pkg/example",
+		"test",
+	)
+	command.Dir = repository
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("migrate evidence: %v\n%s", err, output)
+	}
+
+	migratedPath := filepath.Join(
+		repository,
+		".artifacts/pkg/example/evidence/by-input/test/current-digest.json",
+	)
+	contents, err := os.ReadFile(migratedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var migrated struct {
+		ExecutionRevision string   `json:"execution_revision"`
+		InputDigest       string   `json:"input_digest"`
+		CompletedInput    string   `json:"completed_input_digest"`
+		IdentityLineage   []string `json:"identity_lineage"`
+		IdentityMigration struct {
+			Reason                  string `json:"reason"`
+			PreviousGateInputDigest string `json:"previous_gate_input_digest"`
+		} `json:"identity_migration"`
+	}
+	if err := json.Unmarshal(contents, &migrated); err != nil {
+		t.Fatal(err)
+	}
+	if migrated.ExecutionRevision != "executed-proof" ||
+		migrated.InputDigest != "current-digest" ||
+		migrated.CompletedInput != "current-digest" ||
+		!slices.Contains(migrated.IdentityLineage, "legacy-digest") ||
+		migrated.IdentityMigration.Reason != "non-semantic-runner-isolation-scope-narrowing" ||
+		migrated.IdentityMigration.PreviousGateInputDigest != "legacy-digest" {
+		t.Fatalf("migrated evidence = %+v", migrated)
+	}
+
+	assuranceEvidence := fmt.Sprintf(`{
+  "schema_version": 1,
+  "module": "pkg/example",
+  "gate": "operational-assurance",
+  "result": "passed",
+  "exit_code": 0,
+  "execution_revision": "executed-proof",
+  "completed_revision": "executed-proof",
+  "input_digest": "legacy-digest",
+  "completed_input_digest": "legacy-digest",
+  "log_sha256": "%x"
+}`, logDigest)
+	writeFile(
+		t,
+		filepath.Join(repository, ".artifacts/pkg/example/evidence/operational-assurance.json"),
+		assuranceEvidence,
+	)
+	writeFile(
+		t,
+		filepath.Join(repository, ".artifacts/pkg/example/evidence/operational-assurance.log"),
+		logContents,
+	)
+	command = exec.Command(
+		filepath.Join(root, "scripts/internal/migrate-runner-isolation-evidence.sh"),
+		"pkg/example",
+		"operational-assurance",
+	)
+	command.Dir = repository
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("skip aggregate assurance evidence: %v\n%s", err, output)
+	}
+	assurancePath := filepath.Join(
+		repository,
+		".artifacts/pkg/example/evidence/by-input/operational-assurance/current-digest.json",
+	)
+	if _, err := os.Stat(assurancePath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("aggregate assurance evidence migrated across runner semantics: %v", err)
+	}
+}
+
 func TestAPIBaselineEvidenceMigrationPreservesExecutedProof(t *testing.T) {
 	root := testRepositoryRoot(t)
 	repository := t.TempDir()

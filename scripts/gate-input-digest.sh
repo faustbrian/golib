@@ -12,7 +12,7 @@ module="$2"
 package="${3:-}"
 input_policy="${GOLIB_GATE_INPUT_POLICY:-current}"
 case "${input_policy}" in
-    current|legacy-api-baseline) ;;
+    current|legacy-api-baseline|legacy-runner-isolation|legacy-runner-isolation-post) ;;
     *)
         printf 'unsupported gate input policy: %s\n' "${input_policy}" >&2
         exit 2
@@ -326,13 +326,38 @@ append_verification_environment() {
 }
 
 append_verification_tool_files() {
-    local check_module_digest
+    local check_module_digest legacy_runner_digest
     local paths=(
-        scripts/create-verification-snapshot.sh
-        scripts/run-modules.sh
         scripts/start-services.sh
-        scripts/stop-services.sh
     )
+    if [[ "${gate}" == "operational-assurance" && "${input_policy}" == "current" ]]; then
+        paths+=(
+            scripts/create-verification-snapshot.sh
+            scripts/run-modules.sh
+            scripts/stop-services.sh
+        )
+    elif [[ "${input_policy}" == "legacy-runner-isolation" ||
+        "${input_policy}" == "legacy-runner-isolation-post" ]]; then
+        paths+=(
+            scripts/create-verification-snapshot.sh
+            scripts/stop-services.sh
+        )
+        # These are the exact Git blob identities immediately before and after
+        # process isolation, matching append_repository_files. They identify
+        # retained evidence without requiring that history to remain available.
+        legacy_runner_digest='cf841512fc1e48c8c7708259c878028f06a8726f'
+        if [[ "${input_policy}" == "legacy-runner-isolation-post" ]]; then
+            legacy_runner_digest='d30bc5a6f7e52b2080a3fe13200dfb2963a1415a'
+        fi
+        printf 'file   %s  %s\n' \
+            "${legacy_runner_digest}" \
+            'scripts/run-modules.sh' >>"${manifest}"
+    else
+        # Snapshot creation, module selection, and post-gate cleanup do not
+        # alter a single gate's command or inputs. Their behavior belongs to
+        # aggregate-run evidence rather than every package checkpoint.
+        append_value verification-orchestration-contract v1
+    fi
     append_gate_tool_versions
     append_required_service_versions
     case "${gate}" in
