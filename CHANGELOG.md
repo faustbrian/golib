@@ -224,7 +224,7 @@ documented in each module's changelog.
 
 ### Changed
 
-- Record the current repository-hardening audit boundary without treating
+- Record the completed owned package-audit boundary without treating
   specialist-owned work or retained content-identical evidence as a reset.
 - Rename the unpublished webhook adapter packages to target-oriented
   `idempotency`, `slog`, `outbox`, `queue`, and `otel` paths before v1.

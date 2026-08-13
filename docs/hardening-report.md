@@ -99,13 +99,12 @@ processes, or classify their intermediate results as failures or blockers.
 Repository-wide release approval will consume their independently produced
 evidence when their work reaches its final boundary.
 
-Current local goal audits exist for 103 of the 104 goal-bearing modules. The
-remaining owned module is `pkg/search/adapters/opensearch`: 18 of its 21
-canonical gates have current input-bound evidence, including its real-cluster
-test, race, exact 1908/1908 statement coverage, fuzz, and retained 1377/1377
-mutation result. Its conformance, interoperability, and benchmark checkpoints
-still require final current-input evidence. This intermediate report is not a
-substitute for the final package matrix.
+Current local goal audits verify all 104 goal-bearing modules. The final owned
+module, `pkg/search/adapters/opensearch`, now has current input-bound evidence
+for all 21 canonical gates, including its real-cluster test, race, exact
+1908/1908 statement coverage, fuzz, retained 1377/1377 mutation result,
+conformance, interoperability, and comparative benchmarks. This intermediate
+report is not a substitute for the final package matrix.
 
 The current root catalog validates 138 module records, 693 package records,
 and cohesion policy for all 107 releasable modules. OpenSearch specification
