@@ -39,8 +39,13 @@ func IsolateAsyncPanics[T any](validator AsyncValidator[T]) AsyncValidator[T] {
 func AsyncAll[T any](ctx context.Context, validationContext Context, value T,
 	validators ...AsyncValidator[T],
 ) Report {
-	if len(validators) == 0 || ctx.Err() != nil {
+	if len(validators) == 0 {
 		return NewReport(validationContext.Limits())
+	}
+	select {
+	case <-ctx.Done():
+		return NewReport(validationContext.Limits())
+	default:
 	}
 	workerCount := min(validationContext.Limits().MaxCustomConcurrency,
 		len(validators))
@@ -57,10 +62,10 @@ func AsyncAll[T any](ctx context.Context, validationContext Context, value T,
 			for current := range jobs {
 				if current.validator == nil {
 					results[current.index] = NewReport(validationContext.Limits())
-					continue
+				} else {
+					results[current.index] = IsolateAsyncPanics(current.validator).
+						ValidateAsync(ctx, validationContext, value)
 				}
-				results[current.index] = IsolateAsyncPanics(current.validator).
-					ValidateAsync(ctx, validationContext, value)
 			}
 		}()
 	}

@@ -62,7 +62,10 @@ func TestMessagesContainAndSanitizeHostileCatalogOutput(t *testing.T) {
 		{"exact limit", strings.Repeat("x", 16), hostileCatalog{text: strings.Repeat("x", 16)}},
 		{"oversized", "", hostileCatalog{text: strings.Repeat("x", 17)}},
 		{"invalid utf8", "", hostileCatalog{text: string([]byte{0xff})}},
-		{"control", "", hostileCatalog{text: "bad\ntext"}},
+		{"control zero", "", hostileCatalog{text: "\x00"}},
+		{"control unit separator", "", hostileCatalog{text: "\x1f"}},
+		{"control delete", "", hostileCatalog{text: "\x7f"}},
+		{"space boundary", " ", hostileCatalog{text: " "}},
 		{"markup", "&lt;b&gt;x&lt;/b&gt;", hostileCatalog{text: "<b>x</b>"}},
 	}
 	for _, tt := range tests {

@@ -20,7 +20,13 @@ var (
 func URL() validation.Validator[string] {
 	return stringPredicate("url", func(value string) bool {
 		parsed, err := url.ParseRequestURI(value)
-		return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
+		if err != nil {
+			return false
+		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return false
+		}
+		return parsed.Host != ""
 	})
 }
 
@@ -28,7 +34,10 @@ func URL() validation.Validator[string] {
 func Hostname() validation.Validator[string] {
 	return stringPredicate("hostname", func(value string) bool {
 		value = strings.TrimSuffix(value, ".")
-		if value == "" || len(value) > 253 {
+		if value == "" {
+			return false
+		}
+		if len(value) > 253 {
 			return false
 		}
 		for _, label := range strings.Split(value, ".") {
