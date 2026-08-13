@@ -4232,6 +4232,16 @@
       "gremlins_version": "v0.6.0",
       "report_sha256": "33356e1c27c548940cf4d398b146de76363553f1895e637972957d8b5e41f894",
       "migration_reason": "gate-version-input-isolation"
+    },
+    {
+      "module": "pkg/search/adapters/opensearch",
+      "package": ".",
+      "execution_revision": "8e134b9241b3b4af768cd6bb6620ec3d668a20c3",
+      "gate_input_digest": "14fefd119233639fb40401c24ff9ba780be2f7be2623c274107fa5cec11937bb",
+      "replacement_gate_input_digest": "1caa101b752748d05bd268135bbe87e5438f8fcb4c45fbdd90f42dce290d3868",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "99a7874cfd79bebf768ae365e355816a64bf88279f6f72e0f822451490f4c680",
+      "migration_reason": "corrected-real-cluster-alias-observer"
     }
   ]
 }
