@@ -71,8 +71,13 @@ func TestRealOpenSearchCleanupGuardHoldsCompleteEligibilityAcrossDeletion(t *tes
 		if aliasErr != nil || json.Unmarshal(aliasBody, &aliases) != nil || len(aliases) != 1 || aliases[got.ActiveIndex] == nil {
 			return errors.New("active alias membership changed")
 		}
-		_, inactiveAliasStatus, inactiveAliasErr := directOpenSearchJSON(ctx, direct, http.MethodGet, "/"+got.InactiveIndex+"/_alias", nil)
-		if inactiveAliasErr != nil || inactiveAliasStatus != http.StatusNotFound {
+		inactiveAliasBody, inactiveAliasStatus, inactiveAliasErr := directOpenSearchJSON(ctx, direct, http.MethodGet, "/"+got.InactiveIndex+"/_alias", nil)
+		var inactiveAliases map[string]struct {
+			Aliases map[string]json.RawMessage `json:"aliases"`
+		}
+		if inactiveAliasErr != nil || inactiveAliasStatus != http.StatusOK ||
+			decodeStrictIntegrationJSON(inactiveAliasBody, &inactiveAliases) != nil || len(inactiveAliases) != 1 ||
+			len(inactiveAliases[got.InactiveIndex].Aliases) != 0 {
 			return errors.New("inactive generation still has an alias")
 		}
 		if fingerprint, verifyErr := verifier.verifyTargetDefinition(ctx, got.ActiveIndex, got.ActiveFingerprint); verifyErr != nil || fingerprint != got.ActiveFingerprint {
