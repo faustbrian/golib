@@ -7,6 +7,10 @@ documented in each module's changelog.
 
 ### Added
 
+- Record bounded cross-package adoption evidence for Track, Postal, and
+  Location role composition, correlation, resilience, lifecycle, and generic
+  bootstrap budgets without treating the fixtures as production services, and
+  classify its content-addressed module fingerprints as non-secret checksums.
 - Record PostgreSQL and Valkey scheduler lease-store evidence for server-time
   fencing, cancellation atomicity, ambiguous-outcome reconciliation, caller-
   owned schemas, and reconnect recovery.

@@ -52,3 +52,11 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^(?:pkg/verkle-tree/)?specification/sources\.json$''']
 regexes = ['''^\s*"api(?:_eip7594)?\.go"\s*:\s*"[0-9a-f]{64}",?\s*$''']
+
+[[allowlists]]
+description = "Operational-assurance module fingerprints are checksums, not credentials."
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^operational-assurance\.json$''']
+regexes = ['''^\s*"pkg/[^"]+"\s*:\s*"[0-9a-f]{64}",?\s*$''']
