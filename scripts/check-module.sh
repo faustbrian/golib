@@ -385,7 +385,9 @@ run_gate() {
         docs)
             applicable documentation || { skip_not_applicable documentation; return; }
             enable_local_proxy
-            if target="$(find_make_target docs documentation)"; then
+            if [[ "${module}" == "." ]]; then
+                GOWORK=off go run ./cmd/golib documentation
+            elif target="$(find_make_target docs documentation)"; then
                 make "${target}"
             else
                 GOWORK=off go test ./... -run '^Example' -count=1

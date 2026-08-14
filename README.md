@@ -41,6 +41,13 @@ tools, fixtures, examples, interoperability harnesses, and benchmarks. See
 and [recommended stacks](docs/recommended-stacks.md) for audience paths,
 combinations, and tradeoffs.
 
+The fastest executable introduction is the
+[HTTP and JSON-RPC service recipe](docs/recipes/service.md). Use the
+[durable worker](docs/recipes/durable-worker.md) or
+[external integration](docs/recipes/external-integration.md) recipe for those
+boundaries. All modules are unreleased; the recipes run from this workspace and
+do not imply public availability or production readiness.
+
 ## Workspace
 
 Install the version from [`.go-version`](.go-version), then run:

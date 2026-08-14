@@ -15,6 +15,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,6 +37,8 @@ var ownedDependencyPseudoVersionPattern = regexp.MustCompile(
 var mutationThresholdPattern = regexp.MustCompile(
 	`--threshold-(efficacy|mcover)(?:[[:space:]]+|=)[[:space:]]*([^[:space:]\\]+)`,
 )
+
+var catalogMarkdownLinkPattern = regexp.MustCompile(`\[([^]]+)]\(([^)]+)\)`)
 
 type catalog struct {
 	SchemaVersion int      `json:"schema_version"`
@@ -111,7 +114,7 @@ type modFile struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: golib <manifest|validate|cohesion|specifications|assurance|select|safety>")
+		fatal("usage: golib <manifest|validate|cohesion|documentation|specifications|assurance|select|safety>")
 	}
 
 	root, err := repositoryRoot()
@@ -126,6 +129,8 @@ func main() {
 		validate(root)
 	case "cohesion":
 		validateCohesion(root)
+	case "documentation":
+		documentation(root)
 	case "specifications":
 		validateSpecifications(root, os.Args[2:])
 	case "assurance":
@@ -2227,7 +2232,7 @@ func catalogDocumentation(current catalog) map[string]string {
 				moduleLink,
 				markdownCell(item.Kind),
 				markdownCell(item.Lifecycle),
-				markdownCell(item.Purpose),
+				markdownCatalogText(item.Purpose),
 				markdownList(item.OwnedDependencies),
 				markdownList(item.RequiredServices),
 				markdownList(item.Specifications),
@@ -2254,7 +2259,7 @@ func catalogDocumentation(current catalog) map[string]string {
 			markdownCell(item.Kind),
 			markdownOptionalCell(item.Family),
 			markdownCell(item.Lifecycle),
-			markdownCell(item.Purpose),
+			markdownCatalogText(item.Purpose),
 			markdownList(item.OwnedDependencies),
 			markdownList(item.RequiredServices),
 			markdownList(item.Specifications),
@@ -2306,6 +2311,18 @@ func catalogDocumentation(current catalog) map[string]string {
 func markdownCell(value string) string {
 	value = strings.Join(strings.Fields(value), " ")
 	return strings.ReplaceAll(value, "|", "\\|")
+}
+
+func markdownCatalogText(value string) string {
+	portable := catalogMarkdownLinkPattern.ReplaceAllStringFunc(value, func(link string) string {
+		parts := catalogMarkdownLinkPattern.FindStringSubmatch(link)
+		parsed, err := url.Parse(parts[2])
+		if err == nil && parsed.IsAbs() {
+			return link
+		}
+		return parts[1]
+	})
+	return markdownCell(portable)
 }
 
 func markdownOptionalCell(value string) string {

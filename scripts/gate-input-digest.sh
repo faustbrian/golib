@@ -402,11 +402,33 @@ append_verification_tool_files() {
     # Keep successful gate evidence bound to the analyzer contract rather than
     # invalidating every package when isolated runners are made parallel-safe.
     if [[ -f "${root}/scripts/check-module.sh" ]]; then
-        check_module_digest="$(
-            sed 's/ --allow-parallel-runners//g' \
-                "${root}/scripts/check-module.sh" |
-                git hash-object --stdin
-        )"
+        if [[ "${gate}" == "docs" ]]; then
+            check_module_digest="$(
+                sed 's/ --allow-parallel-runners//g' \
+                    "${root}/scripts/check-module.sh" |
+                    git hash-object --stdin
+            )"
+        else
+            # Root-only documentation dispatch cannot alter another gate's
+            # executable contract or invalidate its retained evidence.
+            check_module_digest="$(
+                awk '
+                    $0 == "            if [[ \"${module}\" == \".\" ]]; then" {
+                        print "            if target=\"$(find_make_target docs documentation)\"; then"
+                        skip_root_documentation = 1
+                        next
+                    }
+                    skip_root_documentation && $0 == "            elif target=\"$(find_make_target docs documentation)\"; then" {
+                        skip_root_documentation = 0
+                        next
+                    }
+                    skip_root_documentation { next }
+                    { print }
+                ' "${root}/scripts/check-module.sh" |
+                    sed 's/ --allow-parallel-runners//g' |
+                    git hash-object --stdin
+            )"
+        fi
         printf 'file   %s  %s\n' \
             "${check_module_digest}" \
             'scripts/check-module.sh' >>"${manifest}"

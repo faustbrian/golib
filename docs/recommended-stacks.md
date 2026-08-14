@@ -49,6 +49,8 @@ and asynchronous publication must share one commit boundary.
 
 Package-specific guarantees and examples remain authoritative. See the
 [integration map](integration-map.md), [architecture](architecture.md), and
-[package catalog](package-catalog.md).
+[package catalog](package-catalog.md). Maintained executable compositions are
+listed in [runnable recipes](recipes/index.md); deployment ownership and limits
+are in [operations](operations/index.md) and [limitations](limitations.md).
 
 Return to the [documentation index](index.md).

@@ -534,6 +534,7 @@
             "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
             "docs/hardening-report.md",
             "docs/performance.md",
+            "docs/recipes/durable-worker.md",
             "docs/security/threat-model.md"
           ],
           "verification_gates": [

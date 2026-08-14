@@ -2623,6 +2623,43 @@ KEYCLOAK_IMAGE=keycloak:second
 		t.Fatal("shared gate tooling did not change test digest")
 	}
 	writeTestFile(t, checkModuleScript, "lint run --timeout=10m ./...\n")
+	legacyRootDocumentationGate := `        docs)
+            applicable documentation || { skip_not_applicable documentation; return; }
+            enable_local_proxy
+            if target="$(find_make_target docs documentation)"; then
+                make "${target}"
+            else
+                GOWORK=off go test ./... -run '^Example' -count=1
+            fi
+            ;;
+`
+	currentRootDocumentationGate := `        docs)
+            applicable documentation || { skip_not_applicable documentation; return; }
+            enable_local_proxy
+            if [[ "${module}" == "." ]]; then
+                GOWORK=off go run ./cmd/golib documentation
+            elif target="$(find_make_target docs documentation)"; then
+                make "${target}"
+            else
+                GOWORK=off go test ./... -run '^Example' -count=1
+            fi
+            ;;
+`
+	writeTestFile(t, checkModuleScript, legacyRootDocumentationGate)
+	nonDocumentationBefore := digest("test")
+	documentationBefore := digest("docs")
+	writeTestFile(t, checkModuleScript, currentRootDocumentationGate)
+	if current := digest("test"); current != nonDocumentationBefore {
+		t.Fatalf(
+			"root documentation tooling changed test digest: %s != %s",
+			current,
+			nonDocumentationBefore,
+		)
+	}
+	if current := digest("docs"); current == documentationBefore {
+		t.Fatal("root documentation tooling did not change docs digest")
+	}
+	writeTestFile(t, checkModuleScript, "lint run --timeout=10m ./...\n")
 	moduleCatalog := filepath.Join(root, "modules.json")
 	catalogContents, err := os.ReadFile(moduleCatalog)
 	if err != nil {
@@ -3540,20 +3577,25 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 	root := testRepositoryRoot(t)
 	bin := t.TempDir()
 	makeMarker := filepath.Join(t.TempDir(), "make-called")
+	goMarker := filepath.Join(t.TempDir(), "go-called")
 	makePath := filepath.Join(bin, "make")
 	writeFile(t, makePath, "#!/bin/sh\nprintf called >\"$MAKE_MARKER\"\nexit 99\n")
 	if err := os.Chmod(makePath, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	goPath := filepath.Join(bin, "go")
-	writeFile(t, goPath, "#!/bin/sh\nexit 0\n")
+	writeFile(t, goPath, "#!/bin/sh\nprintf '%s\\n' \"$*\" >\"$GO_MARKER\"\nexit 0\n")
 	if err := os.Chmod(goPath, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
 	command := exec.Command(filepath.Join(root, "scripts", "check-module.sh"), ".", "docs")
 	command.Dir = root
-	command.Env = environmentWith("MAKE_MARKER", makeMarker)
+	command.Env = environmentWithValues(
+		environmentWith("MAKE_MARKER", makeMarker),
+		"GO_MARKER",
+		goMarker,
+	)
 	command.Env = environmentWithValues(
 		command.Env,
 		"GOLIB_LOCAL_PROXY",
@@ -3570,6 +3612,13 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 	}
 	if _, err := os.Stat(makeMarker); !os.IsNotExist(err) {
 		t.Fatalf("root documentation gate delegated to root Makefile")
+	}
+	invocation, err := os.ReadFile(goMarker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(invocation), "./cmd/golib documentation") {
+		t.Fatalf("root documentation invocation = %q", invocation)
 	}
 }
 
