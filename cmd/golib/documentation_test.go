@@ -59,6 +59,14 @@ func TestValidateRepositoryDocumentation(t *testing.T) {
 			wantError: "unsupported scheme-relative link",
 		},
 		{
+			name: "orphan page",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				writeFile(t, filepath.Join(root, "docs", "orphan.md"), "# Orphan\n")
+			},
+			wantError: "documentation page is unreachable from README.md",
+		},
+		{
 			name: "unlinked required page",
 			mutate: func(t *testing.T, root string) {
 				t.Helper()

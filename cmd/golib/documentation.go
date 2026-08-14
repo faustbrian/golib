@@ -89,6 +89,11 @@ func validateRepositoryDocumentation(root string) error {
 		return fmt.Errorf("walk repository documentation: %w", err)
 	}
 	slices.Sort(documents)
+	documentSet := make(map[string]bool, len(documents))
+	for _, path := range documents {
+		documentSet[path] = true
+	}
+	links := make(map[string][]string, len(documents))
 	for _, path := range documents {
 		contents, readErr := os.ReadFile(path)
 		if readErr != nil {
@@ -102,10 +107,62 @@ func validateRepositoryDocumentation(root string) error {
 			if err := validateRepositoryDocumentationLink(root, path, target); err != nil {
 				return fmt.Errorf("%s: %w", relativeDocumentationPath(root, path), err)
 			}
+			if resolved, ok := localMarkdownDocument(path, target); ok && documentSet[resolved] {
+				links[path] = append(links[path], resolved)
+			}
 		}
+	}
+	if unreachable := unreachableDocumentation(filepath.Join(root, "README.md"), documents, links); len(unreachable) != 0 {
+		relative := make([]string, 0, len(unreachable))
+		for _, path := range unreachable {
+			relative = append(relative, relativeDocumentationPath(root, path))
+		}
+		return fmt.Errorf(
+			"documentation page is unreachable from README.md: %s",
+			strings.Join(relative, ", "),
+		)
 	}
 
 	return nil
+}
+
+func localMarkdownDocument(document, target string) (string, bool) {
+	parsed, err := url.Parse(target)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Path == "" {
+		return "", false
+	}
+	resolved := filepath.Clean(filepath.Join(filepath.Dir(document), filepath.FromSlash(parsed.Path)))
+	extension := filepath.Ext(resolved)
+	if !strings.EqualFold(extension, ".md") && !strings.EqualFold(extension, ".markdown") {
+		return "", false
+	}
+	return resolved, true
+}
+
+func unreachableDocumentation(root string, documents []string, links map[string][]string) []string {
+	if len(documents) == 0 {
+		return nil
+	}
+	visited := map[string]bool{root: true}
+	queue := []string{root}
+	for len(queue) != 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, target := range links[current] {
+			if visited[target] {
+				continue
+			}
+			visited[target] = true
+			queue = append(queue, target)
+		}
+	}
+	unreachable := []string{}
+	for _, path := range documents {
+		if !visited[path] {
+			unreachable = append(unreachable, path)
+		}
+	}
+	return unreachable
 }
 
 func repositoryMarkdownTargets(root, path string) (map[string]bool, error) {

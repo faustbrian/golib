@@ -19,6 +19,12 @@ Statuses mean:
 Pending and externally owned work does not invalidate content-identical passed
 evidence and is not a reason to restart unrelated package verification.
 
+Reviewed evidence-identity migrations are retained as part of the audit trail:
+
+- [OpenSearch alias observer migration](evidence/OA-INPUT-DIGEST-MIGRATION-OPENSEARCH-ALIAS-OBSERVER.md)
+- [Reference durability matrix migration](evidence/OA-INPUT-DIGEST-MIGRATION-REFERENCE-DURABILITY-MATRIX.md)
+- [Telemetry endpoint migration](evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md)
+
 ## Reference Services
 
 | Requirement | Status | Current evidence | Exact remaining proof and owner |

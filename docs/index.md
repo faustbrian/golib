@@ -40,6 +40,7 @@ to package-owned contracts and examples.
 - [Curated package entry point](packages.md)
 - [Generated package catalog](package-catalog.md)
 - [Engineering inventory](engineering-inventory.md)
+- [Goal traceability](goal-traceability.md)
 - [Module dependency graph](module-dependencies.md)
 - [Lifecycle policy](module-lifecycle.md)
 - [Versioning](versioning.md)
