@@ -11,8 +11,9 @@ fuzz-tested.
 
 ## Status
 
-The stable v1 API and wire behavior are SemVer-governed. Production package
-code is held to meaningful 100% statement coverage.
+The package is pre-v1 and has no published release. Its current API and wire
+behavior form the candidate contract for the first `v1.0.0` tag. Production
+package code is held to meaningful 100% statement coverage.
 
 ## Requirements
 
@@ -911,9 +912,9 @@ Resolved choices in the
 compatibility policy. Changing one requires protocol review and a changelog
 entry even when exported Go signatures are unchanged.
 
-## Stable releases
+## Planned stable releases
 
-As of `v1.0.0`:
+Beginning with the first `v1.0.0` release:
 
 - patch releases fix defects without intentionally changing valid public
   behavior;
@@ -1150,7 +1151,7 @@ same machine. The regression asserts allocation count rather than timing.
 
 ## Release readiness
 
-**Final verdict: release-ready for the first `v1.0.0` tag.** Every finding is
+**Final verdict: release-candidate ready for the first `v1.0.0` tag.** Every finding is
 fixed or assigned to an explicit trusted extension boundary, every normative
 conformance row has direct passing evidence, and the final gate completed
 without skips on 2026-07-14 using Go 1.26.5 on Darwin/arm64.
@@ -1170,8 +1171,8 @@ without skips on 2026-07-14 using Go 1.26.5 on Darwin/arm64.
 | `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7` | Passed |
 
 The semantic-version recommendation is `v1.0.0`: the remote has no published
-tags, the stable API and compatibility contract are now documented, and the
-full hardening set is included in the dated `1.0.0` changelog section. Trusted
+tags, the candidate API and compatibility contract are now documented, and the
+full hardening set is included in the planned v1 changelog scope. Trusted
 handlers and custom transports still require application output policy,
 timeouts, cancellation cooperation, authentication, authorization, TLS, and
 rate limiting as documented above; these are deployment boundaries, not open
@@ -1395,7 +1396,7 @@ must reuse the same envelopes, validation, dispatch, and error semantics.
 
 ## v1 foundation
 
-`v1.0.0` establishes the transport-neutral client and server API, strict
+`v1.0.0` will establish the transport-neutral client and server API, strict
 JSON-RPC 2.0 conformance, full production-package coverage, and the published
 compatibility and security policies. The release checklist includes verifying
 the tagged module through the public Go module proxy.
@@ -1431,6 +1432,8 @@ All notable changes to this project are documented here. The format is based on
 
 - Replace obsolete standalone-repository links and workflow claims with
   monorepo-canonical targets and current release guidance.
+- Keep package status and compatibility guidance explicit that `v1.0.0` is
+  planned but has not been published.
 
 - Link the package README to the repository-wide Golib documentation portal.
 
@@ -1470,9 +1473,11 @@ All notable changes to this project are documented here. The format is based on
   verification so every viable JSON-RPC mutation is detected without timeout
   or equivalent boundary predicates.
 
-## [1.0.0] - 2026-07-14
+### Planned v1.0.0 scope
 
-### Added
+The following initial scope is implemented but remains unreleased.
+
+#### Added
 
 - Evidence-driven audit and hardening goal covering JSON-RPC conformance,
   hostile inputs, transports, concurrency, compatibility, and release readiness.
@@ -1506,7 +1511,7 @@ All notable changes to this project are documented here. The format is based on
 - Canonical JSON-RPC 2.0 section links on protocol types, dispatch behavior,
   error objects, and conformance fixtures.
 
-### Fixed
+#### Fixed
 
 - Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
 - Reject duplicate members in request, response, and error envelopes instead
@@ -1554,7 +1559,6 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
 [Semantic Versioning]: https://semver.org/
 [Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/jsonrpc
-[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/jsonrpc/v1.0.0
 
 ## Source: docs/conformance.md
 

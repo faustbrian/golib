@@ -9,6 +9,8 @@ the module follows semantic versioning.
 
 - Replace obsolete standalone-repository links and workflow claims with
   monorepo-canonical targets and current release guidance.
+- Keep the changelog and security policy explicit that `v1.0.0` is planned but
+  has not been published.
 
 - Link the package README to the repository-wide Golib documentation portal.
 
@@ -32,9 +34,11 @@ the module follows semantic versioning.
   explicitly waits on a nested or concurrent advancement, preventing reset
   deadlines from depending on goroutine scheduling.
 
-## [1.0.0] - 2026-07-16
+### Planned v1.0.0 scope
 
-### Added
+The following initial scope is implemented but remains unreleased.
+
+#### Added
 
 - Narrow wall-time, elapsed-time, sleep, timer, ticker, and callback contracts.
 - Standard-library-backed `System` behavior for Go 1.26.
@@ -47,4 +51,3 @@ the module follows semantic versioning.
   automation.
 
 [Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/clock
-[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/clock/v1.0.0

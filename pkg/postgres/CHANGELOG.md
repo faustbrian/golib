@@ -9,6 +9,8 @@ Versioning and keeps an Unreleased section until a release is tagged.
 
 - Replace obsolete standalone-repository links and workflow claims with
   monorepo-canonical targets and current release guidance.
+- Keep package status, security, roadmap, and hardening guidance explicit that
+  `v1.0.0` is planned but has not been published.
 
 - Link the package README to the repository-wide Golib documentation portal.
 
@@ -19,8 +21,8 @@ Versioning and keeps an Unreleased section until a release is tagged.
   ownership.
 - `postgrestest.RunIsolated` for bounded always-rollback integration tests
   that preserve callback errors and panic values
-- pinned fail-closed API compatibility checks against a committed stable v1
-  module baseline
+- pinned fail-closed API compatibility checks against the committed prospective
+  v1 module baseline
 
 ### Changed
 
@@ -33,8 +35,8 @@ Versioning and keeps an Unreleased section until a release is tagged.
   module gate.
 - API compatibility tooling now runs against the isolated module graph so owned
   dependency source changes cannot conflict with release checksums.
-- hardening documentation now records the exact hosted `v1.0.0` release proof
-- security support and roadmap documentation now reflect the stable release
+- hardening documentation records exact hosted release-candidate proof
+- security support and roadmap documentation reflect the pre-v1 state
 - hardening evidence now covers the full transaction-mode matrix, representative
   DSN forms, native pool hooks, authentication redaction, and strict TLS refusal
 - nested savepoint evidence now proves inner rollback and outer persistence
@@ -70,9 +72,11 @@ Versioning and keeps an Unreleased section until a release is tagged.
 - `golang.org/x/text` now uses the latest fixed release, removing
   `GO-2026-5970` from reachable pgx pool construction paths
 
-## [1.0.0] - 2026-07-16
+### Planned v1.0.0 scope
 
-### Added
+The following initial scope is implemented but remains unreleased.
+
+#### Added
 
 - finite typed pgxpool configuration with secret-safe validation and panic
   containment for malformed DSNs
@@ -92,4 +96,3 @@ Versioning and keeps an Unreleased section until a release is tagged.
   vulnerability, documentation, compatibility, and release automation
 
 [Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/postgres
-[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/postgres/v1.0.0

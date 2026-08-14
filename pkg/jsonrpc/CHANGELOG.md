@@ -10,6 +10,8 @@ All notable changes to this project are documented here. The format is based on
 
 - Replace obsolete standalone-repository links and workflow claims with
   monorepo-canonical targets and current release guidance.
+- Keep package status and compatibility guidance explicit that `v1.0.0` is
+  planned but has not been published.
 
 - Link the package README to the repository-wide Golib documentation portal.
 
@@ -49,9 +51,11 @@ All notable changes to this project are documented here. The format is based on
   verification so every viable JSON-RPC mutation is detected without timeout
   or equivalent boundary predicates.
 
-## [1.0.0] - 2026-07-14
+### Planned v1.0.0 scope
 
-### Added
+The following initial scope is implemented but remains unreleased.
+
+#### Added
 
 - Evidence-driven audit and hardening goal covering JSON-RPC conformance,
   hostile inputs, transports, concurrency, compatibility, and release readiness.
@@ -85,7 +89,7 @@ All notable changes to this project are documented here. The format is based on
 - Canonical JSON-RPC 2.0 section links on protocol types, dispatch behavior,
   error objects, and conformance fixtures.
 
-### Fixed
+#### Fixed
 
 - Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
 - Reject duplicate members in request, response, and error envelopes instead
@@ -133,4 +137,3 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
 [Semantic Versioning]: https://semver.org/
 [Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/jsonrpc
-[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/jsonrpc/v1.0.0

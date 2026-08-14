@@ -8,6 +8,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 - Replace obsolete standalone-repository links and workflow claims with
   monorepo-canonical targets and current release guidance.
+- Keep the changelog and security policy explicit that `v1.0.0` is planned but
+  has not been published.
 
 - Link the package README to the repository-wide Golib documentation portal.
 
@@ -52,11 +54,12 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 - Reproducible dependency pins matching the exact locally verified sibling
   revisions.
 
-## [1.0.0] - 2026-07-16
+### Planned v1.0.0 scope
 
-### Added
+The following initial scope is implemented but remains unreleased.
+
+#### Added
 
 - Initial production contract for localized domain values.
 
 [Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/localized
-[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/localized/v1.0.0

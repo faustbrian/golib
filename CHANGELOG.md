@@ -92,6 +92,9 @@ documented in each module's changelog.
 - Reject obsolete standalone-repository URLs across package documentation,
   replace package-local workflow badges with the repository CI workflow, and
   remove queue-control-plane publishing claims unsupported by automation.
+- Reject released-version changelog sections for pre-v1 modules and correct
+  package status, security, roadmap, and release-candidate guidance to match
+  the repository's unpublished state.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.

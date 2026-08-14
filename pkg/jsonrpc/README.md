@@ -7,8 +7,9 @@ fuzz-tested.
 
 ## Status
 
-The stable v1 API and wire behavior are SemVer-governed. Production package
-code is held to meaningful 100% statement coverage.
+The package is pre-v1 and has no published release. Its current API and wire
+behavior form the candidate contract for the first `v1.0.0` tag. Production
+package code is held to meaningful 100% statement coverage.
 
 ## Requirements
 

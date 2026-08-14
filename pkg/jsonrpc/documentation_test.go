@@ -82,7 +82,7 @@ func TestCoreDocumentationContract(t *testing.T) {
 		"docs/adoption.md":        {"Inventory", "Shadow", "Rollout", "Rollback"},
 		"docs/faq.md":             {"notification", "batch", "WebSocket"},
 		"docs/troubleshooting.md": {"Parse error", "Invalid Request", "Method not found", "Invalid params"},
-		"docs/compatibility.md":   {"Semantic Versioning", "Wire compatibility", "Stable releases"},
+		"docs/compatibility.md":   {"Semantic Versioning", "Wire compatibility", "Planned stable releases"},
 		"docs/releasing.md": {
 			"Release checklist",
 			"semantic version",
@@ -118,20 +118,19 @@ func TestCoreDocumentationContract(t *testing.T) {
 	}
 }
 
-func TestV1ReleaseDocumentationContract(t *testing.T) {
+func TestPlannedV1DocumentationContract(t *testing.T) {
 	t.Parallel()
 
 	required := map[string][]string{
 		"CHANGELOG.md": {
 			"## [Unreleased]",
-			"## [1.0.0] - 2026-07-14",
+			"### Planned v1.0.0 scope",
 			"[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/jsonrpc",
-			"[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/jsonrpc/v1.0.0",
 		},
-		"README.md":             {"stable v1 API"},
+		"README.md":             {"pre-v1 and has no published release"},
 		"SECURITY.md":           {"Before `v1.0.0`", "security fixes are applied"},
 		"ROADMAP.md":            {"## Post-v1 roadmap"},
-		"docs/compatibility.md": {"As of `v1.0.0`"},
+		"docs/compatibility.md": {"Beginning with the first `v1.0.0` release"},
 		"docs/api.md":           {"Starting with `v1.0.0`"},
 		"go.mod":                {"module github.com/faustbrian/golib/pkg/jsonrpc"},
 	}

@@ -18,7 +18,7 @@ alone are not a release verdict.
 | GP-010 | telemetry leaks SQL/data | bounded slog/OTel tests plus independently verified allow-listed query tracer | resolved |
 | GP-011 | lock/failure behavior assumed | live lock/statement/idle timeouts, deadlock, serialization, cancellation, transaction loss, stop/restart | resolved |
 | GP-012 | connection/goroutine leak | stats stress test and goleak test | resolved |
-| GP-013 | version claim untested | PostgreSQL 14-18 and Go/OS workflow matrices | resolved for v1.0.0; reverify per release |
+| GP-013 | version claim untested | PostgreSQL 14-18 and Go/OS workflow matrices | candidate verified; reverify the tagged release |
 | GP-014 | coverage gaming | `coverpkg=./...` plus real PostgreSQL exact 100% gate | resolved locally |
 | GP-015 | unsafe/cgo/linkname | GO-SAFETY-1 script and CI | resolved locally |
 | GP-016 | test container leak | bounded startup/setup error, panic, and Goexit cleanup; cleanup-panic cause preservation; retryable termination tests | resolved |
@@ -30,12 +30,13 @@ alone are not a release verdict.
 | GP-022 | helper overhead unmeasured | allocation benchmarks plus dated local baseline and CI artifact | resolved |
 
 Local evidence includes unit, integration, race, exact coverage, fuzz, benchmark,
-vet, golangci-lint, actionlint, documentation, and vulnerability gates. For
-`v1.0.0`, CI run `29465670430`, PostgreSQL integration run `29465670419`,
-Security run `29465670424`, and Release run `29465832005` passed on commit
-`709e7101c3955b230c2dcf8f7299dd1893ea6f79`; the release workflow covered every
-supported PostgreSQL major. Each later release still requires fresh hosted
-evidence on its exact tagged commit.
+vet, golangci-lint, actionlint, documentation, and vulnerability gates. For the
+planned `v1.0.0` candidate, CI run `29465670430`, PostgreSQL integration run
+`29465670419`, Security run `29465670424`, and Release run `29465832005` passed
+on commit `709e7101c3955b230c2dcf8f7299dd1893ea6f79`; no release tag was
+published. The release workflow covered every supported PostgreSQL major. The
+first release and every later release still require fresh hosted evidence on
+the exact tagged commit.
 
 Trusted boundaries that remain intentionally application-owned include SQL and
 argument policy, hook behavior, TLS roots and identities, role permissions,

@@ -402,6 +402,7 @@
             "docs/assurance/evidence/OA-FAILURE-RECOVERY-WORKFLOW.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-URL-CONTRACT.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OPENSEARCH-ALIAS-OBSERVER.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-PRE-V1-STATUS.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-REFERENCE-DURABILITY-MATRIX.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
             "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",

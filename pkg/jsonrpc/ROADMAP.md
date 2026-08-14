@@ -5,7 +5,7 @@ must reuse the same envelopes, validation, dispatch, and error semantics.
 
 ## v1 foundation
 
-`v1.0.0` establishes the transport-neutral client and server API, strict
+`v1.0.0` will establish the transport-neutral client and server API, strict
 JSON-RPC 2.0 conformance, full production-package coverage, and the published
 compatibility and security policies. The release checklist includes verifying
 the tagged module through the public Go module proxy.

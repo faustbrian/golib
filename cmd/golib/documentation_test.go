@@ -165,6 +165,18 @@ func TestValidateRepositoryDocumentation(t *testing.T) {
 			},
 			wantError: "package documentation contains a noncanonical standalone-repository URL",
 		},
+		{
+			name: "pre-v1 module claims a released changelog version",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				appendDocumentation(
+					t,
+					filepath.Join(root, "pkg", "sample", "CHANGELOG.md"),
+					"\n## [1.0.0] - 2026-08-14\n",
+				)
+			},
+			wantError: "pre-v1 module changelog claims a released version",
+		},
 	}
 
 	for _, test := range tests {
@@ -226,8 +238,13 @@ func documentationFixture(t *testing.T) string {
 	)
 	writeFile(
 		t,
+		filepath.Join(root, "pkg", "sample", "CHANGELOG.md"),
+		"# Changelog\n\n## [Unreleased]\n",
+	)
+	writeFile(
+		t,
 		filepath.Join(root, "modules.json"),
-		`{"modules":[{"directory":"pkg/sample","releasable":true}]}`+"\n",
+		`{"modules":[{"directory":"pkg/sample","lifecycle":"pre-v1","releasable":true}]}`+"\n",
 	)
 	return root
 }

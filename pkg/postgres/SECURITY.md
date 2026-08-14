@@ -4,12 +4,11 @@
 
 | Release line | Status | End of support |
 | --- | --- | --- |
-| 1.0.x | Supported | Not scheduled |
-| < 1.0.0 | Unsupported | 2026-07-16 |
+| `main` (pre-v1) | Supported development line | First `v1.0.0` release |
 
-Security fixes are applied to the latest patch release in each supported line.
-An advisory will identify affected versions and any change to this support
-window. The `main` branch is development state, not a supported release.
+No release has been published. Security fixes are applied to `main` until the
+first `v1.0.0` tag. An advisory will identify affected revisions and the
+supported release lines after publication.
 
 ## Reporting a vulnerability
 

@@ -257,8 +257,45 @@ func validatePackageDocumentationBacklinks(root string) error {
 				relativeDocumentationPath(root, readmePath),
 			)
 		}
+		if err := validatePreV1Changelog(root, item.Directory, item.Lifecycle); err != nil {
+			return err
+		}
 		if err := validatePackageDocumentationURLs(root, item.Directory); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func validatePreV1Changelog(root, directory, lifecycle string) error {
+	if lifecycle != "pre-v1" {
+		return nil
+	}
+	path := filepath.Join(root, filepath.FromSlash(directory), "CHANGELOG.md")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read pre-v1 module changelog %s: %w", relativeDocumentationPath(root, path), err)
+	}
+	var fenceCharacter byte
+	fenceLength := 0
+	for lineNumber, rawLine := range strings.Split(string(contents), "\n") {
+		line := strings.TrimSpace(rawLine)
+		character, length, closes := markdownFence(line, fenceCharacter, fenceLength)
+		if character != 0 {
+			if fenceCharacter == 0 {
+				fenceCharacter, fenceLength = character, length
+			} else if closes {
+				fenceCharacter, fenceLength = 0, 0
+			}
+			continue
+		}
+		if fenceCharacter == 0 && strings.HasPrefix(line, "## [") && line != "## [Unreleased]" {
+			return fmt.Errorf(
+				"pre-v1 module changelog claims a released version at %s:%d: %s",
+				relativeDocumentationPath(root, path),
+				lineNumber+1,
+				line,
+			)
 		}
 	}
 	return nil

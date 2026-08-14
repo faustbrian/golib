@@ -23,6 +23,7 @@ Reviewed evidence-identity migrations are retained as part of the audit trail:
 
 - [OpenSearch alias observer migration](evidence/OA-INPUT-DIGEST-MIGRATION-OPENSEARCH-ALIAS-OBSERVER.md)
 - [JSON-RPC URL contract migration](evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-URL-CONTRACT.md)
+- [Pre-v1 status migration](evidence/OA-INPUT-DIGEST-MIGRATION-PRE-V1-STATUS.md)
 - [Reference durability matrix migration](evidence/OA-INPUT-DIGEST-MIGRATION-REFERENCE-DURABILITY-MATRIX.md)
 - [Telemetry endpoint migration](evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md)
 

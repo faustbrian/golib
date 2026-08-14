@@ -31,9 +31,9 @@ the aggregate before producing checksummed source archives.
 ## Verdict criteria
 
 The verdict is `GO` only when all commands exit zero, the worktree is clean,
-the changelog contains the release version, no critical/high/medium finding is
-open, and provider claims exactly match the provider matrix. Otherwise it is
-`NO-GO`.
+the changelog moves the planned scope under the release version, no
+critical/high/medium finding is open, and provider claims exactly match the
+provider matrix. Otherwise it is `NO-GO`.
 
 Residual risks are operator-owned secret quality and rotation, durable store
 availability and tenant scoping, application-side idempotency and payload
