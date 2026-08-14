@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Compatibility
@@ -129,5 +132,5 @@ All notable changes to this project are documented here. The format is based on
 
 [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
 [Semantic Versioning]: https://semver.org/
-[Unreleased]: https://github.com/faustbrian/golib/pkg/jsonrpc/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/faustbrian/golib/pkg/jsonrpc/releases/tag/v1.0.0
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/jsonrpc
+[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/jsonrpc/v1.0.0

@@ -1,12 +1,6 @@
 # opening-hours
 
-[![quality](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/ci.yml/badge.svg?branch=main&job=quality)](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/ci.yml)
-[![lint](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/ci.yml/badge.svg?branch=main&job=lint)](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/ci.yml)
-[![vulnerability](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/ci.yml/badge.svg?branch=main&job=vulnerability)](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/ci.yml)
-[![NilAway advisory](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/ci.yml/badge.svg?branch=main&job=nilaway-advisory)](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/ci.yml)
-[![PostgreSQL](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/integration.yml/badge.svg?branch=main&job=postgres)](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/integration.yml)
-[![release](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/release.yml/badge.svg?job=verify)](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/release.yml)
-[![publish](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/release.yml/badge.svg?job=publish)](https://github.com/faustbrian/golib/pkg/opening-hours/actions/workflows/release.yml)
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/golib/pkg/opening-hours.svg)](https://pkg.go.dev/github.com/faustbrian/golib/pkg/opening-hours)
 
 Immutable, deterministic, timezone-safe recurring opening hours and dated

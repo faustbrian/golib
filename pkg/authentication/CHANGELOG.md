@@ -7,6 +7,9 @@ this project follows Semantic Versioning.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Security
@@ -78,4 +81,4 @@ this project follows Semantic Versioning.
   enforce explicit parameter and field bounds.
 - Query credential constructors are deprecated for new designs.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/authentication/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/authentication

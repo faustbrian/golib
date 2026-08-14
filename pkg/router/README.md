@@ -1,10 +1,6 @@
 # router
 
-[![CI](https://github.com/faustbrian/golib/pkg/router/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/ci.yml)
-[![Fuzz](https://github.com/faustbrian/golib/pkg/router/actions/workflows/fuzz.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/fuzz.yml)
-[![Security](https://github.com/faustbrian/golib/pkg/router/actions/workflows/security.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/security.yml)
-[![Benchmarks](https://github.com/faustbrian/golib/pkg/router/actions/workflows/benchmark.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/benchmark.yml)
-[![Release](https://github.com/faustbrian/golib/pkg/router/actions/workflows/release.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/release.yml)
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
 
 `router` is an explicit, immutable HTTP router built on Go's `net/http`
 programming model. It adds deterministic composition, groups, names, safe URL

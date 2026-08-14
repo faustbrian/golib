@@ -7,6 +7,9 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Changed
@@ -73,4 +76,4 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
   releases instead of relying on higher versions supplied by the repository
   workspace.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/telemetry/compare/main...HEAD
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/telemetry

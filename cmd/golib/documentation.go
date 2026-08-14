@@ -257,6 +257,47 @@ func validatePackageDocumentationBacklinks(root string) error {
 				relativeDocumentationPath(root, readmePath),
 			)
 		}
+		if err := validatePackageDocumentationURLs(root, item.Directory); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePackageDocumentationURLs(root, directory string) error {
+	moduleRoot := filepath.Join(root, filepath.FromSlash(directory))
+	paths, err := filepath.Glob(filepath.Join(moduleRoot, "*.md"))
+	if err != nil {
+		return fmt.Errorf("discover package documentation for %s: %w", directory, err)
+	}
+	docsRoot := filepath.Join(moduleRoot, "docs")
+	if info, statErr := os.Stat(docsRoot); statErr == nil && info.IsDir() {
+		if err := filepath.WalkDir(docsRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if !entry.IsDir() && strings.EqualFold(filepath.Ext(path), ".md") {
+				paths = append(paths, path)
+			}
+			return nil
+		}); err != nil {
+			return fmt.Errorf("walk package documentation for %s: %w", directory, err)
+		}
+	} else if statErr != nil && !errors.Is(statErr, fs.ErrNotExist) {
+		return fmt.Errorf("stat package documentation for %s: %w", directory, statErr)
+	}
+	slices.Sort(paths)
+	for _, path := range paths {
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read package documentation %s: %w", relativeDocumentationPath(root, path), err)
+		}
+		if strings.Contains(string(contents), "https://github.com/faustbrian/golib/pkg/") {
+			return fmt.Errorf(
+				"package documentation contains a noncanonical standalone-repository URL: %s",
+				relativeDocumentationPath(root, path),
+			)
+		}
 	}
 	return nil
 }

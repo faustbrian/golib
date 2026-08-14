@@ -7,6 +7,9 @@ versioning and Keep a Changelog structure.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Added
@@ -348,4 +351,4 @@ versioning and Keep a Changelog structure.
   results do not depend on scheduler selection between simultaneously ready
   channels.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/queue/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/queue

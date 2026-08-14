@@ -7,6 +7,9 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Changed
@@ -78,4 +81,4 @@ Versioning and keeps an Unreleased section at the top.
 - Keep backend conformance failure messages compatible with standard Go error
   style so strict static analysis remains clean for downstream test suites.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/cache/compare/HEAD...HEAD
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/cache

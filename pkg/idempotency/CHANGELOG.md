@@ -8,6 +8,9 @@ public API reaches its first stable version.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Compatibility
@@ -90,4 +93,4 @@ public API reaches its first stable version.
 
 - The public API is pre-v1 and may change before the first stable release.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/idempotency/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/idempotency

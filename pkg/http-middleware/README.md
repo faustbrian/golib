@@ -1,7 +1,6 @@
 # http-middleware
 
-[![CI](https://github.com/faustbrian/golib/pkg/http-middleware/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/http-middleware/actions/workflows/ci.yml)
-[![Release](https://github.com/faustbrian/golib/pkg/http-middleware/actions/workflows/release.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/http-middleware/actions/workflows/release.yml)
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/golib/pkg/http-middleware.svg)](https://pkg.go.dev/github.com/faustbrian/golib/pkg/http-middleware)
 [![Go Report Card](https://goreportcard.com/badge/github.com/faustbrian/golib/pkg/http-middleware)](https://goreportcard.com/report/github.com/faustbrian/golib/pkg/http-middleware)
 

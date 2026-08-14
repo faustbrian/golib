@@ -153,6 +153,18 @@ func TestValidateRepositoryDocumentation(t *testing.T) {
 			},
 			wantError: "noncanonical repository source link",
 		},
+		{
+			name: "noncanonical package documentation link",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				appendDocumentation(
+					t,
+					filepath.Join(root, "pkg", "sample", "README.md"),
+					"\n[workflow](https://github.com/faustbrian/golib/pkg/sample/actions/workflows/ci.yml)\n",
+				)
+			},
+			wantError: "package documentation contains a noncanonical standalone-repository URL",
+		},
 	}
 
 	for _, test := range tests {

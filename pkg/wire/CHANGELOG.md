@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Compatibility
@@ -219,4 +222,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The final hardening verdict records Go 1.25 compatibility, symmetric bounded
   APIs, current direct codec dependencies, and the remaining upstream risks.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/wire/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/wire

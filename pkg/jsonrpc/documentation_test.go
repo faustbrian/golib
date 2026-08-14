@@ -125,8 +125,8 @@ func TestV1ReleaseDocumentationContract(t *testing.T) {
 		"CHANGELOG.md": {
 			"## [Unreleased]",
 			"## [1.0.0] - 2026-07-14",
-			"[Unreleased]: https://github.com/faustbrian/golib/pkg/jsonrpc/compare/v1.0.0...HEAD",
-			"[1.0.0]: https://github.com/faustbrian/golib/pkg/jsonrpc/releases/tag/v1.0.0",
+			"[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/jsonrpc",
+			"[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/jsonrpc/v1.0.0",
 		},
 		"README.md":             {"stable v1 API"},
 		"SECURITY.md":           {"Before `v1.0.0`", "security fixes are applied"},

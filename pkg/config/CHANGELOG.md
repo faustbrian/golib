@@ -7,6 +7,9 @@ and releases use Semantic Versioning.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Changed
@@ -60,4 +63,4 @@ and releases use Semantic Versioning.
 - Explicit conformance assertions that decoding, defaults, environment
   loading, metadata, and snapshot cloning do not mutate private struct state.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/config/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/config

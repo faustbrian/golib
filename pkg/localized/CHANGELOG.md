@@ -6,6 +6,9 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Fixed
@@ -55,5 +58,5 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 - Initial production contract for localized domain values.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/localized/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/faustbrian/golib/pkg/localized/releases/tag/v1.0.0
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/localized
+[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/localized/v1.0.0

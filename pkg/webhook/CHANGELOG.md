@@ -7,6 +7,9 @@ and Semantic Versioning.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Compatibility
@@ -82,5 +85,5 @@ and Semantic Versioning.
 
 The first release will freeze the `v1` canonicalization and wire contracts.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/webhook/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/faustbrian/golib/pkg/webhook/releases/tag/v1.0.0
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/webhook
+[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/webhook/v1.0.0

@@ -89,6 +89,9 @@ documented in each module's changelog.
   skipped heading levels, or unclosed fenced code blocks.
 - Reject malformed GitHub repository source links that omit a `blob` or `tree`
   route and repair the propagated queue-control-plane catalog link.
+- Reject obsolete standalone-repository URLs across package documentation,
+  replace package-local workflow badges with the repository CI workflow, and
+  remove queue-control-plane publishing claims unsupported by automation.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.

@@ -7,6 +7,9 @@ Versioning after v1.0.0.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Changed
@@ -48,4 +51,4 @@ Versioning after v1.0.0.
 - Replace unreachable owned-module pseudo-versions with published revisions so
   clean checkouts can reproduce every gate without local replacements.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/opening-hours/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/opening-hours

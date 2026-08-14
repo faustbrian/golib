@@ -1824,6 +1824,9 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Compatibility
@@ -1975,7 +1978,7 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Decouple validated changelog release dates from the wall-clock day on which
   a prepared tag is published.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/jsonapi/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/jsonapi
 
 ## Source: docs/conformance.md
 

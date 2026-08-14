@@ -7,6 +7,9 @@ Versioning and keeps an Unreleased section until a release is tagged.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Added
@@ -88,5 +91,5 @@ Versioning and keeps an Unreleased section until a release is tagged.
 - exact production coverage, race, leak, fuzz, benchmark, safety, lint,
   vulnerability, documentation, compatibility, and release automation
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/postgres/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/faustbrian/golib/pkg/postgres/releases/tag/v1.0.0
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/postgres
+[1.0.0]: https://github.com/faustbrian/golib/releases/tag/pkg/postgres/v1.0.0

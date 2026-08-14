@@ -7,6 +7,9 @@ Versioning after its first stable release.
 
 ### Documentation
 
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
 - Link the package README to the repository-wide Golib documentation portal.
 
 - Delegate local mutation checks to the canonical exact-100 repository runner
