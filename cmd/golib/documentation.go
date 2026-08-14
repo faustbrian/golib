@@ -115,6 +115,9 @@ func validateRepositoryDocumentation(root string) error {
 		if readErr != nil {
 			return fmt.Errorf("read documentation %s: %w", relativeDocumentationPath(root, path), readErr)
 		}
+		if err := validateRepositoryMarkdownStyle(relativeDocumentationPath(root, path), contents); err != nil {
+			return err
+		}
 		if strings.Contains(string(contents), "/Users/") {
 			return fmt.Errorf("%s contains a private absolute path", relativeDocumentationPath(root, path))
 		}
@@ -140,6 +143,93 @@ func validateRepositoryDocumentation(root string) error {
 	}
 
 	return nil
+}
+
+func validateRepositoryMarkdownStyle(path string, contents []byte) error {
+	lines := strings.Split(string(contents), "\n")
+	firstContent := ""
+	headingCount := 0
+	previousHeadingLevel := 0
+	fenceCharacter := byte(0)
+	fenceLength := 0
+	for index, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if firstContent == "" && trimmed != "" {
+			firstContent = trimmed
+		}
+		if marker, length, closing := markdownFence(trimmed, fenceCharacter, fenceLength); marker != 0 {
+			if closing {
+				fenceCharacter = 0
+				fenceLength = 0
+			} else if fenceCharacter == 0 {
+				fenceCharacter = marker
+				fenceLength = length
+			}
+			continue
+		}
+		if fenceCharacter != 0 {
+			continue
+		}
+		level := markdownHeadingLevel(line)
+		if level == 0 {
+			continue
+		}
+		if level == 1 {
+			headingCount++
+		}
+		if previousHeadingLevel != 0 && level > previousHeadingLevel+1 {
+			return fmt.Errorf(
+				"%s:%d heading level jumps from %d to %d",
+				path,
+				index+1,
+				previousHeadingLevel,
+				level,
+			)
+		}
+		previousHeadingLevel = level
+	}
+	if firstContent == "" || !strings.HasPrefix(firstContent, "# ") {
+		return fmt.Errorf("%s must begin with one level-one heading", path)
+	}
+	if headingCount != 1 {
+		return fmt.Errorf("%s has %d level-one headings; want exactly one", path, headingCount)
+	}
+	if fenceCharacter != 0 {
+		return fmt.Errorf("%s has an unclosed fenced code block", path)
+	}
+	return nil
+}
+
+func markdownFence(line string, openCharacter byte, openLength int) (byte, int, bool) {
+	if len(line) < 3 || (line[0] != '`' && line[0] != '~') {
+		return 0, 0, false
+	}
+	character := line[0]
+	length := 0
+	for length < len(line) && line[length] == character {
+		length++
+	}
+	if length < 3 {
+		return 0, 0, false
+	}
+	if openCharacter == 0 {
+		return character, length, false
+	}
+	if character != openCharacter || length < openLength || strings.TrimSpace(line[length:]) != "" {
+		return 0, 0, false
+	}
+	return character, length, true
+}
+
+func markdownHeadingLevel(line string) int {
+	level := 0
+	for level < len(line) && level < 6 && line[level] == '#' {
+		level++
+	}
+	if level == 0 || level >= len(line) || line[level] != ' ' {
+		return 0
+	}
+	return level
 }
 
 func validatePackageDocumentationBacklinks(root string) error {

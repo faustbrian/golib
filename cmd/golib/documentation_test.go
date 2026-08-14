@@ -90,6 +90,57 @@ func TestValidateRepositoryDocumentation(t *testing.T) {
 			},
 			wantError: "releasable module README does not link to the documentation portal: pkg/sample/README.md",
 		},
+		{
+			name: "heading level jump",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				writeFile(
+					t,
+					filepath.Join(root, "docs", "limitations.md"),
+					"# Limitations\n\n### Skipped level\n\n[Documentation](index.md)\n",
+				)
+			},
+			wantError: "heading level jumps from 1 to 3",
+		},
+		{
+			name: "unclosed code fence",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				appendDocumentation(t, filepath.Join(root, "docs", "limitations.md"), "\n```go\n")
+			},
+			wantError: "has an unclosed fenced code block",
+		},
+		{
+			name: "missing top-level heading",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				writeFile(
+					t,
+					filepath.Join(root, "docs", "limitations.md"),
+					"Limitations\n\n[Documentation](index.md)\n",
+				)
+			},
+			wantError: "must begin with one level-one heading",
+		},
+		{
+			name: "multiple top-level headings",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				appendDocumentation(t, filepath.Join(root, "docs", "limitations.md"), "\n# Duplicate\n")
+			},
+			wantError: "has 2 level-one headings; want exactly one",
+		},
+		{
+			name: "headings inside code fences are ignored",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				appendDocumentation(
+					t,
+					filepath.Join(root, "docs", "limitations.md"),
+					"\n~~~markdown\n# Example heading\n#### Example jump\n~~~\n",
+				)
+			},
+		},
 	}
 
 	for _, test := range tests {

@@ -85,6 +85,8 @@ documented in each module's changelog.
 - Link every non-specialist releasable module to the canonical documentation
   portal and reject future missing backlinks while explicitly leaving the
   Kafka and Verkle specialist-owned modules outside this documentation batch.
+- Reject repository documentation with missing or multiple top-level headings,
+  skipped heading levels, or unclosed fenced code blocks.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.
