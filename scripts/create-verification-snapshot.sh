@@ -33,6 +33,16 @@ fi
 git -C "${snapshot_directory}" ls-files --deleted -z |
     git -C "${snapshot_directory}" update-index --remove -z --stdin
 
+# A staged addition remains tracked even when a machine-wide ignore rule
+# matches its name. Mirror that index classification so verification input
+# discovery sees the same files in the snapshot and source repository.
+while IFS= read -r -d '' path; do
+    git -C "${snapshot_directory}" add -N -f -- "${path}"
+done < <(
+    git -C "${source_repository}" \
+        diff --cached --name-only --diff-filter=A -z
+)
+
 while IFS= read -r -d '' path; do
     mkdir -p "${snapshot_directory}/$(dirname "${path}")"
     cp -pP \

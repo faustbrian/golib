@@ -2637,7 +2637,7 @@ KEYCLOAK_IMAGE=keycloak:second
             applicable documentation || { skip_not_applicable documentation; return; }
             enable_local_proxy
             if [[ "${module}" == "." ]]; then
-                GOWORK=off go run ./cmd/golib documentation
+                GOWORK=off "${root}/scripts/check-documentation.sh"
             elif target="$(find_make_target docs documentation)"; then
                 make "${target}"
             else
@@ -3573,11 +3573,13 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	}
 }
 
-func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
+func TestRootDocumentationGateRunsEveryCanonicalCheck(t *testing.T) {
 	root := testRepositoryRoot(t)
 	bin := t.TempDir()
 	makeMarker := filepath.Join(t.TempDir(), "make-called")
 	goMarker := filepath.Join(t.TempDir(), "go-called")
+	cspellMarker := filepath.Join(t.TempDir(), "cspell-called")
+	lycheeMarker := filepath.Join(t.TempDir(), "lychee-called")
 	makePath := filepath.Join(bin, "make")
 	writeFile(t, makePath, "#!/bin/sh\nprintf called >\"$MAKE_MARKER\"\nexit 99\n")
 	if err := os.Chmod(makePath, 0o700); err != nil {
@@ -3586,6 +3588,16 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 	goPath := filepath.Join(bin, "go")
 	writeFile(t, goPath, "#!/bin/sh\nprintf '%s\\n' \"$*\" >\"$GO_MARKER\"\nexit 0\n")
 	if err := os.Chmod(goPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cspellPath := filepath.Join(bin, "cspell")
+	writeFile(t, cspellPath, "#!/bin/sh\nprintf '%s\\n' \"$*\" >\"$CSPELL_MARKER\"\n")
+	if err := os.Chmod(cspellPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	lycheePath := filepath.Join(bin, "lychee")
+	writeFile(t, lycheePath, "#!/bin/sh\nprintf '%s\\n' \"$*\" >\"$LYCHEE_MARKER\"\n")
+	if err := os.Chmod(lycheePath, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3606,6 +3618,10 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 		"PATH",
 		bin+":"+os.Getenv("PATH"),
 	)
+	command.Env = environmentWithValues(command.Env, "GOLIB_CSPELL", cspellPath)
+	command.Env = environmentWithValues(command.Env, "GOLIB_LYCHEE", lycheePath)
+	command.Env = environmentWithValues(command.Env, "CSPELL_MARKER", cspellMarker)
+	command.Env = environmentWithValues(command.Env, "LYCHEE_MARKER", lycheeMarker)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("root documentation gate: %v\n%s", err, output)
@@ -3619,6 +3635,59 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 	}
 	if !strings.Contains(string(invocation), "./cmd/golib documentation") {
 		t.Fatalf("root documentation invocation = %q", invocation)
+	}
+	for name, marker := range map[string]string{
+		"cspell": cspellMarker,
+		"lychee": lycheeMarker,
+	} {
+		invocation, err := os.ReadFile(marker)
+		if err != nil {
+			t.Fatalf("read %s invocation: %v", name, err)
+		}
+		if !strings.Contains(string(invocation), "README.md") ||
+			!strings.Contains(string(invocation), "docs/**/*.md") {
+			t.Fatalf("%s invocation = %q", name, invocation)
+		}
+	}
+}
+
+func TestDocumentationGatePropagatesToolFailure(t *testing.T) {
+	root := testRepositoryRoot(t)
+	for _, test := range []struct {
+		name       string
+		cspellExit int
+		lycheeExit int
+	}{
+		{name: "spelling", cspellExit: 16},
+		{name: "links", lycheeExit: 17},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			bin := t.TempDir()
+			goPath := filepath.Join(bin, "go")
+			writeFile(t, goPath, "#!/bin/sh\nexit 0\n")
+			if err := os.Chmod(goPath, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			cspellPath := filepath.Join(bin, "cspell")
+			writeFile(t, cspellPath, fmt.Sprintf("#!/bin/sh\nexit %d\n", test.cspellExit))
+			if err := os.Chmod(cspellPath, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			lycheePath := filepath.Join(bin, "lychee")
+			writeFile(t, lycheePath, fmt.Sprintf("#!/bin/sh\nexit %d\n", test.lycheeExit))
+			if err := os.Chmod(lycheePath, 0o700); err != nil {
+				t.Fatal(err)
+			}
+
+			command := exec.Command(filepath.Join(root, "scripts", "check-documentation.sh"))
+			command.Dir = root
+			command.Env = environmentWithValues(os.Environ(), "PATH", bin+":"+os.Getenv("PATH"))
+			command.Env = environmentWithValues(command.Env, "GOLIB_CSPELL", cspellPath)
+			command.Env = environmentWithValues(command.Env, "GOLIB_LYCHEE", lycheePath)
+			if output, err := command.CombinedOutput(); err == nil {
+				t.Fatalf("documentation gate accepted failed %s check:\n%s", test.name, output)
+			}
+		})
 	}
 }
 
@@ -3948,7 +4017,7 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	runGit("init", "--initial-branch=main")
 	runGit("config", "user.email", "golib@example.test")
 	runGit("config", "user.name", "golib")
-	writeFile(t, filepath.Join(repository, ".gitignore"), "ignored.txt\n.artifacts/\n")
+	writeFile(t, filepath.Join(repository, ".gitignore"), "ignored.txt\nstaged-ignored.txt\n.artifacts/\n")
 	writeFile(t, filepath.Join(repository, "tracked.txt"), "committed\n")
 	writeFile(t, filepath.Join(repository, "removed.txt"), "remove me\n")
 	runGit("add", ".gitignore", "tracked.txt", "removed.txt")
@@ -3960,6 +4029,8 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	}
 	writeFile(t, filepath.Join(repository, "untracked.txt"), "untracked\n")
 	writeFile(t, filepath.Join(repository, "ignored.txt"), "ignored\n")
+	writeFile(t, filepath.Join(repository, "staged-ignored.txt"), "staged and tracked\n")
+	runGit("add", "-f", "staged-ignored.txt")
 
 	snapshot := filepath.Join(t.TempDir(), "snapshot")
 	command := exec.Command(
@@ -3972,8 +4043,9 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	}
 
 	for path, expected := range map[string]string{
-		"tracked.txt":   "working tree\n",
-		"untracked.txt": "untracked\n",
+		"staged-ignored.txt": "staged and tracked\n",
+		"tracked.txt":        "working tree\n",
+		"untracked.txt":      "untracked\n",
 	} {
 		contents, err := os.ReadFile(filepath.Join(snapshot, path))
 		if err != nil {
@@ -3995,6 +4067,9 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	}
 	if strings.Contains(string(indexOutput), "removed.txt") {
 		t.Fatalf("snapshot index retained removed path:\n%s", indexOutput)
+	}
+	if !strings.Contains(string(indexOutput), "staged-ignored.txt") {
+		t.Fatalf("snapshot index omitted staged ignored path:\n%s", indexOutput)
 	}
 
 	writeFile(t, filepath.Join(snapshot, "tracked.txt"), "snapshot only\n")

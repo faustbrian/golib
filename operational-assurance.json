@@ -1533,6 +1533,390 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-PRE-V1-STATUS.md",
       "evidence_sha256": "888462b8f01b43641e62fa8730972bf9d638952b4d4273e40fb98ce308f07c27",
       "rationale": "Pre-v1 status corrections changed only transitive JSON-RPC documentation inputs, not retained queue control-plane behavior."
+    },
+    {
+      "module": "pkg/adaptive-throttle",
+      "from_sha256": "ef92b812354b9cebb51b9d9e7f74a605a42d190e4806e951c5f3bbebd2fa89f4",
+      "to_sha256": "90b700a7d752b87300fc6fbba0b97142be0275bd53fc6b92f31a9b435be3921e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/api-query",
+      "from_sha256": "c173a1579ee8ccaca11091db249e009d6b80e1abac4e3438b67a86503c5b3768",
+      "to_sha256": "d3f6edda5b269083d04afb97137e9a4b86e0532e4c3eb4ea9c96db93c2c84b67",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/audit",
+      "from_sha256": "913ba366fab616451eeecbec1f5923ffa5e7b98e80dae5123900ca89a3805bda",
+      "to_sha256": "f6c6b6ba4f0e1de5948efeaa6f7f7f918ec5e27f1d2832da8e25167424fef068",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/audit/postgres",
+      "from_sha256": "3c60aae4255be382c7c503814430c8b94cb89566116c8ce3d01c3900775cd87e",
+      "to_sha256": "4312eb1062cba2414e2ec4b11faf477977bff8f1a26000398855ad3f63558c5b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/authentication",
+      "from_sha256": "fd0ed199914739aa42e3efbdfc8346cfb0565cee724de57a14fcccfe6c73d086",
+      "to_sha256": "92f240486d4ac8cf44da3d3d6e78367a6ba1203227841e016990984deaf9e8cb",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/authentication/authotel",
+      "from_sha256": "dda5503550de2f2a0fcbf0797f9cf53b0db20772cc89436214c77c07ad69b707",
+      "to_sha256": "6c707c824b1b45c4ee8539e95ff8ba7dae0d49244d00c6381a0691c03f793f8c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/authentication/jwt",
+      "from_sha256": "67c480a408d4b118534a901d24d9735a8279ce7f433d9f3977a8fafa34f379f7",
+      "to_sha256": "9697872ff954283b4edd5cfc881f114bbbaa37b9f030f927c7353697f426d8dd",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/authentication/oidc",
+      "from_sha256": "32999f4dec3baeb808b8f7e8ea04c141c3e01c68f906a2b51fb57c6732c2e3f6",
+      "to_sha256": "d2578c73dc393daa4e3d78367e5730952f5b93d36482246e813cb45f41a5cbb9",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/authorization",
+      "from_sha256": "ac82fd8380e246c8071ac3b275467a86c3e8c7b2ac71aad1ef58ae3ac61d95ac",
+      "to_sha256": "c02eb0b06ba95ea5300462b723d5dbfab8d0f67569c8bbbbdc4c61378cc5a028",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/bulkhead",
+      "from_sha256": "dd9a38c79eb412652607fa439b0e1b0f8a0e93cc7d559dd124af09c04f4f312c",
+      "to_sha256": "a627f260886013f6fbf1b878a32d01d115d885b405ae43f83058e97c2937da7e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/cache",
+      "from_sha256": "eba9d5eced351971f3306ba0f173a84f1ce16b5b4471d54ec81f6f7178c7dd66",
+      "to_sha256": "5dc43809fba104861e8697df1922ada80c1aa650c19e614c6db770da4329b7bb",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/capability",
+      "from_sha256": "30fbd87edaa01a1c35b7397dd343c7b8fc2a92a17adc03bdaee8587a578289d9",
+      "to_sha256": "e67c099e710406eaf0eeeee86212810bcedcfa3b47e871206f83643202e86e30",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/circuit-breaker",
+      "from_sha256": "b0efe663410bbe59928d9d575575e4025b352cdf18d64e9d4e5ecbbbfbcfbdd5",
+      "to_sha256": "d45fb76c9c28db3bea6bcf3a1907ed90d7458826ef6c423a981793fb0bae0e50",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "a86cc1192f27b7df7b3916e3f25b69218b34b6e5a5740c4659c2de0771cee3df",
+      "to_sha256": "86c0998887c64c152eca0c62b8374f679629103ac4b869bbf46a0b66db3752ae",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/concurrency-limit",
+      "from_sha256": "04aac61dbd20a2a9b69e8dccfb1ffcbc70511f0a405ade8f7ae1519d63794fe3",
+      "to_sha256": "e41277832c42fe06fecf9b7aa9a2ff7ad8ffe608a3cddf29ef5713c2084f301b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/config",
+      "from_sha256": "29996aa208d91464bdbfef3446f802ea20a1c907222c936b5bb69cdd9b18a370",
+      "to_sha256": "9a0b14df3598b504e08f20d8b237487477e9a88cd15a5e607712fd074b84be2d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/config/adapters/awssecretsmanager",
+      "from_sha256": "3dfcb298f6c2fe4df9277f939f6e22f49f42d3a549c031ec158e5c22ba8f8f3f",
+      "to_sha256": "c3eae83ad77e6e09cf472807791af5136458c7908517898a51afa0b05413d703",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/correlation",
+      "from_sha256": "290fcf8583a814cb6dbee1d08fd6b0c0dc1a4e7ebe73c1199c578b7638442308",
+      "to_sha256": "0f3902eb02d24a3c1a20bc27d207c8ed4bbffdb00eb0d613902ae33b9292eb35",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/filesystem",
+      "from_sha256": "3b8c99344356921a61a49a57f3ce7dbf4cc99c17d201c177d86593ae3c4dabdb",
+      "to_sha256": "491136aa3ecbbb6f8d3595f49524fe4e6e0862611a9ac97c7fa7e57499bbb02c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/hedge",
+      "from_sha256": "2b60572f6a1a48213f436a1dc0e66afda9bc1df9a6a5e9c1c77d464177a51384",
+      "to_sha256": "60c51549bc99bb44bb4245b8416cec768a6e610cbfc501250b7638d2d5dd7ce8",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/http-client",
+      "from_sha256": "d0e54524cdfa08aa023935060b6ac9f656a447ebde09d7787e309a9bb1232317",
+      "to_sha256": "09f27858307481625c72146e339a31fe14111f9315d66476039672846870034b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/http-middleware",
+      "from_sha256": "6308192686c05be4ee749e560a2790a38ee3f11d79bde0cb675ef0608f9b3387",
+      "to_sha256": "3e5aab072a04002dc24cc428a692cfd1bc7c4d715c60a4ca86f919bbb8ed3f10",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/http-signature",
+      "from_sha256": "9df96c2a5004c341ecff28fd65ec2490df90cc6e42eb9eef3fc9a88abb9efa4a",
+      "to_sha256": "b0469e0701518e35db9c4a301d7321e7656fea64400fc0a3c9ea945d6dc5a457",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/idempotency",
+      "from_sha256": "907eb47647e0a82f1a251ca5c28a311361844f27ac38bf13ee721af04f882009",
+      "to_sha256": "f42cc39db74b948598135f92ffd2f95d4288da2d7eaf5b4a63df2e3264f4e8f0",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/international",
+      "from_sha256": "7d5b33d57b35d79ef082f011debe9ba39d3def92da970b4174b91a0098bf8313",
+      "to_sha256": "1e4775353769d449c69c2e4de77b4d78bf5d47dd9f40a4ab981f467a515be77e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/jsonrpc",
+      "from_sha256": "f4bb43dfd934621ad320681a5afa14e3e3c4cc5d420ef9ba370249cf3b3c40b6",
+      "to_sha256": "4e6823bada12a6222eb029f172513bdd46d30805ba8322302fc3b7260fcddcce",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/kafka/kafkaservice",
+      "from_sha256": "3174759870decd5f3adf9ba053cb314d7d8a5e6dc7992b03867847ce751a8cb5",
+      "to_sha256": "2c570e2ffa89a05b079efc5a3b8e02a3385064f987dd426a0acb67d7e833b799",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/knapsack/objective/gomoney",
+      "from_sha256": "091089f02f467e4d9df64c7aee50cb9de9ad33a3dd35d8b0f0e3001082307b7a",
+      "to_sha256": "3b8ffdb9567e4471e060ea4a84fc430a50fd03e7f0bd15fcb41650aa114e60aa",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/lease",
+      "from_sha256": "eba9351d5e1db6e90508721490a4dcff097711c2a34e5e88ff38ddf599594834",
+      "to_sha256": "f07e281aa76bf8122bb95423bbcb217f3a8f09b5fc983986ec0725b9b232bddd",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/localized",
+      "from_sha256": "4abf428f0e628e5ad4d1211c7a53a61371bce7407fda385517d22995ba4117fa",
+      "to_sha256": "e8368e3e516b5eea36286ebdea14ca61e3ff24b649a2f2e8f4f4dd86c6310978",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/migrations",
+      "from_sha256": "ee41d7c642979cdb3894773a9950f9cf3ec28851c9ce78a00534741d229db8a5",
+      "to_sha256": "f7944477dd26e0eed32d1ac4c9c956790349c9cf32180d657bf1a62c0bf7d45e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/money",
+      "from_sha256": "bd7e9edd375a79abab6aec86593f1f7119ded6d3674f1a99a549ecb8ddf11947",
+      "to_sha256": "e7ae60ec997acc4ccb20a5101db02de0f39e362851f9d6e3d160793ef13ef85c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/opening-hours",
+      "from_sha256": "1de3e6ac48a731fad77d7e1f1d29b852a229f6e5fa93f12abeebd113f95b4f5b",
+      "to_sha256": "39be2eb684ad5294ff1d43e4af67effed6251e36317050b02179e972dab75ba9",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/postgres",
+      "from_sha256": "3ea76193141f6969dc7d2aaa7aa21d73c69366e56b88d7d31c337195814305c8",
+      "to_sha256": "3bf283b9d05c35a81e5b5431a484b70dfc15215592bfdc415d7cf594558abab8",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "529b0332cf1bc9e78c952680080e0f494cece35c4c1abaae6aa35c93afea377d",
+      "to_sha256": "8e9ff310949b0bccf07c992b2b3ce2a9c50a7c9a72352f6a8278d858b3bcaefc",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/queue/queueservice",
+      "from_sha256": "92726aa0988dbba58a99578da13ad03e523b1765440c95219d349ba7f36c4532",
+      "to_sha256": "0a6f5dd682536971ca66ad4a5b801bdcf2ee5a387b3b586cd4c9bb6bff60b403",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/rate-limit",
+      "from_sha256": "7f7c5ec7145b0729b9557f6bbcbeec8e5cf9777533279fd0e647d02bbb9075d5",
+      "to_sha256": "52c54d5d65eb5b4afe0186a083a871a9b692ac15f02a2ae6da56d79e5009a47b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/retry",
+      "from_sha256": "5a0ba6c3f3197ccff6b917626cae4831cd15607f3e903b66171afabb29f9e42b",
+      "to_sha256": "d5f09cc597bbb3a11355e5ac99a62c7c02ad446e4f6b58c7b1d43fc54057d67f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/router",
+      "from_sha256": "288dfef6a6e9d32a75882bbda58f19881c0742a59cfd0c2135a1a391faba9a8f",
+      "to_sha256": "3b46284bf66967b7fdf4aa96513a5193716324a2dc96fee5bb8efbd94117186c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/rule-engine/adapters/temporal",
+      "from_sha256": "2d099a1ab02ac09928f90382a01932b7ff372bafb5739f9ec7f5cb575b2afef3",
+      "to_sha256": "f72fea9ceed0400f77bb6307d7c6fb3e427f22a4542d1cb77ba473cac18c6c16",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/scheduler",
+      "from_sha256": "10e4ce4956e6468cfb0404f5587a52954ab5e131db11c1ced1dbcc3b1ea32ff6",
+      "to_sha256": "68c8a6851301f71021daed2fc837efbec07fee96762dc3e0bc233197e59cf16f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/secret-envelope",
+      "from_sha256": "35ad1e45415286c9c2bb58f739a91a35a6794d99aaeb9a658b7ee3a3222518e3",
+      "to_sha256": "99841b88401ac998136dd7373067d9d2683acd4054c4280a3566eb00c2ff97ed",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/service",
+      "from_sha256": "5c426a16fc81a79cca4f62eeb43d59287623eaa76329f9df8a69aba06062f653",
+      "to_sha256": "423ce92ab924d596461ad3adf5875be11b6823512699e25226d8d73aaf06b927",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/telemetry",
+      "from_sha256": "0fb841595d6fc870057d7a59dfbc1ba39447ab4a8ddadedb59697a9ebea88087",
+      "to_sha256": "304038e29d7d61f7c57cb2f91632e527dd2a73429d3cb462810703a29f081f82",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/temporal",
+      "from_sha256": "312564be8e839abc521801d6f1465d6b8911387f8e53029db2493f3bf8c58838",
+      "to_sha256": "4f2a700d0537b4859519374a217f5011d17bf72e124eeefb4e965e4e9d332e11",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/tenancy",
+      "from_sha256": "9b9f0b17a046a57afdeaaaae73f371cf9221705c04bb567075785bec24da063d",
+      "to_sha256": "924f8925d6151cd80f06599a2b3b43db5a9c8b49e0b0bd6919b89be1c09ad1b0",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/validation",
+      "from_sha256": "9cd7ca5393d88b5d54e2c038056f330c5e10b194762e0cd823f03df9aa6ca11a",
+      "to_sha256": "acb07ded26fcbf2ae8ed6654681f869d4d3f8dabb7ff22c5ef29033160070cd1",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
+    },
+    {
+      "module": "pkg/webhook",
+      "from_sha256": "9d408f163195a3dafc2b86ea5af6bb07fd98372973076e5f3a9f0135ab37c1d8",
+      "to_sha256": "3ef59b6f1301d29dc32f126ca32680cf7523b91c620d4bfdc7151895837ac3ca",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+      "evidence_sha256": "f40d6230303a4431f0fef1101614da2262626964f558a4f70e58dbdb2dd56c19",
+      "rationale": "Snapshot index correction preserves staged tracked-path classification in disposable verification copies without changing package behavior exercised by retained evidence."
     }
   ]
 }

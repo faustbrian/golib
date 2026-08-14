@@ -386,7 +386,7 @@ run_gate() {
             applicable documentation || { skip_not_applicable documentation; return; }
             enable_local_proxy
             if [[ "${module}" == "." ]]; then
-                GOWORK=off go run ./cmd/golib documentation
+                GOWORK=off "${root}/scripts/check-documentation.sh"
             elif target="$(find_make_target docs documentation)"; then
                 make "${target}"
             else

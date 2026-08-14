@@ -95,6 +95,8 @@ documented in each module's changelog.
 - Reject released-version changelog sections for pre-v1 modules and correct
   package status, security, roadmap, and release-candidate guidance to match
   the repository's unpublished state.
+- Enforce repository documentation spelling and local/external link integrity
+  with pinned, fail-closed, locally runnable CSpell and Lychee gates.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.

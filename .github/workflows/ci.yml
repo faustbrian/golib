@@ -100,8 +100,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends ripgrep
 
-      - name: Set up Node for browser and Test262 gates
-        if: matrix.directory == 'pkg/ecma-regexp' || matrix.directory == 'pkg/queue-control-plane'
+      - name: Set up Node for browser, Test262, and documentation gates
+        if: matrix.directory == '.' || matrix.directory == 'pkg/ecma-regexp' || matrix.directory == 'pkg/queue-control-plane'
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24.4.1'

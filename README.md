@@ -61,6 +61,7 @@ Install the version from [`.go-version`](.go-version), then run:
 make inventory
 make cohesion
 make specification-decisions
+make docs MODULES=.
 make workspace-test MODULES=pkg/clock
 make check MODULES=pkg/jsonrpc
 make conformance MODULES=pkg/jsonrpc
@@ -76,6 +77,8 @@ Specification conformance and independent-implementation interoperability are
 separate attributable gates. The repository-wide
 [specification governance contract](docs/specification-governance.md) defines
 mandatory decision records, provenance, executable evidence, and review.
+The root documentation gate validates structure, navigation, spelling against
+the reviewed project dictionary, and every local and external link.
 
 ## Quality Contract
 
