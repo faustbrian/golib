@@ -13,6 +13,24 @@ blanket rule that internal means RPC and external means REST.
 | Outbound asynchronous notification | Signed webhooks | Delivery is eventually consistent and requires replay controls |
 | Multiple distinct audiences | Separate transports over shared application use cases | More adapters and compatibility surfaces to operate |
 
+```mermaid
+flowchart TD
+    A[Start with the observable API contract] --> B{Outbound notification to a consumer endpoint?}
+    B -->|Yes| C[Signed webhook with replay and delivery policy]
+    B -->|No| D{Resource graph, relationships, and standardized queries?}
+    D -->|Yes| E[JSON:API]
+    D -->|No| F{Named commands or queries with controlled method semantics?}
+    F -->|Yes| G[JSON-RPC plus OpenRPC]
+    F -->|No| H{HTTP semantics, files, streaming, gateways, or generated clients?}
+    H -->|Yes| I[Conventional HTTP described by OpenAPI]
+    H -->|Several contracts| J[Separate transport adapters over shared application use cases]
+```
+
+The flow identifies the dominant contract; it does not classify protocols by
+whether callers are internal or external. When several branches are material,
+use separate adapters instead of forcing one transport model across every
+audience.
+
 ## JSON-RPC
 
 Use `jsonrpc` for operation-oriented APIs with explicit method names, typed
