@@ -1,5 +1,10 @@
 # golib
 
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-portal-0b7285)](docs/index.md)
+[![Security policy](https://img.shields.io/badge/security-policy-2f9e44)](SECURITY.md)
+[![Release status](https://img.shields.io/badge/release-unreleased-868e96)](docs/status.md)
+
 `golib` is a multi-module Go library monorepo for explicit, composable service
 infrastructure. Public modules live under `pkg/`, retain independent semantic
 versions, and use module paths such as
