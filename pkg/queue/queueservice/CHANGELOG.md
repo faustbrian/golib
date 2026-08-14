@@ -5,6 +5,10 @@ versioning once released.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Publish the service lifecycle adapter as an independently versioned optional

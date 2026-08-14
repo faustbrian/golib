@@ -111,3 +111,8 @@ when present.
 See [security policy](SECURITY.md), [contribution guide](CONTRIBUTING.md),
 [compatibility policy](docs/compatibility.md), and [changelog](CHANGELOG.md).
 The project is available under the [MIT License](LICENSE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -25,6 +25,10 @@ listed in `README.md` and exposed through `barcode.CapabilityFor`.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Link contribution guidance directly to the specification decision register

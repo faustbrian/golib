@@ -5,6 +5,10 @@ Versioning and keeps an Unreleased section at the top.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Guard schema-prefix allocation arithmetic against the platform integer limit

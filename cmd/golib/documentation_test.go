@@ -82,6 +82,14 @@ func TestValidateRepositoryDocumentation(t *testing.T) {
 			},
 			wantError: "required documentation page is not linked from docs/index.md",
 		},
+		{
+			name: "package without ecosystem backlink",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				writeFile(t, filepath.Join(root, "pkg", "sample", "README.md"), "# Sample\n")
+			},
+			wantError: "releasable module README does not link to the documentation portal: pkg/sample/README.md",
+		},
 	}
 
 	for _, test := range tests {
@@ -133,6 +141,19 @@ func documentationFixture(t *testing.T) string {
 		links = append(links, "["+filepath.Base(path)+"]("+strings.TrimPrefix(path, "docs/")+")")
 	}
 	writeFile(t, filepath.Join(root, "docs", "index.md"), "# Documentation\n\n"+strings.Join(links, "\n")+"\n")
+	if err := os.MkdirAll(filepath.Join(root, "pkg", "sample"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(
+		t,
+		filepath.Join(root, "pkg", "sample", "README.md"),
+		"# Sample\n\n[Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)\n",
+	)
+	writeFile(
+		t,
+		filepath.Join(root, "modules.json"),
+		`{"modules":[{"directory":"pkg/sample","releasable":true}]}`+"\n",
+	)
 	return root
 }
 

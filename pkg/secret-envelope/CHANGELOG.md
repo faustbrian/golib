@@ -4,6 +4,10 @@ All notable changes follow Keep a Changelog and semantic versioning.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Authenticated AES-256-GCM envelope encryption with immutable encryption

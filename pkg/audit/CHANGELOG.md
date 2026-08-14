@@ -5,6 +5,10 @@ Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Immutable-by-contract bounded audit record construction and canonical JSON.

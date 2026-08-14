@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Prove an append whose PostgreSQL backend dies during a blocked statement is

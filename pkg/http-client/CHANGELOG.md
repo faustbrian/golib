@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Link the conformance source matrix directly to the canonical specification
   decision register.
 - Record HTTP, authentication, retry, caching, range, pagination, cookie,

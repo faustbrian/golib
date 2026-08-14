@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Normalize the existing accepted-erratum, HTTP representation, and strict

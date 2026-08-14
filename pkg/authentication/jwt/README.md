@@ -205,3 +205,8 @@ retains ownership of its cached set.
 **What happens during a JWKS outage?** Refresh reports unavailable, while the
 last successful key set remains usable according to the documented fail-stale
 policy.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

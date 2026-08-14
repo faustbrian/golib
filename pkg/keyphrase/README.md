@@ -101,3 +101,8 @@ complete erasure impossible. See [secret lifetime](docs/secret-lifetime.md).
 
 Project code and BIP-39 material are MIT licensed. EFF-derived list data is
 used under CC BY 3.0 US. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -5,6 +5,10 @@ Versioning and keeps an Unreleased section until a release is tagged.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - A `postgresservice` lifecycle adapter for constructor-created or existing

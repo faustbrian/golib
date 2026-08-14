@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.

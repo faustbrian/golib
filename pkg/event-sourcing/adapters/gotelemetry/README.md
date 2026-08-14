@@ -396,3 +396,8 @@ From the repository root, run
 module contract. The goal evidence also requires the module-scoped race, fuzz,
 security, API, documentation, benchmark, exact statement-coverage, and exact
 viable-mutation gates declared in `modules.json`.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

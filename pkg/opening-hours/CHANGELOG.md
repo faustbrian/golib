@@ -5,6 +5,10 @@ Versioning after v1.0.0.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

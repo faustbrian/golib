@@ -292,3 +292,8 @@ license, and SBOM checks without changing this module's local test scope.
 `BenchmarkProducerPublish` and `BenchmarkHandlerDelivery` isolate adapter hot
 path overhead. `BenchmarkProducerDrain` and `BenchmarkLifecycleWorkerDrain`
 measure lifecycle drain separately from broker latency and handler work.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

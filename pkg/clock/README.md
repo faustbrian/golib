@@ -144,3 +144,8 @@ concerns.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

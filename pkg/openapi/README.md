@@ -993,3 +993,8 @@ independent OpenAPI implementations. Its complete dependency graph and
 checksums remain outside the core module. The exact versions, fixture policy,
 classified differences, update procedure, and observed matrix are documented
 in [`docs/interoperability.md`](docs/interoperability.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

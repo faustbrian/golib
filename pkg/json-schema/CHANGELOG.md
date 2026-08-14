@@ -5,6 +5,10 @@ Changelog structure and semantic versioning after v1.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Add a machine-validated provenance manifest that binds the official test
   suite, published meta-schemas, and Bowtie interoperability reports to their
   existing checksummed evidence.

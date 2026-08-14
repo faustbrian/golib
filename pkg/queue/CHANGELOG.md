@@ -5,6 +5,10 @@ versioning and Keep a Changelog structure.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Add `managementhttp.NewFleetClient` for bounded dynamic worker discovery,

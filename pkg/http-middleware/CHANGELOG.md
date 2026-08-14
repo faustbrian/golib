@@ -4,6 +4,10 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Explicit immutable middleware chains and named order descriptors.

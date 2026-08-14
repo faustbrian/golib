@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Make cursor time single-owner through `CursorCodec.Deadline` and `Remaining`,
   so adapters cannot create or extend backend state past signed cursor expiry.
 - Require migration stores to provide durable exclusive `MigrationCoordinator`

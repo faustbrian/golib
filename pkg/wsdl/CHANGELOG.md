@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Consolidate WSDL 1.1, WSDL 2.0, and cross-version interpretation policies in

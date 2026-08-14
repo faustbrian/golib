@@ -5,6 +5,10 @@ Changelog principles, and releases use semantic versioning.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Link authoritative specification inputs directly to the canonical decision

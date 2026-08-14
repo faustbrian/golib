@@ -5,6 +5,10 @@ Versioning after its first stable release.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Delegate local mutation checks to the canonical exact-100 repository runner
   and remove the superseded Gremlins installation and configuration.
 - Add unbiased password, passphrase, and BIP-39 generation.

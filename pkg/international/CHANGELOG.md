@@ -4,6 +4,10 @@ All notable changes and dataset updates are recorded here.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Repair malformed UTF-8 parse-error reasons before returning diagnostics and
   classify oversized dataset review inputs as resource-limit failures.
 - Add opt-in country-aware postal-code syntax validation compatible with the

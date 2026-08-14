@@ -26,6 +26,8 @@ All notable changes to this module are documented here.
 
 ### Documentation
 
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Document instruments, cardinality, privacy, semantics, failure isolation,
   lifecycle ownership, API usage, adoption, compatibility, migration, security,
   and frequently asked questions.

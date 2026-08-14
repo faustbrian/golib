@@ -17,7 +17,7 @@ integration evidence.
 
 ## Requirements
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - a supported broker for non-memory backends
 
 ## Installation
@@ -141,6 +141,11 @@ Review [docs/security.md](docs/security.md) before processing untrusted jobs.
 `queue` is available under the [MIT License](LICENSE). Fork provenance and
 third-party attribution are recorded in [NOTICE](NOTICE) and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.
 
 ## Source: docs/README.md
 
@@ -1059,7 +1064,7 @@ compatibility impact, and why the behavior belongs in this generic package.
 
 Requirements:
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - Git
 - `golangci-lint` v2
 - network access on the first mutation run so the pinned Gremlins binary can
@@ -1180,6 +1185,10 @@ All notable changes are documented here. The project follows semantic
 versioning and Keep a Changelog structure.
 
 ## [Unreleased]
+
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
 
 ### Added
 
@@ -2842,7 +2851,7 @@ evidence environment.
 | NSQ | nsqd 1.3.0, `sha256:1a369c...c78a` | `go-nsq` 1.1.0 |
 | RabbitMQ | RabbitMQ 3.13.7 management, `sha256:e582c0...1f69` | `amqp091-go` 1.11.0 |
 
-The local audit ran with Go 1.26.6 on Darwin arm64 while the supported minimum
+The local audit ran with Go 1.26.5 on Darwin arm64 while the supported minimum
 remains Go 1.25.12. Container tests cover enqueue, consume, handler failure,
 timeout, shutdown, backend-specific settlement, and same-endpoint broker
 interruption/restart. Core NATS and NSQ reconnect live. Redis Pub/Sub rejects

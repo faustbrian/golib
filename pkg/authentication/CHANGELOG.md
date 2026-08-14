@@ -5,6 +5,10 @@ this project follows Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Security
 
 - Protect static Basic and API-key credentials with random per-authenticator

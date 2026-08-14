@@ -5,6 +5,10 @@ versioning once released.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Emit provider-safe `tn2_` lowercase hexadecimal namespaces. Existing `tn1_`

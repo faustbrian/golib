@@ -161,3 +161,8 @@ The implementation is still working toward the goal's meaningful 100%
 production statement coverage. `make coverage` reports the current value; it
 does not disguise uncovered code as generated or unreachable. `make check-all`
 is intentionally blocking until coverage and mutation requirements are met.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

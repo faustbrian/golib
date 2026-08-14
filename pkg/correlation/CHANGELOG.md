@@ -5,6 +5,10 @@ versioning once released.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Fixed
 
 - Amortize system entropy reads through a bounded factory-owned buffer while

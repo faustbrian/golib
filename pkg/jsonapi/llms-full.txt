@@ -17,7 +17,7 @@ revision.
 
 ## Requirements
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 
 ## Installation
 
@@ -101,6 +101,11 @@ before processing untrusted input.
 `jsonapi` is available under the [MIT License](LICENSE). Attribution and
 third-party policy are recorded in [NOTICE](NOTICE) and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.
 
 ## Source: docs/README.md
 
@@ -1688,7 +1693,7 @@ compatibility impact, and why the behavior belongs in this generic package.
 
 Requirements:
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - Git
 - `golangci-lint` v2
 
@@ -1816,6 +1821,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
 
 ### Compatibility
 

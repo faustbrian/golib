@@ -151,3 +151,8 @@ fresh operator set to `NewCompilerWithOperators`.
 
 No. Encode a parsed decimal with `Decimal`; its canonical output is always a
 non-exponent representation.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

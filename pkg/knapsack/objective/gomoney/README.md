@@ -154,3 +154,8 @@ Repository gates enforce formatting, tests, race safety, bounded fuzzing,
 exactly 100% statement coverage, API compatibility, documentation examples,
 benchmarks, and exactly 100% viable mutation kills. Use the repository's
 module runner so owned dependencies resolve through its isolated local proxy.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

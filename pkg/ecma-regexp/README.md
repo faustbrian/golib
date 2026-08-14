@@ -75,3 +75,8 @@ The package uses no `unsafe`, hidden workers, or global mutable caches. A
 compiled `Program` is immutable and concurrency-safe. Stateful `Session`
 values and any application cache are caller-owned and require external
 synchronization when shared.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -484,3 +484,8 @@ image digest, Go and dependency versions, database settings, hardware, raw
 output, and `benchstat` analysis before publishing a result.
 
 The module is licensed under the [MIT License](LICENSE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

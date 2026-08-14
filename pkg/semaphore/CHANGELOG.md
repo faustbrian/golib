@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Process-local positive weighted capacity with strict FIFO admission and

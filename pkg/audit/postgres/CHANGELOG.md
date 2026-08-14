@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Append-only PostgreSQL schema, least-privilege roles, deterministic indexes,

@@ -58,3 +58,8 @@ certification are outside this library's scope.
 Run `make check` for every blocking local gate. Coverage below meaningful 100%,
 missing conformance evidence, or an unsupported advertised control remains a
 release blocker.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

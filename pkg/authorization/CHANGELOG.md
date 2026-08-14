@@ -7,6 +7,10 @@ versioning for its Go API and portable policy format.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Delegate package mutation checks to the canonical exact-100 repository

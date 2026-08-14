@@ -8,6 +8,10 @@ publisher contracts are public compatibility surfaces.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Fixed
 
 - Pin standalone publisher adapters to resolvable immutable main revisions so

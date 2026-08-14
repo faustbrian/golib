@@ -5,6 +5,10 @@ versioning once v1 is released.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.

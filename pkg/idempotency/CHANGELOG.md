@@ -6,6 +6,10 @@ public API reaches its first stable version.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Compatibility
 
 - Added a pinned module export baseline so incompatible public API changes

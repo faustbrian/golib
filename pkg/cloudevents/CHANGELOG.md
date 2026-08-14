@@ -5,6 +5,10 @@ versioning once released.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Canonical specification decision register covering stable-line errata, data

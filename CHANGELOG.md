@@ -82,6 +82,9 @@ documented in each module's changelog.
 - Add the root documentation entry point, package and protocol decision guides,
   recommended compositions, integration ownership map, status, versioning, and
   shared terminology.
+- Link every non-specialist releasable module to the canonical documentation
+  portal and reject future missing backlinks while explicitly leaving the
+  Kafka and Verkle specialist-owned modules outside this documentation batch.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.

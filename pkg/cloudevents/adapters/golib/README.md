@@ -149,3 +149,8 @@ Run package-specific repository gates for
 `pkg/cloudevents/adapters/golib`. They cover formatting, tests, race detection,
 exact statement coverage, fuzz smoke, mutation, API compatibility, security,
 documentation, benchmarks, and clean-consumer installation.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

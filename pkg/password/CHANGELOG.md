@@ -5,6 +5,10 @@ versioning after v1.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Security
 
 - Parse Argon2id parallelism at its exact eight-bit representation before

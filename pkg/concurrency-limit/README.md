@@ -70,3 +70,8 @@ call `Permit.Complete` exactly once with `OutcomeSuccess`,
   [security](docs/security.md)
 
 The module uses only the Go standard library and is licensed under MIT.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

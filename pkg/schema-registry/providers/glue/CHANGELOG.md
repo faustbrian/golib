@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Refresh owned-module checksums so clean local and CI dependency resolution
   uses the canonical monorepo versions.
 - Exercise provider, scope, registry, and schema-name validation independently

@@ -5,6 +5,10 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Clean-consumer PostgreSQL interoperability proof for atomically staging

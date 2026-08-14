@@ -76,3 +76,8 @@ No compatibility or stability promise applies until the first release. The
 compatibility matrix distinguishes implemented, excluded, and externally owned
 capabilities; release readiness still depends on the complete repository gates
 described in the release notes.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

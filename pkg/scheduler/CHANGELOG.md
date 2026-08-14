@@ -5,6 +5,10 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Deep-copy nested schedule parameters when compiling a registry so caller

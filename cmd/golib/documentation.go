@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -39,6 +40,18 @@ var repositoryDocumentationIndexEntries = []string{
 	"docs/recipes/index.md",
 }
 
+const repositoryDocumentationPortal = "https://github.com/faustbrian/golib/blob/main/docs/index.md"
+
+var repositoryDocumentationBacklinkExemptions = map[string]bool{
+	"pkg/event-sourcing/adapters/gokafka": true,
+	"pkg/kafka":                           true,
+	"pkg/kafka/adapters/gotelemetry":      true,
+	"pkg/kafka/adapters/mskiam":           true,
+	"pkg/kafka/kafkaservice":              true,
+	"pkg/outbox/adapters/gokafka":         true,
+	"pkg/verkle-tree":                     true,
+}
+
 func documentation(root string) {
 	if err := validateRepositoryDocumentation(root); err != nil {
 		fatal("validate repository documentation: %v", err)
@@ -72,6 +85,9 @@ func validateRepositoryDocumentation(root string) error {
 				path,
 			)
 		}
+	}
+	if err := validatePackageDocumentationBacklinks(root); err != nil {
+		return err
 	}
 
 	documents := []string{filepath.Join(root, "README.md")}
@@ -124,6 +140,57 @@ func validateRepositoryDocumentation(root string) error {
 	}
 
 	return nil
+}
+
+func validatePackageDocumentationBacklinks(root string) error {
+	contents, err := os.ReadFile(filepath.Join(root, "modules.json"))
+	if err != nil {
+		return fmt.Errorf("read module catalog for documentation backlinks: %w", err)
+	}
+	current := catalog{}
+	if err := json.Unmarshal(contents, &current); err != nil {
+		return fmt.Errorf("decode module catalog for documentation backlinks: %w", err)
+	}
+	portalPath := filepath.Join(root, "docs", "index.md")
+	for _, item := range current.Modules {
+		if !item.Releasable || repositoryDocumentationBacklinkExemptions[item.Directory] {
+			continue
+		}
+		readmePath := filepath.Join(root, filepath.FromSlash(item.Directory), "README.md")
+		readme, err := os.ReadFile(readmePath)
+		if err != nil {
+			return fmt.Errorf("read releasable module README %s: %w", relativeDocumentationPath(root, readmePath), err)
+		}
+		if !containsDocumentationPortalLink(readmePath, portalPath, readme) {
+			return fmt.Errorf(
+				"releasable module README does not link to the documentation portal: %s",
+				relativeDocumentationPath(root, readmePath),
+			)
+		}
+	}
+	return nil
+}
+
+func containsDocumentationPortalLink(readmePath, portalPath string, contents []byte) bool {
+	for _, match := range markdownLinkPattern.FindAllSubmatch(contents, -1) {
+		target := string(match[1])
+		parsed, err := url.Parse(target)
+		if err != nil {
+			continue
+		}
+		if parsed.IsAbs() {
+			parsed.Fragment = ""
+			if parsed.String() == repositoryDocumentationPortal {
+				return true
+			}
+			continue
+		}
+		resolved := filepath.Clean(filepath.Join(filepath.Dir(readmePath), filepath.FromSlash(parsed.Path)))
+		if resolved == portalPath {
+			return true
+		}
+	}
+	return false
 }
 
 func localMarkdownDocument(document, target string) (string, bool) {

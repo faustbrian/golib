@@ -42,6 +42,8 @@ All notable changes to this module are documented here.
 
 ### Documentation
 
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Add the stable JWT, JOSE, JSON, remote-JWKS, cache, lifecycle, and diagnostic
   specification decision register with executable evidence links.
 - Document strict claim and algorithm policy, local and remote key ownership,

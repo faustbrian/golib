@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Rename the unpublished module from `adapters/goqueue` to `adapters/queue`

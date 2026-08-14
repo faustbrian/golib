@@ -40,3 +40,8 @@ advisory NilAway analysis. See [CHANGELOG.md](CHANGELOG.md) for releases and
 [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 Licensed under MIT.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

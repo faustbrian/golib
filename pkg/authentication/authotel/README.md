@@ -224,3 +224,8 @@ make check MODULES=pkg/authentication/authotel
 The module requires exact statement coverage and exact viable-mutant kills in
 addition to formatting, analysis, race, fuzz, security, compatibility,
 documentation, and benchmark gates.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

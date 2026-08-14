@@ -37,3 +37,8 @@ and package policy are recorded in the
 
 Run `make check` for formatting, static analysis, tests, the race detector,
 and provenance checks.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

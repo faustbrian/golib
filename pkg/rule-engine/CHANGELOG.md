@@ -5,6 +5,10 @@ Keep a Changelog and semantic versioning.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Delegate core and adapter mutation checks to the canonical exact-100

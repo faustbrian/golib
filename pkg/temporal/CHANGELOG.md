@@ -4,6 +4,10 @@ This project follows Semantic Versioning. Dates use ISO 8601.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Fixed
 
 - Resolve API compatibility checks against the active monorepo workspace

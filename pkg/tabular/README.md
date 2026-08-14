@@ -94,3 +94,8 @@ Review [docs/security.md](docs/security.md) before ingesting untrusted files.
 `tabular` is available under the [Apache License 2.0](LICENSE). XLS
 provenance and third-party attribution are recorded in [NOTICE](NOTICE) and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.
