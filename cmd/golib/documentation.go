@@ -353,6 +353,12 @@ func validateRepositoryDocumentationLink(root, document, target string) error {
 		if parsed.Scheme != "http" && parsed.Scheme != "https" && parsed.Scheme != "mailto" {
 			return fmt.Errorf("unsupported absolute link %q", target)
 		}
+		if strings.EqualFold(parsed.Host, "github.com") && strings.HasPrefix(parsed.Path, "/faustbrian/golib/pkg/") {
+			return fmt.Errorf(
+				"noncanonical repository source link %q; use a repository-relative link",
+				target,
+			)
+		}
 		return nil
 	}
 	if parsed.Path != "" {

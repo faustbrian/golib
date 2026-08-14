@@ -17848,7 +17848,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`queue-control-plane` is the administrative control plane for [`queue`](https://github.com/faustbrian/golib/pkg/queue). It provides durable, tenant-scoped commands, desired state, audit history, an HTTP API, an administrative CLI, and an optional narrow Kubernetes Deployment adapter.",
+      "purpose": "`queue-control-plane` is the administrative control plane for [`queue`](../queue). It provides durable, tenant-scoped commands, desired state, audit history, an HTTP API, an administrative CLI, and an optional narrow Kubernetes Deployment adapter.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,

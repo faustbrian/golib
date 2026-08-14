@@ -1,7 +1,7 @@
 # queue-control-plane
 
 `queue-control-plane` is the administrative control plane for
-[`queue`](https://github.com/faustbrian/golib/pkg/queue). It provides durable,
+[`queue`](../queue). It provides durable,
 tenant-scoped commands, desired state, audit history, an HTTP API, an
 administrative CLI, and an optional narrow Kubernetes Deployment adapter.
 

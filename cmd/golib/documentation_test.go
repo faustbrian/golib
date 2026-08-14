@@ -141,6 +141,18 @@ func TestValidateRepositoryDocumentation(t *testing.T) {
 				)
 			},
 		},
+		{
+			name: "noncanonical repository source link",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				appendDocumentation(
+					t,
+					filepath.Join(root, "docs", "index.md"),
+					"\n[queue](https://github.com/faustbrian/golib/pkg/queue)\n",
+				)
+			},
+			wantError: "noncanonical repository source link",
+		},
 	}
 
 	for _, test := range tests {

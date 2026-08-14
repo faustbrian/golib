@@ -9,6 +9,8 @@ Versioning.
 ### Documentation
 
 - Link the package README to the repository-wide Golib documentation portal.
+- Replace the invalid GitHub package URL with a portable repository-relative
+  link to `queue`.
 
 ### Compatibility
 

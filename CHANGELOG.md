@@ -87,6 +87,8 @@ documented in each module's changelog.
   Kafka and Verkle specialist-owned modules outside this documentation batch.
 - Reject repository documentation with missing or multiple top-level headings,
   skipped heading levels, or unclosed fenced code blocks.
+- Reject malformed GitHub repository source links that omit a `blob` or `tree`
+  route and repair the propagated queue-control-plane catalog link.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.
