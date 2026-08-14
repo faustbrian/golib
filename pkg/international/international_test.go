@@ -319,6 +319,21 @@ func TestDatasetDiffClassifiesCompatibilityRelevantChanges(t *testing.T) {
 	}
 }
 
+func TestDatasetDiffReportsEveryRemoval(t *testing.T) {
+	t.Parallel()
+
+	diff, err := international.DiffRecords([]international.Record{
+		{ID: "BB", Status: international.StatusOfficial},
+		{ID: "AA", Status: international.StatusOfficial},
+	}, nil)
+	if err != nil {
+		t.Fatalf("DiffRecords() error = %v", err)
+	}
+	if got, want := diff.Removed, []string{"AA", "BB"}; !equalStrings(got, want) {
+		t.Fatalf("Removed = %v, want %v", got, want)
+	}
+}
+
 func TestDatasetDiffRejectsDuplicateAndUnboundedRecords(t *testing.T) {
 	t.Parallel()
 
