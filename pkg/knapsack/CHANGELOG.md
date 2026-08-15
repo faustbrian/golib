@@ -10,6 +10,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Refresh native, peak-RSS, and BoxPacker comparison evidence with Go 1.26.6
+  after benchmark inputs changed.
 - Refreshed native, peak-RSS, and BoxPacker comparison evidence against the
   current implementation and expanded the fuzz manifest for cost objectives.
 
