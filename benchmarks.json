@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "github.com/faustbrian/golib",
-  "go_version": "1.26.5",
+  "go_version": "1.26.6",
   "modules": [
     {
       "directory": ".",

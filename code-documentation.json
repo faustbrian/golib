@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "github.com/faustbrian/golib",
-  "go_version": "1.26.5",
+  "go_version": "1.26.6",
   "modules": [
     {
       "directory": ".",
@@ -66875,18 +66875,25 @@
     {
       "directory": "pkg/queue-control-plane",
       "module_path": "github.com/faustbrian/golib/pkg/queue-control-plane",
-      "packages": 17,
+      "packages": 18,
       "documented_packages": 14,
-      "missing_package_comments": 3,
+      "missing_package_comments": 4,
       "duplicate_package_comments": 0,
-      "exported_declarations": 984,
-      "documented_declarations": 352,
+      "exported_declarations": 988,
+      "documented_declarations": 356,
       "missing_declaration_comments": 632,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
       "markers": 0,
       "issues": [
+        {
+          "code": "missing-package-comment",
+          "path": "pkg/queue-control-plane/_browser/node_modules/flatted/golang/pkg/flatted/flatted.go",
+          "line": 1,
+          "symbol": "flatted",
+          "message": "package has no canonical Package flatted comment"
+        },
         {
           "code": "missing-package-comment",
           "path": "pkg/queue-control-plane/_browser/testserver/main.go",
@@ -69130,21 +69137,21 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/cmd/queue-control-plane/management.go",
-          "line": 167,
+          "line": 176,
           "symbol": "ResolveRecordReader",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/cmd/queue-control-plane/management.go",
-          "line": 179,
+          "line": 188,
           "symbol": "ResolveController",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/cmd/queue-control-plane/management.go",
-          "line": 191,
+          "line": 200,
           "symbol": "ResolveStatusReader",
           "message": "exported declaration has no documentation comment"
         },
@@ -83823,84 +83830,13 @@
       "missing_package_comments": 0,
       "duplicate_package_comments": 0,
       "exported_declarations": 24,
-      "documented_declarations": 14,
-      "missing_declaration_comments": 10,
+      "documented_declarations": 24,
+      "missing_declaration_comments": 0,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
       "markers": 0,
-      "issues": [
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 48,
-          "symbol": "Storage",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 49,
-          "symbol": "Envelopes",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 50,
-          "symbol": "WebhookEndpoint",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 51,
-          "symbol": "WebhookSigner",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 52,
-          "symbol": "WebhookPolicy",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 58,
-          "symbol": "Body",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 59,
-          "symbol": "Attempts",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 60,
-          "symbol": "Bulkhead",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 61,
-          "symbol": "Breaker",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-external/reference.go",
-          "line": 62,
-          "symbol": "Concurrency",
-          "message": "exported declaration has no documentation comment"
-        }
-      ]
+      "issues": []
     },
     {
       "directory": "pkg/service/integration/reference-http",
@@ -83910,8 +83846,8 @@
       "missing_package_comments": 0,
       "duplicate_package_comments": 1,
       "exported_declarations": 32,
-      "documented_declarations": 10,
-      "missing_declaration_comments": 22,
+      "documented_declarations": 20,
+      "missing_declaration_comments": 12,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -83927,154 +83863,84 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 55,
+          "line": 78,
           "symbol": "ServiceName",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 56,
+          "line": 79,
           "symbol": "Version",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 57,
+          "line": 80,
           "symbol": "Environment",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 58,
-          "symbol": "BearerToken",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 59,
-          "symbol": "PrincipalID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 60,
-          "symbol": "TenantID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 61,
-          "symbol": "BusinessListener",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 62,
-          "symbol": "ManagementListener",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 63,
-          "symbol": "TrustTenant",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 64,
-          "symbol": "Readiness",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 68,
-          "symbol": "ServiceName",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 69,
-          "symbol": "Version",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 70,
-          "symbol": "Environment",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 317,
+          "line": 327,
           "symbol": "Now",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 321,
+          "line": 331,
           "symbol": "SigningKey",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 334,
+          "line": 344,
           "symbol": "Resolve",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 533,
+          "line": 543,
           "symbol": "Data",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 539,
+          "line": 549,
           "symbol": "Message",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 540,
+          "line": 550,
           "symbol": "Principal",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 541,
+          "line": 551,
           "symbol": "Tenant",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 542,
+          "line": 552,
           "symbol": "CorrelationID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/service/integration/reference-http/reference.go",
-          "line": 543,
+          "line": 553,
           "symbol": "RequestID",
           "message": "exported declaration has no documentation comment"
         }
@@ -84088,8 +83954,8 @@
       "missing_package_comments": 3,
       "duplicate_package_comments": 1,
       "exported_declarations": 49,
-      "documented_declarations": 6,
-      "missing_declaration_comments": 43,
+      "documented_declarations": 21,
+      "missing_declaration_comments": 28,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -84318,111 +84184,6 @@
           "line": 1,
           "symbol": "referenceplatform",
           "message": "package has more than one canonical package comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 30,
-          "symbol": "BusinessAddress",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 31,
-          "symbol": "ManagementAddress",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 32,
-          "symbol": "BusinessListener",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 33,
-          "symbol": "ManagementListener",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 34,
-          "symbol": "DependencyURL",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 35,
-          "symbol": "Client",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 41,
-          "symbol": "GOOS",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 42,
-          "symbol": "GOARCH",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 43,
-          "symbol": "EffectiveUserID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 44,
-          "symbol": "EffectiveGroupID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 45,
-          "symbol": "TemporaryStorage",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 52,
-          "symbol": "HeapAllocBytes",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 53,
-          "symbol": "HeapSysBytes",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 54,
-          "symbol": "Goroutines",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/service/integration/reference-platform/reference.go",
-          "line": 55,
-          "symbol": "OpenFileDescriptors",
-          "message": "exported declaration has no documentation comment"
         }
       ]
     },
