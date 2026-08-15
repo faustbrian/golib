@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Ignore ambient `node_modules` trees when generating source-documentation
+  manifests so local dependency installations cannot make fresh-clone
+  validation stale.
 - Propagate the task-owned isolated module file through an opt-in environment
   contract so nested Go tooling can resolve current owned modules without
   weakening unrelated child-process isolation.

@@ -66875,25 +66875,18 @@
     {
       "directory": "pkg/queue-control-plane",
       "module_path": "github.com/faustbrian/golib/pkg/queue-control-plane",
-      "packages": 18,
+      "packages": 17,
       "documented_packages": 14,
-      "missing_package_comments": 4,
+      "missing_package_comments": 3,
       "duplicate_package_comments": 0,
-      "exported_declarations": 988,
-      "documented_declarations": 356,
+      "exported_declarations": 984,
+      "documented_declarations": 352,
       "missing_declaration_comments": 632,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
       "markers": 0,
       "issues": [
-        {
-          "code": "missing-package-comment",
-          "path": "pkg/queue-control-plane/_browser/node_modules/flatted/golang/pkg/flatted/flatted.go",
-          "line": 1,
-          "symbol": "flatted",
-          "message": "package has no canonical Package flatted comment"
-        },
         {
           "code": "missing-package-comment",
           "path": "pkg/queue-control-plane/_browser/testserver/main.go",

@@ -102,7 +102,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/prompts` | 3 | 1 | 776 | 530 | 0 | 0 | 0 |
 | `pkg/prompts/benchmarks/comparison` | 5 | 5 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/queue` | 21 | 14 | 1158 | 561 | 3 | 0 | 0 |
-| `pkg/queue-control-plane` | 18 | 4 | 988 | 632 | 0 | 0 | 0 |
+| `pkg/queue-control-plane` | 17 | 3 | 984 | 632 | 0 | 0 | 0 |
 | `pkg/queue/queueservice` | 1 | 0 | 101 | 0 | 0 | 0 | 0 |
 | `pkg/rate-limit` | 11 | 0 | 307 | 19 | 0 | 0 | 0 |
 | `pkg/resilience` | 1 | 0 | 173 | 67 | 0 | 0 | 0 |
