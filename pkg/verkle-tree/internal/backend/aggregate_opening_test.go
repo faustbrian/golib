@@ -199,7 +199,7 @@ func TestAggregateOpeningEngineBoundsConcurrentDependencyWorkers(t *testing.T) {
 		_, err := engine.Open(context.Background(), prover)
 		results <- err
 	}()
-	<-entered
+	receiveAggregateOpeningSignal(t, entered, "first proof call did not enter the backend")
 	go func() {
 		_, err := engine.Open(context.Background(), prover)
 		results <- err
@@ -214,7 +214,7 @@ func TestAggregateOpeningEngineBoundsConcurrentDependencyWorkers(t *testing.T) {
 	close(release)
 	closed = true
 	for range 2 {
-		if err := <-results; err != nil {
+		if err := receiveAggregateOpeningError(t, results, "proof call did not return"); err != nil {
 			t.Fatalf("bounded proof call: %v", err)
 		}
 	}
@@ -226,9 +226,11 @@ func TestAggregateOpeningGateBoundsAndCancelsQueuedWork(t *testing.T) {
 	alreadyCancelled, cancelAlready := context.WithCancel(context.Background())
 	cancelAlready()
 	free := &aggregateOpeningGate{active: make(chan struct{}, 1)}
-	if _, err := free.acquire(alreadyCancelled); !errors.Is(err, context.Canceled) {
+	freeRelease, err := free.acquire(alreadyCancelled)
+	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("free-slot cancellation error = %v", err)
 	}
+	assertAggregateOpeningRelease(t, freeRelease)
 	if len(free.active) != 0 {
 		t.Fatal("cancelled free-slot acquisition retained the active slot")
 	}
@@ -243,37 +245,50 @@ func TestAggregateOpeningGateBoundsAndCancelsQueuedWork(t *testing.T) {
 	}
 
 	cancelled, cancel := context.WithCancel(context.Background())
-	queuedResult := make(chan error, 1)
+	queuedResult := make(chan aggregateOpeningAcquireResult, 1)
 	go func() {
-		_, acquireErr := gate.acquire(cancelled)
-		queuedResult <- acquireErr
+		queuedRelease, acquireErr := gate.acquire(cancelled)
+		queuedResult <- aggregateOpeningAcquireResult{release: queuedRelease, err: acquireErr}
 	}()
 	waitForAggregateOpeningQueue(t, gate, 1)
 
-	_, err = gate.acquire(context.Background())
+	limitContext, cancelLimit := context.WithTimeout(context.Background(), time.Second)
+	defer cancelLimit()
+	limitRelease, err := gate.acquire(limitContext)
 	assertAggregateOpeningResourceError(
 		t, err, AggregateOpeningResourceQueuedOperations, 2,
 	)
+	assertAggregateOpeningRelease(t, limitRelease)
 	cancel()
-	if err := <-queuedResult; !errors.Is(err, errAggregateOpeningCancelled) ||
-		!errors.Is(err, context.Canceled) {
-		t.Fatalf("queued cancellation error = %v", err)
+	queued := receiveAggregateOpeningAcquireResult(t, queuedResult, "queued acquisition did not return")
+	if !errors.Is(queued.err, errAggregateOpeningCancelled) ||
+		!errors.Is(queued.err, context.Canceled) {
+		t.Fatalf("queued cancellation error = %v", queued.err)
 	}
+	assertAggregateOpeningRelease(t, queued.release)
 	waitForAggregateOpeningQueue(t, gate, 0)
 	release()
 
 	noQueue := &aggregateOpeningGate{active: make(chan struct{}, 1)}
 	noQueue.active <- struct{}{}
-	_, err = noQueue.acquire(context.Background())
+	noQueueContext, cancelNoQueue := context.WithTimeout(context.Background(), time.Second)
+	defer cancelNoQueue()
+	noQueueRelease, err := noQueue.acquire(noQueueContext)
 	assertAggregateOpeningResourceError(
 		t, err, AggregateOpeningResourceQueuedOperations, 1,
 	)
+	assertAggregateOpeningRelease(t, noQueueRelease)
 }
 
 func TestAggregateOpeningEngineRejectsInvalidSetup(t *testing.T) {
 	t.Parallel()
 
 	valid := testAggregateOpeningLimits()
+	atQueueLimit := valid
+	atQueueLimit.MaxQueuedOperations = maxAggregateQueuedOperations
+	if err := atQueueLimit.validate(); err != nil {
+		t.Fatalf("maximum queue limit error = %v", err)
+	}
 	invalid := []AggregateOpeningLimits{
 		func() AggregateOpeningLimits { value := valid; value.MaxGeneratorDerivations = 0; return value }(),
 		func() AggregateOpeningLimits { value := valid; value.MaxPrecomputedPoints = 0; return value }(),
@@ -320,6 +335,11 @@ func TestAggregateOpeningEngineRejectsInvalidSetup(t *testing.T) {
 		return nil, sentinel
 	}); !errors.Is(err, errInvalidAggregateOpeningEngine) {
 		t.Fatalf("settings failure error = %v", err)
+	}
+	if _, err := newAggregateOpeningEngine(context.Background(), valid, func() (*ipa.IPAConfig, error) {
+		return nil, nil
+	}); !errors.Is(err, errGeneratorMismatch) {
+		t.Fatalf("nil settings result error = %v", err)
 	}
 	if _, err := newAggregateOpeningEngine(context.Background(), valid, func() (*ipa.IPAConfig, error) {
 		return &ipa.IPAConfig{SRS: make([]banderwagon.Element, VectorWidth-1)}, nil
@@ -454,10 +474,14 @@ func TestAggregateOpeningOperationsRejectInvalidInputsAndResources(t *testing.T)
 	blocked.limits.MaxQueuedOperations = 0
 	blocked.gate = &aggregateOpeningGate{active: make(chan struct{}, 1)}
 	blocked.gate.active <- struct{}{}
-	if _, err := blocked.Open(context.Background(), prover); !errors.Is(err, errAggregateOpeningResource) {
+	blockedOpenContext, cancelBlockedOpen := context.WithTimeout(context.Background(), time.Second)
+	defer cancelBlockedOpen()
+	if _, err := blocked.Open(blockedOpenContext, prover); !errors.Is(err, errAggregateOpeningResource) {
 		t.Fatalf("blocked open error = %v", err)
 	}
-	if err := blocked.Verify(context.Background(), proof, verifier); !errors.Is(err, errAggregateOpeningResource) {
+	blockedVerifyContext, cancelBlockedVerify := context.WithTimeout(context.Background(), time.Second)
+	defer cancelBlockedVerify()
+	if err := blocked.Verify(blockedVerifyContext, proof, verifier); !errors.Is(err, errAggregateOpeningResource) {
 		t.Fatalf("blocked verify error = %v", err)
 	}
 	var missingContext context.Context
@@ -698,6 +722,47 @@ func TestAggregateOpeningPreparationCapacityBoundsOneVector(t *testing.T) {
 				t.Fatalf("capacity = %d, want %d", got, test.want)
 			}
 		})
+	}
+}
+
+func TestAggregateOpeningBindingLookupSkipsInvalidQueriesAndRequiresExactAnchor(t *testing.T) {
+	t.Parallel()
+
+	engine := newTestAggregateOpeningEngine(t)
+	anchorProver := engine.bindingProverQuery()
+	invalidProver := anchorProver
+	invalidProver.Commitment = VectorCommitment{}
+	if !engine.hasBindingProverQuery([]*AggregateProverQuery{&invalidProver, &anchorProver}) {
+		t.Fatal("prover binding lookup stopped before the exact anchor")
+	}
+	differentProverIdentity := anchorProver
+	differentProverIdentity.Index++
+	if engine.hasBindingProverQuery([]*AggregateProverQuery{&differentProverIdentity}) {
+		t.Fatal("prover binding lookup accepted a different identity")
+	}
+	differentProverVector := *anchorProver.Vector
+	differentProverVector[0][0]++
+	differentProverValue := anchorProver
+	differentProverValue.Vector = &differentProverVector
+	if engine.hasBindingProverQuery([]*AggregateProverQuery{&differentProverValue}) {
+		t.Fatal("prover binding lookup accepted a different vector")
+	}
+
+	anchorVerifier := engine.bindingVerifierQuery()
+	invalidVerifier := anchorVerifier
+	invalidVerifier.Commitment = VectorCommitment{}
+	if !engine.hasBindingVerifierQuery([]AggregateVerifierQuery{invalidVerifier, anchorVerifier}) {
+		t.Fatal("verifier binding lookup stopped before the exact anchor")
+	}
+	differentVerifierIdentity := anchorVerifier
+	differentVerifierIdentity.Index++
+	if engine.hasBindingVerifierQuery([]AggregateVerifierQuery{differentVerifierIdentity}) {
+		t.Fatal("verifier binding lookup accepted a different identity")
+	}
+	differentVerifierValue := anchorVerifier
+	differentVerifierValue.Value[0]++
+	if engine.hasBindingVerifierQuery([]AggregateVerifierQuery{differentVerifierValue}) {
+		t.Fatal("verifier binding lookup accepted a different value")
 	}
 }
 
@@ -989,6 +1054,66 @@ func waitForAggregateOpeningQueue(
 		}
 		runtime.Gosched()
 	}
+}
+
+func receiveAggregateOpeningSignal(
+	t testing.TB,
+	channel <-chan struct{},
+	failure string,
+) {
+	t.Helper()
+
+	select {
+	case <-channel:
+	case <-time.After(time.Second):
+		t.Fatal(failure)
+	}
+}
+
+func receiveAggregateOpeningError(
+	t testing.TB,
+	channel <-chan error,
+	failure string,
+) error {
+	t.Helper()
+
+	select {
+	case err := <-channel:
+		return err
+	case <-time.After(time.Second):
+		t.Fatal(failure)
+		return nil
+	}
+}
+
+type aggregateOpeningAcquireResult struct {
+	release func()
+	err     error
+}
+
+func receiveAggregateOpeningAcquireResult(
+	t testing.TB,
+	channel <-chan aggregateOpeningAcquireResult,
+	failure string,
+) aggregateOpeningAcquireResult {
+	t.Helper()
+
+	select {
+	case result := <-channel:
+		return result
+	case <-time.After(time.Second):
+		t.Fatal(failure)
+		return aggregateOpeningAcquireResult{}
+	}
+}
+
+func assertAggregateOpeningRelease(t testing.TB, release func()) {
+	t.Helper()
+
+	if release == nil {
+		t.Fatal("gate acquisition returned a nil release function")
+	}
+	release()
 }
 
 func aggregateOpeningCorpus() ([]AggregateProverQuery, []AggregateVerifierQuery) {

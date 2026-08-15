@@ -363,10 +363,10 @@ func (engine *AggregateOpeningEngine) open(
 		queries = append([]*AggregateProverQuery{&anchor}, queries...)
 	}
 	release, err := engine.gate.acquire(ctx)
+	defer release()
 	if err != nil {
 		return OpeningProof{}, err
 	}
-	defer release()
 
 	// go-ipa batch-normalizes commitment pointers in place, so every query
 	// retains distinct commitment storage even when polynomial preparation is shared.
@@ -526,10 +526,10 @@ func (engine *AggregateOpeningEngine) verify(
 		)
 	}
 	release, err := engine.gate.acquire(ctx)
+	defer release()
 	if err != nil {
 		return err
 	}
-	defer release()
 
 	nativeProof, err := nativeAggregateOpeningProof(proof)
 	if err != nil {
@@ -692,7 +692,7 @@ func (gate *aggregateOpeningGate) acquire(ctx context.Context) (func(), error) {
 	for {
 		queued := gate.queued.Load()
 		if queued >= gate.maxQueued {
-			return nil, &AggregateOpeningResourceError{
+			return noOpAggregateOpeningRelease, &AggregateOpeningResourceError{
 				Resource: AggregateOpeningResourceQueuedOperations,
 				Limit:    uint64(gate.maxQueued),
 				Actual:   uint64(queued) + 1,
@@ -708,7 +708,7 @@ func (gate *aggregateOpeningGate) acquire(ctx context.Context) (func(), error) {
 	case gate.active <- struct{}{}:
 		return gate.finishAcquire(ctx)
 	case <-ctx.Done():
-		return nil, checkAggregateOpeningContext(ctx)
+		return noOpAggregateOpeningRelease, checkAggregateOpeningContext(ctx)
 	}
 }
 
@@ -716,11 +716,13 @@ func (gate *aggregateOpeningGate) finishAcquire(ctx context.Context) (func(), er
 	if err := checkAggregateOpeningContext(ctx); err != nil {
 		<-gate.active
 
-		return nil, err
+		return noOpAggregateOpeningRelease, err
 	}
 
 	return func() { <-gate.active }, nil
 }
+
+func noOpAggregateOpeningRelease() {}
 
 func encodeNativeAggregateOpeningProof(
 	proof *multiproof.MultiProof,

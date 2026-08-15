@@ -204,6 +204,24 @@ func TestOpeningProofRejectsInvalidLimitsStateAndContext(t *testing.T) {
 	}
 }
 
+func TestOpeningProofValidatesEveryEncodedPoint(t *testing.T) {
+	t.Parallel()
+
+	_, fixture := readMultiProofFixture(t)
+	for pointIndex := range openingProofPointCount {
+		encoded := append([]byte(nil), fixture...)
+		start := pointIndex * commitmentSize
+		for index := start; index < start+commitmentSize; index++ {
+			encoded[index] = 0xff
+		}
+		if _, err := DecodeOpeningProof(
+			context.Background(), encoded, testOpeningProofLimits(),
+		); !errors.Is(err, errInvalidOpeningProof) {
+			t.Fatalf("corrupt point %d error = %v, want %v", pointIndex, err, errInvalidOpeningProof)
+		}
+	}
+}
+
 func assertOpeningProofResourceError(
 	t testing.TB,
 	err error,

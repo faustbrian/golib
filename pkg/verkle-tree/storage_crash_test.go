@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 )
@@ -172,10 +173,12 @@ func TestStorageMaintenanceCrashRetryAndPinnedAuditView(t *testing.T) {
 				err    error
 			}
 			maintenanceDone := make(chan maintenanceOutcome, 1)
+			maintenanceContext, cancelMaintenance := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancelMaintenance()
 			store.setCrashPoint(point)
 			go func() {
 				result, maintainErr := verkletree.MaintainStorage(
-					context.Background(),
+					maintenanceContext,
 					verkletree.BandersnatchIPA256V0(),
 					store,
 					nil,
@@ -190,6 +193,8 @@ func TestStorageMaintenanceCrashRetryAndPinnedAuditView(t *testing.T) {
 					"MaintainStorage() ended before atomic handoff: (%+v, %v)",
 					outcome.result, outcome.err,
 				)
+			case <-maintenanceContext.Done():
+				t.Fatalf("MaintainStorage() did not reach atomic handoff: %v", maintenanceContext.Err())
 			}
 			resumed := false
 			defer func() {
@@ -206,7 +211,12 @@ func TestStorageMaintenanceCrashRetryAndPinnedAuditView(t *testing.T) {
 			}
 			close(continueMaintenance)
 			resumed = true
-			outcome := <-maintenanceDone
+			var outcome maintenanceOutcome
+			select {
+			case outcome = <-maintenanceDone:
+			case <-maintenanceContext.Done():
+				t.Fatalf("MaintainStorage() did not finish after atomic handoff: %v", maintenanceContext.Err())
+			}
 			result, err := outcome.result, outcome.err
 			if !errors.Is(err, verkletree.ErrStorageMaintenance) ||
 				!errors.Is(err, errSimulatedStorageCrash) ||

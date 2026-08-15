@@ -13,7 +13,7 @@ func TestAggregateProverQueriesAreCanonicalAndComplete(t *testing.T) {
 	t.Parallel()
 
 	tree, err := Build(
-		context.Background(),
+		boundedTestContext(t),
 		[]Entry{
 			{Key: testKey(0x00, 0x00), Value: testValue(0x11)},
 			{Key: testKey(0x00, 0x01), Value: testValue(0x22)},
@@ -27,7 +27,7 @@ func TestAggregateProverQueriesAreCanonicalAndComplete(t *testing.T) {
 		t.Fatalf("build tree: %v", err)
 	}
 	queries, err := tree.AggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]Key{
 			testKey(0x01, 0xff),
 			testKey(0x00, 0x02),
@@ -130,14 +130,14 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 		t.Fatalf("maximum limits: %v", err)
 	}
 	if _, err := (Tree{}).AggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]Key{testKey(0, 0)},
 		validLimits,
 	); !errors.Is(err, errInvalidTree) {
 		t.Fatalf("invalid tree error = %v", err)
 	}
 	tree := testAggregateQueryTree(t)
-	cancelled, cancel := context.WithCancel(context.Background())
+	cancelled, cancel := context.WithCancel(boundedTestContext(t))
 	cancel()
 	invalidFlag := tree
 	invalidFlag.valid = false
@@ -171,20 +171,20 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 		t.Fatalf("nil context error = %v", err)
 	}
 	if _, err := tree.AggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]Key{testKey(0, 0)},
 		AggregateProverQueryLimits{},
 	); !errors.Is(err, errInvalidAggregateProverQueryLimits) {
 		t.Fatalf("invalid query limits error = %v", err)
 	}
-	if _, err := tree.AggregateProverQueries(context.Background(), nil, validLimits); !errors.Is(err, errInvalidTree) {
+	if _, err := tree.AggregateProverQueries(boundedTestContext(t), nil, validLimits); !errors.Is(err, errInvalidTree) {
 		t.Fatalf("empty keys error = %v", err)
 	}
 
 	keys := []Key{testKey(0, 0), testKey(1, 0)}
 	keyLimit := validLimits
 	keyLimit.MaxKeys = 1
-	_, err := tree.AggregateProverQueries(context.Background(), keys, keyLimit)
+	_, err := tree.AggregateProverQueries(boundedTestContext(t), keys, keyLimit)
 	assertAggregateProverQueryResourceError(
 		t,
 		err,
@@ -194,7 +194,7 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 	)
 	temporary := validLimits
 	temporary.MaxTemporaryBytes = 1
-	_, err = tree.AggregateProverQueries(context.Background(), []Key{keys[0]}, temporary)
+	_, err = tree.AggregateProverQueries(boundedTestContext(t), []Key{keys[0]}, temporary)
 	assertAggregateProverQueryResourceError(
 		t,
 		err,
@@ -203,7 +203,7 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 		128,
 	)
 	temporary.MaxTemporaryBytes = 128
-	_, err = tree.AggregateProverQueries(context.Background(), []Key{keys[0]}, temporary)
+	_, err = tree.AggregateProverQueries(boundedTestContext(t), []Key{keys[0]}, temporary)
 	assertAggregateProverQueryResourceError(
 		t,
 		err,
@@ -213,7 +213,7 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 	)
 	duplicate := []Key{keys[0], keys[0]}
 	if _, err := tree.AggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		duplicate,
 		validLimits,
 	); !errors.Is(err, errDuplicateKey) {
@@ -221,7 +221,7 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 	}
 	queryLimit := validLimits
 	queryLimit.MaxQueries = 1
-	_, err = tree.AggregateProverQueries(context.Background(), []Key{keys[0]}, queryLimit)
+	_, err = tree.AggregateProverQueries(boundedTestContext(t), []Key{keys[0]}, queryLimit)
 	assertAggregateProverQueryResourceError(
 		t,
 		err,
@@ -231,7 +231,7 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 	)
 	nodeLimit := validLimits
 	nodeLimit.MaxNodeReads = 1
-	_, err = tree.AggregateProverQueries(context.Background(), []Key{keys[0]}, nodeLimit)
+	_, err = tree.AggregateProverQueries(boundedTestContext(t), []Key{keys[0]}, nodeLimit)
 	assertAggregateProverQueryResourceError(
 		t,
 		err,
@@ -261,7 +261,7 @@ func TestAggregateProverQueriesBoundScratchByDistinctStems(t *testing.T) {
 	buildLimits := testLimits()
 	buildLimits.MaxEntries = keyCount
 	tree, err := Build(
-		context.Background(),
+		boundedTestContext(t),
 		entries,
 		buildLimits,
 		testCommitmentLimits(),
@@ -275,7 +275,7 @@ func TestAggregateProverQueriesBoundScratchByDistinctStems(t *testing.T) {
 		queryCapacity*(aggregateQueryResultWorkingBytes()+16)
 	limits := testAggregateProverQueryLimits()
 	limits.MaxTemporaryBytes = temporaryBytes
-	queries, err := tree.AggregateProverQueries(context.Background(), keys, limits)
+	queries, err := tree.AggregateProverQueries(boundedTestContext(t), keys, limits)
 	if err != nil {
 		t.Fatalf("derive shared-stem queries: %v", err)
 	}
@@ -287,7 +287,51 @@ func TestAggregateProverQueriesBoundScratchByDistinctStems(t *testing.T) {
 	}
 
 	limits.MaxTemporaryBytes--
-	_, err = tree.AggregateProverQueries(context.Background(), keys, limits)
+	_, err = tree.AggregateProverQueries(boundedTestContext(t), keys, limits)
+	assertAggregateProverQueryResourceError(
+		t,
+		err,
+		AggregateProverQueryResourceTemporaryBytes,
+		temporaryBytes-1,
+		temporaryBytes,
+	)
+}
+
+func TestAggregateProverQueriesAccountExactDistinctStemPrefixCapacity(t *testing.T) {
+	t.Parallel()
+
+	left := Key{}
+	right := Key{}
+	right[30] = 1
+	entries := []Entry{
+		{Key: left, Value: testValue(1)},
+		{Key: right, Value: testValue(2)},
+	}
+	tree, err := Build(
+		boundedTestContext(t),
+		entries,
+		testLimits(),
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("build distinct-stem tree: %v", err)
+	}
+
+	const queryCapacity = uint64(42)
+	temporaryBytes := uint64(len(entries))*2*aggregateQueryKeyWorkingBytes +
+		queryCapacity*(aggregateQueryResultWorkingBytes()+aggregateQuerySortWorkingBytes)
+	limits := testAggregateProverQueryLimits()
+	limits.MaxTemporaryBytes = temporaryBytes
+	queries, err := tree.AggregateProverQueries(boundedTestContext(t), []Key{left, right}, limits)
+	if err != nil {
+		t.Fatalf("derive distinct-stem queries at exact budget: %v", err)
+	}
+	if cap(queries) != int(queryCapacity) {
+		t.Fatalf("query capacity = %d, want %d", cap(queries), queryCapacity)
+	}
+
+	limits.MaxTemporaryBytes--
+	_, err = tree.AggregateProverQueries(boundedTestContext(t), []Key{left, right}, limits)
 	assertAggregateProverQueryResourceError(
 		t,
 		err,
@@ -361,7 +405,7 @@ func TestAggregateProverQueriesTraverseInternalAndDifferentStems(t *testing.T) {
 	right := testKey(0, 0)
 	right[1] = 2
 	tree, err := Build(
-		context.Background(),
+		boundedTestContext(t),
 		[]Entry{
 			{Key: left, Value: testValue(1)},
 			{Key: right, Value: testValue(2)},
@@ -373,7 +417,7 @@ func TestAggregateProverQueriesTraverseInternalAndDifferentStems(t *testing.T) {
 		t.Fatalf("build collision tree: %v", err)
 	}
 	if _, err := tree.AggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]Key{left},
 		testAggregateProverQueryLimits(),
 	); err != nil {
@@ -382,7 +426,7 @@ func TestAggregateProverQueriesTraverseInternalAndDifferentStems(t *testing.T) {
 	different := left
 	different[2] = 9
 	if _, err := tree.AggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]Key{different},
 		testAggregateProverQueryLimits(),
 	); err != nil {
@@ -393,7 +437,7 @@ func TestAggregateProverQueriesTraverseInternalAndDifferentStems(t *testing.T) {
 	deepRight := testKey(0, 1)
 	deepRight[30] = 1
 	deepTree, err := Build(
-		context.Background(),
+		boundedTestContext(t),
 		[]Entry{
 			{Key: deepLeft, Value: testValue(1)},
 			{Key: deepRight, Value: testValue(2)},
@@ -405,7 +449,7 @@ func TestAggregateProverQueriesTraverseInternalAndDifferentStems(t *testing.T) {
 		t.Fatalf("build depth-31 tree: %v", err)
 	}
 	if _, err := deepTree.AggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]Key{deepLeft, deepRight},
 		testAggregateProverQueryLimits(),
 	); err != nil {
@@ -516,7 +560,7 @@ func TestAggregateQueryCollectorRejectsCorruptTrees(t *testing.T) {
 			tree := cloneAggregateQueryTree(base)
 			test.mutate(&tree)
 			if _, err := tree.AggregateProverQueries(
-				context.Background(),
+				boundedTestContext(t),
 				[]Key{testKey(0, 0)},
 				testAggregateProverQueryLimits(),
 			); !errors.Is(err, errInvalidTree) &&
@@ -593,6 +637,15 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	}
 	if err := collector.collectStem(testKey(0, 0), stemIndex, stem); !errors.Is(err, errInvalidTree) {
 		t.Fatalf("invalid stem depth error = %v", err)
+	}
+	tooDeepStem := stem
+	tooDeepStem.depth = 32
+	if err := collector.collectStem(testKey(0, 0), stemIndex, tooDeepStem); !errors.Is(err, errInvalidTree) {
+		t.Fatalf("excessive stem depth error = %v", err)
+	}
+	halfPath := aggregateStemHalfPath(aggregateQueryPath{}, leafvector.C2HashIndex)
+	if halfPath.length != 1 || halfPath.path[0] != leafvector.C2HashIndex {
+		t.Fatalf("stem-half path first byte/length = %d/%d", halfPath.path[0], halfPath.length)
 	}
 
 	badRange := root
@@ -711,7 +764,7 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	invalid := valid
 	invalid.Opening.Commitment = backend.VectorCommitment{}
 	if _, err := consolidateAggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]AggregateProverQuery{invalid},
 	); !errors.Is(err, errInvalidAggregateProverQuery) {
 		t.Fatalf("invalid consolidation commitment error = %v", err)
@@ -719,7 +772,7 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	missingVector := valid
 	missingVector.Opening.Vector = nil
 	if _, err := consolidateAggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]AggregateProverQuery{missingVector},
 	); !errors.Is(err, errInvalidAggregateProverQuery) {
 		t.Fatalf("missing consolidation vector error = %v", err)
@@ -729,13 +782,13 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	conflict.Opening.Vector = &conflictVector
 	conflict.Opening.Vector[0][0] = 1
 	if _, err := consolidateAggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]AggregateProverQuery{valid, conflict},
 	); !errors.Is(err, errInvalidAggregateProverQuery) {
 		t.Fatalf("conflicting consolidation error = %v", err)
 	}
 	if got, err := consolidateAggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]AggregateProverQuery{valid, valid},
 	); err != nil || len(got) != 1 {
 		t.Fatalf("consolidated duplicate count = %d, error = %v", len(got), err)
@@ -743,7 +796,7 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	unique := valid
 	unique.Opening.Index++
 	if got, err := consolidateAggregateProverQueries(
-		context.Background(),
+		boundedTestContext(t),
 		[]AggregateProverQuery{valid, valid, unique},
 	); err != nil || len(got) != 2 || got[1].Opening.Index != unique.Opening.Index {
 		t.Fatalf("duplicate followed by unique = %#v, error = %v", got, err)
@@ -754,7 +807,7 @@ func TestAggregateQuerySortHelpers(t *testing.T) {
 	t.Parallel()
 
 	keys := []Key{testKey(2, 0), testKey(0, 0), testKey(1, 0), testKey(1, 0)}
-	if err := sortAggregateQueryKeys(context.Background(), keys); err != nil {
+	if err := sortAggregateQueryKeys(boundedTestContext(t), keys); err != nil {
 		t.Fatalf("sort keys: %v", err)
 	}
 	for index, first := range []byte{0, 1, 1, 2} {
@@ -763,7 +816,7 @@ func TestAggregateQuerySortHelpers(t *testing.T) {
 		}
 	}
 	pair := []Key{testKey(1, 0), testKey(0, 0)}
-	if err := sortAggregateQueryKeys(context.Background(), pair); err != nil {
+	if err := sortAggregateQueryKeys(boundedTestContext(t), pair); err != nil {
 		t.Fatalf("sort key pair: %v", err)
 	}
 	if pair[0][0] != 0 || pair[1][0] != 1 {
@@ -776,7 +829,7 @@ func TestAggregateQuerySortHelpers(t *testing.T) {
 		{Path: [32]byte{1}, Length: 1, Opening: backend.AggregateProverQuery{Index: 1}},
 		{Path: [32]byte{0}, Length: 1, Opening: backend.AggregateProverQuery{Index: 2}},
 	}
-	if err := sortAggregateProverQueries(context.Background(), queries); err != nil {
+	if err := sortAggregateProverQueries(boundedTestContext(t), queries); err != nil {
 		t.Fatalf("sort queries: %v", err)
 	}
 	want := [][2]uint8{{0, 2}, {0, 3}, {1, 1}, {1, 2}}
@@ -794,7 +847,7 @@ func TestAggregateQuerySortHelpers(t *testing.T) {
 		}
 	}
 	queryPair := []AggregateProverQuery{queries[3], queries[0]}
-	if err := sortAggregateProverQueries(context.Background(), queryPair); err != nil {
+	if err := sortAggregateProverQueries(boundedTestContext(t), queryPair); err != nil {
 		t.Fatalf("sort query pair: %v", err)
 	}
 	if queryPair[0].Path[0] != 0 || queryPair[1].Path[0] != 1 {
@@ -814,7 +867,7 @@ func TestAggregateQuerySortHelpers(t *testing.T) {
 	stableRight.Opening.Vector = &stableRightVector
 	stableRight.Opening.Vector[0][0] = 2
 	stable := []AggregateProverQuery{stableLeft, stableRight}
-	if err := sortAggregateProverQueries(context.Background(), stable); err != nil {
+	if err := sortAggregateProverQueries(boundedTestContext(t), stable); err != nil {
 		t.Fatalf("stable query sort: %v", err)
 	}
 	if stable[0].Opening.Vector[0][0] != 1 || stable[1].Opening.Vector[0][0] != 2 {
@@ -830,19 +883,19 @@ func TestBuildPreparedRejectsFinalizedCountMismatch(t *testing.T) {
 	t.Parallel()
 
 	plan, err := prepareBuild(
-		context.Background(),
+		boundedTestContext(t),
 		[]Entry{{Key: testKey(0, 0), Value: testValue(1)}},
 		testLimits(),
 	)
 	if err != nil {
 		t.Fatalf("prepare build: %v", err)
 	}
-	engine, err := backend.NewCommitmentEngine(context.Background(), testCommitmentLimits())
+	engine, err := backend.NewCommitmentEngine(boundedTestContext(t), testCommitmentLimits())
 	if err != nil {
 		t.Fatalf("new commitment engine: %v", err)
 	}
 	plan.nodeCount++
-	if _, err := buildPrepared(context.Background(), plan, engine); !errors.Is(err, errInvalidTree) {
+	if _, err := buildPrepared(boundedTestContext(t), plan, engine); !errors.Is(err, errInvalidTree) {
 		t.Fatalf("finalized count error = %v", err)
 	}
 }
@@ -864,7 +917,7 @@ func testAggregateQueryTree(t testing.TB) Tree {
 	t.Helper()
 
 	tree, err := Build(
-		context.Background(),
+		boundedTestContext(t),
 		[]Entry{
 			{Key: testKey(0, 0), Value: testValue(1)},
 			{Key: testKey(1, 0), Value: testValue(2)},

@@ -505,6 +505,28 @@ func TestStatelessStemRetentionHonorsCancellationAndOrdering(t *testing.T) {
 	}
 }
 
+func TestStatelessStemRetentionStopsAtNextStem(t *testing.T) {
+	t.Parallel()
+
+	queried := testKey(0x38, 0x00)
+	later := testKey(0x39, 0x00)
+	claims, err := NewClaimSet(
+		context.Background(),
+		internalprofile.BandersnatchIPA256V0Profile(),
+		[]Claim{Membership(later, testValue(1))},
+		ClaimLimits{MaxClaims: 1, MaxTemporaryBytes: 1 << 10},
+	)
+	if err != nil {
+		t.Fatalf("construct next-stem claim: %v", err)
+	}
+	retained, err := statelessStemRetained(
+		&stepContext{successfulChecks: 1}, claims, nil, Stem(queried[:31]),
+	)
+	if err != nil || retained {
+		t.Fatalf("next-stem retention = (%v, %v), want false without another scan", retained, err)
+	}
+}
+
 func TestStatelessUpdaterInsertsOneAuthenticatedMissingStem(t *testing.T) {
 	t.Parallel()
 
@@ -1046,6 +1068,25 @@ func TestStatelessProofIndexesHonorCancellation(t *testing.T) {
 				t.Fatal("cancelled proof indexes exposed partial maps")
 			}
 		})
+	}
+}
+
+func TestStatelessProofIndexesIncludeRootWithoutPathCommitments(t *testing.T) {
+	t.Parallel()
+
+	root := backend.EmptyVectorCommitment()
+	commitments, paths, err := buildStatelessProofIndexes(
+		context.Background(), TreeProof{}, root,
+	)
+	if err != nil {
+		t.Fatalf("build root-only stateless proof indexes: %v", err)
+	}
+	indexedRoot, found := commitments[statelessPath{}]
+	if !found || len(commitments) != 1 || indexedRoot != root {
+		t.Fatalf("root-only commitment index = (%#v, %t), count %d", indexedRoot, found, len(commitments))
+	}
+	if len(paths) != 0 {
+		t.Fatalf("root-only stem path count = %d, want 0", len(paths))
 	}
 }
 

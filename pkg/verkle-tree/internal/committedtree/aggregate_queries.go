@@ -191,12 +191,14 @@ func (tree Tree) AggregateProverQueries(
 			if index == 0 {
 				capacity += aggregateInternalQueriesFirstStem
 			} else {
-				commonPrefix := 0
-				for commonPrefix < 31 &&
-					ordered[index-1][commonPrefix] == ordered[index][commonPrefix] {
-					commonPrefix++
+				for commonPrefix := range 31 {
+					if ordered[index-1][commonPrefix] == ordered[index][commonPrefix] {
+						continue
+					}
+					capacity += uint64(31 - commonPrefix)
+
+					break
 				}
-				capacity += uint64(31 - commonPrefix)
 			}
 		}
 		if !sameStem || ordered[index-1][31]/128 != ordered[index][31]/128 {
