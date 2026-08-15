@@ -4234,6 +4234,26 @@
       "migration_reason": "gate-version-input-isolation"
     },
     {
+      "module": "pkg/verkle-tree",
+      "package": ".",
+      "execution_revision": "1be04c0e6f17f587dc6083b701467620b95d511d",
+      "gate_input_digest": "2412acc4d40aa644d61c0c6d31ae6d3c3854b2b8e84cb807c0296773010695ab",
+      "replacement_gate_input_digest": "4689432b6bc94fe4f43dc4128b41c94993cada677f2e8f2bb4442f25b58d03b4",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "1b2232b360fa02b4a4f17d730d7f3c2d1ec421c0c970acc6fded9d59b10b9377",
+      "migration_reason": "revalidated-after-abandoned-worktree-redirect"
+    },
+    {
+      "module": "pkg/verkle-tree",
+      "package": ".",
+      "execution_revision": "1be04c0e6f17f587dc6083b701467620b95d511d",
+      "gate_input_digest": "4689432b6bc94fe4f43dc4128b41c94993cada677f2e8f2bb4442f25b58d03b4",
+      "replacement_gate_input_digest": "8a8c970cb20c72ade9559e12e8301686b31b757e6b9a095bce644035b2758f8b",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "1b2232b360fa02b4a4f17d730d7f3c2d1ec421c0c970acc6fded9d59b10b9377",
+      "migration_reason": "bounded-internal-loop-control-rephrase"
+    },
+    {
       "module": "pkg/search/adapters/opensearch",
       "package": ".",
       "execution_revision": "8e134b9241b3b4af768cd6bb6620ec3d668a20c3",
@@ -4392,6 +4412,56 @@
       "gremlins_version": "v0.6.0",
       "report_sha256": "72094c8b2dcf0bfb4f1d7ef1e19f4be87352e3165051f0a9f28b3169215a5896",
       "migration_reason": "go-patch-toolchain-migration"
+    },
+    {
+      "module": "pkg/prompts",
+      "package": ".",
+      "execution_revision": "8cb85e2f184a5fd013396bdb6521ecead1a61cc4",
+      "gate_input_digest": "1478545ac8f959df7a9b9d49903dfa67db82811e21b51bd9080939cb3f4b549f",
+      "replacement_gate_input_digest": "a40c157b556ef670d375ccdccd5f5858b012c0e4855cb64baa2975cf9e4bc29b",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "d09de3058b0c11f61934a0f481d01054412b01431ef081da1e219aaf6b0c8284",
+      "migration_reason": "go-patch-upgrade-evidence-carry-forward"
+    },
+    {
+      "module": "pkg/prompts",
+      "package": "terminal",
+      "execution_revision": "8cb85e2f184a5fd013396bdb6521ecead1a61cc4",
+      "gate_input_digest": "987cf4412ab25c97da39fcf55004b1183df5e871dcc1a889d36af8a8acb3c345",
+      "replacement_gate_input_digest": "97b170ef1908c7f388f1961fb9bbca71fcd8a95466c6774a722e3261cb3f0170",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "5c38311947e151f22a8714bd7b5271c559658c577c0a0dcb1b9c04ba4e220941",
+      "migration_reason": "go-patch-upgrade-evidence-carry-forward"
+    },
+    {
+      "module": "pkg/xsd",
+      "package": "builder",
+      "execution_revision": "5d259ec42b7eba3805ddb5a1191da15f620af857",
+      "gate_input_digest": "4d03f07bf2b946b78771a0ccd9531594cce62a38fc3d9163561b1a4f8635b3cc",
+      "replacement_gate_input_digest": "4c8b40b6c6756bf3ebb2aae4bb3c2598a5dd6ca24c6f759e0fb91f41e191a789",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "09189981b6fda8aa8a0e9cb3719820dce30257705cdc3c47b9995ef72da8ff90",
+      "migration_reason": "go-patch-upgrade-evidence-carry-forward"
+    },
+    {
+      "module": "pkg/xsd",
+      "package": "resolve",
+      "execution_revision": "5d259ec42b7eba3805ddb5a1191da15f620af857",
+      "gate_input_digest": "fcfa367493b7e1b087e41fe445a2d6aee99e85a5511f97bb80eade01d7f0176f",
+      "replacement_gate_input_digest": "004b3c4234080deb37f2088853fc61e2f8a64ac03897de173cf30c2f893c6045",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "ab9b2f8f1d6f326543d8475150873a9e5f44cf48b0b2f9cf18c659b28d8d203b",
+      "migration_reason": "go-patch-upgrade-evidence-carry-forward"
+    },
+    {
+      "module": "pkg/xsd",
+      "package": "validate",
+      "execution_revision": "5d259ec42b7eba3805ddb5a1191da15f620af857",
+      "gate_input_digest": "1e1dc4b579b899e1c87bc0ff5b27c6ae16efc9c1b6bb02b4cba00f1d331ad17a",
+      "replacement_gate_input_digest": "06db8091c172aebf846839f4759aa7e8d46c0dd4f1a3d4114785822c023e5f4b",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "576fcf6bec65f673cbdd03f3b11d9ff675833fc042330e8141d9d12b9ca94e3e",
+      "migration_reason": "go-patch-upgrade-evidence-carry-forward"
     }
   ]
 }
