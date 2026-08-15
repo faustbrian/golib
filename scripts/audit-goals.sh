@@ -31,6 +31,16 @@ mkdir -p "${artifact}"
 if [[ "${goal_count}" -gt 0 ]]; then
     while IFS= read -r gate; do
         [[ -n "${gate}" ]] || continue
+        if ! jq -e --arg gate "${gate}" '
+            [
+                .goal_evidence[]
+                | select(.implementation_status != "future-not-started")
+                | .verification_gates[]
+            ]
+            | index($gate) != null
+        ' <<<"${module_record}" >/dev/null; then
+            continue
+        fi
         "${root}/scripts/verify-gate-evidence.sh" "${module}" "${gate}"
         input_digest="$(
             "${root}/scripts/gate-input-digest.sh" "${gate}" "${module}"
@@ -69,6 +79,11 @@ jq -n \
         verification_status: (
             if ($module.goal_evidence | length) == 0
             then "not-applicable"
+            elif ([
+                $module.goal_evidence[]
+                | select(.implementation_status != "future-not-started")
+            ] | length) == 0
+            then "deferred"
             else "verified"
             end
         ),
@@ -76,7 +91,14 @@ jq -n \
         verified_at: $verified_at,
         goals: [
             $module.goal_evidence[] |
-            . + {verification_status: "verified"}
+            . + {
+                verification_status: (
+                    if .implementation_status == "future-not-started"
+                    then "deferred"
+                    else "verified"
+                    end
+                )
+            }
         ],
         gate_evidence: $gates
     }' >"${temporary}"

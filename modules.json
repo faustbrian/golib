@@ -24375,8 +24375,6 @@
             "coverage",
             "lint",
             "staticcheck",
-            "vulnerability",
-            "secrets",
             "licenses",
             "sbom",
             "fuzz",
@@ -24409,8 +24407,6 @@
             "coverage",
             "lint",
             "staticcheck",
-            "vulnerability",
-            "secrets",
             "licenses",
             "sbom",
             "fuzz",
@@ -24427,36 +24423,9 @@
         {
           "file": "pkg/verkle-tree/.ai/GOAL_SECURITY.md",
           "requirements_sha256": "7f7bd387c5ef36ebbe92e1badbef74bced66a7d4665c7b016a23c560d0598f8a",
-          "implementation_evidence": [
-            "pkg/verkle-tree/CHANGELOG.md",
-            "pkg/verkle-tree/README.md",
-            "pkg/verkle-tree/docs/compatibility.md",
-            "pkg/verkle-tree/docs/threat-model.md"
-          ],
-          "verification_gates": [
-            "format-check",
-            "tidy-check",
-            "safety",
-            "vet",
-            "test",
-            "race",
-            "coverage",
-            "lint",
-            "staticcheck",
-            "vulnerability",
-            "secrets",
-            "licenses",
-            "sbom",
-            "fuzz",
-            "mutation",
-            "nilaway",
-            "docs",
-            "api",
-            "conformance",
-            "interoperability",
-            "benchmark"
-          ],
-          "implementation_status": "implemented-requires-fresh-verification"
+          "implementation_evidence": [],
+          "verification_gates": [],
+          "implementation_status": "future-not-started"
         }
       ],
       "gates": {

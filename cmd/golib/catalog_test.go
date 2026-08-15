@@ -266,6 +266,46 @@ func TestGoalEvidenceTracksRequirementsImplementationAndCanonicalGates(t *testin
 	}
 }
 
+func TestGoalEvidenceDefersFutureSecurityGoalAndSecurityGates(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	hardeningGoal := "pkg/sample/.ai/GOAL_HARDEN.md"
+	securityGoal := "pkg/sample/.ai/GOAL_SECURITY.md"
+	mustWriteFile(t, filepath.Join(root, hardeningGoal), "# Hardening Goal\n")
+	mustWriteFile(t, filepath.Join(root, securityGoal), "# Future Goal: Security Audit\n")
+	mustWriteFile(t, filepath.Join(root, "pkg/sample/README.md"), "# Sample\n")
+
+	records, err := goalEvidenceFor(
+		root,
+		"pkg/sample",
+		[]string{hardeningGoal, securityGoal},
+		[]string{"test", "vulnerability", "secrets", "mutation"},
+	)
+	if err != nil {
+		t.Fatalf("goalEvidenceFor() error = %v", err)
+	}
+	if len(records) != 2 {
+		t.Fatalf("goalEvidenceFor() records = %d, want 2", len(records))
+	}
+	active := records[0]
+	if active.ImplementationStatus != "implemented-requires-fresh-verification" {
+		t.Fatalf("active goal status = %q", active.ImplementationStatus)
+	}
+	if !slices.Equal(active.VerificationGates, []string{"test", "mutation"}) {
+		t.Fatalf("active verification gates = %v", active.VerificationGates)
+	}
+	record := records[1]
+	if record.ImplementationStatus != "future-not-started" {
+		t.Fatalf("future goal status = %q", record.ImplementationStatus)
+	}
+	if len(record.ImplementationEvidence) != 0 {
+		t.Fatalf("future implementation evidence = %v, want empty", record.ImplementationEvidence)
+	}
+	if len(record.VerificationGates) != 0 {
+		t.Fatalf("future verification gates = %v, want empty", record.VerificationGates)
+	}
+}
+
 func TestGoalEvidenceIncludesExplicitDesignLanguage(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

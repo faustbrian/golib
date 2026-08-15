@@ -1693,26 +1693,55 @@ func goalEvidenceFor(
 	goals []string,
 	verificationGates []string,
 ) ([]goalEvidence, error) {
+	deferSecurityGates := false
+	for _, goal := range goals {
+		if filepath.Base(goal) != "GOAL_SECURITY.md" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(goal)))
+		if err != nil {
+			return nil, fmt.Errorf("read goal %s: %w", goal, err)
+		}
+		if bytes.HasPrefix(bytes.TrimSpace(data), []byte("# Future Goal:")) {
+			deferSecurityGates = true
+		}
+	}
+
 	result := make([]goalEvidence, 0, len(goals))
 	for _, goal := range goals {
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(goal)))
 		if err != nil {
 			return nil, fmt.Errorf("read goal %s: %w", goal, err)
 		}
+		future := bytes.HasPrefix(bytes.TrimSpace(data), []byte("# Future Goal:"))
 		digest := sha256.Sum256(data)
-		evidence, evidenceErr := implementationEvidence(root, directory, goal)
-		if evidenceErr != nil {
-			return nil, evidenceErr
+		evidence := []string{}
+		if !future {
+			var evidenceErr error
+			evidence, evidenceErr = implementationEvidence(root, directory, goal)
+			if evidenceErr != nil {
+				return nil, evidenceErr
+			}
+			if len(evidence) == 0 {
+				return nil, fmt.Errorf("goal %s has no implementation evidence", goal)
+			}
 		}
-		if len(evidence) == 0 {
-			return nil, fmt.Errorf("goal %s has no implementation evidence", goal)
+		status := "implemented-requires-fresh-verification"
+		gates := slices.Clone(verificationGates)
+		if future {
+			status = "future-not-started"
+			gates = []string{}
+		} else if deferSecurityGates {
+			gates = slices.DeleteFunc(gates, func(gate string) bool {
+				return gate == "vulnerability" || gate == "secrets"
+			})
 		}
 		result = append(result, goalEvidence{
 			File:                   goal,
 			RequirementsSHA256:     hex.EncodeToString(digest[:]),
 			ImplementationEvidence: evidence,
-			VerificationGates:      slices.Clone(verificationGates),
-			ImplementationStatus:   "implemented-requires-fresh-verification",
+			VerificationGates:      gates,
+			ImplementationStatus:   status,
 		})
 	}
 	return result, nil

@@ -3390,6 +3390,12 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
       "implementation_evidence": ["pkg/sample/README.md"],
       "verification_gates": ["test", "mutation"],
       "implementation_status": "implemented-requires-fresh-verification"
+    }, {
+      "file": "pkg/sample/.ai/GOAL_SECURITY.md",
+      "requirements_sha256": "future-goal-digest",
+      "implementation_evidence": [],
+      "verification_gates": [],
+      "implementation_status": "future-not-started"
     }]
   }]
 }`)
@@ -3556,6 +3562,7 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	var report struct {
 		VerificationStatus string `json:"verification_status"`
 		Goals              []struct {
+			File               string `json:"file"`
 			VerificationStatus string `json:"verification_status"`
 		} `json:"goals"`
 		GateEvidence []json.RawMessage `json:"gate_evidence"`
@@ -3566,9 +3573,10 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 		&report,
 	)
 	if report.VerificationStatus != "verified" ||
-		len(report.Goals) != 1 ||
+		len(report.Goals) != 2 ||
 		report.Goals[0].VerificationStatus != "verified" ||
-		len(report.GateEvidence) != 3 {
+		report.Goals[1].VerificationStatus != "deferred" ||
+		len(report.GateEvidence) != 2 {
 		t.Fatalf("goal audit report = %+v", report)
 	}
 }
