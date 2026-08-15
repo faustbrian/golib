@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/faustbrian/golib/pkg/wire/xmlwire"
 )
@@ -107,9 +109,11 @@ func newMarshalValue(document *Document) (marshalValue, error) {
 	for _, prefix := range prefixes {
 		usedPrefixes[prefix] = struct{}{}
 	}
+	unresolved := make([]string, 0, len(values))
 	for _, namespace := range values {
 		candidates := preferred[namespace]
 		sort.Strings(candidates)
+		assigned := false
 		for _, prefix := range candidates {
 			if prefix == "" || prefix == "xml" {
 				continue
@@ -119,26 +123,48 @@ func newMarshalValue(document *Document) (marshalValue, error) {
 			}
 			prefixes[namespace] = prefix
 			usedPrefixes[prefix] = struct{}{}
+			assigned = true
 			break
+		}
+		if !assigned {
+			unresolved = append(unresolved, namespace)
 		}
 	}
-	nextPrefix := 1
-	for _, namespace := range values {
-		if _, exists := prefixes[namespace]; exists {
-			continue
-		}
-		for {
-			prefix := fmt.Sprintf("ns%d", nextPrefix)
-			nextPrefix++
-			if _, exists := usedPrefixes[prefix]; exists {
-				continue
-			}
-			prefixes[namespace] = prefix
-			usedPrefixes[prefix] = struct{}{}
-			break
-		}
+	for _, namespace := range unresolved {
+		prefix := nextGeneratedPrefix(usedPrefixes)
+		prefixes[namespace] = prefix
+		usedPrefixes[prefix] = struct{}{}
 	}
 	return marshalValue{document: document, prefixes: prefixes}, nil
+}
+
+func nextGeneratedPrefix(used map[string]struct{}) string {
+	generated := make([]int, 0, len(used))
+	for prefix := range used {
+		if value, valid := generatedPrefixNumber(prefix); valid {
+			generated = append(generated, value)
+		}
+	}
+	sort.Ints(generated)
+	next := 1
+	for _, value := range generated {
+		if value == next {
+			next++
+		}
+	}
+	return fmt.Sprintf("ns%d", next)
+}
+
+func generatedPrefixNumber(prefix string) (int, bool) {
+	suffix, generated := strings.CutPrefix(prefix, "ns")
+	if !generated {
+		return 0, false
+	}
+	value, err := strconv.Atoi(suffix)
+	if err != nil || value < 1 || strconv.Itoa(value) != suffix {
+		return 0, false
+	}
+	return value, true
 }
 
 func collectPreferredPrefixes(
@@ -166,18 +192,20 @@ func preferTargetPrefix(
 		if candidate == "" || candidate == "xml" {
 			continue
 		}
-		available := true
-		for namespace, prefix := range prefixes {
-			if namespace != targetNamespace && prefix == candidate {
-				available = false
-				break
-			}
-		}
-		if available {
+		if prefixAvailable(prefixes, targetNamespace, candidate) {
 			prefixes[targetNamespace] = candidate
 			return
 		}
 	}
+}
+
+func prefixAvailable(prefixes map[string]string, targetNamespace, candidate string) bool {
+	for namespace, prefix := range prefixes {
+		if namespace != targetNamespace && prefix == candidate {
+			return false
+		}
+	}
+	return true
 }
 
 func collectProtocolPrefixes11(definitions Definitions11, prefixes map[string]string) {

@@ -288,8 +288,13 @@ func (s *Set) Operation(interfaceName wsdl.QName, name string) (Operation, bool)
 	index := sort.Search(len(interfaceValue.Operations), func(index int) bool {
 		return interfaceValue.Operations[index].Name >= name
 	})
-	if index == len(interfaceValue.Operations) || interfaceValue.Operations[index].Name != name ||
-		(index+1 < len(interfaceValue.Operations) && interfaceValue.Operations[index+1].Name == name) {
+	if index == len(interfaceValue.Operations) {
+		return Operation{}, false
+	}
+	if interfaceValue.Operations[index].Name != name {
+		return Operation{}, false
+	}
+	if index+1 < len(interfaceValue.Operations) && interfaceValue.Operations[index+1].Name == name {
 		return Operation{}, false
 	}
 	return cloneOperation(interfaceValue.Operations[index]), true
@@ -501,45 +506,45 @@ func (s *compileState) resolveDocument(ctx context.Context, identity string, dep
 			if err := validateReference(reference, existing.document, resource.document); err != nil {
 				return err
 			}
-			continue
-		}
-		if len(s.resources) >= s.compiler.limits.MaxDocuments {
-			return fmt.Errorf("%w: documents exceed %d", ErrLimitExceeded, s.compiler.limits.MaxDocuments)
-		}
-		resolved, err := s.compiler.resolver.Resolve(ctx, resolve.Request{
-			URI: reference.uri, Namespace: reference.namespace,
-			Kind: reference.kind, Version: string(reference.version),
-		})
-		if err != nil {
-			return err
-		}
-		if resolved.URI != reference.uri {
-			return fmt.Errorf(
-				"%w: requested %q, received %q",
-				ErrResourceIdentity,
-				reference.uri,
-				resolved.URI,
-			)
-		}
-		if err := validateIdentity(resolved.URI); err != nil {
-			return err
-		}
-		s.bytes += int64(len(resolved.Content))
-		if s.bytes > s.compiler.limits.MaxBytes {
-			return fmt.Errorf("%w: WSDL bytes exceed %d", ErrLimitExceeded, s.compiler.limits.MaxBytes)
-		}
-		document, err := wsdl.Parse(ctx, resolved.Content, wsdl.ParseOptions{
-			SystemID: resolved.URI, MaxDocumentBytes: s.compiler.limits.MaxBytes,
-		})
-		if err != nil {
-			return err
-		}
-		if err := validateReference(reference, document, resource.document); err != nil {
-			return err
-		}
-		s.resources[resolved.URI] = &resourceDocument{document: document}
-		if err := s.resolveDocument(ctx, resolved.URI, depth+1); err != nil {
-			return err
+		} else {
+			if len(s.resources) >= s.compiler.limits.MaxDocuments {
+				return fmt.Errorf("%w: documents exceed %d", ErrLimitExceeded, s.compiler.limits.MaxDocuments)
+			}
+			resolved, err := s.compiler.resolver.Resolve(ctx, resolve.Request{
+				URI: reference.uri, Namespace: reference.namespace,
+				Kind: reference.kind, Version: string(reference.version),
+			})
+			if err != nil {
+				return err
+			}
+			if resolved.URI != reference.uri {
+				return fmt.Errorf(
+					"%w: requested %q, received %q",
+					ErrResourceIdentity,
+					reference.uri,
+					resolved.URI,
+				)
+			}
+			if err := validateIdentity(resolved.URI); err != nil {
+				return err
+			}
+			s.bytes += int64(len(resolved.Content))
+			if s.bytes > s.compiler.limits.MaxBytes {
+				return fmt.Errorf("%w: WSDL bytes exceed %d", ErrLimitExceeded, s.compiler.limits.MaxBytes)
+			}
+			document, err := wsdl.Parse(ctx, resolved.Content, wsdl.ParseOptions{
+				SystemID: resolved.URI, MaxDocumentBytes: s.compiler.limits.MaxBytes,
+			})
+			if err != nil {
+				return err
+			}
+			if err := validateReference(reference, document, resource.document); err != nil {
+				return err
+			}
+			s.resources[resolved.URI] = &resourceDocument{document: document}
+			if err := s.resolveDocument(ctx, resolved.URI, depth+1); err != nil {
+				return err
+			}
 		}
 	}
 	sort.Strings(resource.dependencies)
@@ -820,18 +825,17 @@ func compileMessages11(resources map[string]*resourceDocument) map[wsdl.QName]Me
 	result := make(map[wsdl.QName]Message)
 	for _, resource := range resources {
 		definitions, ok := resource.document.Definitions11()
-		if !ok {
-			continue
-		}
-		for _, message := range definitions.Messages {
-			name := wsdl.QName{Namespace: definitions.TargetNamespace, Local: message.Name}
-			parts := make([]Part, 0, len(message.Parts))
-			for _, part := range message.Parts {
-				parts = append(parts, Part{
-					Name: part.Name, Element: part.Element, Type: part.Type,
-				})
+		if ok {
+			for _, message := range definitions.Messages {
+				name := wsdl.QName{Namespace: definitions.TargetNamespace, Local: message.Name}
+				parts := make([]Part, 0, len(message.Parts))
+				for _, part := range message.Parts {
+					parts = append(parts, Part{
+						Name: part.Name, Element: part.Element, Type: part.Type,
+					})
+				}
+				result[name] = Message{Name: name, Parts: parts}
 			}
-			result[name] = Message{Name: name, Parts: parts}
 		}
 	}
 	return result
@@ -875,27 +879,9 @@ func compileBindingOperationReference11(
 	candidates := make([]OperationReference, 0, 1)
 	for _, resource := range resources {
 		definitions, ok := resource.document.Definitions11()
-		if !ok || definitions.TargetNamespace != portTypeName.Namespace {
-			continue
-		}
-		for _, portType := range definitions.PortTypes {
-			if portType.Name != portTypeName.Local {
-				continue
-			}
-			for _, operation := range portType.Operations {
-				if operation.Name != bound.Name {
-					continue
-				}
-				input, output := operationMessageNames11(operation)
-				if bound.Input != nil && bound.Input.Name != "" && bound.Input.Name != input {
-					continue
-				}
-				if bound.Output != nil && bound.Output.Name != "" && bound.Output.Name != output {
-					continue
-				}
-				candidates = append(candidates, OperationReference{
-					Name: operation.Name, Input: input, Output: output,
-				})
+		if ok {
+			if definitions.TargetNamespace == portTypeName.Namespace {
+				candidates = append(candidates, bindingOperationCandidates11(bound, portTypeName.Local, definitions.PortTypes)...)
 			}
 		}
 	}
@@ -910,6 +896,45 @@ func compileBindingOperationReference11(
 		result.Output = bound.Output.Name
 	}
 	return result
+}
+
+func bindingOperationCandidates11(
+	bound wsdl.BindingOperation11,
+	portTypeName string,
+	portTypes []wsdl.PortType11,
+) []OperationReference {
+	var candidates []OperationReference
+	for _, portType := range portTypes {
+		if portType.Name == portTypeName {
+			for _, operation := range portType.Operations {
+				input, output := operationMessageNames11(operation)
+				if bindingOperationMatches11(bound, operation.Name, input, output) {
+					candidates = append(candidates, OperationReference{
+						Name: operation.Name, Input: input, Output: output,
+					})
+				}
+			}
+		}
+	}
+	return candidates
+}
+
+func bindingOperationMatches11(
+	bound wsdl.BindingOperation11,
+	operationName string,
+	input string,
+	output string,
+) bool {
+	if operationName != bound.Name {
+		return false
+	}
+	if bound.Input != nil && bound.Input.Name != "" && bound.Input.Name != input {
+		return false
+	}
+	if bound.Output != nil && bound.Output.Name != "" && bound.Output.Name != output {
+		return false
+	}
+	return true
 }
 
 func operationMessageNames11(operation wsdl.Operation11) (string, string) {
@@ -1184,71 +1209,81 @@ func validateSchemaReferences20(
 	}
 	for _, resource := range resources {
 		if definitions, ok := resource.document.Definitions11(); ok {
-			for _, message := range definitions.Messages {
-				for _, part := range message.Parts {
-					if part.Element.Local != "" {
-						if _, exists := elements[part.Element]; !exists {
-							return unresolvedSchemaComponent("element", part.Element)
+			if err := validateSchemaReferences11(definitions.Messages, elements, types); err != nil {
+				return err
+			}
+		} else {
+			description, _ := resource.document.Description20()
+			for _, interfaceValue := range description.Interfaces {
+				for _, fault := range interfaceValue.Faults {
+					if fault.MessageContentModel == wsdl.MessageContentElement {
+						if _, exists := elements[fault.Element]; !exists {
+							return unresolvedSchemaComponent("element", fault.Element)
 						}
 					}
-					if part.Type.Local != "" && part.Type.Namespace != wsdl.NamespaceXMLSchema {
-						if _, exists := types[part.Type]; !exists {
-							return unresolvedSchemaComponent("type", part.Type)
+				}
+				for _, operation := range interfaceValue.Operations {
+					messages := append(
+						interfaceMessages20(operation.Inputs, operation.Input),
+						interfaceMessages20(operation.Outputs, operation.Output)...,
+					)
+					for _, message := range messages {
+						if message.MessageContentModel == wsdl.MessageContentElement {
+							if _, exists := elements[message.Element]; !exists {
+								return unresolvedSchemaComponent("element", message.Element)
+							}
 						}
 					}
 				}
 			}
-			continue
+			for _, binding := range description.Bindings {
+				for _, fault := range binding.Faults {
+					if fault.SOAP != nil {
+						for _, header := range fault.SOAP.Headers {
+							if _, exists := elements[header.Element]; !exists {
+								return unresolvedSchemaComponent("element", header.Element)
+							}
+						}
+					}
+					if fault.HTTP != nil {
+						if err := validateHTTPHeaderTypes20(fault.HTTP.Headers, types); err != nil {
+							return err
+						}
+					}
+				}
+				for _, operation := range binding.Operations {
+					for _, message := range operation.Inputs {
+						if err := validateBindingMessageSchema20(message, elements, types); err != nil {
+							return err
+						}
+					}
+					for _, message := range operation.Outputs {
+						if err := validateBindingMessageSchema20(message, elements, types); err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
-		description, _ := resource.document.Description20()
-		for _, interfaceValue := range description.Interfaces {
-			for _, fault := range interfaceValue.Faults {
-				if fault.MessageContentModel == wsdl.MessageContentElement {
-					if _, exists := elements[fault.Element]; !exists {
-						return unresolvedSchemaComponent("element", fault.Element)
-					}
+	}
+	return nil
+}
+
+func validateSchemaReferences11(
+	messages []wsdl.Message11,
+	elements map[wsdl.QName]struct{},
+	types map[wsdl.QName]struct{},
+) error {
+	for _, message := range messages {
+		for _, part := range message.Parts {
+			if part.Element.Local != "" {
+				if _, exists := elements[part.Element]; !exists {
+					return unresolvedSchemaComponent("element", part.Element)
 				}
 			}
-			for _, operation := range interfaceValue.Operations {
-				messages := append(
-					interfaceMessages20(operation.Inputs, operation.Input),
-					interfaceMessages20(operation.Outputs, operation.Output)...,
-				)
-				for _, message := range messages {
-					if message.MessageContentModel != wsdl.MessageContentElement {
-						continue
-					}
-					if _, exists := elements[message.Element]; !exists {
-						return unresolvedSchemaComponent("element", message.Element)
-					}
-				}
-			}
-		}
-		for _, binding := range description.Bindings {
-			for _, fault := range binding.Faults {
-				if fault.SOAP != nil {
-					for _, header := range fault.SOAP.Headers {
-						if _, exists := elements[header.Element]; !exists {
-							return unresolvedSchemaComponent("element", header.Element)
-						}
-					}
-				}
-				if fault.HTTP != nil {
-					if err := validateHTTPHeaderTypes20(fault.HTTP.Headers, types); err != nil {
-						return err
-					}
-				}
-			}
-			for _, operation := range binding.Operations {
-				for _, message := range operation.Inputs {
-					if err := validateBindingMessageSchema20(message, elements, types); err != nil {
-						return err
-					}
-				}
-				for _, message := range operation.Outputs {
-					if err := validateBindingMessageSchema20(message, elements, types); err != nil {
-						return err
-					}
+			if part.Type.Local != "" && part.Type.Namespace != wsdl.NamespaceXMLSchema {
+				if _, exists := types[part.Type]; !exists {
+					return unresolvedSchemaComponent("type", part.Type)
 				}
 			}
 		}
@@ -1267,26 +1302,24 @@ func validateRPCSchemas20(
 ) error {
 	for _, resource := range resources {
 		description, ok := resource.document.Description20()
-		if !ok {
-			continue
-		}
-		for _, interfaceValue := range description.Interfaces {
-			for _, operation := range interfaceValue.Operations {
-				if !operationUsesRPCStyle20(interfaceValue, operation) {
-					continue
-				}
-				inputs := interfaceMessages20(operation.Inputs, operation.Input)
-				outputs := interfaceMessages20(operation.Outputs, operation.Output)
-				input, err := rpcMessageShape(operation.Name, "input", inputs, schemas)
-				if err != nil {
-					return err
-				}
-				output, err := rpcMessageShape(operation.Name, "output", outputs, schemas)
-				if err != nil {
-					return err
-				}
-				if err := validateRPCSignature20(operation, input, output); err != nil {
-					return err
+		if ok {
+			for _, interfaceValue := range description.Interfaces {
+				for _, operation := range interfaceValue.Operations {
+					if operationUsesRPCStyle20(interfaceValue, operation) {
+						inputs := interfaceMessages20(operation.Inputs, operation.Input)
+						outputs := interfaceMessages20(operation.Outputs, operation.Output)
+						input, err := rpcMessageShape(operation.Name, "input", inputs, schemas)
+						if err != nil {
+							return err
+						}
+						output, err := rpcMessageShape(operation.Name, "output", outputs, schemas)
+						if err != nil {
+							return err
+						}
+						if err := validateRPCSignature20(operation, input, output); err != nil {
+							return err
+						}
+					}
 				}
 			}
 		}
@@ -1300,25 +1333,22 @@ func validateOperationStyleSchemas20(
 ) error {
 	for _, resource := range resources {
 		description, ok := resource.document.Description20()
-		if !ok {
-			continue
-		}
-		for _, interfaceValue := range description.Interfaces {
-			for _, operation := range interfaceValue.Operations {
-				styles := operation.Style
-				if len(styles) == 0 {
-					styles = interfaceValue.StyleDefault
-				}
-				for _, style := range styles {
-					if style != wsdl.StyleIRI && style != wsdl.StyleMultipart {
-						continue
+		if ok {
+			for _, interfaceValue := range description.Interfaces {
+				for _, operation := range interfaceValue.Operations {
+					styles := operation.Style
+					if len(styles) == 0 {
+						styles = interfaceValue.StyleDefault
 					}
-					message := initialOperationMessage20(operation)
-					if message == nil {
-						continue
-					}
-					if err := validateOperationStyleSchema20(style, operation.Name, *message, schemas); err != nil {
-						return err
+					for _, style := range styles {
+						if style == wsdl.StyleIRI || style == wsdl.StyleMultipart {
+							message := initialOperationMessage20(operation)
+							if message != nil {
+								if err := validateOperationStyleSchema20(style, operation.Name, *message, schemas); err != nil {
+									return err
+								}
+							}
+						}
 					}
 				}
 			}
@@ -1367,8 +1397,7 @@ func validateOperationStyleSchema20(
 		return invalid(operation, "initial wrapper element is unresolved")
 	}
 	typeDefinition, exists := rpcComplexType(element, schemas)
-	if !exists || typeDefinition.Content == nil ||
-		typeDefinition.Content.Compositor != xsd.Sequence || typeDefinition.SimpleContent {
+	if !isComplexSequence(typeDefinition, exists) {
 		return invalid(operation, "wrapper must use a complex sequence")
 	}
 	if complexTypeDeclaresAttributes(typeDefinition) {
@@ -1409,7 +1438,10 @@ func elementComplexType(element xsd.Element, schemas *xsdcompile.Set) (xsd.Compl
 	if element.InlineComplexType != nil {
 		return *element.InlineComplexType, true
 	}
-	if element.Type.Local == "" || schemas == nil {
+	if element.Type.Local == "" {
+		return xsd.ComplexType{}, false
+	}
+	if schemas == nil {
 		return xsd.ComplexType{}, false
 	}
 	return schemas.ComplexType(element.Type)
@@ -1515,8 +1547,7 @@ func rpcMessageShape(
 		return shape, invalidRPC(operation, direction+" wrapper element is unresolved")
 	}
 	typeDefinition, exists := rpcComplexType(element, schemas)
-	if !exists || typeDefinition.Content == nil ||
-		typeDefinition.Content.Compositor != xsd.Sequence || typeDefinition.SimpleContent {
+	if !isComplexSequence(typeDefinition, exists) {
 		return shape, invalidRPC(operation, direction+" wrapper must use a complex sequence")
 	}
 	if len(typeDefinition.Attributes) > 0 || len(typeDefinition.AttributeGroupRefs) > 0 ||
@@ -1526,7 +1557,7 @@ func rpcMessageShape(
 	particles := typeDefinition.Content.Particles
 	for index, particle := range particles {
 		if particle.Element != nil {
-			if particle.Element.Ref.Local != "" || particle.Element.Name == "" {
+			if !isLocalRPCElement(*particle.Element) {
 				return shape, invalidRPC(operation, direction+" sequence must contain local elements")
 			}
 			child := wsdl.QName{Namespace: particle.Element.Namespace, Local: particle.Element.Name}
@@ -1534,16 +1565,22 @@ func rpcMessageShape(
 				return shape, invalidRPC(operation, direction+" sequence repeats element "+formatRPCQName(child))
 			}
 			shape.elements[child] = particle.Element.Type
-			continue
-		}
-		if particle.Wildcard != nil && direction == "input" && !shape.wildcard &&
+		} else if particle.Wildcard != nil && direction == "input" && !shape.wildcard &&
 			index == len(particles)-1 {
 			shape.wildcard = true
-			continue
+		} else {
+			return shape, invalidRPC(operation, direction+" sequence contains a forbidden particle")
 		}
-		return shape, invalidRPC(operation, direction+" sequence contains a forbidden particle")
 	}
 	return shape, nil
+}
+
+func isComplexSequence(value xsd.ComplexType, exists bool) bool {
+	return exists && value.Content != nil && value.Content.Compositor == xsd.Sequence && !value.SimpleContent
+}
+
+func isLocalRPCElement(value xsd.Element) bool {
+	return value.Ref.Local == "" && value.Name != ""
 }
 
 func rpcComplexType(
@@ -1572,11 +1609,20 @@ func validateRPCSignature20(
 		valid := false
 		switch parameter.Direction {
 		case wsdl.RPCDirectionIn:
-			valid = in && !out
+			valid = in
+			if out {
+				valid = false
+			}
 		case wsdl.RPCDirectionOut, wsdl.RPCDirectionReturn:
-			valid = out && !in
+			valid = out
+			if in {
+				valid = false
+			}
 		case wsdl.RPCDirectionInOut:
-			valid = in && out
+			valid = in
+			if !out {
+				valid = false
+			}
 		}
 		if !valid {
 			return invalidRPC(operation.Name, "signature direction does not match "+formatRPCQName(parameter.Name))
@@ -1630,11 +1676,10 @@ func validateHTTPHeaderTypes20(
 	types map[wsdl.QName]struct{},
 ) error {
 	for _, header := range headers {
-		if header.Type.Namespace == wsdl.NamespaceXMLSchema {
-			continue
-		}
-		if _, exists := types[header.Type]; !exists {
-			return unresolvedSchemaComponent("type", header.Type)
+		if header.Type.Namespace != wsdl.NamespaceXMLSchema {
+			if _, exists := types[header.Type]; !exists {
+				return unresolvedSchemaComponent("type", header.Type)
+			}
 		}
 	}
 	return nil
@@ -1711,25 +1756,22 @@ func expandInterfaceInheritance(values []Interface) (int, error) {
 			}
 			for _, operation := range values[parentIndex].Operations {
 				existing := operationIndex(values[index].Operations, operation.Name)
-				if existing >= 0 {
-					if !reflect.DeepEqual(values[index].Operations[existing], operation) {
-						return fmt.Errorf(
-							"%w: inherited operation {%s}%s#%s",
-							ErrDuplicateComponent, values[index].Name.Namespace,
-							values[index].Name.Local, operation.Name,
-						)
-					}
-					continue
+				if existing < 0 {
+					values[index].Operations = append(values[index].Operations, cloneOperation(operation))
+					added++
+				} else if !reflect.DeepEqual(values[index].Operations[existing], operation) {
+					return fmt.Errorf(
+						"%w: inherited operation {%s}%s#%s",
+						ErrDuplicateComponent, values[index].Name.Namespace,
+						values[index].Name.Local, operation.Name,
+					)
 				}
-				values[index].Operations = append(values[index].Operations, cloneOperation(operation))
-				added++
 			}
 			for _, fault := range values[parentIndex].Faults {
-				if qnameIndex(values[index].Faults, fault) >= 0 {
-					continue
+				if qnameIndex(values[index].Faults, fault) < 0 {
+					values[index].Faults = append(values[index].Faults, fault)
+					added++
 				}
-				values[index].Faults = append(values[index].Faults, fault)
-				added++
 			}
 		}
 		sortOperations(values[index].Operations)
@@ -1788,8 +1830,10 @@ func validateGraph(
 		}
 		for _, operation := range binding.OperationReferences {
 			_, exists := operations[binding.Interface][operation]
-			if operation.Input == "" && operation.Output == "" {
-				_, exists = operationNames[binding.Interface][operation.Name]
+			if operation.Input == "" {
+				if operation.Output == "" {
+					_, exists = operationNames[binding.Interface][operation.Name]
+				}
 			}
 			if !exists {
 				return fmt.Errorf(

@@ -65,6 +65,18 @@ func TestBuildEnforcesGenerationModelLimits(t *testing.T) {
 	}
 }
 
+func TestBuildCountsAllInputAndOutputPartsAcrossOperations(t *testing.T) {
+	t.Parallel()
+
+	set := compileSet(t)
+	if _, err := codegen.Build(set, codegen.Options{Limits: codegen.Limits{MaxParts: 5}}); err != nil {
+		t.Fatalf("Build(exact part limit) error = %v", err)
+	}
+	if _, err := codegen.Build(set, codegen.Options{Limits: codegen.Limits{MaxParts: 4}}); !errors.Is(err, codegen.ErrLimitExceeded) {
+		t.Fatalf("Build(part overflow) error = %v, want ErrLimitExceeded", err)
+	}
+}
+
 func TestBuildPreservesMultipleWSDL20Messages(t *testing.T) {
 	t.Parallel()
 

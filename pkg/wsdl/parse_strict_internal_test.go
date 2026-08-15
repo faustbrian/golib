@@ -260,10 +260,32 @@ func TestVersionDecodersPropagateTreeAndComponentLimitFailures(t *testing.T) {
 func TestParseRejectsGeneralXMLAndResourceBoundaries(t *testing.T) {
 	t.Parallel()
 
-	if _, err := Parse(context.Background(), []byte(`<description xmlns="http://www.w3.org/ns/wsdl"/>`), ParseOptions{
-		MaxExtensions: -1,
-	}); err == nil {
-		t.Fatal("Parse(negative limit) error = nil")
+	negativeLimits := map[string]ParseOptions{
+		"document bytes": {MaxDocumentBytes: -1},
+		"depth":          {MaxDepth: -1},
+		"elements":       {MaxElements: -1},
+		"attributes":     {MaxAttributes: -1},
+		"text bytes":     {MaxTextBytes: -1},
+		"schemas":        {MaxSchemas: -1},
+		"imports":        {MaxImports: -1},
+		"operations":     {MaxOperations: -1},
+		"bindings":       {MaxBindings: -1},
+		"endpoints":      {MaxEndpoints: -1},
+		"extensions":     {MaxExtensions: -1},
+	}
+	for name, options := range negativeLimits {
+		name, options := name, options
+		t.Run("negative "+name, func(t *testing.T) {
+			t.Parallel()
+			_, err := Parse(
+				context.Background(),
+				[]byte(`<description xmlns="http://www.w3.org/ns/wsdl"/>`),
+				options,
+			)
+			if err == nil || err.Error() != "wsdl: parse limits must not be negative" {
+				t.Fatalf("Parse() error = %v", err)
+			}
+		})
 	}
 	if _, err := Parse(context.Background(), []byte(`<description/>`), ParseOptions{MaxDocumentBytes: 1}); !errors.Is(err, ErrLimitExceeded) {
 		t.Fatalf("Parse(byte limit) error = %v", err)
@@ -397,5 +419,203 @@ func TestParseIgnoresNonProtocolChildrenInWSDL11AdjunctContainers(t *testing.T) 
 		`<ext:ignored/><mime:part/></mime:multipartRelated></input></operation></binding></definitions>`
 	if _, err := Parse(context.Background(), []byte(source), ParseOptions{}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
+	}
+}
+
+func TestParseWSDL11ContinuesAfterEveryIgnoredOrTerminalChild(t *testing.T) {
+	t.Parallel()
+
+	source := strictDefinitions11Prefix +
+		`<ext:metadata wsdl:required="true" ext:value="kept"/>` +
+		`<message name="Message"><ext:ignored/><part name="body" type="xs:string"/></message>` +
+		`<portType name="Port"><ext:ignored/><operation name="Call"><ext:ignored/>` +
+		`<input message="tns:Message"/></operation></portType>` +
+		`<binding name="Binding" type="tns:Port"><operation name="Call"><input>` +
+		`<soap:header message="tns:Message" part="body" use="literal"><ext:ignored/>` +
+		`<soap:headerfault message="tns:Message" part="body" use="literal"/></soap:header>` +
+		`<soap:fault name="Failure" use="literal"/><http:urlEncoded/>` +
+		`<mime:multipartRelated><ext:ignored/><mime:part><mime:content part="body"` +
+		` type="text/plain"/></mime:part></mime:multipartRelated>` +
+		`</input></operation></binding>` +
+		`<service name="Service"><ext:ignored/><port name="Port" binding="tns:Binding"/></service>` +
+		`</definitions>`
+	document, err := Parse(context.Background(), []byte(source), ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	definitions, _ := document.Definitions11()
+	if len(definitions.Extensions) != 1 || len(definitions.Extensions[0].Attributes) != 1 ||
+		definitions.Extensions[0].Attributes[0].Value != "kept" {
+		t.Fatalf("extensions = %#v", definitions.Extensions)
+	}
+	if len(definitions.Messages) != 1 || len(definitions.Messages[0].Parts) != 1 {
+		t.Fatalf("messages = %#v", definitions.Messages)
+	}
+	if len(definitions.PortTypes) != 1 || len(definitions.PortTypes[0].Operations) != 1 ||
+		definitions.PortTypes[0].Operations[0].Input == nil {
+		t.Fatalf("port types = %#v", definitions.PortTypes)
+	}
+	input := definitions.Bindings[0].Operations[0].Input
+	if input == nil || len(input.SOAPHeaders) != 1 || len(input.SOAPHeaders[0].HeaderFaults) != 1 ||
+		input.HTTP == nil || input.MIME == nil || len(input.MIME.Multipart) != 1 ||
+		len(input.MIME.Multipart[0].Parts) != 1 {
+		t.Fatalf("binding input = %#v", input)
+	}
+	if len(definitions.Services) != 1 || len(definitions.Services[0].Ports) != 1 {
+		t.Fatalf("services = %#v", definitions.Services)
+	}
+}
+
+func TestWSDL11SOAPActionRequiredNeedsBothSOAP12AndAnExplicitAttribute(t *testing.T) {
+	t.Parallel()
+
+	for name, operation := range map[string]string{
+		"SOAP 1.1 with attribute":    `<soap:operation soapActionRequired="true"/>`,
+		"SOAP 1.2 without attribute": `<soap12:operation/>`,
+	} {
+		name, operation := name, operation
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			source := strictDefinitions11Prefix + `<binding name="Binding" type="tns:Port">` +
+				`<operation name="Call">` + operation + `</operation></binding></definitions>`
+			document, err := Parse(context.Background(), []byte(source), ParseOptions{})
+			if err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
+			definitions, _ := document.Definitions11()
+			soap := definitions.Bindings[0].Operations[0].SOAP
+			if soap == nil || soap.ActionRequiredSet {
+				t.Fatalf("SOAP operation = %#v", soap)
+			}
+		})
+	}
+}
+
+func TestWSDL20HTTPAndSOAPAdjunctsExistForEachIndividualProperty(t *testing.T) {
+	t.Parallel()
+
+	httpAttribute := func(local, value string) *xmlNode {
+		return &xmlNode{attributes: []xml.Attr{{
+			Name: xml.Name{Space: NamespaceWSDL20HTTP, Local: local}, Value: value,
+		}}}
+	}
+	for name, decode := range map[string]func() (bool, error){
+		"binding method": func() (bool, error) {
+			value, err := decodeHTTPBinding20(httpAttribute("methodDefault", "POST"))
+			return value != nil, err
+		},
+		"binding version": func() (bool, error) {
+			value, err := decodeHTTPBinding20(httpAttribute("version", "1.1"))
+			return value != nil, err
+		},
+		"fault code": func() (bool, error) {
+			value, err := decodeHTTPFaultBinding20(httpAttribute("code", "500"))
+			return value != nil, err
+		},
+		"fault encoding": func() (bool, error) {
+			value, err := decodeHTTPFaultBinding20(httpAttribute("contentEncoding", "gzip"))
+			return value != nil, err
+		},
+		"operation location": func() (bool, error) {
+			value, err := decodeHTTPOperationBinding20(httpAttribute("location", "/items"))
+			return value != nil, err
+		},
+		"operation method": func() (bool, error) {
+			value, err := decodeHTTPOperationBinding20(httpAttribute("method", "GET"))
+			return value != nil, err
+		},
+		"operation input serialization": func() (bool, error) {
+			value, err := decodeHTTPOperationBinding20(httpAttribute("inputSerialization", "application/json"))
+			return value != nil, err
+		},
+		"operation output serialization": func() (bool, error) {
+			value, err := decodeHTTPOperationBinding20(httpAttribute("outputSerialization", "application/json"))
+			return value != nil, err
+		},
+		"operation fault serialization": func() (bool, error) {
+			value, err := decodeHTTPOperationBinding20(httpAttribute("faultSerialization", "application/json"))
+			return value != nil, err
+		},
+		"message encoding": func() (bool, error) {
+			value, err := decodeHTTPMessageBinding20(httpAttribute("contentEncoding", "gzip"))
+			return value != nil, err
+		},
+		"SOAP fault code": func() (bool, error) {
+			node := &xmlNode{
+				attributes: []xml.Attr{{
+					Name: xml.Name{Space: NamespaceWSDL20SOAP, Local: "code"}, Value: "#any",
+				}},
+			}
+			value, err := decodeSOAPFaultBinding20(node)
+			return value != nil, err
+		},
+		"SOAP fault subcodes": func() (bool, error) {
+			node := &xmlNode{
+				attributes: []xml.Attr{{
+					Name: xml.Name{Space: NamespaceWSDL20SOAP, Local: "subcodes"}, Value: "#any",
+				}},
+			}
+			value, err := decodeSOAPFaultBinding20(node)
+			return value != nil, err
+		},
+	} {
+		name, decode := name, decode
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			exists, err := decode()
+			if err != nil {
+				t.Fatalf("decode() error = %v", err)
+			}
+			if !exists {
+				t.Fatal("decode() = nil")
+			}
+		})
+	}
+}
+
+func TestParseWSDL20ContinuesAfterNonSchemaAndNonEndpointChildren(t *testing.T) {
+	t.Parallel()
+
+	source := strictDescription20Prefix +
+		`<types><documentation/><xs:schema targetNamespace="urn:test"/></types>` +
+		`<service name="Service" interface="tns:API"><ext:ignored/>` +
+		`<endpoint name="Endpoint" binding="tns:Binding"/></service>` +
+		`</description>`
+	document, err := Parse(context.Background(), []byte(source), ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	description, _ := document.Description20()
+	if description.Types == nil || len(description.Types.Schemas) != 1 {
+		t.Fatalf("types = %#v", description.Types)
+	}
+	if len(description.Services) != 1 || len(description.Services[0].Endpoints) != 1 {
+		t.Fatalf("services = %#v", description.Services)
+	}
+}
+
+func TestExtensibilitySelectionDistinguishesCoreSkippedAndPreservedChildren(t *testing.T) {
+	t.Parallel()
+
+	core := &xmlNode{name: xml.Name{Space: NamespaceWSDL20, Local: "core"}}
+	skipped := &xmlNode{name: xml.Name{Space: "urn:skip", Local: "skipped"}}
+	preserved := &xmlNode{
+		name:       xml.Name{Space: "urn:keep", Local: "preserved"},
+		namespaces: map[string]string{"keep": "urn:keep"},
+	}
+	node := &xmlNode{children: []*xmlNode{core, skipped, preserved}}
+	value, err := decodeExtensibilityExcept(node, NamespaceWSDL20, func(child *xmlNode) bool {
+		return child.name.Space == "urn:skip"
+	})
+	if err != nil {
+		t.Fatalf("decodeExtensibilityExcept() error = %v", err)
+	}
+	if len(value.Extensions) != 1 || value.Extensions[0].Name != (QName{Namespace: "urn:keep", Local: "preserved"}) {
+		t.Fatalf("extensions = %#v", value.Extensions)
+	}
+	if shouldDecodeExtension(core, NamespaceWSDL20, nil) ||
+		shouldDecodeExtension(skipped, NamespaceWSDL20, func(*xmlNode) bool { return true }) ||
+		!shouldDecodeExtension(preserved, NamespaceWSDL20, nil) {
+		t.Fatal("extension selection classified a child incorrectly")
 	}
 }

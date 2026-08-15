@@ -101,23 +101,23 @@ func merge20(documents []*wsdl.Document) (*wsdl.Document, error) {
 		for _, interfaceValue := range value.Interfaces {
 			if duplicate(interfaces, interfaceValue.Name) {
 				conflicts = append(conflicts, Conflict{Kind: "interface", Name: interfaceValue.Name})
-				continue
+			} else {
+				result.Interfaces = append(result.Interfaces, interfaceValue)
 			}
-			result.Interfaces = append(result.Interfaces, interfaceValue)
 		}
 		for _, binding := range value.Bindings {
 			if duplicate(bindings, binding.Name) {
 				conflicts = append(conflicts, Conflict{Kind: "binding", Name: binding.Name})
-				continue
+			} else {
+				result.Bindings = append(result.Bindings, binding)
 			}
-			result.Bindings = append(result.Bindings, binding)
 		}
 		for _, service := range value.Services {
 			if duplicate(services, service.Name) {
 				conflicts = append(conflicts, Conflict{Kind: "service", Name: service.Name})
-				continue
+			} else {
+				result.Services = append(result.Services, service)
 			}
-			result.Services = append(result.Services, service)
 		}
 	}
 	if err := reportConflicts(conflicts); err != nil {
@@ -148,8 +148,12 @@ func merge11(documents []*wsdl.Document) (*wsdl.Document, error) {
 	conflicts := make([]Conflict, 0)
 	for _, document := range documents {
 		value, _ := document.Definitions11()
-		if result.Name == "" || value.Name != "" && cmp.Compare(value.Name, result.Name) == -1 {
+		if result.Name == "" {
 			result.Name = value.Name
+		} else if value.Name != "" {
+			if cmp.Compare(value.Name, result.Name) == -1 {
+				result.Name = value.Name
+			}
 		}
 		result.Documentation = selectDocumentation(result.Documentation, value.Documentation)
 		result.Imports = append(result.Imports, value.Imports...)
@@ -200,9 +204,9 @@ func appendNamed11[T any](
 		name := componentName11(any(value))
 		if duplicate(names, name) {
 			*conflicts = append(*conflicts, Conflict{Kind: kind, Name: name})
-			continue
+		} else {
+			*result = append(*result, value)
 		}
-		*result = append(*result, value)
 	}
 }
 
