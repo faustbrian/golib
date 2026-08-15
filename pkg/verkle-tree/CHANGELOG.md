@@ -272,6 +272,16 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Fixed
 
+- Correct the pinned `go-verkle` module-template checksum after the Go 1.26.6
+  template refresh so interoperability provenance validates the exact current
+  input.
+- Replace the dependency-worker race regression's scheduler delay with
+  observed queue admission, preserving the worker-bound assertion under full
+  race-suite load.
+- Close the final viable mutation gaps with behavioral regressions for
+  aggregate-query capacity at the first distinct stem byte and stable
+  equal-key update ordering, and express the equivalent tree-layout comparison
+  without an unkillable boundary mutant.
 - Reject partially initialized proof engines consistently, preserve exact
   update-proof and snapshot resource ceilings, and fail closed before reading
   corrupt snapshot state during canonical encoding.

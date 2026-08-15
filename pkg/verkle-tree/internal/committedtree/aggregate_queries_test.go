@@ -341,6 +341,41 @@ func TestAggregateProverQueriesAccountExactDistinctStemPrefixCapacity(t *testing
 	)
 }
 
+func TestAggregateProverQueriesStopCapacityAtFirstDistinctStemByte(t *testing.T) {
+	t.Parallel()
+
+	left := Key{}
+	right := Key{}
+	right[15] = 1
+	right[20] = 2
+	entries := []Entry{
+		{Key: left, Value: testValue(1)},
+		{Key: right, Value: testValue(2)},
+	}
+	tree, err := Build(
+		boundedTestContext(t),
+		entries,
+		testLimits(),
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("build mid-prefix distinct-stem tree: %v", err)
+	}
+
+	const queryCapacity = uint64(57)
+	temporaryBytes := uint64(len(entries))*2*aggregateQueryKeyWorkingBytes +
+		queryCapacity*(aggregateQueryResultWorkingBytes()+aggregateQuerySortWorkingBytes)
+	limits := testAggregateProverQueryLimits()
+	limits.MaxTemporaryBytes = temporaryBytes
+	queries, err := tree.AggregateProverQueries(boundedTestContext(t), []Key{left, right}, limits)
+	if err != nil {
+		t.Fatalf("derive mid-prefix distinct-stem queries at exact budget: %v", err)
+	}
+	if cap(queries) != int(queryCapacity) {
+		t.Fatalf("query capacity = %d, want %d", cap(queries), queryCapacity)
+	}
+}
+
 func TestGrowAggregateProverQueriesCapsAllocatedCapacity(t *testing.T) {
 	t.Parallel()
 

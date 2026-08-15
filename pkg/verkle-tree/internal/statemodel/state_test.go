@@ -610,6 +610,22 @@ func TestEmptyApplyReturnsEquivalentSnapshot(t *testing.T) {
 	}
 }
 
+func TestSortUpdatesPreservesEqualKeyOrder(t *testing.T) {
+	t.Parallel()
+
+	key := Key{1}
+	updates := []Update{
+		Set(key, Value{1}),
+		Set(key, Value{2}),
+	}
+	if err := sortUpdates(context.Background(), updates); err != nil {
+		t.Fatalf("sort equal-key updates: %v", err)
+	}
+	if updates[0].value != (Value{1}) || updates[1].value != (Value{2}) {
+		t.Fatalf("equal-key update order = %#v, want input order", updates)
+	}
+}
+
 func TestSortUpdatesHonorsEveryCancellationBoundary(t *testing.T) {
 	t.Parallel()
 

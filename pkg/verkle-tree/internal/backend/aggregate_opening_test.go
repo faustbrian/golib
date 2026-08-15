@@ -22,6 +22,8 @@ var (
 	testAggregateOpeningEngineErr  error
 )
 
+const aggregateOpeningTestTimeout = 30 * time.Second
+
 func TestAggregateOpeningEngineMatchesPinnedRustProof(t *testing.T) {
 	t.Parallel()
 
@@ -169,8 +171,6 @@ func TestBoundAggregateOpeningRejectsStatementReplayForZeroVector(t *testing.T) 
 }
 
 func TestAggregateOpeningEngineBoundsConcurrentDependencyWorkers(t *testing.T) {
-	t.Parallel()
-
 	real := newTestAggregateOpeningEngine(t)
 	engine := *real
 	prover, verifier := aggregateOpeningCorpus()
@@ -205,10 +205,11 @@ func TestAggregateOpeningEngineBoundsConcurrentDependencyWorkers(t *testing.T) {
 		results <- err
 	}()
 
+	waitForAggregateOpeningQueue(t, engine.gate, 1)
 	select {
 	case <-entered:
 		t.Fatal("second proof call entered the dependency above the engine worker budget")
-	case <-time.After(100 * time.Millisecond):
+	default:
 	}
 
 	close(release)
@@ -1047,7 +1048,7 @@ func waitForAggregateOpeningQueue(
 ) {
 	t.Helper()
 
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(aggregateOpeningTestTimeout)
 	for gate.queued.Load() != want {
 		if time.Now().After(deadline) {
 			t.Fatalf("queued operations = %d, want %d", gate.queued.Load(), want)
@@ -1065,7 +1066,7 @@ func receiveAggregateOpeningSignal(
 
 	select {
 	case <-channel:
-	case <-time.After(time.Second):
+	case <-time.After(aggregateOpeningTestTimeout):
 		t.Fatal(failure)
 	}
 }
@@ -1080,7 +1081,7 @@ func receiveAggregateOpeningError(
 	select {
 	case err := <-channel:
 		return err
-	case <-time.After(time.Second):
+	case <-time.After(aggregateOpeningTestTimeout):
 		t.Fatal(failure)
 		return nil
 	}
