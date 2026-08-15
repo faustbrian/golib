@@ -32,7 +32,8 @@ new_benchmark=''
 	printf 'docker_server=%s\n' "$(docker version --format '{{.Server.Version}}')"
 	printf 'old_opensearch=%s@%s\n' "$opensearch_old_version" "$opensearch_old_digest"
 	printf 'new_opensearch=%s@%s\n' "$opensearch_new_version" "$opensearch_new_digest"
-	printf 'benchmark_time=%s\n' "${INTEGRATION_BENCH_TIME:-20x}"
+	printf 'benchmark_write_time=%s\n' "${INTEGRATION_WRITE_BENCH_TIME:-1x}"
+	printf 'benchmark_read_time=%s\n' "${INTEGRATION_READ_BENCH_TIME:-20x}"
 	printf 'benchmark_count=%s\n' "${INTEGRATION_BENCH_COUNT:-10}"
 	printf 'container_limits=cpus:1,memory:1g,pids:512,nofile:1024,jvm_heap:384m\n'
 	case "$(uname -s)" in
@@ -149,11 +150,22 @@ for release in $releases; do
 	OPENSEARCH_SNAPSHOT_REPOSITORY_PATH="$snapshot_container_path" \
 			go test -tags=integration -run 'TestRealOpenSearch(Conformance|BoundedLoad|SnapshotRestore|DurableGuardSurvivesDeleteVersionGC|MixedApplicationProtocolVersions)' -count=1 .
 	benchmark_file="$benchmark_evidence_dir/opensearch-$version.txt"
+	: >"$benchmark_file"
 	if ! OPENSEARCH_URL="http://127.0.0.1:$port" \
 		OPENSEARCH_EXPECTED_VERSION="$version" \
-		go test -tags=integration -run '^$' -bench '^BenchmarkSharedSearchSemantics$' \
-		-benchmem -benchtime="${INTEGRATION_BENCH_TIME:-20x}" \
-		-count="${INTEGRATION_BENCH_COUNT:-10}" . >"$benchmark_file" 2>&1; then
+		go test -tags=integration -run '^$' \
+		-bench '^BenchmarkSharedSearchSemantics$/.*/^(indexing|bulk_indexing)$' \
+		-benchmem -benchtime="${INTEGRATION_WRITE_BENCH_TIME:-1x}" \
+		-count="${INTEGRATION_BENCH_COUNT:-10}" . >>"$benchmark_file" 2>&1; then
+		cat "$benchmark_file"
+		exit 1
+	fi
+	if ! OPENSEARCH_URL="http://127.0.0.1:$port" \
+		OPENSEARCH_EXPECTED_VERSION="$version" \
+		go test -tags=integration -run '^$' \
+		-bench '^BenchmarkSharedSearchSemantics$/.*/^(query|pagination|cursor_pagination)$' \
+		-benchmem -benchtime="${INTEGRATION_READ_BENCH_TIME:-20x}" \
+		-count="${INTEGRATION_BENCH_COUNT:-10}" . >>"$benchmark_file" 2>&1; then
 		cat "$benchmark_file"
 		exit 1
 	fi

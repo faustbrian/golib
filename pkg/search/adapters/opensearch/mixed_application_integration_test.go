@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,12 +28,7 @@ func TestRealOpenSearchMixedApplicationProtocolVersions(t *testing.T) {
 		`{"dynamic":"strict","properties":{"writer":{"type":"keyword"},"sequence":{"type":"long"}}}`)
 	current := newBoundIntegrationSearchClient(t, endpoint, tenant, logicalIndex, alias, physical, "mixed-application-definition-v1", limits)
 
-	peerBinary := filepath.Join(t.TempDir(), "mixed-application-v1")
-	build := exec.CommandContext(t.Context(), "go", "build", "-trimpath", "-o", peerBinary, "./testdata/mixedappv1")
-	buildOutput, err := build.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build frozen mixed-application v1 peer: %v: %s", err, boundedPeerOutput(buildOutput))
-	}
+	peerBinary := buildFrozenMixedApplicationPeer(t)
 
 	ready := make(chan struct{}, 1)
 	start := make(chan struct{})
@@ -131,6 +127,56 @@ func TestRealOpenSearchMixedApplicationProtocolVersions(t *testing.T) {
 			t.Fatalf("mixed-application hit %d = %#v, want logical index %q ID %q version 1", position, hit, logicalIndex, expectedIDs[position])
 		}
 	}
+}
+
+func TestFrozenMixedApplicationPeerBuildsOutsideAdapterModule(t *testing.T) {
+	t.Parallel()
+
+	peerBinary := buildFrozenMixedApplicationPeer(t)
+	info, err := os.Stat(peerBinary)
+	if err != nil || info.IsDir() || info.Mode()&0o100 == 0 {
+		t.Fatalf("frozen mixed-application peer = %#v/%v", info, err)
+	}
+}
+
+func buildFrozenMixedApplicationPeer(t *testing.T) string {
+	t.Helper()
+
+	source, err := os.ReadFile(filepath.Join("testdata", "mixedappv1", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	if err := os.WriteFile(filepath.Join(directory, "main.go"), source, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(directory, "go.mod"),
+		[]byte("module github.com/faustbrian/golib/internal/mixedappv1\n\ngo 1.26.6\n"),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	peerBinary := filepath.Join(directory, "mixed-application-v1")
+	build := exec.CommandContext(t.Context(), "go", "build", "-trimpath", "-o", peerBinary, ".")
+	build.Dir = directory
+	build.Env = standaloneGoBuildEnvironment(os.Environ())
+	buildOutput, err := build.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build frozen mixed-application v1 peer: %v: %s", err, boundedPeerOutput(buildOutput))
+	}
+	return peerBinary
+}
+
+func standaloneGoBuildEnvironment(environment []string) []string {
+	result := make([]string, 0, len(environment)+2)
+	for _, value := range environment {
+		name, _, _ := strings.Cut(value, "=")
+		if name != "GOFLAGS" && name != "GOWORK" {
+			result = append(result, value)
+		}
+	}
+	return append(result, "GOFLAGS=", "GOWORK=off")
 }
 
 func boundedPeerOutput(output []byte) string {
