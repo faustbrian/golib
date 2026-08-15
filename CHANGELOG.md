@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Propagate the task-owned isolated module file through an opt-in environment
+  contract so nested Go tooling can resolve current owned modules without
+  weakening unrelated child-process isolation.
 - Preserve content-identical package gate evidence across the runner process-
   isolation refactor while keeping service setup and gate commands in each
   checkpoint fingerprint.

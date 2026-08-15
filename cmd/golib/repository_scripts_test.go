@@ -1058,6 +1058,7 @@ fi
 {
 	printf 'environment=%s\n' "$GOFLAGS"
 	printf 'arguments=%s\n' "$*"
+	printf 'isolated-modfile=%s\n' "${GOLIB_ISOLATED_MODFILE:-}"
 } >"$GOLIB_FAKE_GO_OUTPUT"
 `)
 	if err := os.Chmod(fakeGo, 0o700); err != nil {
@@ -1099,6 +1100,10 @@ fi
 		strings.Contains(environmentLine, "-mod=readonly") {
 		t.Fatalf("isolated Go flags leaked into child environment: %s", invocation)
 	}
+	if !strings.Contains(string(invocation), "isolated-modfile=") ||
+		strings.Contains(string(invocation), "isolated-modfile=\n") {
+		t.Fatalf("isolated Go invocation omitted its opt-in modfile: %s", invocation)
+	}
 	versionedTool := exec.Command(script, "run", "example.test/tool@v1.0.0")
 	versionedTool.Dir = module
 	versionedTool.Env = environment
@@ -1128,11 +1133,11 @@ fi
 			t.Fatalf("isolated dependency update lacks %q: %s", required, invocation)
 		}
 	}
-	if strings.Contains(
-		strings.SplitN(string(invocation), "\n", 2)[1],
-		"-modfile=",
-	) {
-		t.Fatalf("isolated dependency update passed modfile as an argument: %s", invocation)
+	for _, line := range strings.Split(string(invocation), "\n") {
+		if strings.HasPrefix(line, "arguments=") &&
+			strings.Contains(line, "-modfile=") {
+			t.Fatalf("isolated dependency update passed modfile as an argument: %s", invocation)
+		}
 	}
 	fakeTool := filepath.Join(t.TempDir(), "fake-tool")
 	writeTestFile(t, fakeTool, `#!/bin/sh
@@ -1956,9 +1961,11 @@ KEYCLOAK_IMAGE=keycloak:first
 `)
 	writeFile(t, filepath.Join(repository, ".golib", "mutation-zero-inventory.json"), `{"packages":[]}`)
 	for _, path := range []string{
+		"scripts/build-local-proxy.sh",
 		"scripts/build-golib-gremlins.sh",
 		"scripts/check-mutation.sh",
 		"scripts/internal/run-mutation.sh",
+		"scripts/internal/isolated-go.sh",
 		"scripts/internal/mutation-command.sh",
 		"scripts/internal/mutation-coverage.sh",
 		"scripts/package-source-digest.sh",
@@ -2148,6 +2155,11 @@ KEYCLOAK_IMAGE=keycloak:second
 	writeFile(t, mutationRunner, "revised evidence orchestrator\n")
 	if current := digest(); current != initial {
 		t.Fatalf("evidence orchestrator changed mutation digest: %s != %s", current, initial)
+	}
+	isolationRunner := filepath.Join(repository, "scripts", "internal", "isolated-go.sh")
+	writeFile(t, isolationRunner, "revised opt-in environment contract\n")
+	if current := digest(); current != initial {
+		t.Fatalf("module isolation wrapper changed mutation digest: %s != %s", current, initial)
 	}
 	mutationCommand := filepath.Join(repository, "scripts", "internal", "mutation-command.sh")
 	writeFile(t, mutationCommand, "revised mutation command\n")

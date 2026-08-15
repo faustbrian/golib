@@ -100,7 +100,8 @@ case "${1:-}" in
     exec-tool)
         shift
         command_flags="${clean_flags:+${clean_flags} }-modfile=${modfile} -mod=readonly"
-        GOWORK=off GOFLAGS="${command_flags}" \
+        GOLIB_ISOLATED_MODFILE="${modfile}" \
+            GOWORK=off GOFLAGS="${command_flags}" \
             PATH="$(dirname "${real_go}"):${PATH}" exec "$@"
         ;;
     run|install)
@@ -110,7 +111,8 @@ case "${1:-}" in
             GOWORK=off GOFLAGS="${clean_flags}" \
                 "${real_go}" "${command}" "$@"
         else
-            GOWORK=off GOFLAGS="${clean_flags}" \
+            GOLIB_ISOLATED_MODFILE="${modfile}" \
+                GOWORK=off GOFLAGS="${clean_flags}" \
                 "${real_go}" "${command}" \
                 "-modfile=${modfile}" -mod=readonly "$@"
         fi
@@ -122,13 +124,15 @@ case "${1:-}" in
     build|clean|fix|fmt|generate|list|test|vet)
         command="$1"
         shift
-        GOWORK=off GOFLAGS="${clean_flags}" \
+        GOLIB_ISOLATED_MODFILE="${modfile}" \
+            GOWORK=off GOFLAGS="${clean_flags}" \
             "${real_go}" "${command}" \
             "-modfile=${modfile}" -mod=readonly "$@"
         ;;
     doc)
         command_flags="${clean_flags:+${clean_flags} }-modfile=${modfile} -mod=readonly"
-        GOWORK=off GOFLAGS="${command_flags}" "${real_go}" "$@"
+        GOLIB_ISOLATED_MODFILE="${modfile}" \
+            GOWORK=off GOFLAGS="${command_flags}" "${real_go}" "$@"
         ;;
     mod)
         command_flags="${clean_flags:+${clean_flags} }-modfile=${modfile}"

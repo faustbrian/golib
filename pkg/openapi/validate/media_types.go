@@ -774,32 +774,33 @@ func validLinksetMediaTypeSchema(
 	if !complete {
 		return false
 	}
+	if anchor, exists := properties["anchor"]; exists {
+		resolved, _, resolvedOK := resolveReferencedSchemaResourceWithPolicy(
+			ctx,
+			anchor.resource,
+			anchor.value,
+			options.ReferenceResolver,
+			options.ReferenceLimits,
+		)
+		if !resolvedOK {
+			return false
+		}
+		if !schemaHasType(resolved, "string") {
+			return false
+		}
+	}
 	hasRelation := false
 	for name, property := range properties {
-		if name == "anchor" {
-			resolved, _, resolvedOK := resolveReferencedSchemaResourceWithPolicy(
+		if name != "anchor" {
+			hasRelation = true
+			if !validLinksetRelationSchema(
 				ctx,
 				property.resource,
 				property.value,
-				options.ReferenceResolver,
-				options.ReferenceLimits,
-			)
-			if !resolvedOK {
+				options,
+			) {
 				return false
 			}
-			if !schemaHasType(resolved, "string") {
-				return false
-			}
-			continue
-		}
-		hasRelation = true
-		if !validLinksetRelationSchema(
-			ctx,
-			property.resource,
-			property.value,
-			options,
-		) {
-			return false
 		}
 	}
 	if additional, exists := contextSchema.Lookup("additionalProperties"); exists {

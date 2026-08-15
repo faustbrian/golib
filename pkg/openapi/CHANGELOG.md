@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+
+- Make dependency-audit subprocesses consume the repository's task-owned
+  isolated module file without exposing environment-derived command arguments.
+- Validate Linkset anchor and relation schemas independently so randomized map
+  iteration cannot skip an explicit relation.
+
 ### Documentation
 
 - Link the package README to the repository-wide Golib documentation portal.

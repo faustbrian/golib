@@ -26,6 +26,7 @@ Reviewed evidence-identity migrations are retained as part of the audit trail:
 - [Pre-v1 status migration](evidence/OA-INPUT-DIGEST-MIGRATION-PRE-V1-STATUS.md)
 - [Reference durability matrix migration](evidence/OA-INPUT-DIGEST-MIGRATION-REFERENCE-DURABILITY-MATRIX.md)
 - [Snapshot index migration](evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md)
+- [Isolated module file migration](evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md)
 - [Telemetry endpoint migration](evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md)
 
 ## Reference Services
