@@ -76,40 +76,54 @@ func newSerializerTo(document *Document, maximum *int64) *serializer {
 	encoder.Indent("", "  ")
 	serializer.encoder = encoder
 	for prefix, namespace := range document.Namespaces {
-		if prefix != "" && prefix != "xml" && namespace != "" {
-			serializer.namespaces[prefix] = namespace
+		switch prefix {
+		case "", "xml":
+		default:
+			if namespace != "" {
+				serializer.namespaces[prefix] = namespace
+			}
 		}
 	}
 	serializer.namespaces["xs"] = Namespace
-	if document.TargetNamespace != "" && !containsNamespace(
-		serializer.namespaces,
-		document.TargetNamespace,
-	) {
-		serializer.namespaces["tns"] = document.TargetNamespace
+	if document.TargetNamespace != "" {
+		if !containsNamespace(serializer.namespaces, document.TargetNamespace) {
+			serializer.namespaces["tns"] = document.TargetNamespace
+		}
 	}
 	missing := make([]string, 0)
 	for namespace := range documentQNameNamespaces(document) {
-		if namespace != "" && !containsNamespace(serializer.namespaces, namespace) {
-			missing = append(missing, namespace)
+		if namespace != "" {
+			if !containsNamespace(serializer.namespaces, namespace) {
+				missing = append(missing, namespace)
+			}
 		}
 	}
 	sort.Strings(missing)
 	for _, namespace := range missing {
-		for index := 1; ; index++ {
-			prefix := fmt.Sprintf("ns%d", index)
-			if _, exists := serializer.namespaces[prefix]; !exists {
-				serializer.namespaces[prefix] = namespace
-				break
-			}
-		}
+		serializer.namespaces[nextNamespacePrefix(serializer.namespaces)] = namespace
 	}
 	for prefix, namespace := range serializer.namespaces {
 		current, exists := serializer.prefixes[namespace]
-		if !exists || prefix < current {
+		if !exists {
 			serializer.prefixes[namespace] = prefix
+		} else {
+			switch strings.Compare(prefix, current) {
+			case -1:
+				serializer.prefixes[namespace] = prefix
+			}
 		}
 	}
 	return serializer
+}
+
+func nextNamespacePrefix(namespaces map[string]string) string {
+	for index := 1; index <= len(namespaces)+1; index++ {
+		prefix := fmt.Sprintf("ns%d", index)
+		if _, exists := namespaces[prefix]; !exists {
+			return prefix
+		}
+	}
+	panic("xsd: namespace prefix allocation invariant violated")
 }
 
 func documentQNameNamespaces(document *Document) map[string]struct{} {
@@ -252,8 +266,10 @@ func (s *serializer) schema(document *Document) error {
 	attributes = appendString(attributes, "finalDefault", document.FinalDefault.String())
 	attributes = appendString(attributes, "version", document.Version)
 	attributes = appendString(attributes, "xml:lang", document.Language)
-	if document.BaseURI != "" && document.BaseURI != document.SystemID {
-		attributes = appendString(attributes, "xml:base", document.BaseURI)
+	if document.BaseURI != "" {
+		if document.BaseURI != document.SystemID {
+			attributes = appendString(attributes, "xml:base", document.BaseURI)
+		}
 	}
 	start := startElement("xs:schema", attributes)
 	if err := s.encoder.EncodeToken(start); err != nil {
@@ -266,14 +282,16 @@ func (s *serializer) schema(document *Document) error {
 	}
 	redefinitionIndex := 0
 	for _, reference := range document.References {
-		if reference.Kind == ReferenceRedefine && redefinitionIndex < len(document.Redefinitions) {
-			if err := s.redefinition(document.Redefinitions[redefinitionIndex]); err != nil {
+		if reference.Kind == ReferenceRedefine {
+			if redefinitionIndex < len(document.Redefinitions) {
+				if err := s.redefinition(document.Redefinitions[redefinitionIndex]); err != nil {
+					return err
+				}
+				redefinitionIndex++
+			} else if err := s.reference(reference); err != nil {
 				return err
 			}
-			redefinitionIndex++
-			continue
-		}
-		if err := s.reference(reference); err != nil {
+		} else if err := s.reference(reference); err != nil {
 			return err
 		}
 	}
@@ -471,58 +489,63 @@ func (s *serializer) simpleType(typeDefinition SimpleType) error {
 	if err := s.componentAnnotation(typeDefinition.Annotation); err != nil {
 		return err
 	}
-	var err error
 	switch typeDefinition.Variety {
 	case SimpleRestriction:
-		attributes, attrErr := s.qNameAttribute("base", typeDefinition.Base)
-		if attrErr != nil {
-			return attrErr
+		attributes, err := s.qNameAttribute("base", typeDefinition.Base)
+		if err != nil {
+			return err
 		}
 		attributes = appendString(attributes, "id", typeDefinition.VarietyID)
 		restriction := startElement("xs:restriction", attributes)
-		if err = s.encoder.EncodeToken(restriction); err == nil {
-			err = s.componentAnnotation(typeDefinition.VarietyAnnotation)
+		if err := s.encoder.EncodeToken(restriction); err != nil {
+			return err
 		}
-		if err == nil {
-			if typeDefinition.InlineBase != nil {
-				err = s.simpleType(*typeDefinition.InlineBase)
+		if err := s.componentAnnotation(typeDefinition.VarietyAnnotation); err != nil {
+			return err
+		}
+		if typeDefinition.InlineBase != nil {
+			if err := s.simpleType(*typeDefinition.InlineBase); err != nil {
+				return err
 			}
 		}
-		if err == nil {
-			for _, facet := range typeDefinition.Facets {
-				attributes := appendString(nil, "id", facet.ID)
-				attributes = appendString(attributes, "value", facet.Value)
-				attributes = appendValueNamespaces(attributes, facet.Namespaces, facet.Value)
-				if facet.Fixed {
-					attributes = append(attributes, attr("fixed", "true"))
-				}
-				if err = s.annotatedElement(
-					"xs:"+string(facet.Kind),
-					attributes,
-					facet.Annotation,
-				); err != nil {
-					break
-				}
+		for _, facet := range typeDefinition.Facets {
+			attributes := appendString(nil, "id", facet.ID)
+			attributes = appendString(attributes, "value", facet.Value)
+			attributes = appendValueNamespaces(attributes, facet.Namespaces, facet.Value)
+			if facet.Fixed {
+				attributes = append(attributes, attr("fixed", "true"))
+			}
+			if err := s.annotatedElement(
+				"xs:"+string(facet.Kind),
+				attributes,
+				facet.Annotation,
+			); err != nil {
+				return err
 			}
 		}
-		if err == nil {
-			err = s.encoder.EncodeToken(restriction.End())
+		if err := s.encoder.EncodeToken(restriction.End()); err != nil {
+			return err
 		}
 	case SimpleList:
-		attributes, attrErr := s.qNameAttribute("itemType", typeDefinition.ItemType)
-		if attrErr != nil {
-			return attrErr
+		attributes, err := s.qNameAttribute("itemType", typeDefinition.ItemType)
+		if err != nil {
+			return err
 		}
 		attributes = appendString(attributes, "id", typeDefinition.VarietyID)
 		list := startElement("xs:list", attributes)
-		if err = s.encoder.EncodeToken(list); err == nil {
-			err = s.componentAnnotation(typeDefinition.VarietyAnnotation)
+		if err := s.encoder.EncodeToken(list); err != nil {
+			return err
 		}
-		if err == nil && typeDefinition.InlineItem != nil {
-			err = s.simpleType(*typeDefinition.InlineItem)
+		if err := s.componentAnnotation(typeDefinition.VarietyAnnotation); err != nil {
+			return err
 		}
-		if err == nil {
-			err = s.encoder.EncodeToken(list.End())
+		if typeDefinition.InlineItem != nil {
+			if err := s.simpleType(*typeDefinition.InlineItem); err != nil {
+				return err
+			}
+		}
+		if err := s.encoder.EncodeToken(list.End()); err != nil {
+			return err
 		}
 	case SimpleUnion:
 		members := make([]string, 0, len(typeDefinition.MemberTypes))
@@ -539,24 +562,22 @@ func (s *serializer) simpleType(typeDefinition SimpleType) error {
 			"xs:union",
 			unionAttributes,
 		)
-		if err = s.encoder.EncodeToken(union); err == nil {
-			err = s.componentAnnotation(typeDefinition.VarietyAnnotation)
+		if err := s.encoder.EncodeToken(union); err != nil {
+			return err
 		}
-		if err == nil {
-			for _, member := range typeDefinition.InlineMembers {
-				if err = s.simpleType(member); err != nil {
-					break
-				}
+		if err := s.componentAnnotation(typeDefinition.VarietyAnnotation); err != nil {
+			return err
+		}
+		for _, member := range typeDefinition.InlineMembers {
+			if err := s.simpleType(member); err != nil {
+				return err
 			}
 		}
-		if err == nil {
-			err = s.encoder.EncodeToken(union.End())
+		if err := s.encoder.EncodeToken(union.End()); err != nil {
+			return err
 		}
 	default:
 		return fmt.Errorf("xsd: simple type %q has invalid variety %q", typeDefinition.Name, typeDefinition.Variety)
-	}
-	if err != nil {
-		return err
 	}
 	return s.encoder.EncodeToken(start.End())
 }
@@ -723,9 +744,7 @@ func (s *serializer) modelGroupChildren(group ModelGroup) error {
 			if err := s.elementWithAttributes(*particle.Element, attributes); err != nil {
 				return err
 			}
-			continue
-		}
-		if particle.Group != nil {
+		} else if particle.Group != nil {
 			attributes = appendString(attributes, "id", particle.Group.ID)
 			start := startElement("xs:"+string(particle.Group.Compositor), attributes)
 			if err := s.encoder.EncodeToken(start); err != nil {
@@ -740,9 +759,7 @@ func (s *serializer) modelGroupChildren(group ModelGroup) error {
 			if err := s.encoder.EncodeToken(start.End()); err != nil {
 				return err
 			}
-			continue
-		}
-		if particle.GroupRef.Local != "" {
+		} else if particle.GroupRef.Local != "" {
 			qNameAttributes, err := s.qNameAttribute("ref", particle.GroupRef)
 			if err != nil {
 				return err
@@ -755,9 +772,7 @@ func (s *serializer) modelGroupChildren(group ModelGroup) error {
 			); err != nil {
 				return err
 			}
-			continue
-		}
-		if particle.Wildcard != nil {
+		} else if particle.Wildcard != nil {
 			if err := s.wildcard("xs:any", *particle.Wildcard, attributes); err != nil {
 				return err
 			}
@@ -1067,8 +1082,8 @@ func appendValueNamespaces(
 	prefixes := make(map[string]struct{})
 	for _, value := range values {
 		prefix := ""
-		if index := strings.IndexByte(value, ':'); index >= 0 {
-			prefix = value[:index]
+		if parsedPrefix, _, found := strings.Cut(value, ":"); found {
+			prefix = parsedPrefix
 		}
 		if _, ok := namespaces[prefix]; ok && prefix != "xml" {
 			prefixes[prefix] = struct{}{}

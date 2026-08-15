@@ -45,7 +45,7 @@ func (s *compileState) restrictionConstraintFacetsValidContext(
 	namespaces map[string]string,
 	depth int,
 ) bool {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return false
 	}
 	shape := s.restrictionBaseShape(typeDefinition)
@@ -90,6 +90,7 @@ func (s *compileState) restrictionConstraintFacetsValidContext(
 		return true
 	}
 	for _, enumeration := range enumerations {
+		childDepth := compileChildDepth(depth)
 		enumerationLexical := s.normalizeConstraintLexical(
 			typeDefinition,
 			enumeration.Value,
@@ -102,7 +103,7 @@ func (s *compileState) restrictionConstraintFacetsValidContext(
 				enumerationLexical,
 				namespaces,
 				enumeration.Namespaces,
-				depth+1,
+				childDepth,
 			)
 		} else {
 			equal = s.simpleConstraintValuesEqualContext(
@@ -111,7 +112,7 @@ func (s *compileState) restrictionConstraintFacetsValidContext(
 				enumerationLexical,
 				namespaces,
 				enumeration.Namespaces,
-				depth+1,
+				childDepth,
 			)
 		}
 		if equal {
@@ -130,22 +131,44 @@ func constraintNumericFacetValid(primitive string, lexical string, facet xsd.Fac
 		switch facet.Kind {
 		case xsd.FacetTotalDigits:
 			bound, parseErr := strconv.Atoi(facet.Value)
-			return parseErr == nil && bound > 0 && value.TotalDigits() <= bound
+			if parseErr != nil {
+				return false
+			}
+			return value.TotalDigits() <= bound
 		case xsd.FacetFractionDigits:
 			bound, parseErr := strconv.Atoi(facet.Value)
-			return parseErr == nil && bound >= 0 && value.FractionDigits() <= bound
+			if parseErr != nil {
+				return false
+			}
+			if bound < 0 {
+				return false
+			}
+			return value.FractionDigits() <= bound
 		}
 		boundary, parseErr := datatype.ParseDecimal(facet.Value)
-		return parseErr == nil && constraintComparisonValid(value.Compare(boundary), facet.Kind)
+		if parseErr != nil {
+			return false
+		}
+		return constraintComparisonValid(value.Compare(boundary), facet.Kind)
 	}
-	if primitive == "float" || primitive == "double" {
+	switch primitive {
+	case "float", "double":
 		bitSize := 64
 		if primitive == "float" {
 			bitSize = 32
 		}
 		value, valueOK := constraintFloat(lexical, bitSize)
 		boundary, boundaryOK := constraintFloat(facet.Value, bitSize)
-		if !valueOK || !boundaryOK || math.IsNaN(value) || math.IsNaN(boundary) {
+		if !valueOK {
+			return false
+		}
+		if !boundaryOK {
+			return false
+		}
+		if math.IsNaN(value) {
+			return false
+		}
+		if math.IsNaN(boundary) {
 			return false
 		}
 		comparison := 0
@@ -182,7 +205,13 @@ func constraintAtomicValuesEqual(primitive string, left string, right string) bo
 	case "decimal":
 		leftValue, leftErr := datatype.ParseDecimal(left)
 		rightValue, rightErr := datatype.ParseDecimal(right)
-		return leftErr == nil && rightErr == nil && leftValue.Compare(rightValue) == 0
+		if leftErr != nil {
+			return false
+		}
+		if rightErr != nil {
+			return false
+		}
+		return leftValue.Compare(rightValue) == 0
 	case "float", "double":
 		bitSize := 64
 		if primitive == "float" {
@@ -190,15 +219,36 @@ func constraintAtomicValuesEqual(primitive string, left string, right string) bo
 		}
 		leftValue, leftOK := constraintFloat(left, bitSize)
 		rightValue, rightOK := constraintFloat(right, bitSize)
-		return leftOK && rightOK && (math.IsNaN(leftValue) && math.IsNaN(rightValue) || leftValue == rightValue)
+		if !leftOK {
+			return false
+		}
+		if !rightOK {
+			return false
+		}
+		if math.IsNaN(leftValue) {
+			return math.IsNaN(rightValue)
+		}
+		return leftValue == rightValue
 	case "hexBinary":
 		leftValue, leftErr := hex.DecodeString(left)
 		rightValue, rightErr := hex.DecodeString(right)
-		return leftErr == nil && rightErr == nil && string(leftValue) == string(rightValue)
+		if leftErr != nil {
+			return false
+		}
+		if rightErr != nil {
+			return false
+		}
+		return string(leftValue) == string(rightValue)
 	case "base64Binary":
 		leftValue, leftErr := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(left), ""))
 		rightValue, rightErr := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(right), ""))
-		return leftErr == nil && rightErr == nil && string(leftValue) == string(rightValue)
+		if leftErr != nil {
+			return false
+		}
+		if rightErr != nil {
+			return false
+		}
+		return string(leftValue) == string(rightValue)
 	default:
 		if comparison, comparable := datatype.CompareOrdered(primitive, left, right); comparable {
 			return comparison == 0
@@ -238,18 +288,21 @@ func (s *compileState) simpleConstraintValuesEqualContext(
 	rightNamespaces map[string]string,
 	depth int,
 ) bool {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return false
 	}
 	if typeName.Namespace != xsd.Namespace {
 		typeDefinition, ok := s.simpleTypes[typeName]
-		return ok && s.inlineConstraintValuesEqualContext(
+		if !ok {
+			return false
+		}
+		return s.inlineConstraintValuesEqualContext(
 			typeDefinition,
 			left,
 			right,
 			leftNamespaces,
 			rightNamespaces,
-			depth+1,
+			compileChildDepth(depth),
 		)
 	}
 	whitespace, _ := s.namedWhitespace(typeName, depth)
@@ -272,7 +325,13 @@ func (s *compileState) simpleConstraintValuesEqualContext(
 	if shape.primitive == "QName" || shape.primitive == "NOTATION" {
 		leftName, leftOK := resolveConstraintQName(left, leftNamespaces)
 		rightName, rightOK := resolveConstraintQName(right, rightNamespaces)
-		return leftOK && rightOK && leftName == rightName
+		if !leftOK {
+			return false
+		}
+		if !rightOK {
+			return false
+		}
+		return leftName == rightName
 	}
 	return constraintAtomicValuesEqual(shape.primitive, left, right)
 }
@@ -285,9 +344,10 @@ func (s *compileState) inlineConstraintValuesEqualContext(
 	rightNamespaces map[string]string,
 	depth int,
 ) bool {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return false
 	}
+	childDepth := compileChildDepth(depth)
 	switch typeDefinition.Variety {
 	case xsd.SimpleRestriction:
 		if typeDefinition.InlineBase != nil {
@@ -297,7 +357,7 @@ func (s *compileState) inlineConstraintValuesEqualContext(
 				right,
 				leftNamespaces,
 				rightNamespaces,
-				depth+1,
+				childDepth,
 			)
 		}
 		return s.simpleConstraintValuesEqualContext(
@@ -306,7 +366,7 @@ func (s *compileState) inlineConstraintValuesEqualContext(
 			right,
 			leftNamespaces,
 			rightNamespaces,
-			depth+1,
+			compileChildDepth(depth),
 		)
 	case xsd.SimpleList:
 		leftItems := strings.Fields(left)
@@ -321,7 +381,7 @@ func (s *compileState) inlineConstraintValuesEqualContext(
 				rightItems[index],
 				leftNamespaces,
 				rightNamespaces,
-				depth+1,
+				childDepth,
 			)
 			if typeDefinition.InlineItem != nil {
 				equal = s.inlineConstraintValuesEqualContext(
@@ -330,7 +390,7 @@ func (s *compileState) inlineConstraintValuesEqualContext(
 					rightItems[index],
 					leftNamespaces,
 					rightNamespaces,
-					depth+1,
+					childDepth,
 				)
 			}
 			if !equal {
@@ -344,53 +404,78 @@ func (s *compileState) inlineConstraintValuesEqualContext(
 				member,
 				left,
 				leftNamespaces,
-				depth+1,
+				childDepth,
 			)
 			rightValid := s.simpleConstraintValidDepthContext(
 				member,
 				right,
 				rightNamespaces,
-				depth+1,
+				childDepth,
 			)
-			if !leftValid && !rightValid {
-				continue
+			switch constraintValidityPair(leftValid, rightValid) {
+			case bothConstraintsValid:
+				return s.simpleConstraintValuesEqualContext(
+					member,
+					left,
+					right,
+					leftNamespaces,
+					rightNamespaces,
+					childDepth,
+				)
+			case oneConstraintValid:
+				return false
 			}
-			return leftValid && rightValid && s.simpleConstraintValuesEqualContext(
-				member,
-				left,
-				right,
-				leftNamespaces,
-				rightNamespaces,
-				depth+1,
-			)
 		}
 		for _, member := range typeDefinition.InlineMembers {
 			leftValid := s.inlineConstraintValidDepthContext(
 				member,
 				left,
 				leftNamespaces,
-				depth+1,
+				childDepth,
 			)
 			rightValid := s.inlineConstraintValidDepthContext(
 				member,
 				right,
 				rightNamespaces,
-				depth+1,
+				childDepth,
 			)
-			if !leftValid && !rightValid {
-				continue
+			switch constraintValidityPair(leftValid, rightValid) {
+			case bothConstraintsValid:
+				return s.inlineConstraintValuesEqualContext(
+					member,
+					left,
+					right,
+					leftNamespaces,
+					rightNamespaces,
+					childDepth,
+				)
+			case oneConstraintValid:
+				return false
 			}
-			return leftValid && rightValid && s.inlineConstraintValuesEqualContext(
-				member,
-				left,
-				right,
-				leftNamespaces,
-				rightNamespaces,
-				depth+1,
-			)
 		}
 	}
 	return false
+}
+
+type constraintValidity uint8
+
+const (
+	noConstraintsValid constraintValidity = iota
+	oneConstraintValid
+	bothConstraintsValid
+)
+
+func constraintValidityPair(left, right bool) constraintValidity {
+	if left {
+		if right {
+			return bothConstraintsValid
+		}
+		return oneConstraintValid
+	}
+	if right {
+		return oneConstraintValid
+	}
+	return noConstraintsValid
 }
 
 func constraintFloat(lexical string, bitSize int) (float64, bool) {
@@ -437,8 +522,11 @@ func (s *compileState) validateRestrictionFacets(typeDefinition xsd.SimpleType) 
 				shape.variety,
 			)
 		}
-		if facet.Fixed && (facet.Kind == xsd.FacetPattern || facet.Kind == xsd.FacetEnumeration) {
-			return fmt.Errorf("%w: facet %s cannot be fixed", ErrInvalidComponent, facet.Kind)
+		if facet.Fixed {
+			switch facet.Kind {
+			case xsd.FacetPattern, xsd.FacetEnumeration:
+				return fmt.Errorf("%w: facet %s cannot be fixed", ErrInvalidComponent, facet.Kind)
+			}
 		}
 		switch facet.Kind {
 		case xsd.FacetLength, xsd.FacetMinLength, xsd.FacetMaxLength,
@@ -448,7 +536,10 @@ func (s *compileState) validateRestrictionFacets(typeDefinition xsd.SimpleType) 
 			if facet.Kind == xsd.FacetTotalDigits {
 				minimum, _ = datatype.ParseInteger("1")
 			}
-			if err != nil || value.Compare(minimum) < 0 {
+			if err != nil {
+				return fmt.Errorf("%w: facet %s has invalid value %q", ErrInvalidComponent, facet.Kind, facet.Value)
+			}
+			if value.Compare(minimum) < 0 {
 				return fmt.Errorf("%w: facet %s has invalid value %q", ErrInvalidComponent, facet.Kind, facet.Value)
 			}
 			integers[facet.Kind] = value
@@ -457,8 +548,10 @@ func (s *compileState) validateRestrictionFacets(typeDefinition xsd.SimpleType) 
 				return fmt.Errorf("%w: whiteSpace has invalid value %q", ErrInvalidComponent, facet.Value)
 			}
 			baseWhitespace, fixed := s.restrictionBaseWhitespace(typeDefinition)
-			if whitespaceRank(facet.Value) < whitespaceRank(baseWhitespace) ||
-				(fixed && facet.Value != baseWhitespace) {
+			if whitespaceRank(facet.Value) < whitespaceRank(baseWhitespace) {
+				return fmt.Errorf("%w: whiteSpace weakens or changes its fixed base facet", ErrInvalidComponent)
+			}
+			if fixed && facet.Value != baseWhitespace {
 				return fmt.Errorf("%w: whiteSpace weakens or changes its fixed base facet", ErrInvalidComponent)
 			}
 		case xsd.FacetPattern:
@@ -504,10 +597,11 @@ func (s *compileState) validateRestrictionFacets(typeDefinition xsd.SimpleType) 
 			return fmt.Errorf("%w: fractionDigits exceeds totalDigits", ErrInvalidComponent)
 		}
 	}
-	if fraction, ok := integers[xsd.FacetFractionDigits]; ok &&
-		s.restrictionBaseDerivesFromInteger(typeDefinition, 0) &&
-		fraction.Compare(datatype.Integer{}) != 0 {
-		return fmt.Errorf("%w: fractionDigits for an integer type must be zero", ErrInvalidComponent)
+	if fraction, ok := integers[xsd.FacetFractionDigits]; ok {
+		if s.restrictionBaseDerivesFromInteger(typeDefinition, 0) &&
+			fraction.Compare(datatype.Integer{}) != 0 {
+			return fmt.Errorf("%w: fractionDigits for an integer type must be zero", ErrInvalidComponent)
+		}
 	}
 	if err := s.validateFacetRestriction(typeDefinition, integers); err != nil {
 		return err
@@ -540,15 +634,25 @@ func (s *compileState) validateOrderedFacetRestriction(
 		default:
 			ordered = false
 		}
-		if base, ok := s.restrictionAncestorFacet(typeDefinition, facet.Kind, 0); ordered && ok && base.Fixed {
-			comparison, comparable := constraintOrderedCompare(primitive, facet.Value, base.Value)
-			if !comparable || comparison != 0 {
-				return fmt.Errorf("%w: fixed facet %s was changed", ErrInvalidComponent, facet.Kind)
-			}
+		if !ordered {
+			continue
+		}
+		base, ok := s.restrictionAncestorFacet(typeDefinition, facet.Kind, 0)
+		if !ok {
+			continue
+		}
+		if !base.Fixed {
+			continue
+		}
+		comparison, comparable := constraintOrderedCompare(primitive, facet.Value, base.Value)
+		if !comparable || comparison != 0 {
+			return fmt.Errorf("%w: fixed facet %s was changed", ErrInvalidComponent, facet.Kind)
 		}
 	}
-	if minimum != nil && maximum != nil && !orderedIntervalValid(primitive, *minimum, *maximum) {
-		return fmt.Errorf("%w: minimum and maximum facets are inconsistent", ErrInvalidComponent)
+	if minimum != nil && maximum != nil {
+		if !orderedIntervalValid(primitive, *minimum, *maximum) {
+			return fmt.Errorf("%w: minimum and maximum facets are inconsistent", ErrInvalidComponent)
+		}
 	}
 	if minimum != nil {
 		if base, ok := s.restrictionAncestorBound(typeDefinition, true, 0); ok &&
@@ -588,33 +692,56 @@ func orderedIntervalValid(primitive string, minimum xsd.Facet, maximum xsd.Facet
 
 func orderedLowerRestricts(primitive string, derived xsd.Facet, base xsd.Facet) bool {
 	comparison, comparable := constraintOrderedCompare(primitive, derived.Value, base.Value)
-	return comparable && (comparison > 0 || comparison == 0 &&
-		(base.Kind != xsd.FacetMinExclusive || derived.Kind == xsd.FacetMinExclusive))
+	if !comparable || comparison < 0 {
+		return false
+	}
+	if comparison > 0 {
+		return true
+	}
+	return base.Kind != xsd.FacetMinExclusive || derived.Kind == xsd.FacetMinExclusive
 }
 
 func orderedUpperRestricts(primitive string, derived xsd.Facet, base xsd.Facet) bool {
 	comparison, comparable := constraintOrderedCompare(primitive, derived.Value, base.Value)
-	return comparable && (comparison < 0 || comparison == 0 &&
-		(base.Kind != xsd.FacetMaxExclusive || derived.Kind == xsd.FacetMaxExclusive))
+	if !comparable || comparison > 0 {
+		return false
+	}
+	if comparison < 0 {
+		return true
+	}
+	return base.Kind != xsd.FacetMaxExclusive || derived.Kind == xsd.FacetMaxExclusive
 }
 
 func constraintOrderedCompare(primitive string, left string, right string) (int, bool) {
 	if primitive == "decimal" {
 		leftValue, leftErr := datatype.ParseDecimal(left)
 		rightValue, rightErr := datatype.ParseDecimal(right)
-		if leftErr != nil || rightErr != nil {
+		if leftErr != nil {
+			return 0, false
+		}
+		if rightErr != nil {
 			return 0, false
 		}
 		return leftValue.Compare(rightValue), true
 	}
-	if primitive == "float" || primitive == "double" {
+	switch primitive {
+	case "float", "double":
 		bitSize := 64
-		if primitive == "float" {
+		if primitive != "double" {
 			bitSize = 32
 		}
 		leftValue, leftOK := constraintFloat(left, bitSize)
 		rightValue, rightOK := constraintFloat(right, bitSize)
-		if !leftOK || !rightOK || math.IsNaN(leftValue) || math.IsNaN(rightValue) {
+		if !leftOK {
+			return 0, false
+		}
+		if !rightOK {
+			return 0, false
+		}
+		if math.IsNaN(leftValue) {
+			return 0, false
+		}
+		if math.IsNaN(rightValue) {
 			return 0, false
 		}
 		if leftValue < rightValue {
@@ -633,11 +760,11 @@ func (s *compileState) restrictionAncestorBound(
 	lower bool,
 	depth int,
 ) (xsd.Facet, bool) {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return xsd.Facet{}, false
 	}
 	if typeDefinition.InlineBase != nil {
-		return s.definitionBound(*typeDefinition.InlineBase, lower, depth+1)
+		return s.definitionBound(*typeDefinition.InlineBase, lower, compileChildDepth(depth))
 	}
 	if typeDefinition.Base.Namespace == xsd.Namespace {
 		return xsd.Facet{}, false
@@ -646,7 +773,7 @@ func (s *compileState) restrictionAncestorBound(
 	if !ok {
 		return xsd.Facet{}, false
 	}
-	return s.definitionBound(base, lower, depth+1)
+	return s.definitionBound(base, lower, compileChildDepth(depth))
 }
 
 func (s *compileState) definitionBound(
@@ -654,16 +781,23 @@ func (s *compileState) definitionBound(
 	lower bool,
 	depth int,
 ) (xsd.Facet, bool) {
-	if depth > defaultMaxDepth || typeDefinition.Variety != xsd.SimpleRestriction {
+	if compileDepthExceeded(depth) || typeDefinition.Variety != xsd.SimpleRestriction {
 		return xsd.Facet{}, false
 	}
 	for _, facet := range typeDefinition.Facets {
-		if lower && (facet.Kind == xsd.FacetMinInclusive || facet.Kind == xsd.FacetMinExclusive) ||
-			!lower && (facet.Kind == xsd.FacetMaxInclusive || facet.Kind == xsd.FacetMaxExclusive) {
-			return facet, true
+		if lower {
+			switch facet.Kind {
+			case xsd.FacetMinInclusive, xsd.FacetMinExclusive:
+				return facet, true
+			}
+		} else {
+			switch facet.Kind {
+			case xsd.FacetMaxInclusive, xsd.FacetMaxExclusive:
+				return facet, true
+			}
 		}
 	}
-	return s.restrictionAncestorBound(typeDefinition, lower, depth+1)
+	return s.restrictionAncestorBound(typeDefinition, lower, compileChildDepth(depth))
 }
 
 func (s *compileState) validateFacetRestriction(
@@ -672,25 +806,32 @@ func (s *compileState) validateFacetRestriction(
 ) error {
 	for kind, value := range integers {
 		baseFacet, ok := s.restrictionAncestorFacet(typeDefinition, kind, 0)
-		if !ok {
-			continue
-		}
-		baseValue, err := datatype.ParseInteger(baseFacet.Value)
-		if err != nil {
-			continue
-		}
-		comparison := value.Compare(baseValue)
-		invalid := baseFacet.Fixed && comparison != 0
-		switch kind {
-		case xsd.FacetLength:
-			invalid = invalid || comparison != 0
-		case xsd.FacetMinLength:
-			invalid = invalid || comparison < 0
-		case xsd.FacetMaxLength, xsd.FacetTotalDigits, xsd.FacetFractionDigits:
-			invalid = invalid || comparison > 0
-		}
-		if invalid {
-			return fmt.Errorf("%w: facet %s does not restrict its base facet", ErrInvalidComponent, kind)
+		if ok {
+			baseValue, err := datatype.ParseInteger(baseFacet.Value)
+			if err == nil {
+				comparison := value.Compare(baseValue)
+				invalid := false
+				if baseFacet.Fixed && comparison != 0 {
+					invalid = true
+				}
+				switch kind {
+				case xsd.FacetLength:
+					if comparison != 0 {
+						invalid = true
+					}
+				case xsd.FacetMinLength:
+					if comparison < 0 {
+						invalid = true
+					}
+				case xsd.FacetMaxLength, xsd.FacetTotalDigits, xsd.FacetFractionDigits:
+					if comparison > 0 {
+						invalid = true
+					}
+				}
+				if invalid {
+					return fmt.Errorf("%w: facet %s does not restrict its base facet", ErrInvalidComponent, kind)
+				}
+			}
 		}
 	}
 	return nil
@@ -701,11 +842,11 @@ func (s *compileState) restrictionAncestorFacet(
 	kind xsd.FacetKind,
 	depth int,
 ) (xsd.Facet, bool) {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return xsd.Facet{}, false
 	}
 	if typeDefinition.InlineBase != nil {
-		return s.definitionFacet(*typeDefinition.InlineBase, kind, depth+1)
+		return s.definitionFacet(*typeDefinition.InlineBase, kind, compileChildDepth(depth))
 	}
 	if typeDefinition.Base.Namespace == xsd.Namespace {
 		return xsd.Facet{}, false
@@ -714,7 +855,7 @@ func (s *compileState) restrictionAncestorFacet(
 	if !ok {
 		return xsd.Facet{}, false
 	}
-	return s.definitionFacet(base, kind, depth+1)
+	return s.definitionFacet(base, kind, compileChildDepth(depth))
 }
 
 func (s *compileState) definitionFacet(
@@ -722,7 +863,7 @@ func (s *compileState) definitionFacet(
 	kind xsd.FacetKind,
 	depth int,
 ) (xsd.Facet, bool) {
-	if depth > defaultMaxDepth || typeDefinition.Variety != xsd.SimpleRestriction {
+	if compileDepthExceeded(depth) || typeDefinition.Variety != xsd.SimpleRestriction {
 		return xsd.Facet{}, false
 	}
 	for _, facet := range typeDefinition.Facets {
@@ -730,20 +871,20 @@ func (s *compileState) definitionFacet(
 			return facet, true
 		}
 	}
-	return s.restrictionAncestorFacet(typeDefinition, kind, depth+1)
+	return s.restrictionAncestorFacet(typeDefinition, kind, compileChildDepth(depth))
 }
 
 func (s *compileState) restrictionBaseDerivesFromInteger(
 	typeDefinition xsd.SimpleType,
 	depth int,
 ) bool {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return false
 	}
 	if typeDefinition.InlineBase != nil {
-		return s.definitionDerivesFromInteger(*typeDefinition.InlineBase, depth+1)
+		return s.definitionDerivesFromInteger(*typeDefinition.InlineBase, compileChildDepth(depth))
 	}
-	return s.namedDerivesFromInteger(typeDefinition.Base, depth+1)
+	return s.namedDerivesFromInteger(typeDefinition.Base, compileChildDepth(depth))
 }
 
 func (s *compileState) definitionDerivesFromInteger(
@@ -753,16 +894,19 @@ func (s *compileState) definitionDerivesFromInteger(
 	if typeDefinition.Variety != xsd.SimpleRestriction {
 		return false
 	}
-	return s.restrictionBaseDerivesFromInteger(typeDefinition, depth+1)
+	return s.restrictionBaseDerivesFromInteger(typeDefinition, compileChildDepth(depth))
 }
 
 func (s *compileState) namedDerivesFromInteger(name xsd.QName, depth int) bool {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return false
 	}
 	if name.Namespace != xsd.Namespace {
 		definition, ok := s.simpleTypes[name]
-		return ok && s.definitionDerivesFromInteger(definition, depth+1)
+		if !ok {
+			return false
+		}
+		return s.definitionDerivesFromInteger(definition, compileChildDepth(depth))
 	}
 	for name.Local != "anySimpleType" {
 		if name.Local == "integer" {
@@ -782,22 +926,21 @@ func (s *compileState) validateNotationRestriction(typeDefinition xsd.SimpleType
 		return fmt.Errorf("%w: NOTATION restriction requires an enumeration", ErrInvalidComponent)
 	}
 	for _, facet := range typeDefinition.Facets {
-		if facet.Kind != xsd.FacetEnumeration {
-			continue
-		}
-		name, ok := notationFacetName(facet)
-		if !ok {
-			return fmt.Errorf("%w: NOTATION enumeration %q has an unbound prefix", ErrInvalidComponent, facet.Value)
-		}
-		if _, declared := s.notations[name]; !declared {
-			return unresolvedComponent("notation", name)
+		if facet.Kind == xsd.FacetEnumeration {
+			name, ok := notationFacetName(facet)
+			if !ok {
+				return fmt.Errorf("%w: NOTATION enumeration %q has an unbound prefix", ErrInvalidComponent, facet.Value)
+			}
+			if _, declared := s.notations[name]; !declared {
+				return unresolvedComponent("notation", name)
+			}
 		}
 	}
 	return nil
 }
 
 func (s *compileState) hasNotationEnumeration(typeDefinition xsd.SimpleType, depth int) bool {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return false
 	}
 	for _, facet := range typeDefinition.Facets {
@@ -806,13 +949,16 @@ func (s *compileState) hasNotationEnumeration(typeDefinition xsd.SimpleType, dep
 		}
 	}
 	if typeDefinition.InlineBase != nil {
-		return s.hasNotationEnumeration(*typeDefinition.InlineBase, depth+1)
+		return s.hasNotationEnumeration(*typeDefinition.InlineBase, compileChildDepth(depth))
 	}
 	if typeDefinition.Base.Namespace == xsd.Namespace {
 		return false
 	}
 	base, ok := s.simpleTypes[typeDefinition.Base]
-	return ok && s.hasNotationEnumeration(base, depth+1)
+	if !ok {
+		return false
+	}
+	return s.hasNotationEnumeration(base, compileChildDepth(depth))
 }
 
 func notationFacetName(facet xsd.Facet) (xsd.QName, bool) {
@@ -834,7 +980,10 @@ func facetApplicable(shape simpleShape, kind xsd.FacetKind) bool {
 			return true
 		}
 	case unionShape:
-		return kind == xsd.FacetPattern || kind == xsd.FacetEnumeration
+		switch kind {
+		case xsd.FacetPattern, xsd.FacetEnumeration:
+			return true
+		}
 	case atomicShape:
 		switch kind {
 		case xsd.FacetPattern, xsd.FacetEnumeration, xsd.FacetWhiteSpace:
@@ -866,15 +1015,15 @@ func (s *compileState) restrictionBaseShape(typeDefinition xsd.SimpleType) simpl
 }
 
 func (s *compileState) definitionShape(typeDefinition xsd.SimpleType, depth int) simpleShape {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return simpleShape{}
 	}
 	switch typeDefinition.Variety {
 	case xsd.SimpleRestriction:
 		if typeDefinition.InlineBase != nil {
-			return s.definitionShape(*typeDefinition.InlineBase, depth+1)
+			return s.definitionShape(*typeDefinition.InlineBase, compileChildDepth(depth))
 		}
-		return s.namedShape(typeDefinition.Base, depth+1)
+		return s.namedShape(typeDefinition.Base, compileChildDepth(depth))
 	case xsd.SimpleList:
 		return simpleShape{variety: listShape}
 	case xsd.SimpleUnion:
@@ -885,7 +1034,7 @@ func (s *compileState) definitionShape(typeDefinition xsd.SimpleType, depth int)
 }
 
 func (s *compileState) namedShape(name xsd.QName, depth int) simpleShape {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return simpleShape{}
 	}
 	if name.Namespace != xsd.Namespace {
@@ -893,7 +1042,7 @@ func (s *compileState) namedShape(name xsd.QName, depth int) simpleShape {
 		if !ok {
 			return simpleShape{}
 		}
-		return s.definitionShape(definition, depth+1)
+		return s.definitionShape(definition, compileChildDepth(depth))
 	}
 	local := name.Local
 	for {
@@ -934,7 +1083,7 @@ func (s *compileState) restrictionBaseWhitespace(typeDefinition xsd.SimpleType) 
 }
 
 func (s *compileState) definitionWhitespace(typeDefinition xsd.SimpleType, depth int) (string, bool) {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return "", false
 	}
 	switch typeDefinition.Variety {
@@ -942,9 +1091,9 @@ func (s *compileState) definitionWhitespace(typeDefinition xsd.SimpleType, depth
 		var base string
 		var fixed bool
 		if typeDefinition.InlineBase != nil {
-			base, fixed = s.definitionWhitespace(*typeDefinition.InlineBase, depth+1)
+			base, fixed = s.definitionWhitespace(*typeDefinition.InlineBase, compileChildDepth(depth))
 		} else {
-			base, fixed = s.namedWhitespace(typeDefinition.Base, depth+1)
+			base, fixed = s.namedWhitespace(typeDefinition.Base, compileChildDepth(depth))
 		}
 		for _, facet := range typeDefinition.Facets {
 			if facet.Kind == xsd.FacetWhiteSpace {
@@ -960,7 +1109,7 @@ func (s *compileState) definitionWhitespace(typeDefinition xsd.SimpleType, depth
 }
 
 func (s *compileState) namedWhitespace(name xsd.QName, depth int) (string, bool) {
-	if depth > defaultMaxDepth {
+	if compileDepthExceeded(depth) {
 		return "", false
 	}
 	if name.Namespace != xsd.Namespace {
@@ -968,7 +1117,7 @@ func (s *compileState) namedWhitespace(name xsd.QName, depth int) (string, bool)
 		if !ok {
 			return "", false
 		}
-		return s.definitionWhitespace(definition, depth+1)
+		return s.definitionWhitespace(definition, compileChildDepth(depth))
 	}
 	shape := s.namedShape(name, depth)
 	if shape.variety == listShape {

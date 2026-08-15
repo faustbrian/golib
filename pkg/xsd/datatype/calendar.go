@@ -62,7 +62,6 @@ func validDuration(lexical string) bool {
 	for _, component := range match[1:] {
 		if component != "" {
 			hasComponent = true
-			break
 		}
 	}
 	if !hasComponent {

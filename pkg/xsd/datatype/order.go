@@ -113,7 +113,7 @@ func orderedDurationComponents(value orderedDuration) (*big.Int, *big.Rat) {
 	days.Add(days, new(big.Int).Mul(&value.minutes, big.NewInt(60)))
 	seconds := new(big.Rat).SetInt(days)
 	seconds.Add(seconds, &value.seconds)
-	if value.sign < 0 {
+	if value.sign == -1 {
 		months.Neg(months)
 		seconds.Neg(seconds)
 	}
@@ -123,7 +123,7 @@ func orderedDurationComponents(value orderedDuration) (*big.Int, *big.Rat) {
 func addOrderedDuration(reference orderedDurationReference, value orderedDuration) *big.Rat {
 	monthOffset := new(big.Int).Mul(&value.years, big.NewInt(12))
 	monthOffset.Add(monthOffset, &value.months)
-	if value.sign < 0 {
+	if value.sign == -1 {
 		monthOffset.Neg(monthOffset)
 	}
 	monthIndex := new(big.Int).Mul(big.NewInt(reference.year), big.NewInt(12))
@@ -135,7 +135,7 @@ func addOrderedDuration(reference orderedDurationReference, value orderedDuratio
 	days := orderedDaysBeforeYear(year)
 	days.Add(days, big.NewInt(int64(orderedDaysBeforeMonth(year, month))))
 	durationDays := new(big.Int).Set(&value.days)
-	if value.sign < 0 {
+	if value.sign == -1 {
 		durationDays.Neg(durationDays)
 	}
 	days.Add(days, durationDays)
@@ -146,7 +146,7 @@ func addOrderedDuration(reference orderedDurationReference, value orderedDuratio
 	clockSeconds.Add(clockSeconds, new(big.Int).Mul(&value.minutes, big.NewInt(60)))
 	clock := new(big.Rat).SetInt(clockSeconds)
 	clock.Add(clock, &value.seconds)
-	if value.sign < 0 {
+	if value.sign == -1 {
 		clock.Neg(clock)
 	}
 	return seconds.Add(seconds, clock)
@@ -156,7 +156,7 @@ func orderedFloorDivMod(value *big.Int, divisor int64) (*big.Int, *big.Int) {
 	quotient := new(big.Int)
 	remainder := new(big.Int)
 	quotient.QuoRem(value, big.NewInt(divisor), remainder)
-	if remainder.Sign() < 0 {
+	if remainder.Sign() == -1 {
 		quotient.Sub(quotient, big.NewInt(1))
 		remainder.Add(remainder, big.NewInt(divisor))
 	}
@@ -174,7 +174,7 @@ func orderedDaysBeforeYear(year *big.Int) *big.Int {
 	} {
 		adjusted := new(big.Int).Add(year, big.NewInt(term.offset))
 		quotient, _ := orderedFloorDivMod(adjusted, term.divisor)
-		if term.sign < 0 {
+		if term.sign == -1 {
 			quotient.Neg(quotient)
 		}
 		days.Add(days, quotient)

@@ -107,14 +107,15 @@ func TestParseEntryBoundaries(t *testing.T) {
 	t.Parallel()
 
 	for _, test := range []struct {
-		name    string
-		source  string
-		options ParseOptions
-		want    error
+		name        string
+		source      string
+		options     ParseOptions
+		want        error
+		wantMessage string
 	}{
-		{name: "negative limit", source: `<schema xmlns="` + Namespace + `"/>`, options: ParseOptions{MaxDocumentBytes: -1}},
-		{name: "negative depth", source: `<schema xmlns="` + Namespace + `"/>`, options: ParseOptions{MaxDepth: -1}},
-		{name: "negative elements", source: `<schema xmlns="` + Namespace + `"/>`, options: ParseOptions{MaxElements: -1}},
+		{name: "negative limit", source: `<schema xmlns="` + Namespace + `"/>`, options: ParseOptions{MaxDocumentBytes: -1}, wantMessage: "xsd: parse limits must not be negative"},
+		{name: "negative depth", source: `<schema xmlns="` + Namespace + `"/>`, options: ParseOptions{MaxDepth: -1}, wantMessage: "xsd: parse limits must not be negative"},
+		{name: "negative elements", source: `<schema xmlns="` + Namespace + `"/>`, options: ParseOptions{MaxElements: -1}, wantMessage: "xsd: parse limits must not be negative"},
 		{name: "byte limit", source: `<schema xmlns="` + Namespace + `"/>`, options: ParseOptions{MaxDocumentBytes: 1}, want: ErrLimitExceeded},
 		{name: "depth limit", source: `<schema xmlns="` + Namespace + `"><annotation/></schema>`, options: ParseOptions{MaxDepth: 1}, want: ErrLimitExceeded},
 		{name: "element limit", source: `<schema xmlns="` + Namespace + `"><annotation/></schema>`, options: ParseOptions{MaxElements: 1}, want: ErrLimitExceeded},
@@ -126,10 +127,17 @@ func TestParseEntryBoundaries(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			_, err := Parse(context.Background(), []byte(test.source), test.options)
-			if err == nil || test.want != nil && !errors.Is(err, test.want) {
+			if err == nil || test.want != nil && !errors.Is(err, test.want) ||
+				test.wantMessage != "" && err.Error() != test.wantMessage {
 				t.Fatalf("Parse() error = %v, want %v", err, test.want)
 			}
 		})
+	}
+	exactSource := []byte(`<schema xmlns="` + Namespace + `"/>`)
+	if _, err := Parse(context.Background(), exactSource, ParseOptions{
+		MaxDocumentBytes: int64(len(exactSource)),
+	}); err != nil {
+		t.Fatalf("Parse(exact byte limit) error = %v", err)
 	}
 	if _, err := Parse(
 		context.Background(),
@@ -137,6 +145,100 @@ func TestParseEntryBoundaries(t *testing.T) {
 		ParseOptions{MaxDepth: 2, MaxElements: 2},
 	); err != nil {
 		t.Fatalf("Parse(exact structural limits) error = %v", err)
+	}
+}
+
+func TestNamespaceScopePreservesParentAndCapturesDeclarations(t *testing.T) {
+	t.Parallel()
+
+	parent := map[string]string{"p": "urn:parent"}
+	start := xml.StartElement{Attr: []xml.Attr{
+		{Name: xml.Name{Local: "xmlns"}, Value: "urn:default"},
+		{Name: xml.Name{Space: "xmlns", Local: "p"}, Value: "urn:child"},
+		{Name: xml.Name{Local: "name"}, Value: "ignored"},
+	}}
+	scope := namespaceScope(parent, start)
+	if scope[""] != "urn:default" || scope["p"] != "urn:child" ||
+		parent["p"] != "urn:parent" || len(parent) != 1 {
+		t.Fatalf("namespaceScope() = %#v, parent = %#v", scope, parent)
+	}
+}
+
+func TestParsePreservesValueNamespaceScopeForDefaultAndFixedValues(t *testing.T) {
+	t.Parallel()
+
+	document, err := Parse(context.Background(), []byte(
+		`<schema xmlns="`+Namespace+`" xmlns:v="urn:value">`+
+			`<attribute name="global" fixed="v:fixed"/>`+
+			`<element name="root" default="v:default"/>`+
+			`</schema>`,
+	), ParseOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(document.Attributes) != 1 || document.Attributes[0].ValueNamespaces["v"] != "urn:value" ||
+		len(document.Elements) != 1 || document.Elements[0].ValueNamespaces["v"] != "urn:value" {
+		t.Fatalf("value namespace scopes = %#v, %#v", document.Attributes, document.Elements)
+	}
+}
+
+func TestAnnotationOpaqueContentBypassesSchemaGrammarValidation(t *testing.T) {
+	t.Parallel()
+
+	_, err := Parse(context.Background(), []byte(
+		`<schema xmlns="`+Namespace+`"><annotation><appinfo>`+
+			`<attribute use="required" id="not a schema ID"/>`+
+			`</appinfo></annotation></schema>`,
+	), ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse(opaque appinfo) error = %v", err)
+	}
+}
+
+func TestSimpleContentRestrictionGrammarDoesNotLeakIntoOtherDerivations(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "complex content inline simple type",
+			body: `<complexContent><restriction base="string"><simpleType><restriction base="string"/></simpleType></restriction></complexContent>`,
+			want: "unexpected element",
+		},
+		{
+			name: "simple content extension inline simple type",
+			body: `<simpleContent><extension base="string"><simpleType><restriction base="string"/></simpleType></extension></simpleContent>`,
+			want: "unexpected element",
+		},
+		{
+			name: "complex content facet",
+			body: `<complexContent><restriction base="string"><length value="1"/></restriction></complexContent>`,
+			want: "unexpected element",
+		},
+		{
+			name: "inline type after facet",
+			body: `<simpleContent><restriction base="string"><length value="1"/><simpleType><restriction base="string"/></simpleType></restriction></simpleContent>`,
+			want: "restriction type must precede facets and attributes",
+		},
+		{
+			name: "facet after attribute",
+			body: `<simpleContent><restriction base="string"><attribute name="a"/><length value="1"/></restriction></simpleContent>`,
+			want: "restriction facets must precede attributes",
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := Parse(context.Background(), []byte(
+				`<schema xmlns="`+Namespace+`"><complexType name="T">`+test.body+`</complexType></schema>`,
+			), ParseOptions{})
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("Parse() error = %v, want %q", err, test.want)
+			}
+		})
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	xsd "github.com/faustbrian/golib/pkg/xsd"
@@ -372,7 +373,9 @@ func TestMarshalRoundTripsEveryComponentFamily(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	roundTrip, err := xsd.Parse(context.Background(), encoded, xsd.ParseOptions{})
+	roundTrip, err := xsd.Parse(context.Background(), encoded, xsd.ParseOptions{
+		SystemID: "https://example.test/all.xsd",
+	})
 	if err != nil {
 		t.Fatalf("Parse(Marshal()) error = %v\n%s", err, encoded)
 	}
@@ -381,5 +384,8 @@ func TestMarshalRoundTripsEveryComponentFamily(t *testing.T) {
 		len(roundTrip.AttributeGroups) != 1 || len(roundTrip.Attributes) != 1 ||
 		len(roundTrip.Elements) != 2 || len(roundTrip.Annotations) != 1 {
 		t.Fatalf("round trip lost components: %#v", roundTrip)
+	}
+	if !reflect.DeepEqual(roundTrip, document) {
+		t.Fatalf("round trip changed schema model:\n got: %#v\nwant: %#v", roundTrip, document)
 	}
 }

@@ -45,7 +45,7 @@ func ParseDecimal(lexical string) (Decimal, error) {
 	}
 
 	dot := strings.IndexByte(lexical, '.')
-	if dot != -1 && strings.IndexByte(lexical[dot+1:], '.') != -1 {
+	if strings.Count(lexical, ".") > 1 {
 		return Decimal{}, invalidDecimal(lexical)
 	}
 	integerPart := lexical
@@ -63,16 +63,8 @@ func ParseDecimal(lexical string) (Decimal, error) {
 
 	digits := integerPart + fractionPart
 	coefficient, _ := new(big.Int).SetString(digits, 10)
-	scale := len(fractionPart)
-	for scale > 0 && coefficient.Sign() != 0 {
-		quotient, remainder := new(big.Int), new(big.Int)
-		quotient.QuoRem(coefficient, big.NewInt(10), remainder)
-		if remainder.Sign() != 0 {
-			break
-		}
-		coefficient = quotient
-		scale--
-	}
+	scale := len(strings.TrimRight(fractionPart, "0"))
+	coefficient.Quo(coefficient, powerOfTen(len(fractionPart)-scale))
 	if coefficient.Sign() == 0 {
 		scale = 0
 		negative = false
@@ -104,12 +96,12 @@ func trimXMLSpace(value string) string {
 
 // String returns the XML Schema canonical representation of the value.
 func (d Decimal) String() string {
-	if d.coefficient == nil || d.coefficient.Sign() == 0 {
+	if coefficient(d).Sign() == 0 {
 		return "0.0"
 	}
 	absolute := new(big.Int).Abs(d.coefficient).String()
 	negative := ""
-	if d.coefficient.Sign() < 0 {
+	if d.coefficient.Sign() == -1 {
 		negative = "-"
 	}
 	if d.scale == 0 {
@@ -126,10 +118,12 @@ func (d Decimal) String() string {
 func (d Decimal) Compare(other Decimal) int {
 	left := coefficient(d)
 	right := coefficient(other)
-	if d.scale < other.scale {
-		left.Mul(left, powerOfTen(other.scale-d.scale))
-	} else if other.scale < d.scale {
-		right.Mul(right, powerOfTen(d.scale-other.scale))
+	scaleDifference := d.scale - other.scale
+	switch big.NewInt(int64(scaleDifference)).Sign() {
+	case -1:
+		left.Mul(left, powerOfTen(-scaleDifference))
+	case 1:
+		right.Mul(right, powerOfTen(scaleDifference))
 	}
 	return left.Cmp(right)
 }
