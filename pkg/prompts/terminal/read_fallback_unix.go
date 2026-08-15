@@ -30,7 +30,7 @@ func readWithoutDeadlineUsing(
 	poll func([]unix.PollFd, int) (int, error),
 ) (int, error) {
 	descriptor := input.Fd()
-	if descriptor == ^uintptr(0) || descriptor > math.MaxInt32 {
+	if !validPollDescriptor(descriptor) {
 		return 0, os.ErrClosed
 	}
 	info, err := stat()
@@ -40,19 +40,14 @@ func readWithoutDeadlineUsing(
 	if info.Mode()&(os.ModeCharDevice|os.ModeNamedPipe|os.ModeSocket) == 0 {
 		return 0, os.ErrNoDeadline
 	}
+	// #nosec G115 -- validPollDescriptor bounds descriptor to MaxInt32 above.
 	fds := []unix.PollFd{{Fd: int32(descriptor), Events: unix.POLLIN}}
 	for {
 		if err := ctx.Err(); err != nil {
 			return 0, err
 		}
-		wait := pollInterval
-		if deadline, ok := ctx.Deadline(); ok {
-			remaining := time.Until(deadline)
-			if remaining < wait {
-				wait = remaining
-			}
-		}
-		milliseconds := max(1, int((wait+time.Millisecond-1)/time.Millisecond))
+		wait := boundedPollWait(ctx, pollInterval, time.Now())
+		milliseconds := pollMilliseconds(wait)
 		fds[0].Revents = 0
 		ready, err := poll(fds, milliseconds)
 		if errors.Is(err, unix.EINTR) {
@@ -65,11 +60,35 @@ func readWithoutDeadlineUsing(
 			return 0, os.ErrDeadlineExceeded
 		}
 		events := fds[0].Revents
-		if events&unix.POLLNVAL != 0 {
+		if invalidPollEvents(events) {
 			return 0, os.ErrClosed
 		}
-		if events&(unix.POLLIN|unix.POLLHUP|unix.POLLERR) != 0 {
+		if readablePollEvents(events) {
 			return input.Read(buffer)
 		}
 	}
+}
+
+func validPollDescriptor(descriptor uintptr) bool {
+	return descriptor != ^uintptr(0) && descriptor <= math.MaxInt32
+}
+
+func pollMilliseconds(wait time.Duration) int {
+	return max(1, int((wait+time.Millisecond-1)/time.Millisecond))
+}
+
+func boundedPollWait(ctx context.Context, pollInterval time.Duration, now time.Time) time.Duration {
+	if deadline, ok := ctx.Deadline(); ok {
+		return min(pollInterval, deadline.Sub(now))
+	}
+
+	return pollInterval
+}
+
+func invalidPollEvents(events int16) bool {
+	return events&unix.POLLNVAL != 0
+}
+
+func readablePollEvents(events int16) bool {
+	return events&(unix.POLLIN|unix.POLLHUP|unix.POLLERR) != 0
 }

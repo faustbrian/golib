@@ -32,15 +32,15 @@ func TestAdapterReadsQueuedEventsAndEOF(t *testing.T) {
 	}
 
 	for index, want := range []rune{'a', 'b'} {
-		event, nextErr := adapter.Next(context.Background())
+		event, nextErr := adapter.Next(testContext(t))
 		if nextErr != nil || event != prompts.RuneEvent(want) {
 			t.Fatalf("Next(%d) = %#v, %v", index, event, nextErr)
 		}
 	}
-	if _, err := adapter.Next(context.Background()); !errors.Is(err, io.EOF) {
+	if _, err := adapter.Next(testContext(t)); !errors.Is(err, io.EOF) {
 		t.Fatalf("EOF Next() error = %v", err)
 	}
-	if _, err := adapter.Next(context.Background()); !errors.Is(err, io.EOF) {
+	if _, err := adapter.Next(testContext(t)); !errors.Is(err, io.EOF) {
 		t.Fatalf("repeated EOF Next() error = %v", err)
 	}
 }
@@ -65,7 +65,7 @@ func TestAdapterDecodesBytePasteWithoutStringPayload(t *testing.T) {
 	if err := writer.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
-	event, err := adapter.Next(context.Background())
+	event, err := adapter.Next(testContext(t))
 	if err != nil || event.Text != "" || string(event.Bytes.Reveal()) != "secret" {
 		t.Fatalf("Next() = %#v, %v", event, err)
 	}
@@ -92,7 +92,7 @@ func TestAdapterFlushesEscapeAndRejectsTruncation(t *testing.T) {
 			}
 			_, _ = writer.Write(input)
 			_ = writer.Close()
-			event, nextErr := adapter.Next(context.Background())
+			event, nextErr := adapter.Next(testContext(t))
 			if name == "escape" {
 				if nextErr != nil || event != prompts.KeyEvent(prompts.KeyEscape) {
 					t.Fatalf("Next() = %#v, %v", event, nextErr)
@@ -181,7 +181,7 @@ func TestAdapterCancellationAndReadFailures(t *testing.T) {
 	closedAdapter, _ := terminal.New(closedReader, closedWriter, terminal.Config{})
 	_ = closedReader.Close()
 	defer closedWriter.Close()
-	if _, err := closedAdapter.Next(context.Background()); !errors.Is(err, prompts.ErrTerminalDetached) {
+	if _, err := closedAdapter.Next(testContext(t)); !errors.Is(err, prompts.ErrTerminalDetached) {
 		t.Fatalf("closed Next() error = %v", err)
 	}
 
@@ -191,7 +191,7 @@ func TestAdapterCancellationAndReadFailures(t *testing.T) {
 	}
 	defer file.Close()
 	fileAdapter, _ := terminal.New(file, file, terminal.Config{})
-	if _, err := fileAdapter.Next(context.Background()); !errors.Is(err, prompts.ErrAdapter) {
+	if _, err := fileAdapter.Next(testContext(t)); !errors.Is(err, prompts.ErrAdapter) {
 		t.Fatalf("deadline failure = %v", err)
 	}
 }
@@ -233,7 +233,7 @@ func TestAdapterValidatesConfigAndNonTerminalControl(t *testing.T) {
 	if err := adapter.SetEcho(false); !errors.Is(err, prompts.ErrAdapter) {
 		t.Fatalf("SetEcho() error = %v", err)
 	}
-	if err := adapter.Acquire(context.Background()); !errors.Is(err, prompts.ErrAdapter) {
+	if err := adapter.Acquire(testContext(t)); !errors.Is(err, prompts.ErrAdapter) {
 		t.Fatalf("Acquire() error = %v", err)
 	}
 	if err := adapter.Release(); err != nil {
@@ -252,4 +252,12 @@ func TestAdapterValidatesConfigAndNonTerminalControl(t *testing.T) {
 	if _, err := adapter.Next(nilContext); !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("nil context Next() error = %v", err)
 	}
+}
+
+func testContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	t.Cleanup(cancel)
+
+	return ctx
 }

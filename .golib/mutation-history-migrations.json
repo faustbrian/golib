@@ -4434,6 +4434,16 @@
       "migration_reason": "go-patch-upgrade-evidence-carry-forward"
     },
     {
+      "module": "pkg/prompts",
+      "package": "terminal",
+      "execution_revision": "2c88bf32361f4ef1de8cb948799a29057fbed6c0",
+      "gate_input_digest": "d3d14d67c8217b35ac7907f8536b7ce06d5abf81b4030b7ad32486429f7ea41b",
+      "replacement_gate_input_digest": "6695173e417050aae0a2c1da20870ada191b4d3cb97fc7d539f0577f596e6986",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "a8b968e6262fe91cf82f1c3b125e42c824d051983c1abb1a3df59f164f8418bf",
+      "migration_reason": "non-executable-gosec-bound-comment"
+    },
+    {
       "module": "pkg/xsd",
       "package": "builder",
       "execution_revision": "5d259ec42b7eba3805ddb5a1191da15f620af857",
