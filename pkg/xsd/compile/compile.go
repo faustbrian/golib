@@ -1527,10 +1527,7 @@ func (s *compileState) attributeUseTypeRestricts(
 	if !ok || baseInline != nil {
 		return false
 	}
-	derivedType, derivedInline, ok := s.attributeUseType(derived)
-	if !ok {
-		return false
-	}
+	derivedType, derivedInline, _ := s.attributeUseType(derived)
 	if derivedInline != nil {
 		return s.inlineSimpleTypeDerivesFrom(*derivedInline, baseType)
 	}

@@ -83,6 +83,7 @@ func TestCompilePatternRejectsInvalidExpressions(t *testing.T) {
 		"[",
 		"[]",
 		`[a-]`,
+		`[a-`,
 		`[a-\q]`,
 		`[-[a]]`,
 		`[a-[]]`,

@@ -68,8 +68,6 @@ func parseValidated(ctx context.Context, source []byte, options ParseOptions) (*
 		}
 
 		switch value := token.(type) {
-		case nil:
-			return nil, located(decoder, options.SystemID, ErrNotSchema)
 		case xml.Directive:
 			return nil, located(decoder, options.SystemID, ErrDTDForbidden)
 		case xml.StartElement:
@@ -120,8 +118,6 @@ func validateAnnotationPlacement(
 			return located(decoder, systemID, err)
 		}
 		switch value := token.(type) {
-		case nil:
-			return located(decoder, systemID, io.ErrUnexpectedEOF)
 		case xml.Directive:
 			return located(decoder, systemID, ErrDTDForbidden)
 		case xml.StartElement:
@@ -341,8 +337,6 @@ func parseDocument(decoder *xml.Decoder, root xml.StartElement, systemID string)
 			return nil, located(decoder, systemID, err)
 		}
 		switch value := token.(type) {
-		case nil:
-			return nil, located(decoder, systemID, io.ErrUnexpectedEOF)
 		case xml.Directive:
 			return nil, located(decoder, systemID, ErrDTDForbidden)
 		case xml.StartElement:
@@ -791,8 +785,6 @@ func parseIdentityConstraint(
 			return IdentityConstraint{}, err
 		}
 		switch value := token.(type) {
-		case nil:
-			return IdentityConstraint{}, io.ErrUnexpectedEOF
 		case xml.Directive:
 			return IdentityConstraint{}, ErrDTDForbidden
 		case xml.StartElement:
@@ -985,13 +977,14 @@ func parseAttributeBody(
 		case xml.Directive:
 			return nil, nil, ErrDTDForbidden
 		case xml.StartElement:
-			if value.Name == (xml.Name{Space: Namespace, Local: "annotation"}) {
+			switch value.Name {
+			case xml.Name{Space: Namespace, Local: "annotation"}:
 				parsedAnnotation, parseErr := parseAnnotation(decoder, value)
 				if parseErr != nil {
 					return nil, nil, parseErr
 				}
 				annotation = &parsedAnnotation
-			} else if value.Name == (xml.Name{Space: Namespace, Local: "simpleType"}) {
+			case xml.Name{Space: Namespace, Local: "simpleType"}:
 				if inline != nil {
 					return nil, nil, fmt.Errorf("xsd: attribute has multiple inline types")
 				}
@@ -1000,7 +993,7 @@ func parseAttributeBody(
 					return nil, nil, parseErr
 				}
 				inline = &typeDefinition
-			} else {
+			default:
 				return nil, nil, skipUnsupportedElement(decoder, value)
 			}
 		case xml.EndElement:
@@ -1043,8 +1036,6 @@ func parseSimpleType(
 			return SimpleType{}, err
 		}
 		switch value := token.(type) {
-		case nil:
-			return SimpleType{}, io.ErrUnexpectedEOF
 		case xml.Directive:
 			return SimpleType{}, ErrDTDForbidden
 		case xml.StartElement:
@@ -1183,19 +1174,20 @@ func parseInlineSimpleTypes(
 		case xml.Directive:
 			return nil, nil, ErrDTDForbidden
 		case xml.StartElement:
-			if value.Name == (xml.Name{Space: Namespace, Local: "annotation"}) {
+			switch value.Name {
+			case xml.Name{Space: Namespace, Local: "annotation"}:
 				parsedAnnotation, parseErr := parseAnnotation(decoder, value)
 				if parseErr != nil {
 					return nil, nil, parseErr
 				}
 				annotation = &parsedAnnotation
-			} else if value.Name == (xml.Name{Space: Namespace, Local: "simpleType"}) {
+			case xml.Name{Space: Namespace, Local: "simpleType"}:
 				typeDefinition, parseErr := parseSimpleType(decoder, value, namespaces)
 				if parseErr != nil {
 					return nil, nil, parseErr
 				}
 				result = append(result, typeDefinition)
-			} else {
+			default:
 				return nil, nil, skipUnsupportedElement(decoder, value)
 			}
 		case xml.EndElement:
@@ -1997,13 +1989,14 @@ func parseAttributeGroupDefinition(
 		case xml.Directive:
 			return AttributeGroup{}, ErrDTDForbidden
 		case xml.StartElement:
-			if value.Name == (xml.Name{Space: Namespace, Local: "annotation"}) {
+			switch value.Name {
+			case xml.Name{Space: Namespace, Local: "annotation"}:
 				parsedAnnotation, parseErr := parseAnnotation(decoder, value)
 				if parseErr != nil {
 					return AttributeGroup{}, parseErr
 				}
 				definition.Annotation = &parsedAnnotation
-			} else if value.Name == (xml.Name{Space: Namespace, Local: "anyAttribute"}) {
+			case xml.Name{Space: Namespace, Local: "anyAttribute"}:
 				if definition.Wildcard != nil {
 					return AttributeGroup{}, fmt.Errorf(
 						"xsd: attribute group has multiple attribute wildcards",
@@ -2019,7 +2012,7 @@ func parseAttributeGroupDefinition(
 				}
 				wildcard.Annotation = annotation
 				definition.Wildcard = &wildcard
-			} else if value.Name == (xml.Name{Space: Namespace, Local: "attribute"}) {
+			case xml.Name{Space: Namespace, Local: "attribute"}:
 				if definition.Wildcard != nil {
 					return AttributeGroup{}, fmt.Errorf("xsd: attribute must precede anyAttribute")
 				}
@@ -2034,7 +2027,7 @@ func parseAttributeGroupDefinition(
 				}
 				definition.Attributes[len(definition.Attributes)-1].InlineSimpleType = inline
 				definition.Attributes[len(definition.Attributes)-1].Annotation = annotations
-			} else if value.Name == (xml.Name{Space: Namespace, Local: "attributeGroup"}) {
+			case xml.Name{Space: Namespace, Local: "attributeGroup"}:
 				if definition.Wildcard != nil {
 					return AttributeGroup{}, fmt.Errorf("xsd: attributeGroup must precede anyAttribute")
 				}
@@ -2053,7 +2046,7 @@ func parseAttributeGroupDefinition(
 						ID: attributeValue(value, "id"), Ref: reference, Annotation: annotation,
 					},
 				)
-			} else {
+			default:
 				return AttributeGroup{}, skipUnsupportedElement(decoder, value)
 			}
 		case xml.EndElement:
@@ -2383,19 +2376,20 @@ func parseAnnotation(decoder *xml.Decoder, start xml.StartElement) (Annotation, 
 		case xml.Directive:
 			return Annotation{}, ErrDTDForbidden
 		case xml.StartElement:
-			if value.Name == (xml.Name{Space: Namespace, Local: "documentation"}) {
+			switch value.Name {
+			case xml.Name{Space: Namespace, Local: "documentation"}:
 				documentation, decodeErr := decodeDocumentation(decoder, value)
 				if decodeErr != nil {
 					return Annotation{}, decodeErr
 				}
 				annotation.Documentation = append(annotation.Documentation, documentation)
-			} else if value.Name == (xml.Name{Space: Namespace, Local: "appinfo"}) {
+			case xml.Name{Space: Namespace, Local: "appinfo"}:
 				appInfo, decodeErr := decodeAppInfo(decoder, value)
 				if decodeErr != nil {
 					return Annotation{}, decodeErr
 				}
 				annotation.AppInformation = append(annotation.AppInformation, appInfo)
-			} else {
+			default:
 				return Annotation{}, skipUnsupportedElement(decoder, value)
 			}
 		case xml.EndElement:

@@ -97,3 +97,22 @@ func TestValidateModelGroupEnforcesParticleLimitRecursively(t *testing.T) {
 		t.Fatalf("validateModelGroup() error = %v", err)
 	}
 }
+
+func TestAllCompositorRejectsEveryInvalidOccurrenceShape(t *testing.T) {
+	t.Parallel()
+
+	state := emptyValidationState()
+	for _, particle := range []xsd.Particle{
+		{Element: &xsd.Element{Name: "value"}, Unbounded: true},
+		{Element: &xsd.Element{Name: "value"}, MinOccurs: 2, MaxOccurs: 2},
+	} {
+		particles := 0
+		err := state.validateModelGroup(&xsd.ModelGroup{
+			Compositor: xsd.All,
+			Particles:  []xsd.Particle{particle},
+		}, "urn:test", &particles)
+		if !errors.Is(err, ErrInvalidComponent) {
+			t.Fatalf("validateModelGroup(all) error = %v", err)
+		}
+	}
+}

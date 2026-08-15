@@ -63,6 +63,38 @@ func TestSerializerPropagatesWriteFailuresAtEveryBoundary(t *testing.T) {
 	}
 }
 
+func TestSimpleTypeSerializerPropagatesNestedFailures(t *testing.T) {
+	t.Parallel()
+
+	annotation := &Annotation{Documentation: []Documentation{{Content: "type"}}}
+	stringType := QName{Namespace: Namespace, Local: "string"}
+	inline := SimpleType{
+		Variety:           SimpleRestriction,
+		Base:              stringType,
+		VarietyAnnotation: annotation,
+	}
+	definitions := []SimpleType{
+		{Variety: SimpleRestriction, InlineBase: &inline, VarietyAnnotation: annotation},
+		{Variety: SimpleList, InlineItem: &inline, VarietyAnnotation: annotation},
+		{Variety: SimpleUnion, InlineMembers: []SimpleType{inline}, VarietyAnnotation: annotation},
+	}
+	for _, definition := range definitions {
+		serializer := newSerializer(&Document{})
+		counter := &countingTokenEncoder{delegate: serializer.encoder}
+		serializer.encoder = counter
+		if err := serializer.simpleType(definition); err != nil {
+			t.Fatalf("simpleType() error = %v", err)
+		}
+		for failAt := 1; failAt <= counter.tokens; failAt++ {
+			serializer := newSerializer(&Document{})
+			serializer.encoder = &failingTokenEncoder{delegate: serializer.encoder, failAt: failAt}
+			if err := serializer.simpleType(definition); !errors.Is(err, errSerializerWrite) {
+				t.Fatalf("token %d: simpleType() error = %v", failAt, err)
+			}
+		}
+	}
+}
+
 func TestSerializerRejectsUnknownQNameNamespaces(t *testing.T) {
 	t.Parallel()
 

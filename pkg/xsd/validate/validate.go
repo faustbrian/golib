@@ -985,9 +985,6 @@ func (s *validationState) typeDerivationStep(current xsd.QName) (xsd.QName, xsd.
 		if complexType.Base.Local == "" {
 			return xsd.QName{}, "", false
 		}
-		if complexType.Derivation == "" {
-			return xsd.QName{}, "", false
-		}
 		return complexType.Base, complexType.Derivation, true
 	}
 	if simpleType, ok := s.validator.set.SimpleType(current); ok {
@@ -1858,9 +1855,8 @@ func (s *validationState) simpleValuesEqualContext(
 				}
 				for index := range leftItems {
 					var equal bool
-					var err error
 					if typeDefinition.InlineItem != nil {
-						equal, err = s.inlineSimpleValuesEqualContext(
+						equal, _ = s.inlineSimpleValuesEqualContext(
 							*typeDefinition.InlineItem,
 							leftItems[index],
 							rightItems[index],
@@ -1868,16 +1864,13 @@ func (s *validationState) simpleValuesEqualContext(
 							rightNamespaces,
 						)
 					} else {
-						equal, err = s.simpleValuesEqualContext(
+						equal, _ = s.simpleValuesEqualContext(
 							typeDefinition.ItemType,
 							leftItems[index],
 							rightItems[index],
 							leftNamespaces,
 							rightNamespaces,
 						)
-					}
-					if err != nil {
-						return false, err
 					}
 					if !equal {
 						return false, nil
@@ -1955,22 +1948,18 @@ func (s *validationState) inlineSimpleValuesEqual(
 		}
 		for index := range leftItems {
 			var equal bool
-			var err error
 			if typeDefinition.InlineItem != nil {
-				equal, err = s.inlineSimpleValuesEqual(
+				equal, _ = s.inlineSimpleValuesEqual(
 					*typeDefinition.InlineItem,
 					leftItems[index],
 					rightItems[index],
 				)
 			} else {
-				equal, err = s.simpleValuesEqual(
+				equal, _ = s.simpleValuesEqual(
 					typeDefinition.ItemType,
 					leftItems[index],
 					rightItems[index],
 				)
-			}
-			if err != nil {
-				return false, err
 			}
 			if !equal {
 				return false, nil
@@ -3024,9 +3013,8 @@ func (s *validationState) inlineSimpleValuesEqualContext(
 		}
 		for index := range leftItems {
 			var equal bool
-			var err error
 			if typeDefinition.InlineItem != nil {
-				equal, err = s.inlineSimpleValuesEqualContext(
+				equal, _ = s.inlineSimpleValuesEqualContext(
 					*typeDefinition.InlineItem,
 					leftItems[index],
 					rightItems[index],
@@ -3034,16 +3022,13 @@ func (s *validationState) inlineSimpleValuesEqualContext(
 					rightNamespaces,
 				)
 			} else {
-				equal, err = s.simpleValuesEqualContext(
+				equal, _ = s.simpleValuesEqualContext(
 					typeDefinition.ItemType,
 					leftItems[index],
 					rightItems[index],
 					leftNamespaces,
 					rightNamespaces,
 				)
-			}
-			if err != nil {
-				return false, err
 			}
 			if !equal {
 				return false, nil

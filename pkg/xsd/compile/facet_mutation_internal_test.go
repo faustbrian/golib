@@ -142,6 +142,7 @@ func TestConstraintNumericFacetsExhaustiveBoundaries(t *testing.T) {
 		{name: "fraction digits exact", primitive: "decimal", lexical: "1.23", facet: xsd.Facet{Kind: xsd.FacetFractionDigits, Value: "2"}, want: true},
 		{name: "fraction digits exceeded", primitive: "decimal", lexical: "1.23", facet: xsd.Facet{Kind: xsd.FacetFractionDigits, Value: "1"}},
 		{name: "fraction digits zero", primitive: "decimal", lexical: "1", facet: xsd.Facet{Kind: xsd.FacetFractionDigits, Value: "0"}, want: true},
+		{name: "fraction digits invalid", primitive: "decimal", lexical: "1", facet: xsd.Facet{Kind: xsd.FacetFractionDigits, Value: "x"}},
 		{name: "fraction digits negative", primitive: "decimal", lexical: "1", facet: xsd.Facet{Kind: xsd.FacetFractionDigits, Value: "-1"}},
 		{name: "decimal equal inclusive", primitive: "decimal", lexical: "1", facet: xsd.Facet{Kind: xsd.FacetMinInclusive, Value: "1"}, want: true},
 		{name: "decimal equal exclusive", primitive: "decimal", lexical: "1", facet: xsd.Facet{Kind: xsd.FacetMinExclusive, Value: "1"}},
@@ -534,6 +535,21 @@ func TestOrderedFacetHelpersExhaustiveBoundaries(t *testing.T) {
 	}
 	if comparison, ok := constraintOrderedCompare("double", "16777217", "16777216"); !ok || comparison != 1 {
 		t.Fatalf("double comparison = %d, %t, want 1, true", comparison, ok)
+	}
+	for _, test := range []struct {
+		primitive string
+		left      string
+		right     string
+	}{
+		{primitive: "decimal", left: "1", right: "invalid"},
+		{primitive: "float", left: "invalid", right: "1"},
+		{primitive: "float", left: "1", right: "invalid"},
+		{primitive: "float", left: "NaN", right: "1"},
+		{primitive: "float", left: "1", right: "NaN"},
+	} {
+		if _, ok := constraintOrderedCompare(test.primitive, test.left, test.right); ok {
+			t.Fatalf("constraintOrderedCompare(%q, %q, %q) succeeded", test.primitive, test.left, test.right)
+		}
 	}
 }
 

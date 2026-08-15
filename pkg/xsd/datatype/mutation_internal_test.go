@@ -455,8 +455,6 @@ func TestOrderedDurationAndCalendarBoundaries(t *testing.T) {
 }
 
 func TestPatternTranslatorAndRuneSetBoundaries(t *testing.T) {
-	t.Parallel()
-
 	translator := patternTranslator{source: "^abc"}
 	if translator.consume('a') || translator.index != 0 {
 		t.Fatal("consume advanced on a mismatch")
@@ -464,16 +462,16 @@ func TestPatternTranslatorAndRuneSetBoundaries(t *testing.T) {
 	if !translator.consume('^') || translator.index != 1 {
 		t.Fatal("consume did not advance on a match")
 	}
+	memberTranslator := patternTranslator{source: "xé", index: 1}
+	member, literal, isLiteral, err := memberTranslator.parseClassMember()
+	if err != nil || memberTranslator.index != len("xé") || literal != 'é' || !isLiteral || !reflect.DeepEqual(member, runeSet{{'é', 'é'}}) {
+		t.Fatalf("parseClassMember(multibyte) = %v, %q, %t, index %d, error %v", member, literal, isLiteral, memberTranslator.index, err)
+	}
 	for _, source := range []string{"[a", "[a-[b]"} {
 		translator := patternTranslator{source: source}
 		if _, err := translator.parseClass(); err == nil {
 			t.Errorf("parseClass(%q) succeeded", source)
 		}
-	}
-	memberTranslator := patternTranslator{source: "xé", index: 1}
-	member, literal, isLiteral, err := memberTranslator.parseClassMember()
-	if err != nil || memberTranslator.index != len("xé") || literal != 'é' || !isLiteral || !reflect.DeepEqual(member, runeSet{{'é', 'é'}}) {
-		t.Errorf("parseClassMember(multibyte) = %v, %q, %t, index %d, error %v", member, literal, isLiteral, memberTranslator.index, err)
 	}
 	for _, test := range []struct {
 		source string

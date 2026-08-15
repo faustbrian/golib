@@ -102,28 +102,27 @@ func newSerializerTo(document *Document, maximum *int64) *serializer {
 	for _, namespace := range missing {
 		serializer.namespaces[nextNamespacePrefix(serializer.namespaces)] = namespace
 	}
-	for prefix, namespace := range serializer.namespaces {
-		current, exists := serializer.prefixes[namespace]
-		if !exists {
+	prefixes := make([]string, 0, len(serializer.namespaces))
+	for prefix := range serializer.namespaces {
+		prefixes = append(prefixes, prefix)
+	}
+	sort.Strings(prefixes)
+	for _, prefix := range prefixes {
+		namespace := serializer.namespaces[prefix]
+		if _, exists := serializer.prefixes[namespace]; !exists {
 			serializer.prefixes[namespace] = prefix
-		} else {
-			switch strings.Compare(prefix, current) {
-			case -1:
-				serializer.prefixes[namespace] = prefix
-			}
 		}
 	}
 	return serializer
 }
 
 func nextNamespacePrefix(namespaces map[string]string) string {
-	for index := 1; index <= len(namespaces)+1; index++ {
+	for index := 1; ; index++ {
 		prefix := fmt.Sprintf("ns%d", index)
 		if _, exists := namespaces[prefix]; !exists {
 			return prefix
 		}
 	}
-	panic("xsd: namespace prefix allocation invariant violated")
 }
 
 func documentQNameNamespaces(document *Document) map[string]struct{} {

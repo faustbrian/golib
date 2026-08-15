@@ -38,7 +38,6 @@ type patternTranslator struct {
 func (translator *patternTranslator) translate() (string, error) {
 	var translated strings.Builder
 	for translator.index < len(translator.source) {
-		characterStart := translator.index
 		character, size := utf8.DecodeRuneInString(translator.source[translator.index:])
 		if character == utf8.RuneError && size == 1 {
 			return "", fmt.Errorf("xsd: pattern is not valid UTF-8 at byte %d", translator.index)
@@ -71,10 +70,6 @@ func (translator *patternTranslator) translate() (string, error) {
 			translated.WriteRune(character)
 			translator.index += size
 		}
-		switch cmp.Compare(translator.index, characterStart) {
-		case -1, 0:
-			return "", fmt.Errorf("xsd: pattern parser made no progress at byte %d", characterStart)
-		}
 		if !withinByteLimit(translated.Len(), maxTranslatedPatternBytes) {
 			return "", fmt.Errorf("xsd: translated pattern exceeds %d bytes", maxTranslatedPatternBytes)
 		}
@@ -89,7 +84,6 @@ func (translator *patternTranslator) parseClass() (runeSet, error) {
 	var result runeSet
 	hasMember := false
 	for translator.index < len(translator.source) && translator.source[translator.index] != ']' {
-		memberStart := translator.index
 		if strings.HasPrefix(translator.source[translator.index:], "-[") {
 			if !hasMember {
 				return nil, fmt.Errorf("xsd: empty character group at byte %d", start)
@@ -136,10 +130,6 @@ func (translator *patternTranslator) parseClass() (runeSet, error) {
 			member = runeSet{{singleton, endSingleton}}
 		}
 		result = result.union(member)
-		switch cmp.Compare(translator.index, memberStart) {
-		case -1, 0:
-			return nil, fmt.Errorf("xsd: character class parser made no progress at byte %d", memberStart)
-		}
 	}
 	if translator.index >= len(translator.source) {
 		return nil, fmt.Errorf("xsd: unterminated or empty character class at byte %d", start)

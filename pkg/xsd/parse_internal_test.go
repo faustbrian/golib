@@ -148,6 +148,28 @@ func TestParseEntryBoundaries(t *testing.T) {
 	}
 }
 
+func TestForeignExtensionElementsAreRejectedAtEverySchemaBoundary(t *testing.T) {
+	t.Parallel()
+
+	for _, body := range []string{
+		`<element name="root"><f:extension/></element>`,
+		`<element name="root"><key name="key"><selector xpath="."/><field xpath="@id"/><f:extension/></key></element>`,
+		`<simpleType name="Code"><restriction base="string"/><f:extension/></simpleType>`,
+		`<simpleType name="Code"><restriction base="string"><f:extension/></restriction></simpleType>`,
+		`<complexType name="Record"><f:extension/></complexType>`,
+		`<complexType name="Record"><complexContent><f:extension/></complexContent></complexType>`,
+		`<complexType name="Record"><complexContent><extension base="anyType"><f:extension/></extension></complexContent></complexType>`,
+		`<complexType name="Record"><sequence><f:extension/></sequence></complexType>`,
+		`<group name="Items"><f:extension/></group>`,
+	} {
+		source := `<schema xmlns="` + Namespace + `" xmlns:f="urn:extension">` + body + `</schema>`
+		if _, err := Parse(context.Background(), []byte(source), ParseOptions{}); err == nil ||
+			!strings.Contains(err.Error(), "unexpected element") {
+			t.Fatalf("Parse(%s) error = %v, want unexpected element", body, err)
+		}
+	}
+}
+
 func TestNamespaceScopePreservesParentAndCapturesDeclarations(t *testing.T) {
 	t.Parallel()
 

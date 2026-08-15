@@ -108,6 +108,23 @@ func TestConsumeIdentityWorkUsesBoundedArithmetic(t *testing.T) {
 	if err := state.consumeIdentityWork(node, constraint); err == nil || state.xpathSteps != 9 {
 		t.Fatalf("consumeIdentityWork(exceeded) = steps %d, error %v", state.xpathSteps, err)
 	}
+	fieldOverflow := validationState{validator: &Validator{limits: Limits{MaxXPathSteps: 2}}}
+	if err := fieldOverflow.consumeIdentityWork(
+		node,
+		xsd.IdentityConstraint{Selector: ".", Fields: []string{"a/b"}},
+	); err == nil {
+		t.Fatal("consumeIdentityWork(field overflow) succeeded")
+	}
+	preexistingOverflow := validationState{
+		validator:  &Validator{limits: Limits{MaxXPathSteps: 2}},
+		xpathSteps: 3,
+	}
+	if err := preexistingOverflow.consumeIdentityWork(
+		node,
+		xsd.IdentityConstraint{Selector: "."},
+	); err == nil {
+		t.Fatal("consumeIdentityWork(preexisting overflow) succeeded")
+	}
 
 	valueState := validationState{validator: &Validator{limits: Limits{MaxIdentityValues: 3}}}
 	if err := valueState.consumeIdentityValues(3); err != nil || valueState.identityValues != 3 {
@@ -317,6 +334,92 @@ func TestMutationBoundaryHelpers(t *testing.T) {
 	}
 }
 
+func TestCanonicalBinaryAndIdentityNamespaceBoundaries(t *testing.T) {
+	t.Parallel()
+
+	state := validationState{validator: &Validator{set: attributeValidationSet(t)}}
+	for _, test := range []struct {
+		lexical string
+		want    string
+	}{
+		{lexical: "YQ==", want: "base64Binary:61"},
+		{lexical: "not-base64", want: "lexical:not-base64"},
+	} {
+		if got := state.canonicalIdentityValue(builtIn("base64Binary"), test.lexical, nil); got != test.want {
+			t.Fatalf("canonicalIdentityValue(base64Binary, %q) = %q, want %q", test.lexical, got, test.want)
+		}
+	}
+
+	namespaces := map[string]string{"t": "urn:target"}
+	if !identityNameMatches(xsd.QName{Namespace: "urn:target", Local: "value"}, "t:*", namespaces) {
+		t.Fatal("identityNameMatches() rejected a matching namespace wildcard")
+	}
+	if identityNameMatches(xsd.QName{Namespace: "urn:other", Local: "value"}, "t:*", namespaces) {
+		t.Fatal("identityNameMatches() accepted a different namespace")
+	}
+	if identityNameMatches(xsd.QName{Namespace: "urn:target", Local: "value"}, "missing:*", namespaces) {
+		t.Fatal("identityNameMatches() accepted an unresolved namespace wildcard")
+	}
+}
+
+func TestValidationCoversRemainingSchemaBoundaries(t *testing.T) {
+	t.Parallel()
+
+	set := contentValidationSet(t)
+	state := validationState{validator: &Validator{set: set, limits: Limits{MaxDiagnostics: 10}}}
+	xsiType := xsd.QName{Namespace: schemaInstanceNamespace, Local: "type"}
+	node := contentNode("value", map[xsd.QName]string{xsiType: "missing:Type"})
+	if err := state.validateElementContent(node, xsd.Element{Type: builtIn("string")}, "/root"); err != nil ||
+		len(state.diagnostics) != 1 || state.diagnostics[0].Code != "cvc-elt.4.2" {
+		t.Fatalf("validateElementContent(unresolved xsi:type) = %#v, %v", state.diagnostics, err)
+	}
+	if methods, ok := state.typeDerivationMethods(builtIn("string"), builtIn("anyType")); !ok || len(methods) != 0 {
+		t.Fatalf("typeDerivationMethods(anyType) = %#v, %t", methods, ok)
+	}
+	if _, _, ok := state.typeDerivationStep(xsd.QName{Namespace: "urn:test", Local: "Named"}); ok {
+		t.Fatal("typeDerivationStep(complex type without derivation) succeeded")
+	}
+	if index, matched, err := state.matchParticle(
+		xsd.Particle{MinOccurs: 1, MaxOccurs: 0}, nil, 0, "urn:test", "/root",
+	); err != nil || matched || index != 0 {
+		t.Fatalf("matchParticle(impossible occurrence) = %d, %t, %v", index, matched, err)
+	}
+}
+
+func TestNumericFacetValidationRejectsMalformedBounds(t *testing.T) {
+	t.Parallel()
+
+	state := validationState{validator: &Validator{set: attributeValidationSet(t)}}
+	for _, test := range []struct {
+		name  string
+		base  xsd.QName
+		facet xsd.Facet
+	}{
+		{name: "invalid total digits", base: builtIn("decimal"), facet: xsd.Facet{Kind: xsd.FacetTotalDigits, Value: "x"}},
+		{name: "invalid fraction digits", base: builtIn("decimal"), facet: xsd.Facet{Kind: xsd.FacetFractionDigits, Value: "x"}},
+		{name: "negative fraction digits", base: builtIn("decimal"), facet: xsd.Facet{Kind: xsd.FacetFractionDigits, Value: "-1"}},
+		{name: "NaN float boundary", base: builtIn("float"), facet: xsd.Facet{Kind: xsd.FacetMinInclusive, Value: "NaN"}},
+	} {
+		if state.numericFacetValid(test.base, "1", test.facet) {
+			t.Fatalf("%s: numericFacetValid() succeeded", test.name)
+		}
+	}
+}
+
+func TestStrictWildcardAcceptsValidAnonymousAttribute(t *testing.T) {
+	t.Parallel()
+
+	state := validationState{validator: &Validator{set: attributeValidationSet(t)}}
+	name := xsd.QName{Namespace: "urn:wildcard", Local: "inline"}
+	node := contentNode("", map[xsd.QName]string{name: "true"})
+	err := state.validateAdditionalAttribute(node, name, "urn:other", &xsd.Wildcard{
+		Namespaces: []string{"##other"}, ProcessContents: xsd.ProcessStrict,
+	}, "/root")
+	if err != nil || len(state.diagnostics) != 0 {
+		t.Fatalf("validateAdditionalAttribute() = %#v, %v", state.diagnostics, err)
+	}
+}
+
 func TestSimpleValueEqualityDistinguishesEveryPrimitiveBoundary(t *testing.T) {
 	t.Parallel()
 
@@ -328,6 +431,7 @@ func TestSimpleValueEqualityDistinguishesEveryPrimitiveBoundary(t *testing.T) {
 		URI: "urn:mutation-equality",
 		Content: []byte(`<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:mutation-equality">
 <xs:simpleType name="Numbers"><xs:list itemType="xs:integer"/></xs:simpleType>
+<xs:simpleType name="Choice"><xs:union memberTypes="xs:boolean xs:decimal"/></xs:simpleType>
 </xs:schema>`),
 	})
 	if err != nil {
@@ -344,6 +448,7 @@ func TestSimpleValueEqualityDistinguishesEveryPrimitiveBoundary(t *testing.T) {
 		{name: "named list equal", typeName: xsd.QName{Namespace: "urn:mutation-equality", Local: "Numbers"}, left: "1 2", right: "01 2", want: true},
 		{name: "named list length", typeName: xsd.QName{Namespace: "urn:mutation-equality", Local: "Numbers"}, left: "1", right: "1 2"},
 		{name: "named list item", typeName: xsd.QName{Namespace: "urn:mutation-equality", Local: "Numbers"}, left: "1 2", right: "1 3"},
+		{name: "named union equal", typeName: xsd.QName{Namespace: "urn:mutation-equality", Local: "Choice"}, left: "1.0", right: "1.00", want: true},
 		{name: "float equal", typeName: builtIn("float"), left: "1.5", right: "1.5", want: true},
 		{name: "float unequal", typeName: builtIn("float"), left: "1.5", right: "2.5"},
 		{name: "float nan left", typeName: builtIn("float"), left: "NaN", right: "1"},
@@ -363,7 +468,20 @@ func TestSimpleValueEqualityDistinguishesEveryPrimitiveBoundary(t *testing.T) {
 func TestFacetLengthsUseValueSpaceAndExactBounds(t *testing.T) {
 	t.Parallel()
 
-	state := validationState{validator: &Validator{set: attributeValidationSet(t)}}
+	compiler, err := compile.New(compile.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	set, err := compiler.Compile(context.Background(), compile.Source{
+		URI: "urn:mutation-facets",
+		Content: []byte(`<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:mutation-facets">
+<xs:simpleType name="Numbers"><xs:list itemType="xs:integer"/></xs:simpleType>
+</xs:schema>`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := validationState{validator: &Validator{set: set}}
 	for _, test := range []struct {
 		name       string
 		definition xsd.SimpleType
@@ -374,6 +492,7 @@ func TestFacetLengthsUseValueSpaceAndExactBounds(t *testing.T) {
 		{name: "string mismatch", definition: xsd.SimpleType{Base: builtIn("string"), Facets: []xsd.Facet{{Kind: xsd.FacetLength, Value: "1"}}}, lexical: "ab"},
 		{name: "hex decoded", definition: xsd.SimpleType{Base: builtIn("hexBinary"), Facets: []xsd.Facet{{Kind: xsd.FacetLength, Value: "1"}}}, lexical: "0A", want: true},
 		{name: "base64 decoded", definition: xsd.SimpleType{Base: builtIn("base64Binary"), Facets: []xsd.Facet{{Kind: xsd.FacetLength, Value: "1"}}}, lexical: "YQ==", want: true},
+		{name: "named list", definition: xsd.SimpleType{Base: xsd.QName{Namespace: "urn:mutation-facets", Local: "Numbers"}, Facets: []xsd.Facet{{Kind: xsd.FacetLength, Value: "2"}}}, lexical: "1 2", want: true},
 		{name: "pattern second match", definition: xsd.SimpleType{Base: builtIn("string"), Facets: []xsd.Facet{{Kind: xsd.FacetPattern, Value: "z"}, {Kind: xsd.FacetPattern, Value: "a"}}}, lexical: "a", want: true},
 		{name: "enumeration match", definition: xsd.SimpleType{Base: builtIn("integer"), Facets: []xsd.Facet{{Kind: xsd.FacetEnumeration, Value: "01"}}}, lexical: "1", want: true},
 		{name: "enumeration mismatch", definition: xsd.SimpleType{Base: builtIn("integer"), Facets: []xsd.Facet{{Kind: xsd.FacetEnumeration, Value: "2"}}}, lexical: "1"},

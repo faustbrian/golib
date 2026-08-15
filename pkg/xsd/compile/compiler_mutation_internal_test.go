@@ -278,6 +278,12 @@ func TestElementAndAttributeTypeDefaults(t *testing.T) {
 	if !ok || inline != nil || typeName != want {
 		t.Fatalf("attributeUseType(untyped reference) = %#v, %#v, %t", typeName, inline, ok)
 	}
+	if state.attributeUseTypeRestricts(
+		xsd.AttributeUse{Ref: xsd.QName{Namespace: "urn:test", Local: "missing"}},
+		xsd.AttributeUse{Type: want},
+	) {
+		t.Fatal("attributeUseTypeRestricts() accepted an unresolved derived attribute")
+	}
 }
 
 func TestAnonymousComplexElementValidatesNestedAttributeUses(t *testing.T) {
