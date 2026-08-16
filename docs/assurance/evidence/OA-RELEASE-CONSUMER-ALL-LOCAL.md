@@ -1,6 +1,6 @@
 # All-Module Local Release Consumer Evidence
 
-Observed at `2026-08-13T10:32:58Z` on `darwin/arm64` with Go `1.26.5`.
+Observed at `2026-08-16T02:46:01Z` on `darwin/arm64` with Go `1.26.6`.
 
 ## Executed Proof
 
@@ -8,6 +8,8 @@ A clean clone of the current repository built the complete local release proxy
 twice at the required initial version `v1.0.0`. The two proxy trees were
 byte-for-byte identical. A task-owned consumer outside the repository then ran
 with `GOWORK=off`, cold task-owned Go caches, and no module replacements.
+The deterministic proxy manifest SHA-256 was
+`3984396deec43710f61962486107d91a387a5c9c6f0264cffa0e1a83b0312882`.
 
 The consumer required every one of the 107 releasable modules at exact
 `v1.0.0`, downloaded the complete dependency graph through the local proxy and

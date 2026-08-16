@@ -147,9 +147,9 @@ gate.
 
 Release readiness is currently **not established**. Operational assurance is
 currently `not ready`: 2 of 11 scenarios pass and six residual risks remain
-open. Release readiness also requires all 107
-releasable modules to have current dependency-ordered `v1.0.0` dry-run and
-clean-consumer proof, all root and package gates to pass from the final tree, a
-clean worktree, and the final GitHub Actions matrix plus required summary and
-CodeQL jobs to succeed. The report will record the exact final revision and CI
-run only after those conditions are true.
+open. All 107 releasable modules now have current dependency-ordered `v1.0.0`
+dry-run and deterministic all-module clean-consumer proof. Release readiness
+still requires all root and package gates to pass from the final tree, a clean
+worktree, public release artifacts and provenance, and the final GitHub Actions
+matrix plus required summary and CodeQL jobs to succeed. The report will record
+the exact final revision and CI run only after those conditions are true.

@@ -36,9 +36,11 @@ systems and production recovery cases.
 `OA-RELEASE-CONSUMER` now retains a deterministic local `v1.0.0` source-proxy
 and clean-consumer proof for all 107 releasable modules. Every module resolved
 at exact `v1.0.0` with `GOWORK=off`, no replacements, and one listed public
-package. It remains pending for package release gates, public proxy and
-checksum resolution, signatures, attestations, upgrade policy, and release
-authorization.
+package. A separate clean-clone campaign also passed the dependency-ordered
+release dry-run for every module, including isolated tidy, test, API, local
+packaging, tag-shape, and per-module consumer checks. It remains pending for
+public proxy and checksum resolution, signatures, attestations, upgrade policy,
+and release authorization.
 
 `OA-RESOURCE-PERFORMANCE` now retains a passing constrained native-Linux
 service campaign with explicit throughput, latency, heap, goroutine,

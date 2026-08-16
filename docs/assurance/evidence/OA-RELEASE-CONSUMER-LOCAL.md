@@ -1,28 +1,30 @@
-# OA-RELEASE-CONSUMER Local Evidence
+# All-Module Release Dry-Run Evidence
 
-Observed at `2026-08-12T20:16:39Z` on `darwin/arm64` with Go `1.26.5`.
+Observed at `2026-08-16T02:46:01Z` on `darwin/arm64` with Go `1.26.6`.
 
 ## Executed Proof
 
-- The current release orchestrator planned `pkg/external-sort/v1.0.0`, reported
-  the repository's `not ready` operational-assurance verdict, and preserved the
-  dependency-first release order.
-- The module passed isolated tidy, test, and API compatibility checks.
-- A deterministic task-owned local module proxy exposed the proposed exact
-  version without workspace replacements.
-- A clean consumer outside the module workspace initialized with `GOWORK=off`,
-  resolved `github.com/faustbrian/golib/pkg/external-sort@v1.0.0`, and listed
-  the public package successfully.
-- The release checkpoint and its log were written immediately under the exact
-  current gate-input fingerprint. Disposable consumers, proxy data, and Go
-  caches were removed after the run.
+A clean clone of the current repository ran the release dry-run for all 107
+releasable modules with five parallel workers and task-owned cold Go caches.
+Every module:
+
+- planned the required initial `v1.0.0` directory-prefixed tag;
+- preserved dependency-first owned-module release ordering;
+- passed isolated tidy, test, and API compatibility checks;
+- built a deterministic task-owned local module proxy at exact `v1.0.0`; and
+- resolved and listed its public consumer package with `GOWORK=off` and no
+  module replacement.
+
+The aggregate command exited successfully. The clean clone, local proxies,
+consumers, module cache, and build cache were task-owned and removed after the
+campaign.
 
 ## Claim Boundary
 
-This current evidence is scoped only to `pkg/external-sort`. A prior aggregate
-dry-run covered 96 unaffected releasable modules before release planning gained
-the operational-assurance report; that historical execution is not relabeled
-as current proof here. No tag, release, or public artifact was created. Public
-proxy and checksum resolution, signatures, attestations, the remaining module
-matrix, specialist-owned scopes, and release authorization remain unproven.
+This proves the current local release command, isolated module release gates,
+dependency ordering, proposed tags, local packaging, and per-module clean
+consumer resolution. It does not create or verify public tags or artifacts,
+prove public proxy or checksum-database availability, verify signatures,
+attestations, SBOM provenance, upgrade or downgrade behavior, authorize a
+release, or establish the other operational-assurance scenarios.
 `OA-RELEASE-CONSUMER` therefore remains pending.
