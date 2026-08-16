@@ -8,7 +8,7 @@ require (
 	github.com/ruudk/golang-pdf417 v0.0.0-20201230142125-a7e3863a1245
 	github.com/speedata/barcode v1.1.1
 	github.com/unixdj/qr v0.8.2
-	golang.org/x/text v0.34.0
+	golang.org/x/text v0.41.0
 )
 
 require (

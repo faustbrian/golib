@@ -17,6 +17,8 @@ publisher contracts are public compatibility surfaces.
 
 ### Fixed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Pin standalone publisher adapters to resolvable immutable main revisions so
   their workspace-disabled module and release gates can run independently.
 

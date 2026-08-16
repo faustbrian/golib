@@ -104,6 +104,8 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - PostgreSQL commits now archive completed, failed, cancelled, terminated, and
   continued-as-new instances atomically with their terminal history.
 - `StepChild` definitions now require `ChildDefinition`; existing child steps

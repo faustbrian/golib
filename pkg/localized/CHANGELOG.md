@@ -20,6 +20,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the isolated module graph remains
+  aligned with the repository security baseline.
 - Pin owned dependencies to published source revisions so clean consumers can
   resolve the module before the first tags.
 - Snapshot localized validation rules in an explicit immutable adapter instead

@@ -24,6 +24,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Align the transitive `golang.org/x/text` dependency with v0.41.0 after the
+  owned module graph removed GO-2026-5970.
 - Replace direct `RegistryJSONSchemaValidator` field initialization and the
   `LookupSchema` callback with `NewRegistryJSONSchemaValidator` and
   `RegistryJSONSchemaConfig`. Callers must provide a bounded `ResolveCache`, a

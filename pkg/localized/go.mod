@@ -7,7 +7,7 @@ require (
 	github.com/faustbrian/golib/pkg/http-client v0.0.0
 	github.com/faustbrian/golib/pkg/international v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
-	golang.org/x/text v0.40.0
+	golang.org/x/text v0.41.0
 )
 
 require (

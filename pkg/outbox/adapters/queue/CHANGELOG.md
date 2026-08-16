@@ -22,6 +22,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Rename the unpublished module from `adapters/goqueue` to `adapters/queue`
   and its Go package to `outboxqueue` before v1.
 - Publish the owned task payload instead of `Envelope.CanonicalJSON`, exclude

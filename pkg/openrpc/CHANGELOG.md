@@ -14,6 +14,8 @@ Changelog principles, and releases use semantic versioning.
 
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Link authoritative specification inputs directly to the canonical decision
   register.
 - Report bounded Draft 7 regular-expression timeouts as resource-limit errors

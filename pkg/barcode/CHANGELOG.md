@@ -1,5 +1,7 @@
 # Changelog
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   instead of configurable package-local thresholds.
 - Activate the complete barcode gate at the monorepo workflow root, with

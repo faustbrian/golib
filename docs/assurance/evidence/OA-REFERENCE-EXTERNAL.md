@@ -1,6 +1,6 @@
 # OA-REFERENCE-EXTERNAL Evidence
 
-Observed at `2026-08-13T23:31:44Z` on `darwin/arm64` with Go `1.26.6`.
+Observed at `2026-08-16T02:04:56Z` on `darwin/arm64` with Go `1.26.6`.
 
 ## Scope
 

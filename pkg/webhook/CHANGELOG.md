@@ -20,6 +20,8 @@ and Semantic Versioning.
 
 ### Changed
 
+- Align the transitive `golang.org/x/text` dependency with v0.41.0 after the
+  owned module graph removed GO-2026-5970.
 - Rename the unpublished adapter packages to target-oriented `idempotency`,
   `slog`, `outbox`, `queue`, and `otel` paths with unambiguous `webhook*`
   package identifiers.
