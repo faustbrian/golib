@@ -11,6 +11,9 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Deep-copy nested schedule parameters when compiling a registry so caller
   mutations cannot alter compiled execution input.
 - Classify task-lease heartbeat failures deterministically before canceling the

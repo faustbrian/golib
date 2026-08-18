@@ -1,7 +1,7 @@
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/faustbrian/golib/pkg/circuit-breaker v0.0.0-20260729200419-a3d873d5fb15 h1:3l4chjTk60j9Q1uI6svLTlgUWZWJGOlAXetfYZ7WQgI=
-github.com/faustbrian/golib/pkg/circuit-breaker v0.0.0-20260729200419-a3d873d5fb15/go.mod h1:kEVuBh7MknKF+IhPDXA4Ajdv6yno9g04LFytLd6W2Go=
+github.com/faustbrian/golib/pkg/circuit-breaker v0.0.0 h1:BWe4S8BF5HsENUI8QEcQvldC5ZJ6GRFls6swQhhBP6A=
+github.com/faustbrian/golib/pkg/circuit-breaker v0.0.0/go.mod h1:q9bCd4jS04tWzjhb1OdUj99yBlXrHjrBtl9+H16aqBs=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=

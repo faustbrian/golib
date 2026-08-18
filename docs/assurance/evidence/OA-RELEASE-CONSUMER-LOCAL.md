@@ -1,12 +1,14 @@
 # All-Module Release Dry-Run Evidence
 
-Observed at `2026-08-16T02:46:01Z` on `darwin/arm64` with Go `1.26.6`.
+Observed at `2026-08-18T17:37:46Z` on `darwin/arm64` with Go `1.26.6`.
 
 ## Executed Proof
 
-A clean clone of the current repository ran the release dry-run for all 107
-releasable modules with five parallel workers and task-owned cold Go caches.
-Every module:
+A disposable Git snapshot of the current release-candidate tree ran the
+release dry-run for all 107 releasable modules with five isolated parallel
+workers and task-owned cold Go caches. Content-identical current checkpoints
+were reused; checkpoints whose release inputs changed reran their isolated
+release gates. Every module's resulting current checkpoint proves that it:
 
 - planned the required initial `v1.0.0` directory-prefixed tag;
 - preserved dependency-first owned-module release ordering;
@@ -15,9 +17,9 @@ Every module:
 - resolved and listed its public consumer package with `GOWORK=off` and no
   module replacement.
 
-The aggregate command exited successfully. The clean clone, local proxies,
-consumers, module cache, and build cache were task-owned and removed after the
-campaign.
+The aggregate command exited successfully. The snapshot excluded an unrelated
+working-tree-only checksum edit. The snapshot, local proxies, consumers,
+module cache, and build cache were task-owned and removed after the campaign.
 
 ## Claim Boundary
 

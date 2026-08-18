@@ -3,8 +3,8 @@ module github.com/faustbrian/golib/pkg/outbox/adapters/queue
 go 1.26.6
 
 require (
-	github.com/faustbrian/golib/pkg/outbox v0.0.0-20260731034205-0d6ce6b909dd
-	github.com/faustbrian/golib/pkg/queue v0.0.0-20260731034205-0d6ce6b909dd
+	github.com/faustbrian/golib/pkg/outbox v0.0.0
+	github.com/faustbrian/golib/pkg/queue v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
 )

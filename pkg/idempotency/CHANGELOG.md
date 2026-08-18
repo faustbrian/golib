@@ -20,6 +20,9 @@ public API reaches its first stable version.
 
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Update the webhook ecosystem contract and adoption guide to the canonical
   `webhook/adapters/idempotency` package path.
 - Refresh the ecosystem compatibility dependency graph for the patched gRPC

@@ -14,6 +14,9 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Guard schema-prefix allocation arithmetic against the platform integer limit
   after enforcing the configured payload boundary.
 - Remove unused CLI-related indirect dependencies from canonical module

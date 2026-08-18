@@ -14,6 +14,9 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
 - Pin owned sibling modules to exact resolvable main pseudo-versions so

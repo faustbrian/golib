@@ -24,6 +24,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Align the transitive `golang.org/x/text` dependency with v0.41.0 after the
   owned module graph removed GO-2026-5970.
 - Replace direct `RegistryJSONSchemaValidator` field initialization and the

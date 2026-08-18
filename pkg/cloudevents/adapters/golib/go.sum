@@ -52,7 +52,7 @@ github.com/faustbrian/golib/pkg/audit v0.0.0 h1:NCG5LHlEdaJHkJ3mEwEuexpCXLNldx7W
 github.com/faustbrian/golib/pkg/audit v0.0.0/go.mod h1:oDQzdxwuwwwYmLxHTLlS12bcXceLgiryV9DLKCia16w=
 github.com/faustbrian/golib/pkg/cloudevents v0.0.0 h1:kIYoTdjLPwhYWpuV1pNANp/EC+2LpApY/DG6vHNI9r0=
 github.com/faustbrian/golib/pkg/cloudevents v0.0.0/go.mod h1:DMuoOGEy8qwDsreZQiHMwou9t6HYXdeHCL+FX+qBdys=
-github.com/faustbrian/golib/pkg/correlation v0.0.0 h1:J68otsSgc2ZiXrsDatOaNySYrD9ocf0akN0AieDLI7M=
+github.com/faustbrian/golib/pkg/correlation v0.0.0 h1:LoPw2n0Th0r/ape3Y/oPm9fL8RE85ihBJsMEpnckwN4=
 github.com/faustbrian/golib/pkg/correlation v0.0.0/go.mod h1:AgAvo8PAirD9NVr/5YmuvChVCo3qZ9x8NjmeqrsYu5s=
 github.com/faustbrian/golib/pkg/event-sourcing v0.0.0 h1:jzRbYQkcmuKjIRgLpXbuEkoCjXfdt+BEuRR2Yv+crxM=
 github.com/faustbrian/golib/pkg/event-sourcing v0.0.0/go.mod h1:amX/9wOC1YriF6jlYubjik9YAj3yZ2qBhdSLnC01EbY=
@@ -68,9 +68,9 @@ github.com/faustbrian/golib/pkg/queue v0.0.0 h1:o69iN6buYr4X8a4ScZ24JytGDHi8ndXL
 github.com/faustbrian/golib/pkg/queue v0.0.0/go.mod h1:hcL5oGKVSg4U/Tuz8h4oU/mET7zPiSJyeZL4ZuE23gw=
 github.com/faustbrian/golib/pkg/schema-registry v0.0.0 h1:JwgBpwNNTsdWJvclYckDIzGcVfq7f+Z7OC7IowpJJ90=
 github.com/faustbrian/golib/pkg/schema-registry v0.0.0/go.mod h1:Kjx6Vmguqi2pG06U4VthWGjdjIvZwWsyVJwYO3kTYGM=
-github.com/faustbrian/golib/pkg/telemetry v0.0.0 h1:pCklnzGpusycaO1ubxTugc/1rlFxHKIPFVyw+jg6ZaM=
+github.com/faustbrian/golib/pkg/telemetry v0.0.0 h1:ZrAB+pBK/80PphmXViBzqZojXsuJVP4qgv2z/HUQRTs=
 github.com/faustbrian/golib/pkg/telemetry v0.0.0/go.mod h1:TVHlxyQ56vl9umqP1gFlmoKKYXHz6ouDshtnULhDMLE=
-github.com/faustbrian/golib/pkg/tenancy v0.0.0 h1:U1f+eAzgMThSHYajzSwhUUjhpSBqEb7nOkzuVXGDgOQ=
+github.com/faustbrian/golib/pkg/tenancy v0.0.0 h1:8o8hkLyvgXQLXJVSO59/XbhpvehCJlcX1GczB65+Y7c=
 github.com/faustbrian/golib/pkg/tenancy v0.0.0/go.mod h1:jya3hmNWpAHI+SZZhVKnsRP1SiR9vJd/1LESPiTSz1E=
 github.com/faustbrian/golib/pkg/workflow v0.0.0 h1:tHdInSsxfgAWYAAiLETLKUkTv2QYJc4BRhkm+UZaW98=
 github.com/faustbrian/golib/pkg/workflow v0.0.0/go.mod h1:JHTz/9QMbXTpFo0WZeFqbFe0vN5wRITRiu+TZeJy2Aw=

@@ -28,6 +28,11 @@ Reviewed evidence-identity migrations are retained as part of the audit trail:
 - [Snapshot index migration](evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md)
 - [Isolated module file migration](evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md)
 - [Telemetry endpoint migration](evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md)
+- [Owned dependency version normalization migration](evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md)
+- [Tenancy unrelated-header test migration](evidence/OA-INPUT-DIGEST-MIGRATION-TENANCY-UNRELATED-HEADER.md)
+- [Changelog and checksum propagation migration](evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md)
+- [Release snapshot selection migration](evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md)
+- [Knapsack checksum and evidence migration](evidence/OA-INPUT-DIGEST-MIGRATION-KNAPSACK-CHECKSUM-EVIDENCE.md)
 
 ## Reference Services
 

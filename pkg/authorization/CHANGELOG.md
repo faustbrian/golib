@@ -13,6 +13,9 @@ versioning for its Go API and portable policy format.
 
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Delegate package mutation checks to the canonical exact-100 repository
   runner instead of permissive package-local Gremlins configuration.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

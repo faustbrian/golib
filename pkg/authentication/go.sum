@@ -1,2 +1,2 @@
-github.com/faustbrian/golib/pkg/clock v0.0.0-20260730073026-bbe414b6d6cd h1:quQiNA9JZfnOTzJGADvLIfXvhm37RLkNamcYSue0qI8=
-github.com/faustbrian/golib/pkg/clock v0.0.0-20260730073026-bbe414b6d6cd/go.mod h1:iIVOjXnoiQBzk1Ey+hNiTldtrZ736j9Mmb+/m3rK1SM=
+github.com/faustbrian/golib/pkg/clock v0.0.0 h1:UCADG0+qM12Az5YpXmVfL8q7haIdxMrq4Lj47fFy7kc=
+github.com/faustbrian/golib/pkg/clock v0.0.0/go.mod h1:7ZJjTTwqbvVkMr+FEhDGVLz6dwL0stHG0Q0z7yLw0w4=

@@ -27,8 +27,8 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-case "${gate}" in
-    release-dry-run|release-public)
+case "${gate}:${GOLIB_VERIFICATION_SNAPSHOT:-0}" in
+    release-dry-run:0|release-public:0)
         selection_arguments+=(--dependencies)
         ;;
 esac

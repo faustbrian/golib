@@ -30,6 +30,9 @@ this project follows Semantic Versioning.
 
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Link specification provenance directly to the canonical decision register so
   conformance rationale and executable evidence remain discoverable.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

@@ -4,7 +4,7 @@ go 1.26.6
 
 require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.2
-	github.com/faustbrian/golib/pkg/config v0.0.0-20260727003840-d220e4da51ad
+	github.com/faustbrian/golib/pkg/config v0.0.0
 )
 
 require (

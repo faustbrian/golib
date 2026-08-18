@@ -34,13 +34,14 @@ existing_files="${manifest}.existing"
 file_hashes="${manifest}.hashes"
 nested_directories="${manifest}.nested"
 bounded_output="${manifest}.bounded-output"
+owned_module_paths="${manifest}.owned-modules"
 digest_modfile=""
 cleanup() {
     rm -f \
         "${manifest}" "${directories}" "${input_files}" "${package_data}" \
         "${relevant_package_data}" \
         "${existing_files}" "${file_hashes}" "${nested_directories}" \
-        "${bounded_output}"
+        "${bounded_output}" "${owned_module_paths}"
     if [[ -n "${digest_modfile}" ]]; then
         rm -f "${digest_modfile}" "${digest_modfile%.mod}.sum"
     fi
@@ -121,6 +122,29 @@ append_file() {
     }
     relative="${file#"${root}/"}"
     digest="$(shasum -a 256 "${file}" | awk '{print $1}')"
+    printf 'file   %s  %s\n' "${digest}" "${relative}" >>"${manifest}"
+}
+
+append_mutation_module_manifest() {
+    local file="$1"
+    local relative digest
+    if [[ ! -f "${owned_module_paths}" ]]; then
+        jq -r '.modules[].module_path' "${root}/modules.json" |
+            LC_ALL=C sort -u >"${owned_module_paths}"
+    fi
+    relative="${file#"${root}/"}"
+    digest="$({
+        GOLIB_OWNED_MODULE_PATHS="${owned_module_paths}" perl -pe '
+            BEGIN {
+                open my $paths, "<", $ENV{GOLIB_OWNED_MODULE_PATHS}
+                    or die "open owned module paths: $!";
+                chomp(@owned = <$paths>);
+            }
+            for my $owned (@owned) {
+                s/(\Q$owned\E)([ \t]+)v[^\s]+/$1$2v0.0.0/g;
+            }
+        ' "${file}"
+    } | shasum -a 256 | awk '{print $1}')"
     printf 'file   %s  %s\n' "${digest}" "${relative}" >>"${manifest}"
 }
 
@@ -867,13 +891,16 @@ package_digest() {
         | select(startswith($root))
     ' "${relevant_package_data}" >>"${input_files}"
 
-    jq -r --arg root "${root}/" '
+    while IFS= read -r file; do
+        [[ -n "${file}" ]] || continue
+        append_mutation_module_manifest "${file}"
+    done < <(jq -r --arg root "${root}/" '
         select(
             (.Module.GoMod // "") == $root or
             ((.Module.GoMod // "") | startswith($root))
         )
         | .Module.GoMod
-    ' "${relevant_package_data}" | LC_ALL=C sort -u >>"${input_files}"
+    ' "${relevant_package_data}" | LC_ALL=C sort -u)
 
     while IFS= read -r package_directory; do
         [[ -n "${package_directory}" ]] || continue

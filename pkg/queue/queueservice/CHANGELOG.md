@@ -11,6 +11,9 @@ versioning once released.
 
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Publish the service lifecycle adapter as an independently versioned optional
   module so core queue consumers do not inherit service or correlation runtime
   dependencies.

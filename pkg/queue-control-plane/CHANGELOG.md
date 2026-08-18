@@ -22,6 +22,9 @@ Versioning.
 
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - New durable command identifiers are lowercase ULIDs. The PostgreSQL upgrade
   preserves historical UUID command identifiers while changing command and
   reference columns to text so existing audit history remains addressable.

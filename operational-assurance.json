@@ -1296,9 +1296,9 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-RELEASE-CONSUMER-LOCAL.md",
-          "sha256": "f52c898b6c3bae1839fc36ab369d313781773bd3eb595dd79a70d0c63ac9a60d",
-          "observed_utc": "2026-08-16T02:46:01Z",
-          "environment": "darwin/arm64; Go 1.26.6; clean clone; task-owned cold caches and local proxies; all-module release dry-run",
+          "sha256": "acd98a3390fb478e74ea6f2dabe9036b8d13c01828cf5f03d903fb35c0ddef1b",
+          "observed_utc": "2026-08-18T17:37:46Z",
+          "environment": "darwin/arm64; Go 1.26.6; disposable Git snapshot; task-owned cold caches and local proxies; all-module release dry-run",
           "module_scope": [
             "*"
           ],
@@ -1414,9 +1414,9 @@
         },
         {
           "path": "docs/assurance/evidence/OA-RELEASE-CONSUMER-ALL-LOCAL.md",
-          "sha256": "64dd4ad28f765ee2203c131e67a782b32aa7944f3f4997ce3c14156225a820d9",
-          "observed_utc": "2026-08-16T02:46:01Z",
-          "environment": "darwin/arm64; Go 1.26.6; clean clone; two deterministic task-owned local proxies; clean all-module GOWORK=off consumer",
+          "sha256": "657049f1f80530a1b7bc776d3d80fa9360a11da5ac6beba584cf23d43c0e7eea",
+          "observed_utc": "2026-08-18T17:23:59Z",
+          "environment": "darwin/arm64; Go 1.26.6; disposable Git snapshot; two deterministic task-owned local proxies; clean all-module GOWORK=off consumer",
           "module_scope": [
             "*"
           ],
@@ -2407,6 +2407,886 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md",
       "evidence_sha256": "f854b7d5d8eab522b772dd60b5f85f84885c68496023f4c6d19ef8103d129288",
       "rationale": "The opt-in isolated module-file contract changes only package-verification process wiring, not package behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/audit/postgres",
+      "from_sha256": "5e597f0f3f96c21c80e894d69cded9c4e22ea4112e7fb90c788927b88d9baeec",
+      "to_sha256": "4f4b388112f22093f0ae2d3fae81025765c489f9ae48bcc874e87566580873cc",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authentication",
+      "from_sha256": "63c2593205700ee3281e4b4ae7488a70815867953f002bbd9f0debc7dcf165bd",
+      "to_sha256": "04155ba0ad8812f4785eb599fc822e3e8b25d95102900fcb6795847fc761385d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authentication/authotel",
+      "from_sha256": "3f450a3cf4dad660dd6f21d0c5c25d7b8062527095f9dfdd74f26e4035c6acec",
+      "to_sha256": "a48cf4d8d0c0c2c15602fc4905988b3e3d4e5b3b1da14aee1ba89364d17ac4a4",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authentication/jwt",
+      "from_sha256": "966fa416ceff0d913925a65ad51327cd127eb4293069df332550df31a693743c",
+      "to_sha256": "a660e87562502b4494a73bbed04145d26a270a72f1fb54ac1048c2e459634365",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authentication/oidc",
+      "from_sha256": "8ac43e8e1ca913bf1fa814e521601a73b88c9a4a41281ff1d642de6d142b05a0",
+      "to_sha256": "9ce3ed57b243959fc9c6a4747d75c1414aa449866dfc2121e10ac5756f4b690f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authorization",
+      "from_sha256": "dc6161aa315ee514b6b00feeb52acd5598103759163f5954464b323726171866",
+      "to_sha256": "73cc5527e6d91a62af5300bd4de40b867296467c969e57e71ba152a1a812923e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/cache",
+      "from_sha256": "02f3d79289602562c696e4b90a586791e6d5ac88fb006ced6a4bbcd45e0afca8",
+      "to_sha256": "7846e0a840103014ff763087ea1b33573107c73c1693fa8b13f57506e27fb911",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "de6f553830b21e51600efd4a2ecbee1873aee32bd7b726c7d08e2b263caa1646",
+      "to_sha256": "156e5e7ddd3a3932e73aea12025f19fb8372f3b36b8947265ba7a4a84f4a4037",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/config",
+      "from_sha256": "e728114cfde34ea51ebbeef979224dda0a33ea2cc126c48784365db5a8295534",
+      "to_sha256": "0448c5b43a605798886df2627db00afbe3a79dcb2c089ee81088ffb9351195ea",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/config/adapters/awssecretsmanager",
+      "from_sha256": "2f1a9aabc334c8b9303a2649fd7bce5cfb5a05a574bc9e8e23097a3d97e164ae",
+      "to_sha256": "bee50807c993631c983202b0883fc8fac0c4ce3c99dfe77e778f1da89321b28b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/correlation",
+      "from_sha256": "b8506df6ce9b6a2eba7b0c41a05ffcd3e19dcc175debfbf54c86d415ccd33fc4",
+      "to_sha256": "b7745774be70056e29ef251557722bef0da9506fc241c38a0ac540b58a7e9aec",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/http-client",
+      "from_sha256": "a3abb6fd97da92f9ecc59cb6428e68d3d5940b9d9cd86c8f83bf182f8eafa793",
+      "to_sha256": "cd317275267ce857ec15156abd1f31f59973596bdf5a43a5630d3e9159716db0",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/idempotency",
+      "from_sha256": "00dba8d0f7cccdf6da7795b168644450f41780c67bdcfa6b065fe791177ec601",
+      "to_sha256": "47cce7807c95c8c936cb5aff9e4a6a847fec75db7883706c9b51c3845abd7428",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/international",
+      "from_sha256": "1a02aa5f30d6a8f9e547afe0ed4ede022afbd46ddb81bc66f7b3961e23100bea",
+      "to_sha256": "5c29c7efcef38e9b185215e9e44aac5d4864f84d458e37e10deb189ae5eb16da",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/kafka/kafkaservice",
+      "from_sha256": "8773f87a77e6ae672d02d439de2af35a2e6a47877a6fb363afe2514001679bdb",
+      "to_sha256": "df23f916f186f735c79f784f9d63a01ac17f4792899f8fb06b9b4943819d1f1a",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/knapsack/objective/gomoney",
+      "from_sha256": "36c76787e3d2b9d85e31e47d3db68b3f9408c6b221b25e44b649a95da665d7c6",
+      "to_sha256": "ce8c5987211786483c538c139792777b1567711b5a12588fb81d1123d7f13463",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/lease",
+      "from_sha256": "0b8a5dd287f334fae526576aca838673dedc033fe7348840de51bcb312cf28f7",
+      "to_sha256": "f3110b20db49c858d4cc53fcb57ab60e7c39cbaec311a58d394c6e5aafa4d500",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/localized",
+      "from_sha256": "e4b37a81cef57eaec56b7cc638bda68b550f2fa4d58209469b39d7c8cbbd3dd6",
+      "to_sha256": "8ffd2908a0d94e9470cdf49fa4c5783c2961fabcd03c6f72d2e0ff71ef100e44",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/migrations",
+      "from_sha256": "cf7f042fc41dab88753be913faea7d2b69ad468fc5dbf616b8969a7d476faaee",
+      "to_sha256": "87b61d47001c299fae1c82a73687febe950e971a2a2b80d16cad8de3e1386b79",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/money",
+      "from_sha256": "08b6e5b471dde2ec126d00e2920df6c6bf64063eb1ac46584bed2e266e391d1a",
+      "to_sha256": "6d977ab9724f487f39b2e8285b29f0b5a7f9da501f7278aff565a22728d8ec9f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/opening-hours",
+      "from_sha256": "454354675db0db2789aebdbef5b776dc97887986846b1099bb315483fc63622e",
+      "to_sha256": "0f48c33e79e47ef42ec78cf14bddeab5655969a2d8e56a1854a484ec42c8b633",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/postgres",
+      "from_sha256": "7d058e56b4462dada8d4cc79d0c2fa99533a7e70dfe0c8bcb30199b9825ff51e",
+      "to_sha256": "f333e6bb5cb874cc31a362be68215f97f9c493b2ad13e3d45e57ba5d53c4cbcc",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "b152da368ae7ef1aa5aeb3f3025505a1aeaca5b08ec75f64c8e8cb0f0b4cf070",
+      "to_sha256": "a5f12b4daa5bbec047d451d5cb571bd454f307d7ec2b851035319e7502886839",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/queue/queueservice",
+      "from_sha256": "ed9ddb4649166b814fb4a16c6811f5a79d66dcac020018d0ed7b55d3794ca9dc",
+      "to_sha256": "fa2dce4b931f2731916db5b58c12d1b73cae60fd7118262a9779c68011848efb",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/rate-limit",
+      "from_sha256": "f3f84e14ebc1e66486cdce7c4b70843d22325befd4272498cf91dd2bc58fd5e8",
+      "to_sha256": "b7e26360df172adfb0893ac815e6d060769dcaa05e530faa51a5d4e2456b33f1",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/retry",
+      "from_sha256": "f29fc1e1053866a2917ab950cec9a1d3bbd5b35abf8c9beb548c9d348a22cdf1",
+      "to_sha256": "5deb01d084acde49c3fc8571ea1d8ad9f00eb650a9e835339646f7aab1928e81",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/rule-engine/adapters/temporal",
+      "from_sha256": "1db8a2b45623d4c7b893b6181ea362dce1087fd049efa233073c68c17f27184c",
+      "to_sha256": "f00a3ee53d3e24dd57e910ed00eafd7a443efd509221045f12f41c1961734151",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/scheduler",
+      "from_sha256": "4f5c7c3c53708c11d94d717f43bfc307e016e3807ca528b97bda2aeecbd5c81d",
+      "to_sha256": "135c229364ab50dcc78716a2c071ec0cf0a045fc581705e2f83ba1efb5c8309e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/service",
+      "from_sha256": "aabd01d51e5755d1ce4fa29c419361d29d7b624ce08e4e8f876b5e47838ff0ac",
+      "to_sha256": "f701eb8ab08cc2a85624387e0e3ed97fb1c3ab6ff921e688b730ae0a2f0430cb",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/telemetry",
+      "from_sha256": "e86ef843f3aec3a9762b23e79e9b6b42d5272be0415378ca8e9a4afe929ebe8d",
+      "to_sha256": "92c16e2f24fe3f85724b4fcedbdc0bef45ef5e7282e4b30f6437c42e491afbc9",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/temporal",
+      "from_sha256": "d5d07be9fbd809caf4829649ad78d450d2c2801ba7800ca36629e9fc1fca4594",
+      "to_sha256": "064cc973dbf12df7794b1390d7be97c2b38282461db7682983cf390dfd68eb86",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/webhook",
+      "from_sha256": "0326bcaf40c693e51dff1770d034ca8ca3a001900cfab1f48e8e66099bf7863f",
+      "to_sha256": "fb634d53cfe24bd6e1cb6b8bdaf9b1d5ae5c4af4f2fe9547149233826fc904d8",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
+      "evidence_sha256": "09fd0b672a3cfea50bcc38ddedc6479710406956bc0b8faea79274c1d7c08666",
+      "rationale": "Owned dependency pseudo-version and checksum text normalized to local v0.0.0; release archives and the current source graph are content-identical as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/tenancy",
+      "from_sha256": "64cc0d3f61f8e88880e821083caccb030ba174761c03c4d4913be3b6b8c9cd86",
+      "to_sha256": "bbe9dd41696a3a39180412d842f07db3e298e886c8664060a4a44c624c004a7c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TENANCY-UNRELATED-HEADER.md",
+      "evidence_sha256": "c1f5713b33921a566396d31f735b2fd828aed7f797214ee776e987840ccc2b97",
+      "rationale": "A deterministic test assertion changed the fingerprint without changing tenancy production behavior or operational-assurance runtime inputs."
+    },
+    {
+      "module": "pkg/audit/postgres",
+      "from_sha256": "4f4b388112f22093f0ae2d3fae81025765c489f9ae48bcc874e87566580873cc",
+      "to_sha256": "ff1849fe8854897076b7fbe4b6f69ddeaff8e04b28d0dc656c9f3ce18760b647",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authentication/authotel",
+      "from_sha256": "a48cf4d8d0c0c2c15602fc4905988b3e3d4e5b3b1da14aee1ba89364d17ac4a4",
+      "to_sha256": "59ae20c217c89f5f3e2c9dc0efcede8d367f2d2135bb66c178f5c329255f2337",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authentication/jwt",
+      "from_sha256": "a660e87562502b4494a73bbed04145d26a270a72f1fb54ac1048c2e459634365",
+      "to_sha256": "e4b30d400b7651c99a02ff7b46b2b7f5ba8bd6e01a1bb634711751a5d7df05f3",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authentication/oidc",
+      "from_sha256": "9ce3ed57b243959fc9c6a4747d75c1414aa449866dfc2121e10ac5756f4b690f",
+      "to_sha256": "41f1af0de2764b5fd3c2c5b1d43e68b88a37369965db8e0696be0bb602cce4e1",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/authorization",
+      "from_sha256": "73cc5527e6d91a62af5300bd4de40b867296467c969e57e71ba152a1a812923e",
+      "to_sha256": "68ae73b5344bfc9259ea7b88bf14ab4ee2a2a9ac1594b4886753ef8b934cc962",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/cache",
+      "from_sha256": "7846e0a840103014ff763087ea1b33573107c73c1693fa8b13f57506e27fb911",
+      "to_sha256": "8b1452f890835a5003445fec28ece85bdb86a564b8a9538f97ee3714ba03aec5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "156e5e7ddd3a3932e73aea12025f19fb8372f3b36b8947265ba7a4a84f4a4037",
+      "to_sha256": "3bcd7cb57f01e2638cbb37bdee830ac80d4562650550f855a683d86f150df08c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/config",
+      "from_sha256": "0448c5b43a605798886df2627db00afbe3a79dcb2c089ee81088ffb9351195ea",
+      "to_sha256": "acc421524a9649460d6ddd168985fe235d35f51e51cf41610e218aa798aa2c55",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/config/adapters/awssecretsmanager",
+      "from_sha256": "bee50807c993631c983202b0883fc8fac0c4ce3c99dfe77e778f1da89321b28b",
+      "to_sha256": "92f1fe57457a6824b5a4047f6cdb85099f3dfd6950cc3ef9039a128967f45c37",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/idempotency",
+      "from_sha256": "47cce7807c95c8c936cb5aff9e4a6a847fec75db7883706c9b51c3845abd7428",
+      "to_sha256": "c22fb109f424f38981d161fae7249856398e42f122ea37358a01c23b22ed960d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/international",
+      "from_sha256": "5c29c7efcef38e9b185215e9e44aac5d4864f84d458e37e10deb189ae5eb16da",
+      "to_sha256": "c3fa80e04fb85c32de710d95b943a46e7a1b5d87c1ee76f7e1f4b429ae158cc5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/kafka/kafkaservice",
+      "from_sha256": "df23f916f186f735c79f784f9d63a01ac17f4792899f8fb06b9b4943819d1f1a",
+      "to_sha256": "435b7a5544f66c8796aaee41a743d6ad50ae8494ecd070937e32672dc259ed53",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/knapsack/objective/gomoney",
+      "from_sha256": "ce8c5987211786483c538c139792777b1567711b5a12588fb81d1123d7f13463",
+      "to_sha256": "5bd4dd8c7297ceeeb2b4c3a09a775324495a9cd89ddac7dc0a8b42833417d364",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/lease",
+      "from_sha256": "f3110b20db49c858d4cc53fcb57ab60e7c39cbaec311a58d394c6e5aafa4d500",
+      "to_sha256": "d6081043c5bd15ae56c1c8489dbc487cdc6ea154986f3d2db8fe09f9105d2520",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/localized",
+      "from_sha256": "8ffd2908a0d94e9470cdf49fa4c5783c2961fabcd03c6f72d2e0ff71ef100e44",
+      "to_sha256": "84a9587755b7bd012ed7daf8c74b66b40ccf6b97739354641e1be16c9c699439",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/migrations",
+      "from_sha256": "87b61d47001c299fae1c82a73687febe950e971a2a2b80d16cad8de3e1386b79",
+      "to_sha256": "ea50a21952dfd2afe96c1415f4d5cff34638ead6494b2e5f3b3bb26fe747b86e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/money",
+      "from_sha256": "6d977ab9724f487f39b2e8285b29f0b5a7f9da501f7278aff565a22728d8ec9f",
+      "to_sha256": "006c24e92a3b7e5c885e117c8e0242524c15538871cad5c34c87c993940083c6",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/opening-hours",
+      "from_sha256": "0f48c33e79e47ef42ec78cf14bddeab5655969a2d8e56a1854a484ec42c8b633",
+      "to_sha256": "fd8dafcf86113a5b88ae16373ff42a2d6689491594584228f603e0c131670be6",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/postgres",
+      "from_sha256": "f333e6bb5cb874cc31a362be68215f97f9c493b2ad13e3d45e57ba5d53c4cbcc",
+      "to_sha256": "fa5b28532a7db947c1c661f7dbd6918222c29bd317d4d0cc4784837f248043ba",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "a5f12b4daa5bbec047d451d5cb571bd454f307d7ec2b851035319e7502886839",
+      "to_sha256": "e67ecf18ca72105a9a55efd4d9bd02f42e81545d426efc5996838bcc3ef10fc4",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/queue/queueservice",
+      "from_sha256": "fa2dce4b931f2731916db5b58c12d1b73cae60fd7118262a9779c68011848efb",
+      "to_sha256": "8725bf6068cb3db6a70273b676f0843f4b1f3994aa5695bee97dd54dec12bec5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/rate-limit",
+      "from_sha256": "b7e26360df172adfb0893ac815e6d060769dcaa05e530faa51a5d4e2456b33f1",
+      "to_sha256": "8802db313102c2b7aecf01787accfa5ae34b37958825817b4c69fea4150d748c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/rule-engine/adapters/temporal",
+      "from_sha256": "f00a3ee53d3e24dd57e910ed00eafd7a443efd509221045f12f41c1961734151",
+      "to_sha256": "c929e0505d6aff192bd8d94426a3afb325c5b5c1a11e84d62f010c449db86ef1",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/scheduler",
+      "from_sha256": "135c229364ab50dcc78716a2c071ec0cf0a045fc581705e2f83ba1efb5c8309e",
+      "to_sha256": "74eba00b7c54a39310c2a7ce2917c765e38aed4b39462d2fdf2093bfe7572648",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/service",
+      "from_sha256": "f701eb8ab08cc2a85624387e0e3ed97fb1c3ab6ff921e688b730ae0a2f0430cb",
+      "to_sha256": "c432c3f295e1e8b8b06df4864da50dc9863197f3cd4da1bc6c4d8eb702df60dd",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/telemetry",
+      "from_sha256": "92c16e2f24fe3f85724b4fcedbdc0bef45ef5e7282e4b30f6437c42e491afbc9",
+      "to_sha256": "efed50cec4df050116a87af22df33f63a191a0a6b754cb797f1d4d3b7b8223a8",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/temporal",
+      "from_sha256": "064cc973dbf12df7794b1390d7be97c2b38282461db7682983cf390dfd68eb86",
+      "to_sha256": "d1b11d0438b4f04f9954405902d06ca8563b6835db30e9f2fc26a30e4bbfaa68",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/webhook",
+      "from_sha256": "fb634d53cfe24bd6e1cb6b8bdaf9b1d5ae5c4af4f2fe9547149233826fc904d8",
+      "to_sha256": "427801330e67675eee7feeb6f606b0a773a815fa8637d989101545f65ff0b0da",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+      "evidence_sha256": "bb4b3b21024b0862fbbf6ed8b0e4478c1e4a8713def57edbb518155893dfa58a",
+      "rationale": "Required module changelogs changed local source archives and propagated owned-module checksums without changing runtime behavior; the final strict affected closure passed as proved by the bound evidence."
+    },
+    {
+      "module": "pkg/adaptive-throttle",
+      "from_sha256": "1e35e53c20a0346e6e8b27d22b526f90591a838d0a69c7851f16916b4c2b5346",
+      "to_sha256": "27f157e36a8dd423e1d149501e3e9ed0bc5c8ae90e1d17eaf896011b3553c5b9",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/api-query",
+      "from_sha256": "a709232b93dbdcf489aab429dcd91de44c4159c3fa72ec93bbcd70144a3ca5fc",
+      "to_sha256": "25f068838b48d46e534888a7d9c0505b25af946ca6341de54c8d8b1aa20dccea",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/audit",
+      "from_sha256": "8bca80404cf6ed39b6aa0db37e8977c84e3004af6be844bcd7236b18c58e23be",
+      "to_sha256": "8fb0f0172e3c56aa7df15fc30295c3222407285bebb96179f963a8dfe0d715d6",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/audit/postgres",
+      "from_sha256": "ff1849fe8854897076b7fbe4b6f69ddeaff8e04b28d0dc656c9f3ce18760b647",
+      "to_sha256": "8c0d167bdc571e1f140ecc45ed0df0995fb41e1d96b5488adb8f2268926db54b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/authentication",
+      "from_sha256": "04155ba0ad8812f4785eb599fc822e3e8b25d95102900fcb6795847fc761385d",
+      "to_sha256": "8eb64b8a8967245b7c605ee26bf5ff2f059fc2e4797cdb3829711d081a4d0d2f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/authentication/authotel",
+      "from_sha256": "59ae20c217c89f5f3e2c9dc0efcede8d367f2d2135bb66c178f5c329255f2337",
+      "to_sha256": "d44e44d0a427ae5e2d41632defab3bccf5fc8b0f86b41632c491e3a5be814076",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/authentication/jwt",
+      "from_sha256": "e4b30d400b7651c99a02ff7b46b2b7f5ba8bd6e01a1bb634711751a5d7df05f3",
+      "to_sha256": "79cfad50c565919eb6bdbd7d77a7d256db96b0a875af08f87ed5b153567651dd",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/authentication/oidc",
+      "from_sha256": "41f1af0de2764b5fd3c2c5b1d43e68b88a37369965db8e0696be0bb602cce4e1",
+      "to_sha256": "ddc1c49e1ffa4f0775b52c01e1abe6a2f9e08f3d1323ec543a283cccdda4a360",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/authorization",
+      "from_sha256": "68ae73b5344bfc9259ea7b88bf14ab4ee2a2a9ac1594b4886753ef8b934cc962",
+      "to_sha256": "09863b3c9ba90ba4170a15204c0b74a439222a9956d0d0fbfcce4b5a877a1908",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/bulkhead",
+      "from_sha256": "4414ec5ec03926888c54d2ddf99db28cdffbe7049c80dd20aafbe7d51cc0e0c4",
+      "to_sha256": "6b1d4bde8d3c0d394194af394c7c46bf6c110fc8e72f7fbb8b15a32d5744c061",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/cache",
+      "from_sha256": "8b1452f890835a5003445fec28ece85bdb86a564b8a9538f97ee3714ba03aec5",
+      "to_sha256": "05c7dff6b9b7556e309f4e3e7bbea3acec153d0caca6f813b17d26ffbbe9e3b9",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/capability",
+      "from_sha256": "368d75f9ce8339c6b87e5531c2eb1330442696f4cd9c3e9d3c844199196fb33d",
+      "to_sha256": "e6b77b2ff35432e58499577550e9943ac8f082da6afa31d59efdc3a1ef9403a5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/circuit-breaker",
+      "from_sha256": "3a3bed9f58779658daef87b15f1ebce7c49da2e47b4f4e6519219c65c3d42374",
+      "to_sha256": "dd3eac9d4075d99f8a2605fe5a250da586248f376a9791187c73802999d0e238",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "3bcd7cb57f01e2638cbb37bdee830ac80d4562650550f855a683d86f150df08c",
+      "to_sha256": "c19328fd84e93e42ea00dcfb5765606d6cb9fc8f70bff06d604e4857afe299d4",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/concurrency-limit",
+      "from_sha256": "08cd883248a2f5328d37a2dc460a297bc426272c59403328bb34df3cc22ed804",
+      "to_sha256": "3f6203ccbaf9466f5a1b91ef2c8808beebf035273fd1dad0c0c415807e6c38e0",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/config",
+      "from_sha256": "acc421524a9649460d6ddd168985fe235d35f51e51cf41610e218aa798aa2c55",
+      "to_sha256": "7e033fc546b6da34e0032ab344e66beb0fc8ed03bf2429ba8118a2d9813324f3",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/config/adapters/awssecretsmanager",
+      "from_sha256": "92f1fe57457a6824b5a4047f6cdb85099f3dfd6950cc3ef9039a128967f45c37",
+      "to_sha256": "a2a04e3816532bec18928864a9afc8afe5c19fa7d7382dd5a01b26a3ddca557a",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/correlation",
+      "from_sha256": "b7745774be70056e29ef251557722bef0da9506fc241c38a0ac540b58a7e9aec",
+      "to_sha256": "d5ec462876b51f97f0daee19ce3c1fd0e16bf9adca946607faf7c78327558b37",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/filesystem",
+      "from_sha256": "e7555cd3fdf606b2cd386983ba0cd7ef53a8505f7c68876931256b1324553f7f",
+      "to_sha256": "82815a93a983db65cfdced24a72071fad65ad98ff6261880d3c841d8419a39fa",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/hedge",
+      "from_sha256": "7e2f074868ff50d1e3789d907a021ac080b06337b1004da5d9654afc37dcb11b",
+      "to_sha256": "c603802aaa519f01d3b7fcc0939c738bad5ce57ecddf489f40af21358a4905a2",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/http-client",
+      "from_sha256": "cd317275267ce857ec15156abd1f31f59973596bdf5a43a5630d3e9159716db0",
+      "to_sha256": "8511ce4ea8f40627e708ac597c58c24a6226c034afac327869305619cb5ce472",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/http-middleware",
+      "from_sha256": "22d7763f7b9812dc6d3d1f055864f0d8329d275c0eb4ff71fe90e73b73df8ad1",
+      "to_sha256": "70a99bef8a8212a380db57e393c828e8edbf499d9e3abfaa7e758c7f5418b346",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/http-signature",
+      "from_sha256": "139b587126cf83a49f58cef4069db234f87b016d09e472d308be0f6a281f07dd",
+      "to_sha256": "b56550a77aa43f4d3d55bab928788982a1664e3f8da450f8e436921d5a07428b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/idempotency",
+      "from_sha256": "c22fb109f424f38981d161fae7249856398e42f122ea37358a01c23b22ed960d",
+      "to_sha256": "1fb75e5ec526a60c2828d1c1b1a3e76d1765c5a3778294b996fbb645bd61141c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/international",
+      "from_sha256": "c3fa80e04fb85c32de710d95b943a46e7a1b5d87c1ee76f7e1f4b429ae158cc5",
+      "to_sha256": "978c8d23c301a5e8ac2f2e69f7e5ddb62f4dc68ba4647b1e0e2cb666b0f44f9f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/jsonrpc",
+      "from_sha256": "35f718782669639b5b4b5bd1252bea77ac4e5baffafb6a412d0b7dc860b095f6",
+      "to_sha256": "3dfa3f17702df77a5daa5e1818fe0387baa90cfe1d8a2085066b2b7d9c0554e1",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/kafka/kafkaservice",
+      "from_sha256": "435b7a5544f66c8796aaee41a743d6ad50ae8494ecd070937e32672dc259ed53",
+      "to_sha256": "f995cb45374a23e2d5f2e0101ed76921e837e58b0cac57f2b17cad0baf3cce7d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/knapsack/objective/gomoney",
+      "from_sha256": "5bd4dd8c7297ceeeb2b4c3a09a775324495a9cd89ddac7dc0a8b42833417d364",
+      "to_sha256": "59991910a75373bd251394ccbcf355ef51d1ee6f85f583a373d38b928849435a",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/lease",
+      "from_sha256": "d6081043c5bd15ae56c1c8489dbc487cdc6ea154986f3d2db8fe09f9105d2520",
+      "to_sha256": "b6d31a29b62f079c80363f1533ef6d24c5c59c5d4da389079e75cf19fa4ac8bb",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/localized",
+      "from_sha256": "84a9587755b7bd012ed7daf8c74b66b40ccf6b97739354641e1be16c9c699439",
+      "to_sha256": "bedff297b382b2ba91a23040706c8f8bfa6206b0c65fed2a50774a3f085162bf",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/migrations",
+      "from_sha256": "ea50a21952dfd2afe96c1415f4d5cff34638ead6494b2e5f3b3bb26fe747b86e",
+      "to_sha256": "c8eecf5a59ba827049790a6fd854af9fc6e7341cf7106054db58d74669b22d9f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/money",
+      "from_sha256": "006c24e92a3b7e5c885e117c8e0242524c15538871cad5c34c87c993940083c6",
+      "to_sha256": "3e4731d08845a4245af2ef9fd66581df437c7fadc0b70eae7be9866e54c15e11",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/opening-hours",
+      "from_sha256": "fd8dafcf86113a5b88ae16373ff42a2d6689491594584228f603e0c131670be6",
+      "to_sha256": "482f3ad20f110c9d0a98e85242f2737889c5f5a75a8ef70576f91d70fa98e111",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/postgres",
+      "from_sha256": "fa5b28532a7db947c1c661f7dbd6918222c29bd317d4d0cc4784837f248043ba",
+      "to_sha256": "1aad648551aa0772802ae1bad0688e078cb5e77e9aa1119205b94d86288e1df2",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "e67ecf18ca72105a9a55efd4d9bd02f42e81545d426efc5996838bcc3ef10fc4",
+      "to_sha256": "328b8a172a5080fc031d842df0e42ad1b1edcabbaa9165cb118548679b1382ea",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/queue/queueservice",
+      "from_sha256": "8725bf6068cb3db6a70273b676f0843f4b1f3994aa5695bee97dd54dec12bec5",
+      "to_sha256": "86bc5f4886e9fbc8b029e2a38d3d8cb1ec15406b7b0a30a7cbdac1f0f66804e1",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/rate-limit",
+      "from_sha256": "8802db313102c2b7aecf01787accfa5ae34b37958825817b4c69fea4150d748c",
+      "to_sha256": "e1d9dd180858239c137ee4c7812e988003a11535afc8117e53aa1b45b40c0c7d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/retry",
+      "from_sha256": "5deb01d084acde49c3fc8571ea1d8ad9f00eb650a9e835339646f7aab1928e81",
+      "to_sha256": "c3e5756cef8873f14c0840c916c5b4326553af122ccd89fd7438c209e72ea687",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/router",
+      "from_sha256": "cde569c7b7ebe5aa7be7d900ae13cf57dc50d8bc998771f787df41fc85901781",
+      "to_sha256": "8f76154bbb8d2633c02b6c1f58463339a96deca87fd7dc1e779ebbd7b6a6a242",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/rule-engine/adapters/temporal",
+      "from_sha256": "c929e0505d6aff192bd8d94426a3afb325c5b5c1a11e84d62f010c449db86ef1",
+      "to_sha256": "6d71f4efe81357a9f7b0958b2911b92b591e5f5027472f53397e69377b16fbc3",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/scheduler",
+      "from_sha256": "74eba00b7c54a39310c2a7ce2917c765e38aed4b39462d2fdf2093bfe7572648",
+      "to_sha256": "c844d3beadc4e4e679b0f637772c1519af52b15c171034c7f99a01c950c52ed3",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/secret-envelope",
+      "from_sha256": "68b554045964fa747360f952504cf1e4267239725eeb25bc5bbd306402e9adbc",
+      "to_sha256": "9da24a10e749977837aa349fdb4bc537f9600daaac19ab3bea9ff87f67b26594",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/service",
+      "from_sha256": "c432c3f295e1e8b8b06df4864da50dc9863197f3cd4da1bc6c4d8eb702df60dd",
+      "to_sha256": "77324c994d5f6118bc3c3947e4acabf8b90c25be27d13f20736fcf487062e624",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/telemetry",
+      "from_sha256": "efed50cec4df050116a87af22df33f63a191a0a6b754cb797f1d4d3b7b8223a8",
+      "to_sha256": "ecbd2dec674a79dc20426cad333f781fabde06ad64c60cd657d629a69f04c6d4",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/temporal",
+      "from_sha256": "d1b11d0438b4f04f9954405902d06ca8563b6835db30e9f2fc26a30e4bbfaa68",
+      "to_sha256": "7b3e74373eb667f8c60a88c58015ddb94cb45453a4a9b904972263b5872e65ba",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/tenancy",
+      "from_sha256": "bbe9dd41696a3a39180412d842f07db3e298e886c8664060a4a44c624c004a7c",
+      "to_sha256": "1cfef5d97283443123bcfc34656d61100b1c1625150171edf998ec2adf929f92",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/validation",
+      "from_sha256": "7eb84a03c2ddfc0d364015bf8d765667da0367d0d18521156a0a80442112f48b",
+      "to_sha256": "48bb4752e7c0b1a1da0f440c8ed1b1089b75dc06ac5352863337168b09ccda19",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/webhook",
+      "from_sha256": "427801330e67675eee7feeb6f606b0a773a815fa8637d989101545f65ff0b0da",
+      "to_sha256": "e698e7c55f90cf50f339e0d0e86e9a5f5106bab4054772e6fb50c8b099195690",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
+      "evidence_sha256": "631b37b49a150d859a4857daaf550f386dda3bf06484b48582c622a47ec62801",
+      "rationale": "Release dependencies are now expanded once before disjoint snapshot partitioning; this changes aggregate orchestration identity without changing passed operational-assurance behavior."
+    },
+    {
+      "module": "pkg/knapsack/objective/gomoney",
+      "from_sha256": "59991910a75373bd251394ccbcf355ef51d1ee6f85f583a373d38b928849435a",
+      "to_sha256": "821617ca0f01f200c49fa9f0d7589e310f0a506fbadc54265b5679f37193823a",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-KNAPSACK-CHECKSUM-EVIDENCE.md",
+      "evidence_sha256": "d5b99a9927c874dbe67467952618c593c73fe6f1acde44ca6aa4f4fa34ac59bc",
+      "rationale": "Parent Knapsack checksums and aggregate evidence were refreshed after owned release archives changed; runtime behavior and the passed reference scenario are unchanged."
     }
   ]
 }

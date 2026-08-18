@@ -10,7 +10,7 @@ github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.2 h1:FLe010M9ARXddf0bc
 github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.2/go.mod h1:v2RPY2DZKoDBk6xVFELvo5xTnUFJNoC4S385MwpXELw=
 github.com/aws/smithy-go v1.27.5 h1:d1ro7KpYOYwP6m73YFa+Kc/A130VsAdX68SpsJwARMM=
 github.com/aws/smithy-go v1.27.5/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
-github.com/faustbrian/golib/pkg/config v0.0.0-20260727003840-d220e4da51ad h1:TOk9/FA7grYJXGk2c63vf4UsYpVyYRGOdp4i0Jtk8tc=
-github.com/faustbrian/golib/pkg/config v0.0.0-20260727003840-d220e4da51ad/go.mod h1:Bdor/ciUbvAUqLNh7rxOiLGvlonf9p05YXiM/zU8ut4=
+github.com/faustbrian/golib/pkg/config v0.0.0 h1:rXL8eRv/O0euMM6PumpqnqJBFoTeQC20aWvZ0do7yp0=
+github.com/faustbrian/golib/pkg/config v0.0.0/go.mod h1:p+rknvH6s3YScNkSDGO3TTAYHWkqO32Yc5Sm0m7bv2U=
 go.yaml.in/yaml/v4 v4.0.0-rc.6 h1:1h7H1ohdUh93/FyE4YaDa1Zh64K6VVbjF4K6WUxMtH4=
 go.yaml.in/yaml/v4 v4.0.0-rc.6/go.mod h1:aZqd9kCMsGL7AuUv/m/PvWLdg5sjJsZ4oHDEnfPPfY0=

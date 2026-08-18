@@ -16,6 +16,9 @@ semantic versioning after the first tagged release.
 
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Require exact 100% mutant coverage in the package mutation command while
   retaining the package's explicit behavioral mutants.
 - Reuse the repository-provided API compatibility tool during isolated checks

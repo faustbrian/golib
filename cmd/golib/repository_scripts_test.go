@@ -1951,6 +1951,15 @@ require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
       {"directory": "consumer", "coverage_required": true},
       {"directory": "sibling", "coverage_required": true}
     ]
+  }, {
+    "directory": "pkg/dependency",
+    "module_path": "example.test/dependency",
+    "owned_dependencies": [],
+    "test_tags": [],
+    "required_services": [],
+    "go_version": "1.26.6",
+    "gates": {"mutation": true},
+    "packages": []
   }]
 }`)
 	writeFile(t, filepath.Join(repository, "packages.json"), `{"packages":[]}`)
@@ -1993,7 +2002,8 @@ KEYCLOAK_IMAGE=keycloak:first
 	writeFile(t, dependencySource, "package dependency\n\nfunc Value() int { return 1 }\n")
 	writeFile(t, dependencyTest, "package dependency\n\n// Dependency tests are not observers of another module's mutants.\n")
 	writeFile(t, dependencyFixture, "one\n")
-	writeFile(t, filepath.Join(repository, "pkg", "example", "go.mod"), `module example.test/example
+	moduleManifest := filepath.Join(repository, "pkg", "example", "go.mod")
+	writeFile(t, moduleManifest, `module example.test/example
 
 go 1.26.6
 
@@ -2104,6 +2114,25 @@ func TestValue(t *testing.T) {
 
 	initial := digest()
 	legacyInitial := digestWithResolution("legacy-stable")
+	writeFile(t, moduleManifest, `module example.test/example
+
+go 1.26.6
+
+require example.test/dependency v0.0.0-20260728110331-b7c4c77520dd
+
+replace example.test/dependency => ../dependency
+`)
+	if current := digest(); current != initial {
+		t.Fatalf("owned dependency locator changed mutation digest: %s != %s", current, initial)
+	}
+	writeFile(t, moduleManifest, `module example.test/example
+
+go 1.26.6
+
+require example.test/dependency v0.0.0
+
+replace example.test/dependency => ../dependency
+`)
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:second
@@ -3944,6 +3973,102 @@ printf '%s\n' pkg/first pkg/second
 	)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("run sequential modules: %v\n%s", err, output)
+	}
+}
+
+func TestReleaseSnapshotDoesNotExpandDependenciesTwice(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	bin := filepath.Join(repository, "bin")
+	state := filepath.Join(repository, "selector-arguments")
+	for _, directory := range []string{bin, filepath.Join(repository, "scripts")} {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		mustReadFile(t, filepath.Join(root, "scripts", "run-modules.sh")),
+	)
+	writeTestFile(t, filepath.Join(repository, "scripts", "filter-releasable-modules.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+cat
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "build-local-proxy.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "$1"
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "start-services.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+: >"$2"
+: >"$3"
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "stop-services.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "run-gate-with-evidence.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+`)
+	writeTestFile(t, filepath.Join(bin, "go"), `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$1" == "run" ]]; then
+    printf '%s\n' "$@" >"${TEST_STATE}"
+    printf '%s\n' pkg/selected
+    exit 0
+fi
+if [[ "$1" == "env" && "$2" == "GOPROXY" ]]; then
+    printf '%s\n' 'https://proxy.golang.org,direct'
+    exit 0
+fi
+if [[ "$1" == "env" && "$2" == "GONOSUMDB" ]]; then
+    exit 0
+fi
+printf 'unexpected go invocation: %s\n' "$*" >&2
+exit 1
+`)
+	for _, executable := range []string{
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		filepath.Join(repository, "scripts", "filter-releasable-modules.sh"),
+		filepath.Join(repository, "scripts", "build-local-proxy.sh"),
+		filepath.Join(repository, "scripts", "start-services.sh"),
+		filepath.Join(repository, "scripts", "stop-services.sh"),
+		filepath.Join(repository, "scripts", "run-gate-with-evidence.sh"),
+		filepath.Join(bin, "go"),
+	} {
+		if err := os.Chmod(executable, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	command := exec.Command(
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		"release-dry-run", "--modules", "pkg/selected",
+	)
+	command.Dir = repository
+	command.Env = environmentWithValues(
+		os.Environ(),
+		"PATH",
+		bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
+	command.Env = environmentWithValues(command.Env, "TEST_STATE", state)
+	command.Env = environmentWithValues(
+		command.Env,
+		"GOLIB_VERIFICATION_SNAPSHOT",
+		"1",
+	)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("run release snapshot: %v\n%s", err, output)
+	}
+	arguments := strings.Fields(mustReadFile(t, state))
+	if slices.Contains(arguments, "--dependencies") {
+		t.Fatalf("release snapshot expanded dependencies again: %v", arguments)
 	}
 }
 
