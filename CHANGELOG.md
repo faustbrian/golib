@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Accept ripgrep's upstream revision suffix while verifying the pinned CI
+  binary, so valid checksum-pinned releases reach module verification.
 - Provision checksum-pinned ripgrep for package checks that require its search
   semantics, while keeping state-machine, WSDL, and XSD benchmark verification
   portable on the standard shell toolchain.

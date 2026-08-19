@@ -127,7 +127,7 @@ jobs:
           tar --extract --gzip --file "${archive}" --directory "${root}" \
             --strip-components 1
           echo "${root}" >> "${GITHUB_PATH}"
-          "${root}/rg" --version | grep -Eq "^ripgrep ${RIPGREP_VERSION}$"
+          "${root}/rg" --version | grep -Eq "^ripgrep ${RIPGREP_VERSION}( |$)"
 
       - name: Set up Node for browser, Test262, and documentation gates
         if: matrix.directory == '.' || matrix.directory == 'pkg/ecma-regexp' || matrix.directory == 'pkg/queue-control-plane'
