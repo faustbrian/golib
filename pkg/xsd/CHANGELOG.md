@@ -11,6 +11,8 @@ at its first stable release.
 
 ### Changed
 
+- Validate native and JAXP benchmark output with the standard shell toolchain
+  so clean Linux CI runners do not require an undeclared ripgrep installation.
 - Link conformance and migration guidance directly to the canonical
   specification decision register.
 - Delegate local mutation checks to the canonical exact-100 repository runner

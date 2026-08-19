@@ -111,6 +111,24 @@ jobs:
           go-version-file: .go-version
           cache: false
 
+      - name: Set up ripgrep
+        env:
+          RIPGREP_VERSION: 15.2.0
+          RIPGREP_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/ripgrep.tar.gz"
+          root="${RUNNER_TEMP}/ripgrep"
+          curl --fail --silent --show-error --location \
+            "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            --output "${archive}"
+          printf '%s  %s\n' "${RIPGREP_SHA256}" "${archive}" | sha256sum --check -
+          mkdir -p "${root}"
+          tar --extract --gzip --file "${archive}" --directory "${root}" \
+            --strip-components 1
+          echo "${root}" >> "${GITHUB_PATH}"
+          "${root}/rg" --version | grep -Eq "^ripgrep ${RIPGREP_VERSION}$"
+
       - name: Set up Node for browser, Test262, and documentation gates
         if: matrix.directory == '.' || matrix.directory == 'pkg/ecma-regexp' || matrix.directory == 'pkg/queue-control-plane'
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6

@@ -14,7 +14,7 @@ required=(
   BenchmarkMarshalSchema
 )
 for benchmark in "${required[@]}"; do
-  rg -q "^${benchmark}" "$output" || {
+  grep -Eq "^${benchmark}" "$output" || {
     echo "missing benchmark result: $benchmark" >&2
     exit 1
   }
@@ -24,7 +24,7 @@ done
   tee -a "$output"
 
 for benchmark in ReferenceCompileSchemaJAXP ReferenceValidateInstanceJAXP; do
-  rg -q "^${benchmark} [0-9]+ ns/op$" "$output" || {
+  grep -Eq "^${benchmark} [0-9]+ ns/op$" "$output" || {
     echo "missing reference benchmark result: $benchmark" >&2
     exit 1
   }

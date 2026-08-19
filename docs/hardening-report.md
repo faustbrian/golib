@@ -57,6 +57,7 @@ The repository pins the following release-verification inputs in
 | CycloneDX Go | 1.10.0 |
 | actionlint | 1.7.12 |
 | apidiff | `764159d718ef` pseudo-version |
+| ripgrep | 15.2.0 checksum-pinned Linux archive in CI |
 | PostgreSQL image | `postgres:18.4-alpine` |
 | Valkey image | `valkey/valkey:9.1.0-alpine` |
 | Redis image | `redis:8.6.4-alpine` |

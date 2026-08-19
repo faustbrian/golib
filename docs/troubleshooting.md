@@ -1,5 +1,13 @@
 # Troubleshooting
 
+## Required Tools
+
+The repository command surface requires Go, Bash, GNU Make, Git, `jq`, `curl`,
+`tar`, and ripgrep. CI provisions ripgrep 15.2.0 from a checksum-pinned static
+archive; local environments must provide compatible `rg` behavior. Gates that
+need Docker or another interoperability runtime declare those requirements
+separately below.
+
 ## Manifest Drift
 
 Run `make manifests`, review the generated diff, then `make inventory`. Do not

@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Provision checksum-pinned ripgrep for package checks that require its search
+  semantics, while keeping state-machine, WSDL, and XSD benchmark verification
+  portable on the standard shell toolchain.
 - Reconcile completed Kafka and Verkle specialist evidence into the aggregate
   inventory, close the resolved Kafka specification-governance risk, and keep
   managed-MSK and Verkle security non-claims explicit.
