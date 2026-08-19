@@ -1528,7 +1528,7 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 		`target="${output}/package-${package_index}-default"`,
 		`GOWORK="${workspace}" go build -o "${target}" "${package}"`,
 		`matrix.directory == 'pkg/cli'`,
-		`sudo apt-get install --yes --no-install-recommends zsh=5.9-6ubuntu2`,
+		`zsh --version | grep -Eq '^zsh 5\.9 '`,
 		`package-manager-cache: false`,
 		`denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed`,
 		`deno-version: '2.9.4'`,
@@ -1536,6 +1536,9 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 		if !strings.Contains(contract, required) {
 			t.Fatalf("CI workflow lacks %q", required)
 		}
+	}
+	if strings.Contains(contract, "sudo apt-get") {
+		t.Fatal("CI workflow installs runner packages instead of verifying available pinned runtimes")
 	}
 	if strings.Contains(contract, "actions/setup-node@") &&
 		strings.Contains(contract, "node-version: '24.4.1'\n          cache: false") {

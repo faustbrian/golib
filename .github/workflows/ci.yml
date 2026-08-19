@@ -125,11 +125,10 @@ jobs:
           deno-version: '2.9.4'
           cache: false
 
-      - name: Install CLI shell verification tools
+      - name: Verify CLI shell runtime
         if: matrix.directory == 'pkg/cli'
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends zsh=5.9-6ubuntu2
+          zsh --version | grep -Eq '^zsh 5\.9 '
 
       - name: Run strict module contract
         run: ./scripts/run-modules.sh check --modules '${{ matrix.directory }}'
