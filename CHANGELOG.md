@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Make HTTP admission verification distinguish immediate capacity from the
+  bounded waiter path without relabelling retained operational evidence.
 - Make queue-control CLI credential validation mutation-precise and remove the
   scheduler fuzz gate's undeclared ripgrep dependency.
 - Remove undeclared ripgrep dependencies from schema-registry provenance,

@@ -405,6 +405,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-POSTGRES-PRECISION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CI-PORTABILITY.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-MIDDLEWARE-ADMISSION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-ESCAPED-QUOTE.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-FINALIZATION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md",

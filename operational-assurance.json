@@ -3367,6 +3367,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CI-PORTABILITY.md",
       "evidence_sha256": "7c0a3dac7e1f01a7de57c4261c07f5ccb2b8b00a74c7a72f3069001bbd0ae0e6",
       "rationale": "Fuzz-target discovery now uses a CI-portable standard tool without changing scheduler runtime behavior or retained operational scenarios."
+    },
+    {
+      "module": "pkg/http-middleware",
+      "from_sha256": "70a99bef8a8212a380db57e393c828e8edbf499d9e3abfaa7e758c7f5418b346",
+      "to_sha256": "28ba6aea48363328ba0a46ecf9f7ce65826aca9e87f696abf4a8e680135b3c5b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-MIDDLEWARE-ADMISSION.md",
+      "evidence_sha256": "58e3130189338df9936e3c9f1ca5aad7caed465b99892c577153a5784937a4c1",
+      "rationale": "Admission tests now prove that free capacity bypasses the bounded waiter queue and kill the remaining logical-condition mutant; production behavior and the retained HTTP reference scenario are unchanged."
     }
   ]
 }

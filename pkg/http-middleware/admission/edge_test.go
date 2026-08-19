@@ -61,6 +61,35 @@ func TestCanceledRequestNeverConsumesFreePermit(t *testing.T) {
 	}
 }
 
+func TestFreePermitDoesNotEnterWaitQueue(t *testing.T) {
+	t.Parallel()
+	middleware, err := New(Policy{MaxInFlight: 1, MaxWaiters: 1, Wait: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	recorder := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		request := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
+		middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})).ServeHTTP(recorder, request)
+		close(done)
+	}()
+	select {
+	case <-done:
+		if recorder.Code != http.StatusNoContent {
+			t.Fatalf("status = %d", recorder.Code)
+		}
+	case <-time.After(2 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("free permit entered the bounded wait queue")
+	}
+}
+
 func TestWaitTimeoutAndWaiterBound(t *testing.T) {
 	t.Parallel()
 	middleware, _ := New(Policy{MaxInFlight: 1, MaxWaiters: 1, Wait: time.Millisecond})
