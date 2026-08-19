@@ -403,6 +403,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-AUDIT-POSTGRES-PORTABILITY.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-POSTGRES-PRECISION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-FINALIZATION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-URL-CONTRACT.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-KNAPSACK-CHECKSUM-EVIDENCE.md",

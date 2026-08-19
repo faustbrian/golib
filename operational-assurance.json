@@ -3319,6 +3319,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-POSTGRES-PRECISION.md",
       "evidence_sha256": "6bd153400469a956b47fce9b8e2f6a8d8f53f7821f2ac545f1c3d8273e6bb67f",
       "rationale": "The PostgreSQL adapter now preserves replay identity at database timestamp precision; the retained HTTP reference scenario does not use that persistence adapter."
+    },
+    {
+      "module": "pkg/http-signature",
+      "from_sha256": "b56550a77aa43f4d3d55bab928788982a1664e3f8da450f8e436921d5a07428b",
+      "to_sha256": "585891141151bde7d3d742e7ee93940e779cbd964a714406d2ed3c64fc7e3259",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-FINALIZATION.md",
+      "evidence_sha256": "e74e9c671cdc5478034ac12cb415a5be5bfbf2b6c0e9ef192e068104267bf157",
+      "rationale": "The earlier release-snapshot migration recorded an intermediate HTTP-signature fingerprint; the final verification-input identity and direct platform-neutral coverage assertion do not change production or retained reference behavior."
     }
   ]
 }

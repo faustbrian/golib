@@ -130,6 +130,20 @@ func TestRFC8941IntegralDecimalRepairBoundaries(t *testing.T) {
 			}
 		})
 	}
+
+	for _, test := range []struct {
+		input string
+		want  string
+	}{
+		{input: "1.", want: "1.0"},
+		{input: "-1.;flag", want: "-1.0;flag"},
+		{input: "(1.)", want: "(1.0)"},
+		{input: `"1."`, want: `"1."`},
+	} {
+		if actual := restoreRFC8941IntegralDecimals(test.input); actual != test.want {
+			t.Fatalf("restoreRFC8941IntegralDecimals(%q) = %q, want %q", test.input, actual, test.want)
+		}
+	}
 }
 
 func TestRFC8941SerializersKeepIntegralDecimalFraction(t *testing.T) {
