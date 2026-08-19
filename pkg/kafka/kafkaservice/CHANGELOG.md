@@ -4,6 +4,12 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- Retry the documented transient Kafka observer-reentry fence during the
+  overlapping-member shutdown interoperability scenario, while keeping its
+  shutdown callback retry-safe and failing immediately for every other cause.
+
 ### Changed
 
 - Document lifecycle ordering, Kubernetes SIGTERM, duplicate and ambiguous

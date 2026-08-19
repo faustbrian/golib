@@ -3375,6 +3375,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-MIDDLEWARE-ADMISSION.md",
       "evidence_sha256": "58e3130189338df9936e3c9f1ca5aad7caed465b99892c577153a5784937a4c1",
       "rationale": "Admission tests now prove that free capacity bypasses the bounded waiter queue and kill the remaining logical-condition mutant; production behavior and the retained HTTP reference scenario are unchanged."
+    },
+    {
+      "module": "pkg/kafka/kafkaservice",
+      "from_sha256": "f995cb45374a23e2d5f2e0101ed76921e837e58b0cac57f2b17cad0baf3cce7d",
+      "to_sha256": "3811b09b4ced2fb66263495d183a56db298b9c61abfff4f16ae27d1952a01672",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-KAFKA-SERVICE-OBSERVER-REENTRY.md",
+      "evidence_sha256": "1ca53d5e36b46385c26caf201c1b8dba757ec5fc9e01331ef8170defe6d80a40",
+      "rationale": "The overlapping-member shutdown test now honors the Kafka consumer's documented transient observer-reentry fence and retry-safe callback contract; production behavior and retained operational scenarios are unchanged."
     }
   ]
 }

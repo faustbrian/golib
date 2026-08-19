@@ -410,6 +410,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-FINALIZATION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-URL-CONTRACT.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-KAFKA-SERVICE-OBSERVER-REENTRY.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-KNAPSACK-CHECKSUM-EVIDENCE.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OPENSEARCH-ALIAS-OBSERVER.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",

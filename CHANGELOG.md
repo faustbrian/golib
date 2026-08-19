@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Make Kafka service overlapping-member shutdown evidence tolerate only the
+  documented transient observer-reentry fence without masking other failures.
 - Make HTTP admission verification distinguish immediate capacity from the
   bounded waiter path without relabelling retained operational evidence.
 - Make queue-control CLI credential validation mutation-precise and remove the
