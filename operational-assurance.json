@@ -1312,8 +1312,8 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-RELEASE-CONSUMER-LOCAL.md",
-          "sha256": "849eafa73846e1142a1c4dcbafd7475cd6dec1118d5f55b54bfce22edc6b3176",
-          "observed_utc": "2026-08-19T20:04:18Z",
+          "sha256": "fd7d7a6e97849aa747493abe5b47f8dbe7ba0a74e1efc578172ef8274f4e1349",
+          "observed_utc": "2026-08-19T20:54:13Z",
           "environment": "darwin/arm64; Go 1.26.6; disposable Git snapshot; task-owned cold caches and local proxies; all-module release dry-run",
           "module_scope": [
             "*"
@@ -1430,8 +1430,8 @@
         },
         {
           "path": "docs/assurance/evidence/OA-RELEASE-CONSUMER-ALL-LOCAL.md",
-          "sha256": "576628ab4f85503bbdab776300a53f0118869b25f687d78b8b0db7800e2e12d5",
-          "observed_utc": "2026-08-19T20:04:18Z",
+          "sha256": "20492966bf9c2b56693f693ecb9ad9dbefd31c907742f97b64125394d272c049",
+          "observed_utc": "2026-08-19T20:55:40Z",
           "environment": "darwin/arm64; Go 1.26.6; disposable Git snapshot; two deterministic task-owned local proxies; clean all-module GOWORK=off consumer",
           "module_scope": [
             "*"
@@ -3342,6 +3342,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-ESCAPED-QUOTE.md",
       "evidence_sha256": "0f2b3017117eae729c1313c793a928b6eac0158a1eb2284c407b11af22e1c808",
       "rationale": "The test corpus now detects escaped-quote scanner regressions before integral Decimal repair; production behavior and the retained HTTP reference scenario are unchanged."
+    },
+    {
+      "module": "pkg/http-signature",
+      "from_sha256": "fdd5aca124586c83194023f6e7ca8ea241683b31a012e92530eaf2cda9971e27",
+      "to_sha256": "35a2237f004991e403adcbd011637715873144e7ba56d250d00ed9a505e827bc",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-COMPATIBILITY-FILTER.md",
+      "evidence_sha256": "e194ff58744169eedee1c5b96e78287a3b9fc50ab6563f8e67cf7cadb6bad4fe",
+      "rationale": "Compatibility header filtering now avoids order-sensitive loop control; the retained HTTP reference imports only the root package and does not exercise this compatibility subpackage."
     },
     {
       "module": "pkg/cloudevents/adapters/golib",

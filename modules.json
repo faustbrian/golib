@@ -215,6 +215,7 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-COMPATIBILITY-FILTER.md",
             "docs/hardening-report.md",
             "docs/performance.md",
             "docs/security/threat-model.md"
@@ -407,6 +408,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CI-PORTABILITY.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-FILESYSTEM-FAULT-PROXY.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-MIDDLEWARE-ADMISSION.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-COMPATIBILITY-FILTER.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-ESCAPED-QUOTE.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-FINALIZATION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md",

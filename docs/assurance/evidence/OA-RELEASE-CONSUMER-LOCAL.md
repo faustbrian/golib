@@ -3,6 +3,8 @@
 Observed at `2026-08-18T17:37:46Z` on `darwin/arm64` with Go `1.26.6`.
 Refreshed at `2026-08-19T20:04:18Z` after the filesystem fault-proxy
 correction.
+Refreshed again at `2026-08-19T20:54:13Z` after the HTTP-signature
+compatibility-filter correction.
 
 ## Executed Proof
 
@@ -29,6 +31,14 @@ checks against the corrected source. It passed with input digest
 `08622c9d5f5b8e8ee512fd7431c3f2138bd995b49e376ace9e753c38944b262b`.
 The other 106 release inputs are unchanged, so their exact content-identity
 checkpoints remain current without re-execution.
+
+The refreshed `pkg/http-signature` release checkpoint reran its isolated tidy,
+test, API compatibility, local `v1.0.0` proxy, and clean external consumer
+checks against the order-independent compatibility filter. It passed with
+input digest
+`370f753416c7c5601c01a010b125dac1036798e1a6d7e8371c44d608dd243740`.
+The other 106 release inputs remain content-identical to their current
+checkpoints and require no re-execution.
 
 ## Claim Boundary
 

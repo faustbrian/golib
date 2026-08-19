@@ -3,6 +3,8 @@
 Observed at `2026-08-18T17:23:59Z` on `darwin/arm64` with Go `1.26.6`.
 Refreshed at `2026-08-19T20:04:18Z` after the filesystem fault-proxy
 correction.
+Refreshed again at `2026-08-19T20:55:40Z` after the HTTP-signature
+compatibility-filter correction.
 
 ## Executed Proof
 
@@ -33,6 +35,15 @@ The fresh filesystem release checkpoint also resolved its public package from
 that module's local `v1.0.0` proxy in an external `GOWORK=off` consumer. The
 other 106 module inputs and the owned dependency graph are unchanged, so their
 previous clean-consumer results remain current by exact content identity.
+
+The latest release-candidate snapshot rebuilt the complete 428-file local
+proxy twice after the HTTP-signature change. The proxy trees remained
+byte-for-byte identical, with deterministic manifest SHA-256
+`426224e3e095201e4ea89718bafaf9301ec7179a9e7523ee3c2de7747ae9e964`.
+The fresh HTTP-signature release checkpoint resolved its public package from
+the module's local `v1.0.0` proxy in an external `GOWORK=off` consumer. The
+other 106 release inputs and the owned dependency graph remain unchanged from
+their current content-identity checkpoints.
 
 ## Claim Boundary
 
