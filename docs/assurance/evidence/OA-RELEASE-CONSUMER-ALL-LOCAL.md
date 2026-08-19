@@ -1,6 +1,8 @@
 # All-Module Local Release Consumer Evidence
 
 Observed at `2026-08-18T17:23:59Z` on `darwin/arm64` with Go `1.26.6`.
+Refreshed at `2026-08-19T20:04:18Z` after the filesystem fault-proxy
+correction.
 
 ## Executed Proof
 
@@ -22,6 +24,15 @@ The snapshot, both local proxies, consumer, downloaded modules, and Go build
 cache were task-owned and removed after the campaign. The snapshot excluded an
 unrelated working-tree-only checksum edit so the proof describes only this
 release candidate.
+
+The refreshed release-candidate snapshot rebuilt the complete 428-file local
+proxy twice after the filesystem change. The proxy trees remained
+byte-for-byte identical, with deterministic manifest SHA-256
+`7abfa436b4dd37dece0941aa46806cd43ae357bcc24730ba8a4e99af59f5e0c7`.
+The fresh filesystem release checkpoint also resolved its public package from
+that module's local `v1.0.0` proxy in an external `GOWORK=off` consumer. The
+other 106 module inputs and the owned dependency graph are unchanged, so their
+previous clean-consumer results remain current by exact content identity.
 
 ## Claim Boundary
 

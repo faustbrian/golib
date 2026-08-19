@@ -1,6 +1,8 @@
 # All-Module Release Dry-Run Evidence
 
 Observed at `2026-08-18T17:37:46Z` on `darwin/arm64` with Go `1.26.6`.
+Refreshed at `2026-08-19T20:04:18Z` after the filesystem fault-proxy
+correction.
 
 ## Executed Proof
 
@@ -20,6 +22,13 @@ release gates. Every module's resulting current checkpoint proves that it:
 The aggregate command exited successfully. The snapshot excluded an unrelated
 working-tree-only checksum edit. The snapshot, local proxies, consumers,
 module cache, and build cache were task-owned and removed after the campaign.
+
+The refreshed `pkg/filesystem` release checkpoint reran its isolated tidy,
+test, API compatibility, local `v1.0.0` proxy, and clean external consumer
+checks against the corrected source. It passed with input digest
+`08622c9d5f5b8e8ee512fd7431c3f2138bd995b49e376ace9e753c38944b262b`.
+The other 106 release inputs are unchanged, so their exact content-identity
+checkpoints remain current without re-execution.
 
 ## Claim Boundary
 
