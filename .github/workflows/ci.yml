@@ -38,9 +38,6 @@ jobs:
           go-version-file: .go-version
           cache: false
 
-      - name: Validate repository contract
-        run: make repository-check
-
       - name: Select changed modules and reverse dependants
         id: selection
         env:
@@ -72,6 +69,25 @@ jobs:
             echo "count=${count}"
             echo "kafka_arm64=$(jq -r 'any(.[]; .directory == "pkg/kafka")' <<<"${changed_matrix}")"
           } >>"${GITHUB_OUTPUT}"
+
+  repository-contract:
+    name: Repository contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: .go-version
+          cache: false
+
+      - name: Validate repository contract
+        run: make repository-check
 
   quality:
     name: Module / ${{ matrix.directory }}
@@ -260,13 +276,14 @@ jobs:
   required:
     name: Required
     if: always()
-    needs: [prepare, quality, codeql, kafka-arm64]
+    needs: [prepare, repository-contract, quality, codeql, kafka-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Require every expected result
         env:
           PREPARE_RESULT: ${{ needs.prepare.result }}
+          REPOSITORY_CONTRACT_RESULT: ${{ needs.repository-contract.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
           KAFKA_ARM64_REQUIRED: ${{ needs.prepare.outputs.kafka_arm64 }}
@@ -275,6 +292,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "${PREPARE_RESULT}" == success ]]
+          [[ "${REPOSITORY_CONTRACT_RESULT}" == success ]]
           [[ "${QUALITY_RESULT}" == success ]]
           [[ "${CODEQL_RESULT}" == success ]]
           if [[ "${KAFKA_ARM64_REQUIRED}" == true ]]; then

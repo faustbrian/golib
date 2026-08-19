@@ -8,8 +8,10 @@ active modules.
 The visible matrix has one job per selected module. Each job runs
 `scripts/run-modules.sh check --modules <directory>`, starts cataloged pinned
 services, and uploads attributable coverage, mutation, SBOM, conformance, and
-failure evidence. A stable `Required` job fails unless selection, every module,
-and CodeQL succeed.
+failure evidence. Repository-contract validation runs independently so a root
+metadata failure remains visible and fail-closed without suppressing module or
+CodeQL results. A stable `Required` job fails unless selection, the repository
+contract, every module, and CodeQL succeed.
 
 Cancellation is limited to superseded pull-request runs. Actions are pinned to
 immutable revisions. Forks receive no secrets. Caches must never provide

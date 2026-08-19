@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Run repository-contract validation independently from module selection so a
+  root metadata failure cannot suppress attributable module and CodeQL results,
+  while the required summary still fails closed on that validation.
 - Replay each passed operational-assurance record's captured input environment
   when validating its fingerprints, so Linux CI can verify evidence produced
   on another platform without changing the evidence identity.
