@@ -3303,6 +3303,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-KNAPSACK-CHECKSUM-EVIDENCE.md",
       "evidence_sha256": "d5b99a9927c874dbe67467952618c593c73fe6f1acde44ca6aa4f4fa34ac59bc",
       "rationale": "Parent Knapsack checksums and aggregate evidence were refreshed after owned release archives changed; runtime behavior and the passed reference scenario are unchanged."
+    },
+    {
+      "module": "pkg/audit/postgres",
+      "from_sha256": "8c0d167bdc571e1f140ecc45ed0df0995fb41e1d96b5488adb8f2268926db54b",
+      "to_sha256": "02a4968c0208090ac1cc4c05e77b16ff8d3604ead71cd028370c21c114a68e2d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-AUDIT-POSTGRES-PORTABILITY.md",
+      "evidence_sha256": "5112fb1ada188992481f9113d4e1844805e2ad6e0bb2f691b5eafb82fd4b21cb",
+      "rationale": "PostgreSQL integration verification now avoids CI pool exhaustion and uses version-matched container tools; production behavior and the retained HTTP reference scenario are unchanged."
     }
   ]
 }
