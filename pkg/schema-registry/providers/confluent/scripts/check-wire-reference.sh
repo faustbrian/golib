@@ -49,7 +49,7 @@ test -f "$artifact"
 test -f "$artifact_pom"
 test "$(shasum -a 256 "$artifact" | awk '{print $1}')" = "$artifact_sha256"
 test "$(shasum -a 256 "$artifact_pom" | awk '{print $1}')" = "$artifact_pom_sha256"
-rg -F '<name>Apache License 2.0</name>' "$artifact_pom" >/dev/null
+grep -F -- '<name>Apache License 2.0</name>' "$artifact_pom" >/dev/null
 
 ours=$("$root/../../scripts/with-provider-gocache.sh" go run "$root/testdata/reference/go_frame.go" "$schema_id" "$payload")
 ours_classic=$(printf '%s\n' "$ours" | sed -n '1p')

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make official Java wire-reference verification portable to minimal CI
+  runners without ripgrep.
+
 ### Documentation
 
 - Link the package README to the repository-wide Golib documentation portal.

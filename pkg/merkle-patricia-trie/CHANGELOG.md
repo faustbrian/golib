@@ -10,6 +10,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Complete the Linux-specific Geth interoperability module graph so the pinned
+  reference suite resolves read-only on CI.
 - Link compatibility and source-provenance guidance directly to the canonical
   specification decision register.
 - Convert consensus and client-divergence choices into an auditable

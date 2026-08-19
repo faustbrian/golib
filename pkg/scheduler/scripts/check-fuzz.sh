@@ -9,7 +9,7 @@ if [[ -z "$targets" ]]; then
 fi
 
 while IFS= read -r target; do
-	file=$(rg -l -m1 "func ${target}\\(" --glob '*_test.go' .)
+	file=$(grep -R -l -m1 --include='*_test.go' "func ${target}(" .)
 	package=$(dirname "$file")
 	if [[ "$package" == "." ]]; then
 		package=.

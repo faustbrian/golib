@@ -1405,6 +1405,18 @@ func specifications(directory string) []string {
 			"implemented Kafka Improvement Proposals",
 		}
 	}
+	if directory == "pkg/kafka/adapters/gotelemetry" {
+		return []string{
+			"OpenTelemetry semantic conventions 1.44.0 for Kafka messaging spans and metrics",
+			"OpenTelemetry Go API and SDK 1.44.0",
+		}
+	}
+	if directory == "pkg/kafka/adapters/mskiam" {
+		return []string{
+			"AWS MSK IAM SASL/OAUTHBEARER signer contract v1.0.4",
+			"AWS SDK for Go v2 credential-provider contract v1.43.0",
+		}
+	}
 	if directory == "pkg/search/adapters/opensearch" {
 		return []string{"OpenSearch REST API 2.19.6 and 3.8.0"}
 	}
@@ -1481,6 +1493,18 @@ func conformanceCorpora(directory string) []string {
 			"Pinned TLS, mTLS, PLAIN, SCRAM, and OAUTHBEARER broker fixtures",
 			"Producer, consumer-group, transaction, replay, and inspection failure matrix",
 			"franz-go, kafka-go, and Sarama equivalent-behavior comparison matrix",
+		}
+	}
+	if directory == "pkg/kafka/adapters/gotelemetry" {
+		return []string{
+			"Pinned OpenTelemetry 1.44.0 Kafka messaging span and metric source matrix",
+			"Adapter mapping, propagation, cardinality, provider-failure, and lifecycle evidence",
+		}
+	}
+	if directory == "pkg/kafka/adapters/mskiam" {
+		return []string{
+			"Pinned AWS signer and SDK source archives plus reviewed AWS guidance snapshots",
+			"Signer-output, credential-refresh, expiry, redaction, and compatibility-boundary evidence",
 		}
 	}
 	if directory == "pkg/cloudevents" {

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Record signer, credential-refresh, and managed-service support decisions in
+  an auditable specification register backed by pinned source snapshots.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 - Validate signer output as the bounded AWS MSK presigned-URL format, reject
@@ -27,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a portable fail-closed specification gate for signer, SDK, configuration,
+  and compatibility-boundary evidence.
 - Add a fail-closed direct Amazon MSK compatibility gate for operator-owned
   Provisioned and Serverless fixtures, with persistent redacted runtime and
   dependency evidence, read-only control-plane identity and bootstrap

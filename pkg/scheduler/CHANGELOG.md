@@ -11,6 +11,7 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Make fuzz-target discovery portable to minimal CI runners without ripgrep.
 - Replace obsolete owned-module pseudo-version pins with the monorepo's local
   `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
   `v1.0.0` dependency versions.

@@ -327,7 +327,6 @@ func TestAdapterRestoresByteSecretPromptPTY(t *testing.T) {
 				},
 			})
 			cancelRun()
-			_ = primary.Close()
 			select {
 			case interactionErr := <-interaction:
 				if interactionErr != nil && runErr == nil {

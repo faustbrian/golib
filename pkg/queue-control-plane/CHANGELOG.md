@@ -22,6 +22,8 @@ Versioning.
 
 ### Changed
 
+- Require each CLI connection credential independently, with mutation-precise
+  regression coverage for every missing environment value.
 - Replace obsolete owned-module pseudo-version pins with the monorepo's local
   `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
   `v1.0.0` dependency versions.

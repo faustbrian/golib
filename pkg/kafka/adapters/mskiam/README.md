@@ -182,6 +182,10 @@ ACLs do not authorize IAM identities.
 
 ## Compatibility status
 
+Observable signer, credential, and managed-service support choices are recorded
+in the [specification decision register](docs/specification-decisions.md), with
+exact upstream pins in `specification/manifest.json`.
+
 This adapter pins:
 
 - `aws-msk-iam-sasl-signer-go` v1.0.4;

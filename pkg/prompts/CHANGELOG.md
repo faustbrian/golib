@@ -10,6 +10,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Keep the PTY controller open through terminal-state verification so secret
+  prompt restoration is portable across Linux and BSD terminal semantics.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   instead of maintaining package-local thresholds and exclusions.
 

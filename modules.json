@@ -404,6 +404,8 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-MUTATION-PRECISION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-POSTGRES-PRECISION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CI-PORTABILITY.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-ESCAPED-QUOTE.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-FINALIZATION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-URL-CONTRACT.md",
@@ -11588,8 +11590,14 @@
       "interoperability_tools": [
         "Apache Kafka 4.3.1"
       ],
-      "specifications": [],
-      "conformance_corpora": [],
+      "specifications": [
+        "OpenTelemetry semantic conventions 1.44.0 for Kafka messaging spans and metrics",
+        "OpenTelemetry Go API and SDK 1.44.0"
+      ],
+      "conformance_corpora": [
+        "Pinned OpenTelemetry 1.44.0 Kafka messaging span and metric source matrix",
+        "Adapter mapping, propagation, cardinality, provider-failure, and lifecycle evidence"
+      ],
       "provenance": [
         "pkg/kafka/adapters/gotelemetry/specification/manifest.json"
       ],
@@ -11667,7 +11675,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,
@@ -11723,8 +11731,14 @@
         "AWS MSK IAM SASL Signer for Go v1.0.4",
         "AWS SDK for Go v2 v1.43.0"
       ],
-      "specifications": [],
-      "conformance_corpora": [],
+      "specifications": [
+        "AWS MSK IAM SASL/OAUTHBEARER signer contract v1.0.4",
+        "AWS SDK for Go v2 credential-provider contract v1.43.0"
+      ],
+      "conformance_corpora": [
+        "Pinned AWS signer and SDK source archives plus reviewed AWS guidance snapshots",
+        "Signer-output, credential-refresh, expiry, redaction, and compatibility-boundary evidence"
+      ],
       "provenance": [
         "pkg/kafka/adapters/mskiam/specification/manifest.json"
       ],
@@ -11802,7 +11816,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,

@@ -40,25 +40,50 @@ func TestRunBuildsAuthenticatedClientFromEnvironment(t *testing.T) {
 func TestRunRejectsMissingOrInvalidEnvironment(t *testing.T) {
 	t.Parallel()
 
-	tests := map[string]func(string) string{
-		"missing": func(string) string { return "" },
-		"invalid URL": func(key string) string {
+	const requiredMessage = "QUEUE_CONTROL_URL, QUEUE_CONTROL_KEY_ID, and QUEUE_CONTROL_KEY are required\n"
+	tests := map[string]struct {
+		getenv       func(string) string
+		wantRequired bool
+	}{
+		"missing all": {getenv: func(string) string { return "" }, wantRequired: true},
+		"missing URL": {getenv: func(key string) string {
+			if key == "QUEUE_CONTROL_URL" {
+				return ""
+			}
+			return "configured"
+		}, wantRequired: true},
+		"missing key ID": {getenv: func(key string) string {
+			if key == "QUEUE_CONTROL_KEY_ID" {
+				return ""
+			}
+			return "configured"
+		}, wantRequired: true},
+		"missing key": {getenv: func(key string) string {
+			if key == "QUEUE_CONTROL_KEY" {
+				return ""
+			}
+			return "configured"
+		}, wantRequired: true},
+		"invalid URL": {getenv: func(key string) string {
 			if key == "QUEUE_CONTROL_URL" {
 				return "://invalid"
 			}
 			return "credential"
-		},
+		}},
 	}
-	for name, getenv := range tests {
+	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			var stderr bytes.Buffer
-			if exit := run(context.Background(), nil, getenv, &bytes.Buffer{}, &stderr, http.DefaultClient); exit != cli.ExitFailure {
+			if exit := run(context.Background(), nil, test.getenv, &bytes.Buffer{}, &stderr, http.DefaultClient); exit != cli.ExitFailure {
 				t.Fatalf("run() = %d, want %d", exit, cli.ExitFailure)
 			}
-			if stderr.String() == "" {
-				t.Fatal("stderr is empty")
+			if test.wantRequired && stderr.String() != requiredMessage {
+				t.Fatalf("stderr = %q, want %q", stderr.String(), requiredMessage)
+			}
+			if !test.wantRequired && stderr.String() == "" {
+				t.Fatal("stderr is empty for invalid URL")
 			}
 		})
 	}

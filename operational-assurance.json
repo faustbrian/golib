@@ -3335,6 +3335,38 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-FINALIZATION.md",
       "evidence_sha256": "e74e9c671cdc5478034ac12cb415a5be5bfbf2b6c0e9ef192e068104267bf157",
       "rationale": "The earlier release-snapshot migration recorded an intermediate HTTP-signature fingerprint; the final verification-input identity and direct platform-neutral coverage assertion do not change production or retained reference behavior."
+    },
+    {
+      "module": "pkg/http-signature",
+      "from_sha256": "585891141151bde7d3d742e7ee93940e779cbd964a714406d2ed3c64fc7e3259",
+      "to_sha256": "fdd5aca124586c83194023f6e7ca8ea241683b31a012e92530eaf2cda9971e27",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-ESCAPED-QUOTE.md",
+      "evidence_sha256": "0f2b3017117eae729c1313c793a928b6eac0158a1eb2284c407b11af22e1c808",
+      "rationale": "The test corpus now detects escaped-quote scanner regressions before integral Decimal repair; production behavior and the retained HTTP reference scenario are unchanged."
+    },
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "c19328fd84e93e42ea00dcfb5765606d6cb9fc8f70bff06d604e4857afe299d4",
+      "to_sha256": "ee1d0884ecc7f783e99af0c2a09dcf12499d361b995610423ee38edb350b19c3",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CI-PORTABILITY.md",
+      "evidence_sha256": "7c0a3dac7e1f01a7de57c4261c07f5ccb2b8b00a74c7a72f3069001bbd0ae0e6",
+      "rationale": "Queue and scheduler test-gate corrections changed this adapter's transitive verification fingerprint without changing its runtime behavior or retained HTTP reference scenario."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "328b8a172a5080fc031d842df0e42ad1b1edcabbaa9165cb118548679b1382ea",
+      "to_sha256": "7b6dccf1b89cbdf3f8023dcf9f81183847f698904a1f2cf36d4bfa46d1ecd554",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CI-PORTABILITY.md",
+      "evidence_sha256": "7c0a3dac7e1f01a7de57c4261c07f5ccb2b8b00a74c7a72f3069001bbd0ae0e6",
+      "rationale": "CLI tests now distinguish required configuration validation from downstream failures and kill every viable logical-condition mutant; production behavior is unchanged."
+    },
+    {
+      "module": "pkg/scheduler",
+      "from_sha256": "c844d3beadc4e4e679b0f637772c1519af52b15c171034c7f99a01c950c52ed3",
+      "to_sha256": "aa7a96ea2d5ca54bc07b100b8b5f07c5c357db57f86e47d9303b84d0158e0505",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CI-PORTABILITY.md",
+      "evidence_sha256": "7c0a3dac7e1f01a7de57c4261c07f5ccb2b8b00a74c7a72f3069001bbd0ae0e6",
+      "rationale": "Fuzz-target discovery now uses a CI-portable standard tool without changing scheduler runtime behavior or retained operational scenarios."
     }
   ]
 }

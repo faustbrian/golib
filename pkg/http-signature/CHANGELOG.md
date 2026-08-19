@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prove escaped quoted-string scanning before repairing a following integral
+  RFC 8941 Decimal, killing the previously surviving conditional mutant.
+
 ### Documentation
 
 - Link the package README to the repository-wide Golib documentation portal.

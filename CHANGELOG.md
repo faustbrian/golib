@@ -7,6 +7,16 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Make queue-control CLI credential validation mutation-precise and remove the
+  scheduler fuzz gate's undeclared ripgrep dependency.
+- Remove undeclared ripgrep dependencies from schema-registry provenance,
+  SBOM, and official Confluent wire-reference verification.
+- Align the focused service-platform binary-size regression with the documented
+  Darwin-only absolute budget while preserving portable relative enforcement.
+- Make Kafka adapter documentation and specification checks portable to the
+  stock CI runner, register their pinned conformance decisions, restore PTY
+  tests before closing the controlling endpoint, and complete Linux-only
+  Merkle interoperability dependencies.
 - Provision the CLI shell-verification runtime from a checksum-pinned Ubuntu
   package without invoking the runner package manager or its shared locks.
 - Run repository-contract validation independently from module selection so a

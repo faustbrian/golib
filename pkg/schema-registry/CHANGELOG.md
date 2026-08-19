@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make provenance, SBOM, and Confluent wire-reference checks portable to
+  minimal CI runners without ripgrep.
+
 ### Documentation
 
 - Link the package README to the repository-wide Golib documentation portal.
