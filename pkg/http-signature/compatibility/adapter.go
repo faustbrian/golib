@@ -231,13 +231,12 @@ func compatibleSigningFields(callback, original http.Header) http.Header {
 		}
 	}
 	for name, values := range original {
-		if !isRFC9421Field(name) {
-			continue
+		if isRFC9421Field(name) {
+			if fields == nil {
+				fields = make(http.Header)
+			}
+			fields[name] = cloneStrings(values)
 		}
-		if fields == nil {
-			fields = make(http.Header)
-		}
-		fields[name] = cloneStrings(values)
 	}
 	return fields
 }
