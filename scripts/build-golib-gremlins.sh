@@ -10,12 +10,9 @@ source "${root}/.golib/versions.env"
 semantic_patch="${root}/scripts/patches/gremlins-run-all-mutants.patch"
 coverage_patch="${root}/scripts/patches/gremlins-shared-coverage.patch"
 diff_patch="${root}/scripts/patches/gremlins-module-relative-diff.patch"
-patch_digest="$(
-    cat "${semantic_patch}" "${coverage_patch}" "${diff_patch}" |
-        shasum -a 256 |
-        awk '{print $1}'
-)"
-artifact="${root}/.artifacts/tooling/gremlins-${GREMLINS_VERSION}-${patch_digest}"
+verifier_identity="$("${root}/scripts/mutation-verifier-identity.sh")"
+platform_identity="$(go env GOOS GOARCH | paste -sd- -)"
+artifact="${root}/.artifacts/tooling/gremlins-${verifier_identity}-${platform_identity}"
 binary="${artifact}/golib-gremlins"
 lock="${artifact}.lock"
 
@@ -48,7 +45,11 @@ trap cleanup EXIT HUP INT TERM
 download="$(GOWORK=off go mod download -json \
     "github.com/go-gremlins/gremlins@${GREMLINS_VERSION}")"
 source_directory="$(jq -er '.Dir' <<<"${download}")"
-jq -e '.Sum | type == "string" and length > 0' <<<"${download}" >/dev/null
+jq -e \
+    --arg sum "${GREMLINS_SUM}" \
+    --arg gomod_sum "${GREMLINS_GOMOD_SUM}" '
+        .Sum == $sum and .GoModSum == $gomod_sum
+    ' <<<"${download}" >/dev/null
 
 cp -R "${source_directory}" "${temporary}/source"
 chmod -R u+w "${temporary}/source"

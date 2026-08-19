@@ -7,6 +7,10 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Bind mutation checkpoints and reviewed zero-mutant packages to the complete
+  behavior-affecting Gremlins identity rather than its version label, preserve
+  exact executable hashes for traceability, and invalidate stale aggregate
+  reports as soon as a replacement campaign starts.
 - Accept ripgrep's upstream revision suffix while verifying the pinned CI
   binary, so valid checksum-pinned releases reach module verification.
 - Provision checksum-pinned ripgrep for package checks that require its search

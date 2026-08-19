@@ -1650,6 +1650,14 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 		`execution_revision=`,
 		`execution_revisions`,
 		`gate_input_digests`,
+		`mutation-verifier-identity.sh`,
+		`gremlins_verifier_sha256`,
+		`gremlins_verifier_sha256s`,
+		`gremlins_binary_sha256`,
+		`gremlins_binary_sha256s`,
+		`verifier_identity_source`,
+		`approved-semantic-migration`,
+		`select(. != null)`,
 		`mutation-legacy`,
 		`optional-mutation-digest.sh`,
 		`observer-v1`,
@@ -1683,8 +1691,89 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 		strings.Index(contract, `for package_directory in "${packages[@]}"`) {
 		t.Fatal("mutation runner captures execution revision after package execution")
 	}
+	removeAggregate := strings.Index(contract, `rm -f "${report}"`)
+	packageLoop := strings.Index(contract, `for package_directory in "${packages[@]}"`)
+	if removeAggregate < 0 || packageLoop < 0 || removeAggregate > packageLoop {
+		t.Fatal("mutation runner does not invalidate the previous aggregate before execution")
+	}
 	if _, err := os.Stat(filepath.Join(root, "scripts", "gate-input-digest.sh")); err != nil {
 		t.Fatalf("mutation evidence fingerprint tool: %v", err)
+	}
+}
+
+func TestMutationVerifierIdentityTracksBehavioralInputs(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{
+		filepath.Join(repository, ".golib"),
+		filepath.Join(repository, "scripts", "internal"),
+		filepath.Join(repository, "scripts", "patches"),
+	} {
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(repository, ".golib", "versions.env"), `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
+`)
+	for _, file := range []string{
+		"scripts/internal/mutation-command.sh",
+		"scripts/internal/mutation-coverage.sh",
+		"scripts/patches/gremlins-run-all-mutants.patch",
+		"scripts/patches/gremlins-shared-coverage.patch",
+		"scripts/patches/gremlins-module-relative-diff.patch",
+	} {
+		writeFile(t, filepath.Join(repository, file), file+"\n")
+	}
+	unrelated := filepath.Join(repository, "scripts", "internal", "run-mutation.sh")
+	writeFile(t, unrelated, "orchestration one\n")
+
+	digest := func() string {
+		t.Helper()
+		command := exec.Command(filepath.Join(root, "scripts", "mutation-verifier-identity.sh"))
+		command.Dir = repository
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("calculate mutation verifier identity: %v\n%s", err, output)
+		}
+
+		return strings.TrimSpace(string(output))
+	}
+
+	initial := digest()
+	if len(initial) != 64 {
+		t.Fatalf("mutation verifier identity length = %d", len(initial))
+	}
+	writeFile(t, unrelated, "orchestration two\n")
+	if current := digest(); current != initial {
+		t.Fatalf("orchestration changed verifier identity: %s != %s", current, initial)
+	}
+	patch := filepath.Join(repository, "scripts", "patches", "gremlins-run-all-mutants.patch")
+	writeFile(t, patch, "changed mutation semantics\n")
+	if current := digest(); current == initial {
+		t.Fatal("mutation semantics did not change verifier identity")
+	}
+}
+
+func TestGremlinsBuildCacheUsesCompleteVerifierIdentity(t *testing.T) {
+	root := testRepositoryRoot(t)
+	contents, err := os.ReadFile(filepath.Join(root, "scripts", "build-golib-gremlins.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := string(contents)
+	identity := `verifier_identity="$("${root}/scripts/mutation-verifier-identity.sh")"`
+	platform := `platform_identity="$(go env GOOS GOARCH | paste -sd- -)"`
+	artifact := `artifact="${root}/.artifacts/tooling/gremlins-${verifier_identity}-${platform_identity}"`
+	if !strings.Contains(build, identity) ||
+		!strings.Contains(build, platform) ||
+		!strings.Contains(build, artifact) {
+		t.Fatal("Gremlins build cache is not bound to the complete verifier identity")
+	}
+	if strings.Index(build, identity) > strings.Index(build, `if [[ -x "${binary}" ]]`) {
+		t.Fatal("Gremlins verifier identity is resolved after the build-cache early return")
 	}
 }
 
@@ -1771,6 +1860,7 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
   "validated_revision": "old-validation",
   "gate_input_digest": "old-input",
   "gremlins_version": "v0.6.0",
+  "gremlins_binary_sha256": "historical-binary",
   "environment": {"GOOS": "linux"},
   "report": {
     "files": [{
@@ -1788,6 +1878,15 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 	reportDigest := strings.TrimSpace(string(reportDigestOutput))
 	writeFile(t, ledger, fmt.Sprintf(`{
   "schema_version": 3,
+  "verifier_migrations": [{
+    "module": "pkg/example",
+    "package": ".",
+    "execution_revision": "original-execution",
+    "gate_input_digest": "old-input",
+    "gremlins_version": "v0.6.0",
+    "gremlins_verifier_sha256": "tool-identity",
+    "report_sha256": %q
+  }],
   "entries": [{
     "module": "pkg/example",
     "package": ".",
@@ -1797,7 +1896,7 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
     "gremlins_version": "v0.6.0",
     "report_sha256": %q
   }]
-}`, reportDigest))
+}`, reportDigest, reportDigest))
 
 	script := filepath.Join(root, "scripts", "internal", "reuse-approved-mutation-checkpoint.sh")
 	command := exec.Command(
@@ -1808,6 +1907,7 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 		".",
 		"current-input",
 		"v0.6.0",
+		"tool-identity",
 		"current-validation",
 		output,
 	)
@@ -1820,11 +1920,13 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 		t.Fatal(err)
 	}
 	var migrated struct {
-		ExecutionRevision string   `json:"execution_revision"`
-		ValidatedRevision string   `json:"validated_revision"`
-		GateInputDigest   string   `json:"gate_input_digest"`
-		IdentityLineage   []string `json:"identity_lineage"`
-		IdentityMigration struct {
+		ExecutionRevision      string   `json:"execution_revision"`
+		ValidatedRevision      string   `json:"validated_revision"`
+		GateInputDigest        string   `json:"gate_input_digest"`
+		GremlinsVerifierSHA256 string   `json:"gremlins_verifier_sha256"`
+		VerifierIdentitySource string   `json:"verifier_identity_source"`
+		IdentityLineage        []string `json:"identity_lineage"`
+		IdentityMigration      struct {
 			Reason                  string `json:"reason"`
 			PreviousGateInputDigest string `json:"previous_gate_input_digest"`
 		} `json:"identity_migration"`
@@ -1841,12 +1943,93 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 	if migrated.GateInputDigest != "current-input" {
 		t.Fatalf("gate input digest = %q", migrated.GateInputDigest)
 	}
+	if migrated.GremlinsVerifierSHA256 != "tool-identity" {
+		t.Fatalf("Gremlins verifier identity = %q", migrated.GremlinsVerifierSHA256)
+	}
+	if migrated.VerifierIdentitySource != "approved-semantic-migration" {
+		t.Fatalf("verifier identity source = %q", migrated.VerifierIdentitySource)
+	}
 	if !slices.Contains(migrated.IdentityLineage, "old-input") {
 		t.Fatalf("identity lineage = %v", migrated.IdentityLineage)
 	}
 	if migrated.IdentityMigration.Reason != "approved-input-identity-migration" ||
 		migrated.IdentityMigration.PreviousGateInputDigest != "old-input" {
 		t.Fatalf("identity migration = %+v", migrated.IdentityMigration)
+	}
+
+	directCheckpoint := filepath.Join(directory, "direct-checkpoint.json")
+	writeFile(t, directCheckpoint, `{
+  "schema_version": 3,
+  "module": "pkg/example",
+  "package": ".",
+  "execution_revision": "original-execution",
+  "validated_revision": "old-validation",
+  "gate_input_digest": "current-input",
+  "identity_lineage": ["old-input"],
+  "gremlins_version": "v0.6.0",
+  "gremlins_binary_sha256": "historical-binary",
+  "environment": {"GOOS": "linux"},
+  "report": {
+    "files": [{
+      "file_name": "example.go",
+      "mutations": [{"status": "KILLED", "type": "INVERT_LOGICAL"}]
+    }]
+  }
+}`)
+	direct := exec.Command(
+		script,
+		ledger,
+		directCheckpoint,
+		"pkg/example",
+		".",
+		"current-input",
+		"v0.6.0",
+		"tool-identity",
+		"current-validation",
+		output,
+	)
+	if result, err := direct.CombinedOutput(); err != nil {
+		t.Fatalf("bind verifier identity to current checkpoint: %v\n%s", err, result)
+	}
+	decodeJSONFile(t, output, &migrated)
+	if migrated.GremlinsVerifierSHA256 != "tool-identity" ||
+		migrated.GateInputDigest != "current-input" ||
+		migrated.VerifierIdentitySource != "approved-semantic-migration" {
+		t.Fatalf("direct verifier migration = %+v", migrated)
+	}
+
+	forgedCheckpoint := filepath.Join(directory, "forged-checkpoint.json")
+	writeFile(t, forgedCheckpoint, `{
+  "schema_version": 3,
+  "module": "pkg/example",
+  "package": ".",
+  "execution_revision": "original-execution",
+  "validated_revision": "old-validation",
+  "gate_input_digest": "current-input",
+  "gremlins_version": "v0.6.0",
+  "gremlins_binary_sha256": "historical-binary",
+  "environment": {"GOOS": "linux"},
+  "report": {
+    "files": [{
+      "file_name": "forged.go",
+      "mutations": [{"status": "KILLED", "type": "CONDITIONALS_NEGATION"}]
+    }]
+  }
+}`)
+	forged := exec.Command(
+		script,
+		ledger,
+		forgedCheckpoint,
+		"pkg/example",
+		".",
+		"current-input",
+		"v0.6.0",
+		"tool-identity",
+		"current-validation",
+		output,
+	)
+	if err := forged.Run(); err == nil {
+		t.Fatal("migration accepted an unreviewed report from an approved execution revision")
 	}
 
 	rejected := exec.Command(
@@ -1857,11 +2040,84 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 		".",
 		"different-input",
 		"v0.6.0",
+		"tool-identity",
 		"current-validation",
 		output,
 	)
 	if err := rejected.Run(); err == nil {
 		t.Fatal("migration accepted an unapproved replacement input")
+	}
+
+	rejected = exec.Command(
+		script,
+		ledger,
+		checkpoint,
+		"pkg/example",
+		".",
+		"current-input",
+		"v0.6.0",
+		"different-tool-identity",
+		"current-validation",
+		output,
+	)
+	if err := rejected.Run(); err == nil {
+		t.Fatal("migration accepted evidence from a different mutation binary")
+	}
+}
+
+func TestMutationVerifierMigrationLedgerUsesExactCheckpointIdentities(t *testing.T) {
+	root := testRepositoryRoot(t)
+	var ledger struct {
+		VerifierMigrationReview struct {
+			GremlinsVerifierSHA256 string `json:"gremlins_verifier_sha256"`
+			Reason                 string `json:"reason"`
+			ReviewedAt             string `json:"reviewed_at"`
+		} `json:"verifier_migration_review"`
+		VerifierMigrations []struct {
+			Module                 string `json:"module"`
+			Package                string `json:"package"`
+			ExecutionRevision      string `json:"execution_revision"`
+			GateInputDigest        string `json:"gate_input_digest"`
+			GremlinsVersion        string `json:"gremlins_version"`
+			GremlinsVerifierSHA256 string `json:"gremlins_verifier_sha256"`
+			ReportSHA256           string `json:"report_sha256"`
+		} `json:"verifier_migrations"`
+	}
+	decodeJSONFile(
+		t,
+		filepath.Join(root, ".golib", "mutation-history-migrations.json"),
+		&ledger,
+	)
+	if len(ledger.VerifierMigrations) != 546 {
+		t.Fatalf("exact verifier migrations = %d, want 546", len(ledger.VerifierMigrations))
+	}
+	if ledger.VerifierMigrationReview.Reason == "" ||
+		ledger.VerifierMigrationReview.ReviewedAt == "" {
+		t.Fatal("verifier migration review metadata is incomplete")
+	}
+	seen := make(map[string]struct{}, len(ledger.VerifierMigrations))
+	for _, migration := range ledger.VerifierMigrations {
+		fields := []string{
+			migration.Module,
+			migration.Package,
+			migration.ExecutionRevision,
+			migration.GateInputDigest,
+			migration.GremlinsVersion,
+			migration.GremlinsVerifierSHA256,
+			migration.ReportSHA256,
+		}
+		if slices.Contains(fields, "") {
+			t.Fatalf("incomplete verifier migration: %+v", migration)
+		}
+		if migration.GremlinsVerifierSHA256 !=
+			ledger.VerifierMigrationReview.GremlinsVerifierSHA256 {
+			t.Fatalf("migration verifier identity differs from review: %+v", migration)
+		}
+		key := strings.Join(fields, "\x00")
+		if _, duplicate := seen[key]; duplicate {
+			t.Fatalf("duplicate verifier migration: %+v", migration)
+		}
+		seen[key] = struct{}{}
 	}
 }
 
@@ -1973,6 +2229,8 @@ require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
 	writeFile(t, filepath.Join(repository, "packages.json"), `{"packages":[]}`)
 	versionsFile := filepath.Join(repository, ".golib", "versions.env")
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:first
 `)
@@ -2142,6 +2400,8 @@ require example.test/dependency v0.0.0
 replace example.test/dependency => ../dependency
 `)
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:second
 `)
@@ -2149,6 +2409,8 @@ KEYCLOAK_IMAGE=keycloak:second
 		t.Fatalf("unrelated tool version changed mutation digest: %s != %s", current, initial)
 	}
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.5-alpine
 KEYCLOAK_IMAGE=keycloak:second
 `)
@@ -2156,6 +2418,8 @@ KEYCLOAK_IMAGE=keycloak:second
 		t.Fatal("required service image did not change mutation digest")
 	}
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.1
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:second
 `)
@@ -2163,6 +2427,8 @@ KEYCLOAK_IMAGE=keycloak:second
 		t.Fatal("mutation tool version did not change mutation digest")
 	}
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:second
 `)
@@ -2229,7 +2495,7 @@ KEYCLOAK_IMAGE=keycloak:second
 	)
 	writeFile(t, diffPatch, "revised module-relative diff patch\n")
 	if current := digest(); current != initial {
-		t.Fatalf("focused diff patch changed full mutation digest: %s != %s", current, initial)
+		t.Fatalf("separate verifier identity changed package input digest: %s != %s", current, initial)
 	}
 	writeFile(t, diffPatch, "scripts/patches/gremlins-module-relative-diff.patch\n")
 	writeFile(t, moduleSum, "example.test/dependency v0.0.0 h1:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=\n")
@@ -5236,6 +5502,7 @@ func TestZeroMutantInventoryIsExactAndCurrent(t *testing.T) {
 		PackageDirectory string `json:"package_directory"`
 		SourceDigest     string `json:"source_digest"`
 		GremlinsVersion  string `json:"gremlins_version"`
+		GremlinsIdentity string `json:"gremlins_verifier_sha256"`
 		Reason           string `json:"reason"`
 	}
 	inventory := struct {
@@ -5266,7 +5533,8 @@ func TestZeroMutantInventoryIsExactAndCurrent(t *testing.T) {
 			t.Fatalf("duplicate zero-mutant inventory entry %s", key)
 		}
 		seen[key] = struct{}{}
-		if entry.Reason == "" || !strings.Contains(string(versions), "GREMLINS_VERSION="+entry.GremlinsVersion+"\n") {
+		if entry.Reason == "" || entry.GremlinsIdentity == "" ||
+			!strings.Contains(string(versions), "GREMLINS_VERSION="+entry.GremlinsVersion+"\n") {
 			t.Fatalf("zero-mutant inventory entry %s has stale tool or empty rationale", key)
 		}
 		matches := 0
