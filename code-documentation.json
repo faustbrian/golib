@@ -14662,14 +14662,14 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/capability/postgres/store.go",
-          "line": 215,
+          "line": 216,
           "symbol": "Commit",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/capability/postgres/store.go",
-          "line": 216,
+          "line": 217,
           "symbol": "Rollback",
           "message": "exported declaration has no documentation comment"
         },

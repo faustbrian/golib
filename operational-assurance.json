@@ -3315,9 +3315,9 @@
     {
       "module": "pkg/capability",
       "from_sha256": "e6b77b2ff35432e58499577550e9943ac8f082da6afa31d59efdc3a1ef9403a5",
-      "to_sha256": "d52dc1403c16e697482f8dc14d88a04b726a6c6c660ad269be591da26084e09f",
+      "to_sha256": "478dc0fe384885c4dca7748852f4e804936c6f33a51fc3a797ae8744206579cd",
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-POSTGRES-PRECISION.md",
-      "evidence_sha256": "57712360336371b211472eed1e9006ba903f84c03eb2dc87b1703f1a74745a26",
+      "evidence_sha256": "a0e7f7a6ef1ec066f4c31fcbfed4dff15bc44d84e93707928b47bcc451f54a17",
       "rationale": "The PostgreSQL adapter now preserves replay identity at database timestamp precision; the retained HTTP reference scenario does not use that persistence adapter."
     }
   ]
