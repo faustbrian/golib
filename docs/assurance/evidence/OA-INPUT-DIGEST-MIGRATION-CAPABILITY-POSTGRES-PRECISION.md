@@ -30,6 +30,6 @@ package checkpoints were reused by content identity.
 This evidence authorizes only the exact one-way input-digest transition from
 `e6b77b2ff35432e58499577550e9943ac8f082da6afa31d59efdc3a1ef9403a5`
 to
-`478dc0fe384885c4dca7748852f4e804936c6f33a51fc3a797ae8744206579cd`.
+`f5afeda5ecd2c726b11ba4a088be20b93c1256f49b7eee2d830807bce04048b2`.
 It preserves the earlier HTTP reference observation without relabeling its
 execution time or extending it to PostgreSQL durability behavior.
