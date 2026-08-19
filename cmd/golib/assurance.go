@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const operationalAssuranceFile = "operational-assurance.json"
@@ -52,13 +53,23 @@ type operationalScenario struct {
 }
 
 type operationalEvidence struct {
-	Path         string            `json:"path"`
-	SHA256       string            `json:"sha256"`
-	ObservedUTC  string            `json:"observed_utc"`
-	Environment  string            `json:"environment"`
-	ModuleScope  []string          `json:"module_scope"`
-	InputModules []string          `json:"input_modules,omitempty"`
-	InputDigests map[string]string `json:"input_digests"`
+	Path             string                      `json:"path"`
+	SHA256           string                      `json:"sha256"`
+	ObservedUTC      string                      `json:"observed_utc"`
+	Environment      string                      `json:"environment"`
+	InputEnvironment operationalInputEnvironment `json:"input_environment,omitempty"`
+	ModuleScope      []string                    `json:"module_scope"`
+	InputModules     []string                    `json:"input_modules,omitempty"`
+	InputDigests     map[string]string           `json:"input_digests"`
+}
+
+type operationalInputEnvironment struct {
+	GoVersion  string `json:"go_version"`
+	GOOS       string `json:"goos"`
+	GOARCH     string `json:"goarch"`
+	CGOEnabled string `json:"cgo_enabled"`
+	Kernel     string `json:"kernel"`
+	Node       string `json:"node"`
 }
 
 type operationalRiskApproval struct {
@@ -347,6 +358,12 @@ func validateOperationalEvidence(
 	if strings.TrimSpace(evidence.Environment) == "" {
 		return errors.New("evidence environment is empty")
 	}
+	if err := validateAssuranceInputEnvironment(
+		evidence.InputEnvironment,
+		requireCurrentInputs,
+	); err != nil {
+		return err
+	}
 	if !isUTCRFC3339(evidence.ObservedUTC) {
 		return fmt.Errorf("evidence observed_utc %q is not UTC RFC3339", evidence.ObservedUTC)
 	}
@@ -366,6 +383,7 @@ func validateOperationalEvidence(
 		evidence.InputDigests,
 		digestMigrations,
 		currentInputDigests,
+		evidence.InputEnvironment,
 		requireCurrentInputs,
 	); err != nil {
 		return fmt.Errorf("evidence %s: %w", evidence.Path, err)
@@ -381,6 +399,7 @@ func validateAssuranceInputDigests(
 	recorded map[string]string,
 	migrations map[string]inputDigestMigration,
 	cache map[string]string,
+	inputEnvironment operationalInputEnvironment,
 	requireCurrent bool,
 ) error {
 	required := assuranceInputModules(current, scope, inputModules)
@@ -399,7 +418,8 @@ func validateAssuranceInputDigests(
 		if !requireCurrent {
 			continue
 		}
-		currentDigest, exists := cache[directory]
+		cacheKey := inputEnvironment.cacheKey(directory)
+		currentDigest, exists := cache[cacheKey]
 		if !exists {
 			command := exec.Command(
 				filepath.Join(root, "scripts", "gate-input-digest.sh"),
@@ -407,6 +427,7 @@ func validateAssuranceInputDigests(
 				directory,
 			)
 			command.Dir = root
+			command.Env = inputEnvironment.commandEnvironment(os.Environ())
 			output, commandErr := command.Output()
 			if commandErr != nil {
 				return fmt.Errorf("calculate input digest for %s: %w", directory, commandErr)
@@ -416,7 +437,7 @@ func validateAssuranceInputDigests(
 			if decodeErr != nil || len(decoded) != sha256.Size {
 				return fmt.Errorf("calculated input digest for %s is invalid", directory)
 			}
-			cache[directory] = currentDigest
+			cache[cacheKey] = currentDigest
 		}
 		if !inputDigestMatches(stored, currentDigest, directory, migrations) {
 			return fmt.Errorf("input digest mismatch for %s", directory)
@@ -428,6 +449,75 @@ func validateAssuranceInputDigests(
 		}
 	}
 	return nil
+}
+
+func validateAssuranceInputEnvironment(
+	environment operationalInputEnvironment,
+	required bool,
+) error {
+	values := []string{
+		environment.GoVersion,
+		environment.GOOS,
+		environment.GOARCH,
+		environment.CGOEnabled,
+		environment.Kernel,
+		environment.Node,
+	}
+	present := 0
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			present++
+		}
+		if strings.ContainsFunc(value, unicode.IsControl) {
+			return errors.New("evidence input environment contains control characters")
+		}
+	}
+	if present == 0 && !required {
+		return nil
+	}
+	if present != len(values) {
+		return errors.New("evidence input environment is incomplete")
+	}
+	if environment.CGOEnabled != "0" && environment.CGOEnabled != "1" {
+		return errors.New("evidence input environment has invalid cgo_enabled")
+	}
+	return nil
+}
+
+func (environment operationalInputEnvironment) cacheKey(module string) string {
+	return strings.Join([]string{
+		environment.GoVersion,
+		environment.GOOS,
+		environment.GOARCH,
+		environment.CGOEnabled,
+		environment.Kernel,
+		environment.Node,
+		module,
+	}, "\x00")
+}
+
+func (environment operationalInputEnvironment) commandEnvironment(base []string) []string {
+	values := []string{
+		"GOLIB_ASSURANCE_GO_VERSION=" + environment.GoVersion,
+		"GOLIB_ASSURANCE_GOOS=" + environment.GOOS,
+		"GOLIB_ASSURANCE_GOARCH=" + environment.GOARCH,
+		"GOLIB_ASSURANCE_CGO_ENABLED=" + environment.CGOEnabled,
+		"GOLIB_ASSURANCE_KERNEL=" + environment.Kernel,
+		"GOLIB_ASSURANCE_NODE=" + environment.Node,
+	}
+	prefixes := make([]string, 0, len(values))
+	for _, value := range values {
+		prefixes = append(prefixes, strings.SplitN(value, "=", 2)[0]+"=")
+	}
+	result := make([]string, 0, len(base)+len(values))
+	for _, variable := range base {
+		if !slices.ContainsFunc(prefixes, func(prefix string) bool {
+			return strings.HasPrefix(variable, prefix)
+		}) {
+			result = append(result, variable)
+		}
+	}
+	return append(result, values...)
 }
 
 func validateInputDigestMigrations(

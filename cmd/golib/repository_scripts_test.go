@@ -3083,6 +3083,63 @@ func TestGateInputDigestIgnoresVerificationOrchestrationImplementation(t *testin
 
 	baseline := digest("format-check")
 	assuranceBaseline := digest("operational-assurance")
+	runAssuranceDigestWithEnvironment := func(kernel, cgoEnabled string) ([]byte, error) {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			"operational-assurance",
+			"pkg/example",
+		)
+		command.Dir = repository
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+		for name, value := range map[string]string{
+			"GOLIB_ASSURANCE_GO_VERSION":  "go1.test",
+			"GOLIB_ASSURANCE_GOOS":        "testos",
+			"GOLIB_ASSURANCE_GOARCH":      "testarch",
+			"GOLIB_ASSURANCE_CGO_ENABLED": cgoEnabled,
+			"GOLIB_ASSURANCE_KERNEL":      kernel,
+			"GOLIB_ASSURANCE_NODE":        "missing",
+		} {
+			command.Env = environmentWithValues(command.Env, name, value)
+		}
+		return command.CombinedOutput()
+	}
+	assuranceDigestWithEnvironment := func(kernel string) string {
+		t.Helper()
+		output, err := runAssuranceDigestWithEnvironment(kernel, "0")
+		if err != nil {
+			t.Fatalf("digest gate inputs with captured environment: %v\n%s", err, output)
+		}
+		return strings.TrimSpace(string(output))
+	}
+	if first, second := assuranceDigestWithEnvironment("Kernel A"),
+		assuranceDigestWithEnvironment("Kernel B"); first == second {
+		t.Fatal("captured assurance environment did not alter aggregate inputs")
+	}
+	if output, err := runAssuranceDigestWithEnvironment("Kernel\nA", "0"); err == nil ||
+		!strings.Contains(string(output), "contains control characters") {
+		t.Fatalf("ambiguous assurance environment error = %v, output = %s", err, output)
+	}
+	if output, err := runAssuranceDigestWithEnvironment("Kernel A", "enabled"); err == nil ||
+		!strings.Contains(string(output), "cgo override must be 0 or 1") {
+		t.Fatalf("invalid assurance cgo error = %v, output = %s", err, output)
+	}
+	partial := exec.Command(
+		filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+		"operational-assurance",
+		"pkg/example",
+	)
+	partial.Dir = repository
+	partial.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+	partial.Env = environmentWithValues(
+		partial.Env,
+		"GOLIB_ASSURANCE_GO_VERSION",
+		"go1.test",
+	)
+	if output, err := partial.CombinedOutput(); err == nil ||
+		!strings.Contains(string(output), "environment override is incomplete") {
+		t.Fatalf("partial assurance environment error = %v, output = %s", err, output)
+	}
 	for _, script := range []string{
 		"create-verification-snapshot.sh",
 		"run-modules.sh",

@@ -276,6 +276,50 @@ append_environment() {
     append_value cgo-enabled "$(go env CGO_ENABLED)"
 }
 
+append_assurance_environment() {
+    if [[ -z "${GOLIB_ASSURANCE_GO_VERSION:-}" &&
+        -z "${GOLIB_ASSURANCE_GOOS:-}" &&
+        -z "${GOLIB_ASSURANCE_GOARCH:-}" &&
+        -z "${GOLIB_ASSURANCE_CGO_ENABLED:-}" &&
+        -z "${GOLIB_ASSURANCE_KERNEL:-}" &&
+        -z "${GOLIB_ASSURANCE_NODE:-}" ]]; then
+        return 1
+    fi
+    if [[ -z "${GOLIB_ASSURANCE_GO_VERSION:-}" ||
+        -z "${GOLIB_ASSURANCE_GOOS:-}" ||
+        -z "${GOLIB_ASSURANCE_GOARCH:-}" ||
+        -z "${GOLIB_ASSURANCE_CGO_ENABLED:-}" ||
+        -z "${GOLIB_ASSURANCE_KERNEL:-}" ||
+        -z "${GOLIB_ASSURANCE_NODE:-}" ]]; then
+        printf 'operational-assurance environment override is incomplete\n' >&2
+        exit 2
+    fi
+    local value
+    for value in \
+        "${GOLIB_ASSURANCE_GO_VERSION}" \
+        "${GOLIB_ASSURANCE_GOOS}" \
+        "${GOLIB_ASSURANCE_GOARCH}" \
+        "${GOLIB_ASSURANCE_CGO_ENABLED}" \
+        "${GOLIB_ASSURANCE_KERNEL}" \
+        "${GOLIB_ASSURANCE_NODE}"; do
+        if [[ "${value}" == *$'\n'* || "${value}" == *$'\r'* ]]; then
+            printf 'operational-assurance environment override contains control characters\n' >&2
+            exit 2
+        fi
+    done
+    if [[ "${GOLIB_ASSURANCE_CGO_ENABLED}" != "0" &&
+        "${GOLIB_ASSURANCE_CGO_ENABLED}" != "1" ]]; then
+        printf 'operational-assurance cgo override must be 0 or 1\n' >&2
+        exit 2
+    fi
+    append_value go-version "${GOLIB_ASSURANCE_GO_VERSION}"
+    append_value goos "${GOLIB_ASSURANCE_GOOS}"
+    append_value goarch "${GOLIB_ASSURANCE_GOARCH}"
+    append_value cgo-enabled "${GOLIB_ASSURANCE_CGO_ENABLED}"
+    append_value kernel "${GOLIB_ASSURANCE_KERNEL}"
+    append_value node "${GOLIB_ASSURANCE_NODE}"
+}
+
 bounded_command_output() {
     local timeout_seconds="$1"
     shift
@@ -333,6 +377,9 @@ append_legacy_docker_environment() {
 }
 
 append_verification_environment() {
+    if [[ "${gate}" == "operational-assurance" ]] && append_assurance_environment; then
+        return
+    fi
     append_environment
     append_value kernel "$(uname -srm)"
     # Pinned service images define the runtime contract. Live daemon

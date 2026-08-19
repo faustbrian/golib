@@ -225,6 +225,38 @@ func TestValidateOperationalAssurance(t *testing.T) {
 			wantSubstr: "input digest mismatch",
 		},
 		{
+			name: "passed evidence requires a reproducible input environment",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				delete(evidence[0], "input_environment")
+			},
+			wantSubstr: "input environment is incomplete",
+		},
+		{
+			name: "passed evidence rejects ambiguous input environment values",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				inputEnvironment := evidence[0]["input_environment"].(map[string]string)
+				inputEnvironment["kernel"] = "Test\nKernel"
+			},
+			wantSubstr: "input environment contains control characters",
+		},
+		{
+			name: "passed evidence rejects invalid cgo input environment",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				inputEnvironment := evidence[0]["input_environment"].(map[string]string)
+				inputEnvironment["cgo_enabled"] = "enabled"
+			},
+			wantSubstr: "input environment has invalid cgo_enabled",
+		},
+		{
 			name: "accepted-risk evidence input digest mismatch",
 			mutate: func(t *testing.T, root string, record map[string]any) {
 				markScenariosPassed(t, root, record)
@@ -483,6 +515,36 @@ func TestValidateOperationalAssurance(t *testing.T) {
 	}
 }
 
+func TestOperationalInputEnvironmentReplacesAmbientOverrides(t *testing.T) {
+	t.Parallel()
+
+	environment := operationalInputEnvironment{
+		GoVersion:  "go1.test",
+		GOOS:       "testos",
+		GOARCH:     "testarch",
+		CGOEnabled: "0",
+		Kernel:     "Test Kernel",
+		Node:       "missing",
+	}
+	actual := environment.commandEnvironment([]string{
+		"KEEP=value",
+		"GOLIB_ASSURANCE_GO_VERSION=ambient",
+		"GOLIB_ASSURANCE_KERNEL=ambient",
+	})
+	want := []string{
+		"KEEP=value",
+		"GOLIB_ASSURANCE_GO_VERSION=go1.test",
+		"GOLIB_ASSURANCE_GOOS=testos",
+		"GOLIB_ASSURANCE_GOARCH=testarch",
+		"GOLIB_ASSURANCE_CGO_ENABLED=0",
+		"GOLIB_ASSURANCE_KERNEL=Test Kernel",
+		"GOLIB_ASSURANCE_NODE=missing",
+	}
+	if strings.Join(actual, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("command environment = %v, want %v", actual, want)
+	}
+}
+
 func writeDigestMigrationEvidence(t *testing.T, root string) string {
 	t.Helper()
 	contents := []byte("reviewed digest migration\n")
@@ -540,6 +602,12 @@ func markScenariosPassed(t *testing.T, root string, record map[string]any) {
 	digestA := strings.Repeat("a", 64)
 	digestB := strings.Repeat("b", 64)
 	if err := os.WriteFile(digestScript, []byte(`#!/bin/sh
+[ "$GOLIB_ASSURANCE_GO_VERSION" = "go1.test" ] || exit 3
+[ "$GOLIB_ASSURANCE_GOOS" = "testos" ] || exit 3
+[ "$GOLIB_ASSURANCE_GOARCH" = "testarch" ] || exit 3
+[ "$GOLIB_ASSURANCE_CGO_ENABLED" = "0" ] || exit 3
+[ "$GOLIB_ASSURANCE_KERNEL" = "Test Kernel" ] || exit 3
+[ "$GOLIB_ASSURANCE_NODE" = "missing" ] || exit 3
 case "$2" in
   pkg/a) printf '%s\n' '`+digestA+`' ;;
   pkg/b) printf '%s\n' '`+digestB+`' ;;
@@ -559,6 +627,14 @@ esac
 		"sha256":       hex.EncodeToString(digest[:]),
 		"observed_utc": "2026-08-12T00:00:00Z",
 		"environment":  "test",
+		"input_environment": map[string]string{
+			"go_version":  "go1.test",
+			"goos":        "testos",
+			"goarch":      "testarch",
+			"cgo_enabled": "0",
+			"kernel":      "Test Kernel",
+			"node":        "missing",
+		},
 		"module_scope": []string{"*"},
 		"input_digests": map[string]string{
 			"pkg/a": digestA,

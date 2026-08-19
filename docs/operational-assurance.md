@@ -163,8 +163,12 @@ must pass the ready check before package gates or publication begin.
 A `passed` scenario requires at least one repository-relative regular evidence
 file, an exact SHA-256 digest, a UTC RFC 3339 observation time, an environment
 description, and coverage of every affected module. Each evidence item also
-records the canonical gate-input fingerprint for every scoped releasable
-module and releasable reverse dependant. Evidence produced by a non-releasable
+records the structured Go, operating-system, architecture, CGO, kernel, and
+Node input environment used to calculate the canonical gate-input fingerprint
+for every scoped releasable module and releasable reverse dependant. Validation
+replays that captured environment rather than substituting the validator host,
+so evidence remains portable without weakening environment-sensitive identity.
+Evidence produced by a non-releasable
 harness records that harness as an explicit input module, so harness changes
 also invalidate current proof. A current input change invalidates current
 evidence whose expanded scope contains that module; a Git-history-only change

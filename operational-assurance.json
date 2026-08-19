@@ -136,6 +136,14 @@
           "sha256": "a7135619a324dcf4cf606ef225a4b123e4e506a43e5eb6479722ab7d31caa508",
           "observed_utc": "2026-08-16T02:01:17Z",
           "environment": "darwin/arm64; Go 1.26.6; loopback listeners; in-memory audit and telemetry",
+          "input_environment": {
+            "go_version": "go1.26.6",
+            "goos": "darwin",
+            "goarch": "arm64",
+            "cgo_enabled": "1",
+            "kernel": "Darwin 27.0.0 arm64",
+            "node": "v25.5.0"
+          },
           "module_scope": [
             "pkg/audit",
             "pkg/authentication",
@@ -375,6 +383,14 @@
           "sha256": "7266bd8db33e77c93475b97195da74852e5f97de3a92a479985d550ce02d8fa6",
           "observed_utc": "2026-08-16T02:04:56Z",
           "environment": "darwin/arm64; Go 1.26.6; loopback HTTP and S3-compatible protocol fixtures; in-memory keyring and policy stores",
+          "input_environment": {
+            "go_version": "go1.26.6",
+            "goos": "darwin",
+            "goarch": "arm64",
+            "cgo_enabled": "1",
+            "kernel": "Darwin 27.0.0 arm64",
+            "node": "v25.5.0"
+          },
           "module_scope": [
             "pkg/adaptive-throttle",
             "pkg/bulkhead",

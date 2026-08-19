@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Replay each passed operational-assurance record's captured input environment
+  when validating its fingerprints, so Linux CI can verify evidence produced
+  on another platform without changing the evidence identity.
 - Prevent parallel release snapshots from expanding dependency closures a
   second time, so each selected module runs in exactly one isolated lane.
 - Normalize remaining non-specialist owned-module requirements to the local
