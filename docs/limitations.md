@@ -6,7 +6,7 @@ architecture. Package-specific limitations remain in package documentation.
 | Scope | Classification | Impact and response |
 | --- | --- | --- |
 | All modules | Unreleased | No public module versions exist yet. Use the workspace for development; wait for dependency-ordered `v1.0.0` releases before external adoption. |
-| Release readiness | Temporary limitation | Operational assurance is `not ready`; nine scenarios and six residual risks remain. Do not treat package gates as deployment approval. |
+| Release readiness | Temporary limitation | Operational assurance is `not ready`; nine scenarios and five residual risks remain. Do not treat package gates as deployment approval. |
 | Nil analysis | Intentional policy | NilAway is advisory because unresolved diagnostics can be false positives. Mandatory compile, test, race, lint, coverage, mutation, and security gates remain fail-closed. |
 | Service construction | Intentional boundary | There is no service container, controller injection, model binding, session, CSRF, view, or templating framework. Applications construct dependencies and transport mapping explicitly. |
 | Timeout and fallback | Intentional boundary | Caller deadlines use `context`; fallback is application policy. Golib does not provide generic wrappers that can misstate cancellation or business safety. |

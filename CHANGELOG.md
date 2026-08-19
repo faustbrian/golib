@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Reconcile completed Kafka and Verkle specialist evidence into the aggregate
+  inventory, close the resolved Kafka specification-governance risk, and keep
+  managed-MSK and Verkle security non-claims explicit.
 - Make Kafka service overlapping-member shutdown evidence tolerate only the
   documented transient observer-reentry fence without masking other failures.
 - Make HTTP admission verification distinguish immediate capacity from the

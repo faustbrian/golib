@@ -7,7 +7,7 @@ contract is [`.ai/GOAL_OPERATIONAL_ASSURANCE.md`](../.ai/GOAL_OPERATIONAL_ASSURA
 ## Current Verdict
 
 The current verdict is **not ready**. Two of the eleven required composition
-scenarios have final evidence, nine remain pending, and six named residual risks
+scenarios have final evidence, nine remain pending, and five named residual risks
 remain open. This is an honest release boundary, not a package-quality
 regression and not a reason to rerun content-identical package campaigns.
 

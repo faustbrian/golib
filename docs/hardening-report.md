@@ -92,12 +92,12 @@ complete input fingerprint.
 ## Package-level outcomes
 
 The final package-attributable result is represented by the module matrix and
-its uploaded evidence, not by a repository-wide average. This execution lane
-does not own Kafka or Verkle Tree: specialists are actively implementing and
-verifying those modules, so this lane does not inspect their work, alter their
-processes, or classify their intermediate results as failures or blockers.
-Repository-wide release approval will consume their independently produced
-evidence when their work reaches its final boundary.
+its uploaded evidence, not by a repository-wide average. The Kafka and Verkle
+Tree specialist campaigns have reached their current boundaries and their
+independently produced evidence is consumed here without restarting unaffected
+content-identical campaigns. Verkle Tree's separate cryptographic-security goal
+remains future work and therefore no security-audit, production-suitability,
+stable-v1, or Ethereum-compatibility claim is made for that module.
 
 Current local goal audits verify all 104 goal-bearing modules. The final owned
 module, `pkg/search/adapters/opensearch`, now has current input-bound evidence
@@ -109,9 +109,9 @@ report is not a substitute for the final package matrix.
 The current root catalog validates 138 module records, 693 package records,
 and cohesion policy for all 107 releasable modules. OpenSearch specification
 governance and its security, compatibility, recovery, and operations evidence
-are complete. Kafka and Verkle Tree remain specialist-owned execution scopes;
-their eventual evidence must be consumed at the aggregate boundary without
-discarding or restarting unaffected package checkpoints.
+are complete. All 104 goal-bearing modules now have current goal-traceability
+records; Kafka and Verkle Tree retain their documented bounded support and
+security non-claims.
 
 ## Specification and interoperability evidence
 
@@ -146,7 +146,7 @@ gate.
 ## Release readiness
 
 Release readiness is currently **not established**. Operational assurance is
-currently `not ready`: 2 of 11 scenarios pass and six residual risks remain
+currently `not ready`: 2 of 11 scenarios pass and five residual risks remain
 open. All 107 releasable modules now have current dependency-ordered `v1.0.0`
 dry-run and deterministic all-module clean-consumer proof. Release readiness
 still requires all root and package gates to pass from the final tree, a clean
