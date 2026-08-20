@@ -103925,14 +103925,14 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/xsd/resolve/file.go",
-          "line": 21,
+          "line": 20,
           "symbol": "Root",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/xsd/resolve/file.go",
-          "line": 22,
+          "line": 21,
           "symbol": "MaxBytes",
           "message": "exported declaration has no documentation comment"
         },

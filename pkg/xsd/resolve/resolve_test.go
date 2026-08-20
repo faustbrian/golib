@@ -63,6 +63,26 @@ func TestFileResolverSupportsEscapedFileNames(t *testing.T) {
 	}
 }
 
+func TestFileResolverAcceptsAResourceAtTheExactByteLimit(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "exact.xsd")
+	if err := os.WriteFile(path, []byte("four"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resolver, err := resolve.NewFile(resolve.FileOptions{Root: root, MaxBytes: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resolver.Close() })
+	identity := (&url.URL{Scheme: "file", Path: path}).String()
+	resource, err := resolver.Resolve(context.Background(), resolve.Request{URI: identity})
+	if err != nil || string(resource.Content) != "four" {
+		t.Fatalf("Resolve(exact limit) = %#v, %v", resource, err)
+	}
+}
+
 func TestFileResolverRejectsUnsafeAndOversizedResources(t *testing.T) {
 	t.Parallel()
 

@@ -35,6 +35,8 @@ at its first stable release.
 
 ### Fixed
 
+- Preserve root confinement for platform-native file URIs and accept resources
+  whose size exactly matches the configured byte limit.
 - Reject simple types without a restriction, list, or union during parsing
   instead of returning a document that deterministic serialization rejects.
 - Propagate resolver file-close failures without discarding read failures and

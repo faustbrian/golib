@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const defaultFileMaxBytes int64 = 16 << 20
@@ -75,16 +74,13 @@ func (r *File) Resolve(ctx context.Context, request Request) (Resource, error) {
 		parsed.Opaque != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return Resource{}, fmt.Errorf("%w: %s", ErrAccessDenied, request.URI)
 	}
-	requested := filepath.FromSlash(parsed.Path)
-	if len(requested) >= 3 &&
-		requested[0] == filepath.Separator && requested[2] == ':' {
-		requested = requested[1:]
-	}
+	requested := filePathFromURIPath(parsed.Path)
 	if !filepath.IsAbs(requested) {
 		return Resource{}, fmt.Errorf("%w: %s", ErrAccessDenied, request.URI)
 	}
 	relative, err := filepath.Rel(r.path, requested)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+	relative, ok := confinedRelative(relative, err)
+	if !ok {
 		return Resource{}, fmt.Errorf("%w: %s", ErrAccessDenied, request.URI)
 	}
 	file, err := r.root.Open(relative)
@@ -105,4 +101,30 @@ func (r *File) Resolve(ctx context.Context, request Request) (Resource, error) {
 		return Resource{}, err
 	}
 	return Resource{URI: request.URI, Content: content}, nil
+}
+
+func filePathFromURIPath(path string) string {
+	requested := filepath.FromSlash(path)
+	if len(requested) < 3 {
+		return requested
+	}
+	if requested[0] != filepath.Separator {
+		return requested
+	}
+	if requested[2] != ':' {
+		return requested
+	}
+
+	return requested[1:]
+}
+
+func confinedRelative(relative string, err error) (string, bool) {
+	if err != nil {
+		return "", false
+	}
+	if !filepath.IsLocal(relative) {
+		return "", false
+	}
+
+	return relative, true
 }
