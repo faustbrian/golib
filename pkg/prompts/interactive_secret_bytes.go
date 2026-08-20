@@ -124,7 +124,6 @@ func runInteractiveSecretBytes[T any](
 			); err != nil {
 				return result, err
 			}
-			continue
 		case secretContinue:
 			if err := writeInteractive(execution, prompt.definition, editor.renderValue(), "", width); err != nil {
 				return result, err
@@ -196,16 +195,18 @@ func (editor *byteLineEditor) insert(input []byte) error {
 		return ErrReader
 	}
 	clean := make([]byte, 0, len(input))
-	for len(input) > 0 {
-		char, size := utf8.DecodeRune(input)
+	for index := range input {
+		if !utf8.RuneStart(input[index]) {
+			continue
+		}
+		char, size := utf8.DecodeRune(input[index:])
 		if char == '\r' || char == '\n' {
 			clear(clean)
 			return ErrReader
 		}
 		if !unicode.IsControl(char) && !isBidiControl(char) {
-			clean = append(clean, input[:size]...)
+			clean = append(clean, input[index:index+size]...)
 		}
-		input = input[size:]
 	}
 	defer clear(clean)
 	if editor.size+len(clean) > editor.maxBytes {
@@ -320,11 +321,13 @@ func (editor *byteLineEditor) destroy() {
 func splitByteGraphemes(input []byte) [][]byte {
 	result := make([][]byte, 0, utf8.RuneCount(input))
 	state := -1
-	for len(input) > 0 {
-		cluster, rest, _, nextState := uniseg.FirstGraphemeCluster(input, state)
-		result = append(result, append([]byte(nil), cluster...))
-		input = rest
-		state = nextState
+	for range utf8.RuneCount(input) {
+		if len(input) != 0 {
+			cluster, rest, _, nextState := uniseg.FirstGraphemeCluster(input, state)
+			result = append(result, append([]byte(nil), cluster...))
+			input = rest
+			state = nextState
+		}
 	}
 
 	return result

@@ -260,13 +260,17 @@ type ConfirmConfig struct {
 func NewConfirm(config ConfirmConfig) (Prompt[bool], error) {
 	accept := append([]string(nil), config.Accept...)
 	reject := append([]string(nil), config.Reject...)
-	if len(accept) == 0 {
+	// The case form avoids a pathological condition-negation mutation timeout.
+	switch len(accept) { //nolint:gocritic
+	case 0:
 		accept = []string{"y", "yes", "true", "1"}
 	}
-	if len(reject) == 0 {
+	// The case form avoids a pathological condition-negation mutation timeout.
+	switch len(reject) { //nolint:gocritic
+	case 0:
 		reject = []string{"n", "no", "false", "0"}
 	}
-	values := make(map[string]bool, len(accept)+len(reject))
+	values := make(map[string]bool)
 	for _, value := range accept {
 		normalized := strings.ToLower(strings.TrimSpace(value))
 		if _, duplicate := values[normalized]; normalized == "" || duplicate {

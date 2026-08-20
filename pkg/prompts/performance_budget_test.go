@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"testing"
+	"time"
 
 	prompts "github.com/faustbrian/golib/pkg/prompts"
 )
@@ -32,6 +33,8 @@ func TestAllocationBudgets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+		defer cancel()
 		assertAllocationBudget(t, 150, func() {
 			terminal := prompts.NewVirtualTerminal(80, 24)
 			terminal.Push(
@@ -39,9 +42,9 @@ func TestAllocationBudgets(t *testing.T) {
 				prompts.KeyEvent(prompts.KeyWordLeft), prompts.RuneEvent('X'),
 				prompts.KeyEvent(prompts.KeyEnter),
 			)
-			execution := interactiveExecution(terminal)
+			execution := unboundedInteractiveExecution(terminal)
 			execution.Output = io.Discard
-			if _, err := prompts.Run(context.Background(), prompt, execution); err != nil {
+			if _, err := prompts.Run(ctx, prompt, execution); err != nil {
 				panic(err)
 			}
 		})
@@ -102,15 +105,17 @@ func TestAllocationBudgets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+		defer cancel()
 		assertAllocationBudget(t, 10_500, func() {
 			terminal := prompts.NewVirtualTerminal(40, 6)
 			terminal.Push(
 				prompts.PasteEvent("option 09"), prompts.KeyEvent(prompts.KeyPageDown),
 				prompts.ResizeEvent(32, 5), prompts.KeyEvent(prompts.KeyEnter),
 			)
-			execution := interactiveExecution(terminal)
+			execution := unboundedInteractiveExecution(terminal)
 			execution.Output = io.Discard
-			if _, err := prompts.Run(context.Background(), prompt, execution); err != nil {
+			if _, err := prompts.Run(ctx, prompt, execution); err != nil {
 				panic(err)
 			}
 		})
@@ -131,15 +136,17 @@ func TestAllocationBudgets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+		defer cancel()
 		assertAllocationBudget(t, 150, func() {
 			terminal := prompts.NewVirtualTerminal(80, 24)
 			terminal.Push(
 				prompts.PasteEvent("Ada"), prompts.KeyEvent(prompts.KeyTab),
 				prompts.PasteEvent("42"), prompts.KeyEvent(prompts.KeyEnter),
 			)
-			execution := interactiveExecution(terminal)
+			execution := unboundedInteractiveExecution(terminal)
 			execution.Output = io.Discard
-			if _, err := prompts.RunForm(context.Background(), form, execution); err != nil {
+			if _, err := prompts.RunForm(ctx, form, execution); err != nil {
 				panic(err)
 			}
 		})

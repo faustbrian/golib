@@ -67,9 +67,22 @@ func TestProgressRejectsRegressionOverflowAndTerminalMutation(t *testing.T) {
 	if err := bounded.Increment(6, "too far"); !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("bounded increment error = %v", err)
 	}
+	exact, err := prompts.NewProgress(prompts.ProgressConfig{ID: "exact", Label: "Exact", Total: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := exact.Update(5, "half"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exact.Increment(5, "done"); err != nil || exact.Snapshot().Current != 10 {
+		t.Fatalf("exact total increment = %#v, %v", exact.Snapshot(), err)
+	}
 	progress.Fail("failed")
-	if err := progress.Increment(1, "late"); !errors.Is(err, prompts.ErrInvalidDefinition) {
+	if err := progress.Update(5, "late"); !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("terminal update error = %v", err)
+	}
+	if err := progress.Increment(1, "late"); !errors.Is(err, prompts.ErrInvalidDefinition) {
+		t.Fatalf("terminal increment error = %v", err)
 	}
 	progress.Complete("ignored")
 	if snapshot := progress.Snapshot(); snapshot.State != prompts.ProgressFailed || snapshot.Message != "failed" {
@@ -82,6 +95,9 @@ func TestProgressRejectsRegressionOverflowAndTerminalMutation(t *testing.T) {
 	}
 	if err := indeterminate.Increment(math.MaxInt64, "max"); err != nil {
 		t.Fatalf("Increment() error = %v", err)
+	}
+	if err := indeterminate.Increment(0, "still max"); err != nil {
+		t.Fatalf("zero Increment() error = %v", err)
 	}
 	if err := indeterminate.Increment(1, "overflow"); !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("increment overflow error = %v", err)
@@ -223,8 +239,45 @@ func TestProgressCalculatesExplicitClockRateAndETA(t *testing.T) {
 	if err := progress.Render(context.Background(), prompts.Execution{Output: terminal}); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	if output := terminal.Output(); !strings.Contains(output, "2.00/s") || !strings.Contains(output, "eta 3s") {
+	if output := terminal.Output(); !strings.Contains(output, "Download: 4/10 (40%) @ 2.00/s (eta 3s)") {
 		t.Fatalf("rate output = %q", output)
+	}
+}
+
+func TestProgressTimingUsesNonzeroBaselineAndExactCompletion(t *testing.T) {
+	t.Parallel()
+
+	clock := prompts.NewVirtualClock(time.Time{})
+	progress, err := prompts.NewProgress(prompts.ProgressConfig{
+		ID: "copy", Label: "Copy", Total: 4, Clock: clock,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := progress.Update(2, "start"); err != nil {
+		t.Fatal(err)
+	}
+	if err := clock.Advance(time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err := progress.Update(2, "unchanged"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := progress.Snapshot().RatePerSecond.Get(); ok {
+		t.Fatal("unchanged progress produced a rate")
+	}
+	if err := clock.Advance(time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err := progress.Update(4, "done"); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := progress.Snapshot()
+	rate, rateOK := snapshot.RatePerSecond.Get()
+	estimate, estimateOK := snapshot.EstimatedRemaining.Get()
+	if !rateOK || rate != 1 || snapshot.Elapsed != 2*time.Second ||
+		!estimateOK || estimate != 0 {
+		t.Fatalf("exact completion snapshot = %#v", snapshot)
 	}
 }
 
@@ -360,8 +413,12 @@ func TestSpinnerIsCallerDrivenAndReducedMotionSafe(t *testing.T) {
 		t.Fatalf("Snapshot() = %#v", snapshot)
 	}
 	spinner.Advance("ignored")
-	if _, err := prompts.NewSpinner(prompts.SpinnerConfig{}); !errors.Is(err, prompts.ErrInvalidDefinition) {
-		t.Fatalf("invalid spinner error = %v", err)
+	for _, config := range []prompts.SpinnerConfig{
+		{}, {ID: "spinner"}, {Label: "Spinner"},
+	} {
+		if _, err := prompts.NewSpinner(config); !errors.Is(err, prompts.ErrInvalidDefinition) {
+			t.Fatalf("invalid spinner error = %v", err)
+		}
 	}
 	defaultSpinner, err := prompts.NewSpinner(prompts.SpinnerConfig{ID: "wait", Label: "Wait"})
 	if err != nil || defaultSpinner.Snapshot().Frame != "-" {
@@ -438,5 +495,8 @@ func TestStatusStreamIsBoundedAndDeclarationOrdered(t *testing.T) {
 	terminal = prompts.NewVirtualTerminal(40, 8)
 	if err := infoOnly.Render(context.Background(), prompts.Execution{Output: terminal}); err != nil || !strings.Contains(terminal.Output(), "informational") {
 		t.Fatalf("info status Render() = %v, output %q", err, terminal.Output())
+	}
+	if strings.Contains(terminal.Output(), "earlier status update omitted") {
+		t.Fatalf("zero-drop status output = %q", terminal.Output())
 	}
 }

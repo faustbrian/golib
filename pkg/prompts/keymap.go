@@ -3,6 +3,13 @@ package prompts
 // keyCount is the number of declared Key values, including KeyRune.
 const keyCount = 21
 
+var configurableKeys = [...]Key{
+	KeyEnter, KeyEscape, KeyCtrlC, KeyCtrlD, KeyTab, KeyShiftTab,
+	KeyBackspace, KeyDelete, KeyLeft, KeyRight, KeyUp, KeyDown,
+	KeyHome, KeyEnd, KeyWordLeft, KeyWordRight, KeyPageUp, KeyPageDown,
+	KeyNewline,
+}
+
 // KeyBinding assigns one physical semantic key to an existing prompt meaning.
 // KeyRune is not configurable because text runes carry their own value.
 type KeyBinding struct {
@@ -36,10 +43,7 @@ func NewKeyMap(bindings ...KeyBinding) (KeyMap, error) {
 			}
 		}
 		seen[binding.Input] = true
-		for input := KeyEnter; input < Key(keyCount); input++ {
-			if input == KeyIgnored {
-				continue
-			}
+		for _, input := range configurableKeys {
 			if keyMap.bound[input] && keyMap.mappings[input] == binding.Meaning {
 				keyMap.bound[input] = false
 			}
@@ -53,10 +57,7 @@ func NewKeyMap(bindings ...KeyBinding) (KeyMap, error) {
 
 func defaultKeyMap() KeyMap {
 	keyMap := KeyMap{configured: true}
-	for key := KeyEnter; key < Key(keyCount); key++ {
-		if key == KeyIgnored {
-			continue
-		}
+	for _, key := range configurableKeys {
 		keyMap.mappings[key] = key
 		keyMap.bound[key] = true
 	}

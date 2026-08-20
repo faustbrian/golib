@@ -373,6 +373,8 @@
     {"module":"pkg/postgres","package":".","execution_revision":"c09c5268b1facb88317f933913b2e7cf4377948b","gate_input_digest":"c16d99d7a0f0e44d83f7cec7e7e01a687709f4307195201ac50083d3a4c4eeb4","gremlins_version":"v0.6.0","gremlins_verifier_sha256":"9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108","report_sha256":"2aee5ebe71c11f8bc6ab4bd32be8fd528e3515e0b7ae47cc0278152daeb30103"},
     {"module":"pkg/postgres","package":"otelpostgres","execution_revision":"c09c5268b1facb88317f933913b2e7cf4377948b","gate_input_digest":"c1cf77e792118d6ab93a77c7d7476c42798af890c6efa40a1e21e56feb1f10ce","gremlins_version":"v0.6.0","gremlins_verifier_sha256":"9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108","report_sha256":"24373a1db4fbca60f6566ea1dbbe13f8aaeaf8856bb20a697cc5fd8ac92872c1"},
     {"module":"pkg/postgres","package":"postgresservice","execution_revision":"c09c5268b1facb88317f933913b2e7cf4377948b","gate_input_digest":"b212cae1501b9425d97dacc9b8b1237de63d9de5f6455384004b8ca15cae4a51","gremlins_version":"v0.6.0","gremlins_verifier_sha256":"9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108","report_sha256":"b98c5750eaa45a9a728fa17189ba7cac8166d0da32b97e67cd2df0cb997b3b88"},
+    {"module":"pkg/prompts","package":".","execution_revision":"bd98f1aba21ca7a27be8ed61a3e42d901018d09e","gate_input_digest":"52285d8cc7bda3d48efe2a1ce8eefba87dc1f68cd3d35383001e9d7ef81eeca6","gremlins_version":"v0.6.0","gremlins_verifier_sha256":"9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108","report_sha256":"f0590d47bac167c682b573f7d5904f42fa1c1654b6595cf179e5b2edf1a1fb2e"},
+    {"module":"pkg/prompts","package":"terminal","execution_revision":"bd98f1aba21ca7a27be8ed61a3e42d901018d09e","gate_input_digest":"fc6d1c2f166615e0bc675c3c1f97decf3b25f462dd6e03ef3d9b82e317cdb696","gremlins_version":"v0.6.0","gremlins_verifier_sha256":"9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108","report_sha256":"36417d355a5821a58726a6f9c3e90c6615bfa6e751ee26736ca2e0eadbc23585"},
     {"module":"pkg/prompts","package":"terminal","execution_revision":"3877ecf70da4c756f83416d44b10cad936d84920","gate_input_digest":"0bf2138746a3365021474e4495fb6e10e8808fc6ebb93f78c9317a4df62ca5d5","gremlins_version":"v0.6.0","gremlins_verifier_sha256":"9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108","report_sha256":"95275ca82f796e0558a27589a104785581008803fe0da607be4a4fc2229965c0"},
     {"module":"pkg/queue","package":".","execution_revision":"c09c5268b1facb88317f933913b2e7cf4377948b","gate_input_digest":"4f9829a91d89e0f5b3eeb1f654dad3a35cefccdb8bf1ab0806fb5f1df7f3f3e4","gremlins_version":"v0.6.0","gremlins_verifier_sha256":"9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108","report_sha256":"8b581cb360bf077a1750677f5710b17edcbd4e20ee7e7af40956a0a14ee77615"},
     {"module":"pkg/queue","package":"internal/safeerr","execution_revision":"c09c5268b1facb88317f933913b2e7cf4377948b","gate_input_digest":"0ce287db5adfe7153f528f6590eddfbee915e41c4f65ca77201f268c46c3bf93","gremlins_version":"v0.6.0","gremlins_verifier_sha256":"9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108","report_sha256":"af2369180e426e325888578a41ec459e84c41669f4b1f8fdd9cb8d9fd7af0904"},
@@ -3833,6 +3835,39 @@
       "gremlins_version": "v0.6.0",
       "report_sha256": "b98c5750eaa45a9a728fa17189ba7cac8166d0da32b97e67cd2df0cb997b3b88",
       "migration_reason": "owned-module-version-locator-canonicalization"
+    },
+    {
+      "module": "pkg/prompts",
+      "package": ".",
+      "execution_revision": "bd98f1aba21ca7a27be8ed61a3e42d901018d09e",
+      "gate_input_digest": "c6d8fee9519bc726539563ab177f8bebc63bf9cf14fc967783d8f7aae8d3715d",
+      "replacement_gate_input_digest": "3dab7627b8f2431a6e58ec72207df74b1aee34cac84edd6314d35b2f0ec047ab",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "f0590d47bac167c682b573f7d5904f42fa1c1654b6595cf179e5b2edf1a1fb2e",
+      "migration_reason": "non-executable-lint-comments-and-test-lint-corrections"
+    },
+    {
+      "module": "pkg/prompts",
+      "package": "terminal",
+      "execution_revision": "bd98f1aba21ca7a27be8ed61a3e42d901018d09e",
+      "gate_input_digest": "fc6d1c2f166615e0bc675c3c1f97decf3b25f462dd6e03ef3d9b82e317cdb696",
+      "replacement_gate_input_digest": "719933a83c783982912411f511c22ac873efb1b0ef752e0c3f4d4569b682f95f",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "36417d355a5821a58726a6f9c3e90c6615bfa6e751ee26736ca2e0eadbc23585",
+      "migration_reason": "test-only-lint-corrections"
+    },
+    {
+      "module": "pkg/prompts",
+      "package": ".",
+      "execution_revision": "bd98f1aba21ca7a27be8ed61a3e42d901018d09e",
+      "gate_input_digest": "52285d8cc7bda3d48efe2a1ce8eefba87dc1f68cd3d35383001e9d7ef81eeca6",
+      "replacement_gate_input_digest": "c6d8fee9519bc726539563ab177f8bebc63bf9cf14fc967783d8f7aae8d3715d",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "f0590d47bac167c682b573f7d5904f42fa1c1654b6595cf179e5b2edf1a1fb2e",
+      "migration_reason": "additive-hostile-state-test"
     },
     {
       "module": "pkg/prompts",

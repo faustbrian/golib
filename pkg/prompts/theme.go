@@ -147,7 +147,7 @@ func ansiColor(color Color, profile ColorProfile) string {
 	if color.kind == colorANSI {
 		index := color.index
 		if profile == ColorANSI16 {
-			index %= 16
+			index = color.index & 15
 			if index < 8 {
 				return strconv.FormatUint(uint64(30+index), 10)
 			}
@@ -176,7 +176,7 @@ func rgbToANSI256(red, green, blue uint8) uint8 {
 func rgbToANSI16(red, green, blue uint8) uint8 {
 	var index uint8
 	if red >= 128 {
-		index |= 1
+		index = 1
 	}
 	if green >= 128 {
 		index |= 2

@@ -133,15 +133,11 @@ func FuzzSelectionFilterAndStateMatchesReferenceModel(fuzz *testing.F) {
 				focus = (focus + direction + len(visible)) % len(visible)
 			}
 		}
-		move := func(distance int) {
+		move := func(direction, steps int) {
 			if len(visible) == 0 {
 				return
 			}
-			direction := 1
-			if distance < 0 {
-				direction = -1
-			}
-			for range max(1, abs(distance)) {
+			for range steps {
 				focus = (focus + direction + len(visible)) % len(visible)
 				ensureEnabled(direction)
 			}
@@ -164,17 +160,17 @@ func FuzzSelectionFilterAndStateMatchesReferenceModel(fuzz *testing.F) {
 		for index, value := range raw {
 			switch value % 10 {
 			case 0:
-				state.move(1)
-				move(1)
+				state.move(1, 1)
+				move(1, 1)
 			case 1:
-				state.move(-1)
-				move(-1)
+				state.move(-1, 1)
+				move(-1, 1)
 			case 2:
-				state.move(state.pageSize())
-				move(max(1, height-2))
+				state.move(1, state.pageSize())
+				move(1, max(1, height-2))
 			case 3:
-				state.move(-state.pageSize())
-				move(-max(1, height-2))
+				state.move(-1, state.pageSize())
+				move(-1, max(1, height-2))
 			case 4:
 				state.focusFirst()
 				focus = 0

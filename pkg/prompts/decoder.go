@@ -12,6 +12,14 @@ const (
 	bracketedPasteEnd   = "\x1b[201~"
 )
 
+type escapeStatus uint8
+
+const (
+	escapeInvalid escapeStatus = iota
+	escapeIncomplete
+	escapeComplete
+)
+
 // DecoderConfig bounds undecoded terminal bytes and bracketed paste content.
 type DecoderConfig struct {
 	MaxPasteBytes  int
@@ -110,19 +118,20 @@ func (decoder *Decoder) decode() ([]InputEvent, error) {
 		first := decoder.buffer[0]
 		switch first {
 		case 0x1b:
-			event, consumed, incomplete, err := decodeEscape(decoder.buffer)
-			if err != nil {
+			event, consumed, status := decodeEscape(decoder.buffer)
+			switch status {
+			case escapeInvalid:
 				return nil, decoder.fail()
-			}
-			if incomplete {
+			case escapeIncomplete:
 				return events, nil
+			case escapeComplete:
 			}
 			decoder.consume(consumed)
 			if consumed == len(bracketedPasteStart) && event == (InputEvent{}) {
 				decoder.inPaste = true
-				continue
+			} else {
+				events = append(events, event)
 			}
-			events = append(events, event)
 		case '\r':
 			events = append(events, KeyEvent(KeyEnter))
 			decoder.consume(1)
@@ -193,7 +202,7 @@ func (decoder *Decoder) decodePaste() (bool, InputEvent, error) {
 	return false, InputEvent{}, nil
 }
 
-func decodeEscape(input []byte) (InputEvent, int, bool, error) {
+func decodeEscape(input []byte) (InputEvent, int, escapeStatus) {
 	sequences := []struct {
 		value string
 		key   Key
@@ -205,28 +214,29 @@ func decodeEscape(input []byte) (InputEvent, int, bool, error) {
 		{"\x1b[1;5D", KeyWordLeft}, {"\x1b[1;5C", KeyWordRight},
 	}
 	if bytes.HasPrefix(input, []byte(bracketedPasteStart)) {
-		return InputEvent{}, len(bracketedPasteStart), false, nil
+		return InputEvent{}, len(bracketedPasteStart), escapeComplete
 	}
 	for _, sequence := range sequences {
 		if bytes.HasPrefix(input, []byte(sequence.value)) {
-			return KeyEvent(sequence.key), len(sequence.value), false, nil
+			return KeyEvent(sequence.key), len(sequence.value), escapeComplete
 		}
 	}
 	if bytes.HasPrefix([]byte(bracketedPasteStart), input) {
-		return InputEvent{}, 0, true, nil
+		return InputEvent{}, 0, escapeIncomplete
 	}
 	for _, sequence := range sequences {
 		if bytes.HasPrefix([]byte(sequence.value), input) {
-			return InputEvent{}, 0, true, nil
+			return InputEvent{}, 0, escapeIncomplete
 		}
 	}
 
-	return InputEvent{}, 0, false, ErrReader
+	return InputEvent{}, 0, escapeInvalid
 }
 
 func terminalPrefixSuffix(content, marker []byte) int {
 	maximum := min(len(content), len(marker)-1)
-	for size := maximum; size > 0; size-- {
+	for offset := range maximum {
+		size := maximum - offset
 		if bytes.Equal(content[len(content)-size:], marker[:size]) {
 			return size
 		}

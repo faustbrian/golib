@@ -95,13 +95,13 @@ func runInteractiveSelection[T any](ctx context.Context, prompt Prompt[T], execu
 			case KeyEnter:
 				submit = true
 			case KeyUp:
-				state.move(-1)
+				state.move(-1, 1)
 			case KeyDown:
-				state.move(1)
+				state.move(1, 1)
 			case KeyPageUp:
-				state.move(-state.pageSize())
+				state.move(-1, state.pageSize())
 			case KeyPageDown:
-				state.move(state.pageSize())
+				state.move(1, state.pageSize())
 			case KeyHome:
 				state.focusFirst()
 			case KeyEnd:
@@ -129,10 +129,10 @@ func runInteractiveSelection[T any](ctx context.Context, prompt Prompt[T], execu
 				if navigation != nil {
 					submit = true
 				} else {
-					state.move(1)
+					state.move(1, 1)
 				}
 			case KeyShiftTab:
-				state.move(-1)
+				state.move(-1, 1)
 			case KeyNewline:
 				// Newlines have no selection meaning unless rebound by the caller.
 			case KeyIgnored:
@@ -186,11 +186,8 @@ func newSelectionState(details selectionDetails, width, height int) selectionSta
 	}
 	state.filter()
 	if !details.multiple && len(details.initialIDs) > 0 {
-		for position, index := range state.visible {
-			if details.options[index].id == details.initialIDs[0] {
-				state.focus = position
-				break
-			}
+		if position, ok := state.visiblePosition(details.initialIDs[0]); ok {
+			state.focus = position
 		}
 	}
 	state.ensureEnabled(1)
@@ -210,8 +207,8 @@ func (state *selectionState) filter() {
 	}
 	sort.SliceStable(matches, func(left, right int) bool { return matches[left].rank < matches[right].rank })
 	limit := len(matches)
-	if policy := state.details.searchPolicy; policy != (SearchPolicy{}) && limit > policy.MaxResults {
-		limit = policy.MaxResults
+	if policy := state.details.searchPolicy; policy != (SearchPolicy{}) {
+		limit = min(limit, policy.MaxResults)
 	}
 	state.visible = make([]int, limit)
 	for index := range limit {
@@ -238,23 +235,37 @@ func (state *selectionState) replay() selectionReplay {
 func (state *selectionState) applyReplay(replay selectionReplay) {
 	state.selected = make(map[string]bool, len(replay.selected))
 	for _, identity := range replay.selected {
-		for _, option := range state.details.options {
-			if option.id == identity && !option.disabled {
-				state.selected[identity] = true
-				break
-			}
+		if state.enabledOption(identity) {
+			state.selected[identity] = true
 		}
 	}
 	state.query = lineEditor{maxBytes: max(1, state.details.searchPolicy.MaxQueryRunes*4)}
 	_ = state.query.insert(replay.query, false)
 	state.filter()
-	for position, index := range state.visible {
-		if state.details.options[index].id == replay.focusID {
-			state.focus = position
-			break
-		}
+	if position, ok := state.visiblePosition(replay.focusID); ok {
+		state.focus = position
 	}
 	state.ensureEnabled(1)
+}
+
+func (state *selectionState) enabledOption(identity string) bool {
+	for _, option := range state.details.options {
+		if option.id == identity {
+			return !option.disabled
+		}
+	}
+
+	return false
+}
+
+func (state *selectionState) visiblePosition(identity string) (int, bool) {
+	for position, index := range state.visible {
+		if state.details.options[index].id == identity {
+			return position, true
+		}
+	}
+
+	return 0, false
 }
 
 func selectionRank(option selectionOption, query string, tokens []string) (int, bool) {
@@ -291,15 +302,11 @@ func (state *selectionState) ensureEnabled(direction int) {
 	}
 }
 
-func (state *selectionState) move(distance int) {
+func (state *selectionState) move(direction, steps int) {
 	if len(state.visible) == 0 {
 		return
 	}
-	direction := 1
-	if distance < 0 {
-		direction = -1
-	}
-	for range max(1, abs(distance)) {
+	for range steps {
 		state.focus = (state.focus + direction + len(state.visible)) % len(state.visible)
 		state.ensureEnabled(direction)
 	}
@@ -424,11 +431,4 @@ func writeSelection[T any](execution Execution, definition definition[T], state 
 		return streamFailure(definition.id, ErrorWriter, "write selection", err)
 	}
 	return nil
-}
-
-func abs(value int) int {
-	if value < 0 {
-		return -value
-	}
-	return value
 }

@@ -3,16 +3,16 @@
 This report maps the mandatory hardening evidence to reproducible source,
 test, and command evidence. It records automated guarantees separately from
 manual or remote release evidence. Unless stated otherwise, the automated
-evidence was refreshed on 2026-07-22 with Go 1.26.5 on macOS 27.0 arm64.
+evidence was refreshed on 2026-08-20 with Go 1.26.6 on macOS arm64.
 
 ## Release status
 
 | Evidence | Status | Reproduction |
 | --- | --- | --- |
-| Meaningful production statement coverage | Passed locally | `GOWORK=off make coverage`; every production function and total report 100.0% |
+| Meaningful production statement coverage | Passed locally | `GOWORK=off make coverage`; `prompts` covers 2,152/2,152 statements and `terminal` covers 169/169 statements |
 | Formatting, vet, tests, docs, race, static and security checks | Passed locally | `GOWORK=off make check` |
 | Retained fuzz and reference-model budgets | Passed locally | `GOWORK=off make fuzz`; budgets are in `specification/fuzz-budgets.tsv` |
-| Mutation campaign | Passed locally | `GOWORK=off make mutation`; details are in `docs/mutation.md` |
+| Mutation campaign | Passed locally | `GOWORK=off make mutation`; 1,131/1,131 viable mutants were killed with no timeouts or unclassified outcomes |
 | Benchmarks and isolated comparisons | Passed locally | `GOWORK=off make benchmark comparison-benchmark comparison-binaries` |
 | Clean-clone release gate | Passed locally | `GOWORK=off make release-check` in a separate clone |
 | Remote CI for the release commit | Pending | Requires the release commit to be pushed and all protected workflows to pass |

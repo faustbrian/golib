@@ -14,6 +14,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   prompt restoration is portable across Linux and BSD terminal semantics.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   instead of maintaining package-local thresholds and exclusions.
+- Keep task nesting traversal proportional to actual ancestry while retaining
+  a deterministic bound for corrupted parent graphs.
 
 ### Added
 
@@ -125,6 +127,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Fixed
 
+- Reject estimated progress durations at the integer-conversion overflow
+  boundary instead of retaining a wrapped negative duration.
+- Make terminal decoding, byte-secret editing, selection navigation, Unicode
+  sanitization, search ranking, and exact-limit behavior distinguishable under
+  the repository's complete mutation operator set.
 - Raw-mode public prompts now keep kernel echo disabled while input is owned by
   the semantic renderer, preventing carriage returns from appearing as `^M`
   and avoiding duplicate terminal-managed input.
