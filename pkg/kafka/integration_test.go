@@ -29,15 +29,47 @@ const integrationKafkaImage = "confluentinc/confluent-local:7.5.0@" +
 
 const integrationKafkaVersion = "7.5.0-ccs"
 
-var integrationBrokerSlots = make(chan struct{}, integrationBrokerConcurrency)
+type brokerIntegrationGate struct {
+	isolation sync.RWMutex
+	slots     chan struct{}
+}
+
+func newBrokerIntegrationGate(concurrency int) *brokerIntegrationGate {
+	return &brokerIntegrationGate{slots: make(chan struct{}, concurrency)}
+}
+
+func (gate *brokerIntegrationGate) acquireShared() func() {
+	gate.isolation.RLock()
+	gate.slots <- struct{}{}
+
+	return func() {
+		<-gate.slots
+		gate.isolation.RUnlock()
+	}
+}
+
+func (gate *brokerIntegrationGate) acquireExclusive() func() {
+	gate.isolation.Lock()
+	gate.slots <- struct{}{}
+
+	return func() {
+		<-gate.slots
+		gate.isolation.Unlock()
+	}
+}
+
+var integrationBrokerGate = newBrokerIntegrationGate(integrationBrokerConcurrency)
 
 func runKafkaBrokerIntegration(t *testing.T) {
 	t.Helper()
 	t.Parallel()
-	integrationBrokerSlots <- struct{}{}
-	t.Cleanup(func() {
-		<-integrationBrokerSlots
-	})
+	t.Cleanup(integrationBrokerGate.acquireShared())
+}
+
+func runHostAccessKafkaBrokerIntegration(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	t.Cleanup(integrationBrokerGate.acquireExclusive())
 }
 
 func TestIntegrationKafkaRuntimeVersionValidation(t *testing.T) {

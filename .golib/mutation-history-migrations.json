@@ -3840,6 +3840,17 @@
       "migration_reason": "owned-module-version-locator-canonicalization"
     },
     {
+      "module": "pkg/kafka",
+      "package": ".",
+      "execution_revision": "61805082782695a3197ac1218ffeafb85cf570f5",
+      "gate_input_digest": "87f186074b6ef26e4bde1d6656226ab6ae46b1b687cbd922385b67e64c788c26",
+      "replacement_gate_input_digest": "ca6bc4a1dda27216d560c020504342e594a07d019c51addb094db1ec9090adf3",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "d789f034e6fe5ccd505c5d1a17c4c37611b1b26b4154255eee3e8cf9559c0581",
+      "migration_reason": "interoperability-only-broker-fixture-isolation"
+    },
+    {
       "module": "pkg/prompts",
       "package": ".",
       "execution_revision": "bd98f1aba21ca7a27be8ed61a3e42d901018d09e",

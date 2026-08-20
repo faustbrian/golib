@@ -186,6 +186,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- isolate host-access OAuth fixtures from dynamically published broker ports so
+  parallel interoperability runs cannot route Kafka traffic into a host HTTP
+  listener that reused the same numeric port
 - align the event-sourcing compatibility contract with the target-oriented
   queue and outbox adapter names so Kafka reverse-dependency clean-consumer
   release checks resolve the committed modules
