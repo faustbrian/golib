@@ -422,6 +422,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TENANCY-HEADER-FILTER.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TENANCY-UNRELATED-HEADER.md",
             "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
             "docs/assurance/evidence/OA-MIGRATIONS-POSTGRES-RECOVERY.md",

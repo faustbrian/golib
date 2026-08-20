@@ -11,6 +11,8 @@ versioning once released.
 
 ### Changed
 
+- Prove that HTTP tenant extraction ignores unrelated headers even when their
+  values resemble valid tenant identifiers.
 - Emit provider-safe `tn2_` lowercase hexadecimal namespaces. Existing `tn1_`
   keys require the documented bounded dual-read and backfill migration.
 - Reject system and unscoped values at first-party integration namespace

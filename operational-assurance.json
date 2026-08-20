@@ -3398,6 +3398,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-FILESYSTEM-FAULT-PROXY.md",
       "evidence_sha256": "c240e5c57b6e32cab744f680b4c9de1aa58424787bf8100af1e97fd4681b78ad",
       "rationale": "The filesystem fault proxy now applies latency after source data arrives and FTP validation tests assert exact errors; the retained external reference scenario imports neither affected package."
+    },
+    {
+      "module": "pkg/tenancy",
+      "from_sha256": "1cfef5d97283443123bcfc34656d61100b1c1625150171edf998ec2adf929f92",
+      "to_sha256": "178aecce19f50fba4dda270fb6a2fa89c632c679694c3b3610985b2dccc5221e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TENANCY-HEADER-FILTER.md",
+      "evidence_sha256": "b7c5e5450d8e0b320e651dec115452e53e8ce9e4b55948a45c1efa2f734dc5dd",
+      "rationale": "The HTTP test suite now proves that unrelated headers cannot influence tenant extraction and kills the remaining loop-control mutant; production behavior and the retained HTTP reference scenario are unchanged."
     }
   ]
 }
