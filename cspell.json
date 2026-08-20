@@ -41,6 +41,7 @@
     "fieldsets",
     "FIPS",
     "Flysystem",
+    "fstest",
     "geomean",
     "geospatial",
     "gokafka",
