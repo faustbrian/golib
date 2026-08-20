@@ -10,6 +10,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Accept repeated owned hyperlink wrappers in the hostile-input fuzz oracle so
+  valid multiline links do not fail verification.
 - Give each allocation-budget iteration its own bounded context so race
   instrumentation cannot expire later iterations while hangs remain bounded.
 - Keep the PTY controller open through terminal-state verification so secret
