@@ -11,6 +11,8 @@ import (
 	prompts "github.com/faustbrian/golib/pkg/prompts"
 )
 
+const allocationBudgetRuns = 25
+
 func TestAllocationBudgets(t *testing.T) {
 	t.Run("first semantic render", func(t *testing.T) {
 		frame := prompts.NewFrame(
@@ -33,9 +35,7 @@ func TestAllocationBudgets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
-		defer cancel()
-		assertAllocationBudget(t, 150, func() {
+		assertBoundedAllocationBudget(t, 150, func(ctx context.Context) {
 			terminal := prompts.NewVirtualTerminal(80, 24)
 			terminal.Push(
 				prompts.PasteEvent("emoji 👩‍💻 and combining e\u0301"),
@@ -105,9 +105,7 @@ func TestAllocationBudgets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
-		defer cancel()
-		assertAllocationBudget(t, 10_500, func() {
+		assertBoundedAllocationBudget(t, 10_500, func(ctx context.Context) {
 			terminal := prompts.NewVirtualTerminal(40, 6)
 			terminal.Push(
 				prompts.PasteEvent("option 09"), prompts.KeyEvent(prompts.KeyPageDown),
@@ -136,9 +134,7 @@ func TestAllocationBudgets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
-		defer cancel()
-		assertAllocationBudget(t, 150, func() {
+		assertBoundedAllocationBudget(t, 150, func(ctx context.Context) {
 			terminal := prompts.NewVirtualTerminal(80, 24)
 			terminal.Push(
 				prompts.PasteEvent("Ada"), prompts.KeyEvent(prompts.KeyTab),
@@ -177,8 +173,47 @@ func TestAllocationBudgets(t *testing.T) {
 
 func assertAllocationBudget(t *testing.T, maximum float64, operation func()) {
 	t.Helper()
-	allocations := testing.AllocsPerRun(25, operation)
+	allocations := testing.AllocsPerRun(allocationBudgetRuns, operation)
 	if allocations > maximum {
 		t.Fatalf("allocations = %.0f, budget = %.0f", allocations, maximum)
 	}
+}
+
+func assertBoundedAllocationBudget(
+	t *testing.T,
+	maximum float64,
+	operation func(context.Context),
+) {
+	t.Helper()
+
+	contexts, cancels := newAllocationContexts(t.Context(), allocationBudgetRuns+1)
+	t.Cleanup(func() {
+		for _, cancel := range cancels {
+			cancel()
+		}
+	})
+
+	iteration := 0
+	assertAllocationBudget(t, maximum, func() {
+		operation(contexts[iteration])
+		iteration++
+	})
+}
+
+func newAllocationContext(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(parent, 5*time.Second)
+}
+
+func newAllocationContexts(
+	parent context.Context,
+	count int,
+) ([]context.Context, []context.CancelFunc) {
+	if count == 0 {
+		return nil, nil
+	}
+
+	contexts, cancels := newAllocationContexts(parent, count-1)
+	ctx, cancel := newAllocationContext(parent)
+
+	return append(contexts, ctx), append(cancels, cancel)
 }

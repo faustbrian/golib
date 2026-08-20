@@ -2088,8 +2088,8 @@ func TestMutationVerifierMigrationLedgerUsesExactCheckpointIdentities(t *testing
 		filepath.Join(root, ".golib", "mutation-history-migrations.json"),
 		&ledger,
 	)
-	if len(ledger.VerifierMigrations) != 554 {
-		t.Fatalf("exact verifier migrations = %d, want 554", len(ledger.VerifierMigrations))
+	if len(ledger.VerifierMigrations) != 555 {
+		t.Fatalf("exact verifier migrations = %d, want 555", len(ledger.VerifierMigrations))
 	}
 	if ledger.VerifierMigrationReview.Reason == "" ||
 		ledger.VerifierMigrationReview.ReviewedAt == "" {
