@@ -11,6 +11,7 @@ on:
     types: [published]
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -158,6 +159,12 @@ jobs:
           dpkg-deb --extract "${archive}" "${root}"
           echo "${root}/bin" >> "${GITHUB_PATH}"
           "${root}/bin/zsh" --version | grep -Eq '^zsh 5\.9 '
+
+      - name: Restore content-addressed mutation evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+        run: ./scripts/restore-ci-mutation-evidence.sh '${{ matrix.directory }}'
 
       - name: Run strict module contract
         run: ./scripts/run-modules.sh check --modules '${{ matrix.directory }}'

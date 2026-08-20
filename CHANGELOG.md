@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Restore trusted content-addressed mutation checkpoints before CI module
+  verification so unchanged packages retain their exact proof while changed,
+  missing, malformed, or stale evidence executes normally.
 - Bind mutation checkpoints and reviewed zero-mutant packages to the complete
   behavior-affecting Gremlins identity rather than its version label, preserve
   exact executable hashes for traceability, and invalidate stale aggregate

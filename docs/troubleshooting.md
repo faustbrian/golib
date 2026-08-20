@@ -40,5 +40,9 @@ on pre-existing `/tmp` content or an unversioned host tool.
 
 ## Stale Evidence
 
-Delete local `.artifacts/` and rerun the affected gate. CI does not restore
-coverage, mutation, generated, conformance, or benchmark evidence from caches.
+Delete the affected local `.artifacts/<module>/` directory and rerun the gate.
+CI restores only cataloged mutation checkpoints from the newest trusted
+same-repository `main` artifact. Complete input fingerprints and verifier
+identity are checked again before reuse, so stale or malformed checkpoints run
+fresh. CI does not restore coverage, generated, conformance, or benchmark
+evidence.

@@ -1511,6 +1511,7 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 	}
 	contract := string(workflow)
 	for _, required := range []string{
+		`actions: read`,
 		`path: ${{ matrix.directory == '.' && '.artifacts' || format('.artifacts/{0}', matrix.directory) }}`,
 		`include-hidden-files: true`,
 		`workspace="${GITHUB_WORKSPACE}/go.work"`,
@@ -1537,6 +1538,8 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 		`package-manager-cache: false`,
 		`denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed`,
 		`deno-version: '2.9.4'`,
+		`restore-ci-mutation-evidence.sh '${{ matrix.directory }}'`,
+		`GITHUB_REPOSITORY_ID: ${{ github.repository_id }}`,
 	} {
 		if !strings.Contains(contract, required) {
 			t.Fatalf("CI workflow lacks %q", required)
@@ -1549,6 +1552,147 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 		strings.Contains(contract, "node-version: '24.4.1'\n          cache: false") {
 		t.Fatal("setup-node receives unsupported cache=false package-manager input")
 	}
+	restore := strings.Index(contract, "Restore content-addressed mutation evidence")
+	strictContract := strings.Index(contract, "Run strict module contract")
+	if restore < 0 || strictContract < 0 || restore > strictContract {
+		t.Fatal("CI does not restore mutation checkpoints before module verification")
+	}
+}
+
+func TestCIRestoresOnlyCatalogedMutationCheckpoints(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repository, "pkg/example"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "packages": [
+      {"directory": ".", "coverage_required": true},
+      {"directory": "nested/package", "coverage_required": true},
+      {"directory": "docs", "coverage_required": false}
+    ]
+  }]
+}
+`)
+	archive := filepath.Join(t.TempDir(), "evidence.zip")
+	writeMutationEvidenceArchive(t, archive, map[string]string{
+		"mutation-checkpoints/root.json":           legacyCheckpointFixture("pkg/example", "."),
+		"mutation-checkpoints/nested-package.json": checkpointFixture("pkg/example", "nested/package"),
+		"mutation-checkpoints/docs.json":           checkpointFixture("pkg/example", "docs"),
+		"evidence/coverage.json":                   "{}\n",
+	})
+
+	command := exec.Command(
+		filepath.Join(root, "scripts", "restore-ci-mutation-evidence.sh"),
+		"pkg/example",
+		archive,
+	)
+	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("restore mutation evidence: %v\n%s", err, output)
+	}
+	for _, name := range []string{"root.json", "nested-package.json"} {
+		path := filepath.Join(repository, ".artifacts/pkg/example/mutation-checkpoints", name)
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("restored checkpoint %s: %v", name, err)
+		}
+	}
+	for _, path := range []string{
+		filepath.Join(repository, ".artifacts/pkg/example/mutation-checkpoints/docs.json"),
+		filepath.Join(repository, ".artifacts/pkg/example/evidence/coverage.json"),
+	} {
+		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("non-cataloged artifact restored at %s: %v", path, err)
+		}
+	}
+}
+
+func TestCIMutationRestoreRejectsCheckpointIdentityMismatch(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repository, "pkg/example"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "packages": [{"directory": ".", "coverage_required": true}]
+  }]
+}
+`)
+	archive := filepath.Join(t.TempDir(), "evidence.zip")
+	writeMutationEvidenceArchive(t, archive, map[string]string{
+		"mutation-checkpoints/root.json": checkpointFixture("pkg/other", "."),
+	})
+
+	command := exec.Command(
+		filepath.Join(root, "scripts", "restore-ci-mutation-evidence.sh"),
+		"pkg/example",
+		archive,
+	)
+	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("reject mismatched mutation evidence: %v\n%s", err, output)
+	}
+	checkpoint := filepath.Join(
+		repository,
+		".artifacts/pkg/example/mutation-checkpoints/root.json",
+	)
+	if _, err := os.Stat(checkpoint); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("mismatched checkpoint restored: %v", err)
+	}
+}
+
+func writeMutationEvidenceArchive(t *testing.T, path string, files map[string]string) {
+	t.Helper()
+
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive := zip.NewWriter(file)
+	for name, contents := range files {
+		entry, createErr := archive.Create(name)
+		if createErr != nil {
+			t.Fatal(createErr)
+		}
+		if _, writeErr := entry.Write([]byte(contents)); writeErr != nil {
+			t.Fatal(writeErr)
+		}
+	}
+	if err := archive.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func checkpointFixture(module, packageDirectory string) string {
+	return fmt.Sprintf(`{
+  "schema_version": 3,
+  "module": %q,
+  "package": %q,
+  "execution_revision": "cccccccccccccccccccccccccccccccccccccccc",
+  "gate_input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "gremlins_version": "v0.6.0",
+  "gremlins_verifier_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "report": {"files": [{"mutations": [{"status": "KILLED"}]}]}
+}
+`, module, packageDirectory)
+}
+
+func legacyCheckpointFixture(module, packageDirectory string) string {
+	return strings.Replace(
+		checkpointFixture(module, packageDirectory),
+		`"gremlins_verifier_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"`,
+		`"gremlins_verifier_sha256": null`,
+		1,
+	)
 }
 
 func TestCanonicalMutationGateCannotDelegateToWeakerModuleTargets(t *testing.T) {

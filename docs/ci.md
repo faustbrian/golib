@@ -14,8 +14,15 @@ CodeQL results. A stable `Required` job fails unless selection, the repository
 contract, every module, and CodeQL succeed.
 
 Cancellation is limited to superseded pull-request runs. Actions are pinned to
-immutable revisions. Forks receive no secrets. Caches must never provide
-coverage, mutation, generated, conformance, or benchmark evidence.
+immutable revisions. Forks receive no secrets. Before module verification, CI
+may restore mutation checkpoints from the newest same-repository `main`
+artifact. The mutation gate revalidates every checkpoint against its complete
+current input fingerprint and verifier identity; missing, malformed, stale, or
+untrusted checkpoints execute normally. Coverage, generated, conformance, and
+benchmark evidence is never restored, and mutation results are never accepted
+from a permissive cache key or another repository. The stock runner's `gh` and
+`unzip` tools are mandatory for this restore path; their absence fails rather
+than silently reverting every package to a fresh mutation campaign.
 
 The root matrix entry provisions the pinned Node runtime and runs the same
 documentation script as `make docs MODULES=.`. Its spelling and external-link
