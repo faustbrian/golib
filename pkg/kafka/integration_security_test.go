@@ -78,6 +78,7 @@ type secureKafkaBrokerOptions struct {
 	oauthJWKSTrustPEM []byte
 	hostAccessPorts   []int
 	oauthKey          *rsa.PrivateKey
+	stableEndpoint    bool
 }
 
 type secureKafkaPKI struct {
@@ -925,12 +926,17 @@ func TestApacheKafkaTransactionalIDAuthorizationCompatibility(t *testing.T) {
 }
 
 func TestApacheKafkaPlainCredentialReplacementCompatibility(t *testing.T) {
-	runKafkaBrokerIntegration(t)
+	runExclusiveKafkaBrokerIntegration(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	broker := startSecureKafkaBroker(t, ctx, secureKafkaSASL)
+	broker := startSecureKafkaBrokerWithOptions(
+		t,
+		ctx,
+		secureKafkaSASL,
+		secureKafkaBrokerOptions{stableEndpoint: true},
+	)
 	broker.assertRuntimeVersions(t, ctx)
 	adminMechanism := franzscram.Auth{
 		User: "scram256-user",
@@ -1467,7 +1473,6 @@ func startSecureKafkaBrokerWithOptions(
 ) *secureKafkaBroker {
 	t.Helper()
 
-	proxy := startSecureKafkaEndpointProxy(t)
 	request := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        apacheKafkaImage,
@@ -1516,8 +1521,13 @@ func startSecureKafkaBrokerWithOptions(
 	})
 
 	containerEndpoint := waitForSecureKafkaPortEndpoint(t, ctx, container)
-	proxy.setTarget(containerEndpoint)
-	endpoint := proxy.endpoint()
+	endpoint := containerEndpoint
+	var proxy *secureKafkaEndpointProxy
+	if options.stableEndpoint {
+		proxy = startSecureKafkaEndpointProxy(t)
+		proxy.setTarget(containerEndpoint)
+		endpoint = proxy.endpoint()
+	}
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil {
 		t.Fatalf("parse secured Apache Kafka endpoint: %v", err)

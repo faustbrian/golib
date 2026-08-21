@@ -22,7 +22,7 @@ import (
 )
 
 func TestApacheKafkaHTTPSJWKSRotationCompatibility(t *testing.T) {
-	runHostAccessKafkaBrokerIntegration(t)
+	runExclusiveKafkaBrokerIntegration(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()

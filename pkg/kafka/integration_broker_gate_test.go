@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func TestBrokerIntegrationGateExcludesHostAccessFromSharedFixtures(t *testing.T) {
+func TestBrokerIntegrationGateExcludesExclusiveFromSharedFixtures(t *testing.T) {
 	t.Parallel()
 
 	gate := newBrokerIntegrationGate(2)
@@ -23,7 +23,7 @@ func TestBrokerIntegrationGateExcludesHostAccessFromSharedFixtures(t *testing.T)
 	select {
 	case releaseExclusive := <-exclusiveAcquired:
 		releaseExclusive()
-		t.Fatal("exclusive host-access fixture overlapped a shared broker fixture")
+		t.Fatal("exclusive fixture overlapped a shared broker fixture")
 	case <-time.After(25 * time.Millisecond):
 	}
 

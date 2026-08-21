@@ -66,7 +66,7 @@ func runKafkaBrokerIntegration(t *testing.T) {
 	t.Cleanup(integrationBrokerGate.acquireShared())
 }
 
-func runHostAccessKafkaBrokerIntegration(t *testing.T) {
+func runExclusiveKafkaBrokerIntegration(t *testing.T) {
 	t.Helper()
 	t.Parallel()
 	t.Cleanup(integrationBrokerGate.acquireExclusive())
