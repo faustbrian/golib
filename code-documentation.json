@@ -35868,56 +35868,56 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 452,
+          "line": 451,
           "symbol": "DeferUntil",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 486,
+          "line": 485,
           "symbol": "Acquire",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 511,
+          "line": 510,
           "symbol": "DeferUntil",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 551,
+          "line": 550,
           "symbol": "Delay",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 574,
+          "line": 573,
           "symbol": "RemainingHeader",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 575,
+          "line": 574,
           "symbol": "ResetHeader",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 576,
+          "line": 575,
           "symbol": "Reset",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 610,
+          "line": 609,
           "symbol": "Delay",
           "message": "exported declaration has no documentation comment"
         },
@@ -66796,126 +66796,126 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 36,
+          "line": 37,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 37,
+          "line": 38,
           "symbol": "OriginalID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 38,
+          "line": 39,
           "symbol": "Body",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 39,
+          "line": 40,
           "symbol": "Attempts",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 40,
+          "line": 41,
           "symbol": "OccurredAt",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 41,
+          "line": 42,
           "symbol": "EnvelopeVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 42,
+          "line": 43,
           "symbol": "Source",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 43,
+          "line": 44,
           "symbol": "Group",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 44,
+          "line": 45,
           "symbol": "Classification",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 45,
+          "line": 46,
           "symbol": "FailureCode",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 46,
+          "line": 47,
           "symbol": "OriginalDeadLetterID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 47,
+          "line": 48,
           "symbol": "PriorDeadLetterID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 48,
+          "line": 49,
           "symbol": "ReplayGeneration",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 52,
+          "line": 53,
           "symbol": "RecordFailure",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 56,
+          "line": 57,
           "symbol": "AppendDeadLetter",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 60,
+          "line": 61,
           "symbol": "ReadRecords",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 64,
+          "line": 65,
           "symbol": "ReadRecordPage",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 67,
+          "line": 68,
           "symbol": "ReadRecord",
           "message": "exported declaration has no documentation comment"
         }

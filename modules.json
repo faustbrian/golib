@@ -401,6 +401,7 @@
             "docs/assurance/evidence/OA-CROSS-PACKAGE-ADOPTION.md",
             "docs/assurance/evidence/OA-FAILURE-RECOVERY-POSTGRES-VALKEY.md",
             "docs/assurance/evidence/OA-FAILURE-RECOVERY-WORKFLOW.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-AUDIT-POSTGRES-PORTABILITY.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-MUTATION-PRECISION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-POSTGRES-PRECISION.md",
