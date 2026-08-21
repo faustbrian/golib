@@ -3,6 +3,9 @@
 package kafka_test
 
 import (
+	"bufio"
+	"io"
+	"net"
 	"testing"
 	"time"
 )
@@ -41,4 +44,66 @@ func TestBrokerIntegrationGatePreservesSharedConcurrency(t *testing.T) {
 	releaseSecond := gate.acquireShared()
 	releaseSecond()
 	releaseFirst()
+}
+
+func TestSecureKafkaEndpointProxySwitchesNewConnections(t *testing.T) {
+	t.Parallel()
+
+	first := startPrefixedTCPServer(t, "first:")
+	second := startPrefixedTCPServer(t, "second:")
+	proxy := startSecureKafkaEndpointProxy(t)
+
+	proxy.setTarget(first)
+	if got := exchangeProxyLine(t, proxy.endpoint(), "one\n"); got != "first:one\n" {
+		t.Fatalf("first proxied response = %q", got)
+	}
+	proxy.setTarget(second)
+	if got := exchangeProxyLine(t, proxy.endpoint(), "two\n"); got != "second:two\n" {
+		t.Fatalf("second proxied response = %q", got)
+	}
+}
+
+func startPrefixedTCPServer(t *testing.T, prefix string) string {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for endpoint proxy test: %v", err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	go func() {
+		connection, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer connection.Close()
+		line, readErr := bufio.NewReader(connection).ReadString('\n')
+		if readErr == nil {
+			_, _ = io.WriteString(connection, prefix+line)
+		}
+	}()
+
+	return listener.Addr().String()
+}
+
+func exchangeProxyLine(t *testing.T, endpoint string, line string) string {
+	t.Helper()
+
+	connection, err := net.DialTimeout("tcp", endpoint, time.Second)
+	if err != nil {
+		t.Fatalf("dial endpoint proxy: %v", err)
+	}
+	defer connection.Close()
+	if err := connection.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set endpoint proxy deadline: %v", err)
+	}
+	if _, err := io.WriteString(connection, line); err != nil {
+		t.Fatalf("write endpoint proxy line: %v", err)
+	}
+	response, err := bufio.NewReader(connection).ReadString('\n')
+	if err != nil {
+		t.Fatalf("read endpoint proxy line: %v", err)
+	}
+
+	return response
 }
