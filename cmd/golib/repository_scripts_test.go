@@ -4481,6 +4481,74 @@ format-check:
 	}
 }
 
+func TestRootFormatFallbackExcludesNestedModules(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	moduleScript, err := os.ReadFile(filepath.Join(root, "scripts", "check-module.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, gate := range []string{"format", "format-check"} {
+		gate := gate
+		t.Run(gate, func(t *testing.T) {
+			t.Parallel()
+
+			repository := t.TempDir()
+			for _, directory := range []string{".golib", "cmd/root", "pkg/nested", "scripts"} {
+				if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeTestFile(t, filepath.Join(repository, "scripts/check-module.sh"), string(moduleScript))
+			if err := os.Chmod(filepath.Join(repository, "scripts/check-module.sh"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			writeTestFile(t, filepath.Join(repository, ".golib/versions.env"), "")
+			writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [
+    {
+      "directory": ".",
+      "module_path": "example.test/root",
+      "packages": [{"directory": "cmd/root"}]
+    },
+    {
+      "directory": "pkg/nested",
+      "module_path": "example.test/nested",
+      "packages": [{"directory": "."}]
+    }
+  ]
+}
+`)
+			writeTestFile(t, filepath.Join(repository, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
+			writeTestFile(t, filepath.Join(repository, "cmd/root/main.go"), "package main\n\nfunc main() {}\n")
+			writeTestFile(t, filepath.Join(repository, "pkg/nested/go.mod"), "module example.test/nested\n\ngo 1.26.6\n")
+			nestedSource := filepath.Join(repository, "pkg/nested/nested.go")
+			unformatted := "package nested\nfunc Value( ) int { return 1 }\n"
+			writeTestFile(t, nestedSource, unformatted)
+			initialize := exec.Command("git", "init", "--quiet")
+			initialize.Dir = repository
+			if output, err := initialize.CombinedOutput(); err != nil {
+				t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+			}
+
+			command := exec.Command(filepath.Join(repository, "scripts/check-module.sh"), ".", gate)
+			command.Dir = repository
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("run root %s gate: %v\n%s", gate, err, output)
+			}
+			contents, err := os.ReadFile(nestedSource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(contents) != unformatted {
+				t.Fatalf("root %s gate modified nested-module source", gate)
+			}
+		})
+	}
+}
+
 func TestModuleGateFallbacksCannotMaskFailingMakeTargets(t *testing.T) {
 	t.Parallel()
 
