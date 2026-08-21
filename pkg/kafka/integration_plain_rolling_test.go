@@ -37,7 +37,7 @@ type plainRollingKafkaCluster struct {
 }
 
 func TestApacheKafkaPlainRollingCredentialRotationCompatibility(t *testing.T) {
-	runKafkaBrokerIntegration(t)
+	runExclusiveKafkaBrokerIntegration(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
