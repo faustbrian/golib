@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Stage only durable attributable CI evidence so cancellation cannot upload
+  disposable mutation workspaces, Go build caches, locks, or partial files.
 - Replace analyzer-opaque integer narrowing and redundant assignments across
   HTTP, retry, queue, regular-expression, and sequencer boundaries.
 - Scope fallback formatting to the packages owned by the selected module so

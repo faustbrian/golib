@@ -1512,7 +1512,7 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 	contract := string(workflow)
 	for _, required := range []string{
 		`actions: read`,
-		`path: ${{ matrix.directory == '.' && '.artifacts' || format('.artifacts/{0}', matrix.directory) }}`,
+		`path: ${{ format('{0}/golib-evidence-{1}', runner.temp, matrix.artifact) }}`,
 		`include-hidden-files: true`,
 		`workspace="${GITHUB_WORKSPACE}/go.work"`,
 		`output="${RUNNER_TEMP}/codeql-build/${slug}"`,
