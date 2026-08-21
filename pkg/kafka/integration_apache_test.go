@@ -96,6 +96,8 @@ const (
 	apacheKafkaConsumerStopped        = "golib-kafka-consumer-stopped"
 )
 
+const apacheKafkaRebalanceShutdownTimeout = 45 * time.Second
+
 type apacheKafkaProcessorDiagnostic struct {
 	mu     sync.Mutex
 	buffer bytes.Buffer
@@ -1016,7 +1018,7 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 		RebalanceTimeout:      30 * time.Second,
 		HandlerTimeout:        20 * time.Second,
 		CommitTimeout:         3 * time.Second,
-		ShutdownTimeout:       10 * time.Second,
+		ShutdownTimeout:       apacheKafkaRebalanceShutdownTimeout,
 		Security:              kafka.DevelopmentPlaintextSecurity(),
 		Observers: kafka.ObserverPolicy{
 			Observers: []kafka.ObserverFunc{func(
@@ -1962,7 +1964,7 @@ func TestApacheKafkaConsumerMultiPartitionRebalance(t *testing.T) {
 				RebalanceTimeout:      30 * time.Second,
 				HandlerTimeout:        5 * time.Second,
 				CommitTimeout:         3 * time.Second,
-				ShutdownTimeout:       10 * time.Second,
+				ShutdownTimeout:       apacheKafkaRebalanceShutdownTimeout,
 				Security:              kafka.DevelopmentPlaintextSecurity(),
 			})
 			if err != nil {

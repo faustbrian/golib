@@ -186,6 +186,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- allow the eager-rebalance interoperability consumers enough graceful
+  shutdown time to complete franz-go's group leave after the broker's
+  configured 30-second rebalance window
 - let Docker allocate secured broker host ports atomically, and use a stable
   proxy only for the exclusive restart fixture so parallel interoperability
   runs cannot collide with a process-owned proxy port
