@@ -47,7 +47,7 @@ func TestBrokerIntegrationGatePreservesSharedConcurrency(t *testing.T) {
 }
 
 func TestSecureKafkaEndpointProxySwitchesNewConnections(t *testing.T) {
-	t.Parallel()
+	runExclusiveKafkaBrokerIntegration(t)
 
 	first := startPrefixedTCPServer(t, "first:")
 	second := startPrefixedTCPServer(t, "second:")
