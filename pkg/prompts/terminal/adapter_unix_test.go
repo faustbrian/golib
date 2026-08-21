@@ -165,22 +165,47 @@ func TestAdapterPreservesTerminalOutputLineEndings(t *testing.T) {
 	if _, err := replica.Write([]byte("label\n")); err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
-	fds := []unix.PollFd{{Fd: int32(primary.Fd()), Events: unix.POLLIN}}
-	ready, err := unix.Poll(fds, 2000)
-	if err != nil || ready != 1 || fds[0].Revents&unix.POLLIN == 0 {
-		t.Fatalf("Poll() = %d, %#v, %v", ready, fds, err)
-	}
-	buffer := make([]byte, len("label\r\n"))
-	count, err := primary.Read(buffer)
-	if err != nil || count != len(buffer) {
-		t.Fatalf("Read() = %d, %v", count, err)
-	}
+	buffer := readExactPTY(t, primary, len("label\r\n"), 2*time.Second)
 	if got, want := string(buffer), "label\r\n"; got != want {
 		t.Fatalf("terminal output = %q, want %q", got, want)
 	}
 	if err := adapter.Release(); err != nil {
 		t.Fatalf("Release() error = %v", err)
 	}
+}
+
+func readExactPTY(t *testing.T, file *os.File, size int, timeout time.Duration) []byte {
+	t.Helper()
+
+	buffer := make([]byte, size)
+	deadline := time.Now().Add(timeout)
+	for offset := 0; offset < len(buffer); {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			t.Fatalf("PTY read returned %d of %d bytes", offset, len(buffer))
+		}
+		poll := []unix.PollFd{{Fd: int32(file.Fd()), Events: unix.POLLIN}}
+		ready, err := unix.Poll(poll, int((remaining+time.Millisecond-1)/time.Millisecond))
+		if errors.Is(err, unix.EINTR) {
+			continue
+		}
+		if err != nil {
+			t.Fatalf("Poll() error = %v", err)
+		}
+		if ready != 1 || poll[0].Revents&unix.POLLIN == 0 {
+			t.Fatalf("Poll() = %d, %#v after %d of %d bytes", ready, poll, offset, len(buffer))
+		}
+		count, err := file.Read(buffer[offset:])
+		if err != nil {
+			t.Fatalf("Read() after %d bytes error = %v", offset, err)
+		}
+		if count == 0 {
+			t.Fatalf("Read() returned no bytes after %d of %d", offset, len(buffer))
+		}
+		offset += count
+	}
+
+	return buffer
 }
 
 func TestAdapterAcquiresEchoesAndRestoresPTY(t *testing.T) {
