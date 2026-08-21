@@ -39,8 +39,6 @@ versioning after v1.
 - Added bcrypt and malformed-path timing regression evidence plus a
   cgroup-constrained Kubernetes benchmark gate.
 
-## v1.0.0
-
 ### Added
 
 - Immutable Argon2id and bcrypt policy with strict resource limits.

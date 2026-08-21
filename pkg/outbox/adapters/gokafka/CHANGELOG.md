@@ -19,9 +19,10 @@ All notable changes to this module are documented here.
   defensively own every mapped byte, reject fixed-header metadata collisions,
   redact envelope identity from delivery errors, and classify alternate-client
   panics as ambiguous outcomes; existing `New(client)` calls remain compatible
-- pin the Kafka and outbox dependencies to immutable main pseudo-versions so
-  the adapter resolves outside the repository workspace before module tags are
-  published; no adapter API migration is required
+- normalize the Kafka and outbox requirements to the unpublished local
+  `v0.0.0` source proxy so manifests contain no stale pseudo-versions; the
+  release proxy rewrites them to dependency-ordered `v1.0.0` requirements and
+  no adapter API migration is required
 - refresh dependency checksums for Kafka's transactional-processing test graph;
   no adapter API migration is required
 - remain source-compatible with Kafka's error-returning bounded producer close;

@@ -30,10 +30,6 @@ const (
 	requiredGo    = "1.26.6"
 )
 
-var ownedDependencyPseudoVersionPattern = regexp.MustCompile(
-	`^v0\.0\.0-[0-9]{14}-[0-9a-f]{12}$`,
-)
-
 var mutationThresholdPattern = regexp.MustCompile(
 	`--threshold-(efficacy|mcover)(?:[[:space:]]+|=)[[:space:]]*([^[:space:]\\]+)`,
 )
@@ -587,13 +583,12 @@ func discover(root string) (catalog, error) {
 }
 
 func validateOwnedDependencyVersion(directory, path, version string) error {
-	if version == "v0.0.0" ||
-		ownedDependencyPseudoVersionPattern.MatchString(version) {
+	if version == "v0.0.0" {
 		return nil
 	}
 
 	return fmt.Errorf(
-		"module %s requires owned dependency %s at %s; repository manifests must use local v0.0.0 or an immutable main pseudo-version",
+		"module %s requires owned dependency %s at %s; unpublished repository manifests must use local v0.0.0",
 		directory,
 		path,
 		version,

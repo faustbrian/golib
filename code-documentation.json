@@ -427,357 +427,357 @@
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 44,
+          "line": 40,
           "symbol": "SchemaVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 45,
+          "line": 41,
           "symbol": "Repository",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 46,
+          "line": 42,
           "symbol": "GoVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 47,
+          "line": 43,
           "symbol": "Modules",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 51,
+          "line": 47,
           "symbol": "Directory",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 52,
+          "line": 48,
           "symbol": "Path",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 53,
+          "line": 49,
           "symbol": "GoVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 54,
+          "line": 50,
           "symbol": "Packages",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 55,
+          "line": 51,
           "symbol": "Purpose",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 56,
+          "line": 52,
           "symbol": "Lifecycle",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 57,
+          "line": 53,
           "symbol": "Kind",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 58,
+          "line": 54,
           "symbol": "Releasable",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 59,
+          "line": 55,
           "symbol": "Family",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 60,
+          "line": 56,
           "symbol": "FamilyLabel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 61,
+          "line": 57,
           "symbol": "FamilyDescription",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 62,
+          "line": 58,
           "symbol": "FamilyOrder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 63,
+          "line": 59,
           "symbol": "Version",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 64,
+          "line": 60,
           "symbol": "TagPrefix",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 65,
+          "line": 61,
           "symbol": "OwnedDependencies",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 66,
+          "line": 62,
           "symbol": "ReverseDependencies",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 67,
+          "line": 63,
           "symbol": "ExternalRuntime",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 68,
+          "line": 64,
           "symbol": "RequiredServices",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 69,
+          "line": 65,
           "symbol": "BuildTags",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 70,
+          "line": 66,
           "symbol": "TestTags",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 71,
+          "line": 67,
           "symbol": "InteropTools",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 72,
+          "line": 68,
           "symbol": "Specifications",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 73,
+          "line": 69,
           "symbol": "ConformanceCorpora",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 74,
+          "line": 70,
           "symbol": "Provenance",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 75,
+          "line": 71,
           "symbol": "Goals",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 76,
+          "line": 72,
           "symbol": "GoalStatus",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 77,
+          "line": 73,
           "symbol": "GoalEvidence",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 78,
+          "line": 74,
           "symbol": "Gates",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 82,
+          "line": 78,
           "symbol": "File",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 83,
+          "line": 79,
           "symbol": "RequirementsSHA256",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 84,
+          "line": 80,
           "symbol": "ImplementationEvidence",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 85,
+          "line": 81,
           "symbol": "VerificationGates",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 86,
+          "line": 82,
           "symbol": "ImplementationStatus",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 90,
+          "line": 86,
           "symbol": "ModuleDirectory",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 91,
+          "line": 87,
           "symbol": "Directory",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 92,
+          "line": 88,
           "symbol": "Name",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 93,
+          "line": 89,
           "symbol": "Import",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 94,
+          "line": 90,
           "symbol": "Kind",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 95,
+          "line": 91,
           "symbol": "Production",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 96,
+          "line": 92,
           "symbol": "Executable",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 97,
+          "line": 93,
           "symbol": "CoverageRequired",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 98,
+          "line": 94,
           "symbol": "BuildRequired",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 99,
+          "line": 95,
           "symbol": "BuildTags",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 103,
+          "line": 99,
           "symbol": "Module",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 106,
+          "line": 102,
           "symbol": "Go",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 107,
+          "line": 103,
           "symbol": "Require",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 112,
+          "line": 108,
           "symbol": "Replace",
           "message": "exported declaration has no documentation comment"
         },

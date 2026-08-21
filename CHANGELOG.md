@@ -55,10 +55,11 @@ documented in each module's changelog.
   on another platform without changing the evidence identity.
 - Prevent parallel release snapshots from expanding dependency closures a
   second time, so each selected module runs in exactly one isolated lane.
-- Normalize remaining non-specialist owned-module requirements to the local
-  `v0.0.0` source proxy and make mutation fingerprints ignore only owned
-  version locators, preserving content-identical evidence without hiding
-  source, test, fixture, tool, service, or external dependency changes.
+- Normalize all owned-module requirements to the unpublished local `v0.0.0`
+  source proxy, reject owned pseudo-versions in repository validation, and
+  make mutation fingerprints ignore only owned version locators, preserving
+  content-identical evidence without hiding source, test, fixture, tool,
+  service, or external dependency changes.
 - Ignore ambient `node_modules` trees when generating source-documentation
   manifests so local dependency installations cannot make fresh-clone
   validation stale.

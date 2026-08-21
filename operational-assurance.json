@@ -1560,6 +1560,14 @@
   "risk_acceptances": [],
   "input_digest_migrations": [
     {
+      "module": "pkg/lease",
+      "from_sha256": "a232026e5b95c995db26fbd6fa7c576a190474c08efd2f2551cc957e1ca14741",
+      "to_sha256": "6aaf18768fb87e1a316db7a31356f97770f9798a1a2d703e0e009e4aca493b9f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-LEASE-PRE-V1-METADATA.md",
+      "evidence_sha256": "3ab9b7cb14e8d7dc3f50efdb3fa419b88a6cc4015bb3106197e1ef5d45cacab8",
+      "rationale": "Lease owned-version and pre-v1 changelog normalization changes only module metadata and release documentation; runtime source and the retained reference-service behavior are unchanged."
+    },
+    {
       "module": "pkg/search/adapters/opensearch",
       "from_sha256": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690",
       "to_sha256": "410c977b9a7bca12f86af19a0a3c0a1b2c52b43554b55d63f90cfcd65ee7b967",

@@ -8,8 +8,13 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
+)
+
+var preV1ReleaseHeadingPattern = regexp.MustCompile(
+	`^## \[?v?[0-9]+\.[0-9]+\.[0-9]+`,
 )
 
 var requiredRepositoryDocumentation = []string{
@@ -289,7 +294,7 @@ func validatePreV1Changelog(root, directory, lifecycle string) error {
 			}
 			continue
 		}
-		if fenceCharacter == 0 && strings.HasPrefix(line, "## [") && line != "## [Unreleased]" {
+		if fenceCharacter == 0 && preV1ReleaseHeadingPattern.MatchString(line) {
 			return fmt.Errorf(
 				"pre-v1 module changelog claims a released version at %s:%d: %s",
 				relativeDocumentationPath(root, path),
