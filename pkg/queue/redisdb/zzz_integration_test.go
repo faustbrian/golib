@@ -329,7 +329,6 @@ func TestRedisPubSubRecoversAfterBrokerRestart(t *testing.T) {
 	worker := NewWorker(
 		WithAddr(endpoint),
 		WithChannel("restart"),
-		WithConnectTimeout(250*time.Millisecond),
 	)
 	q, err := queue.NewQueue(queue.WithWorker(worker), queue.WithWorkerCount(1))
 	require.NoError(t, err)

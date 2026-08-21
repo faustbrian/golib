@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Replace analyzer-opaque integer narrowing and redundant assignments across
+  HTTP, retry, queue, regular-expression, and sequencer boundaries.
 - Scope fallback formatting to the packages owned by the selected module so
   root checks cannot override a nested module's explicit formatter policy.
 - Honor explicit module `format` and `format-check` targets in the canonical

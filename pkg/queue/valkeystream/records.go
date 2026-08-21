@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -105,7 +106,10 @@ func (w *Worker) listRecords(
 		return management.RecordPage{}, err
 	}
 	offset = min(offset, len(items))
-	end := min(offset+int(request.Limit), len(items))
+	end := offset
+	for remaining := request.Limit; end < len(items) && remaining > 0; remaining-- {
+		end++
+	}
 	page := management.RecordPage{Items: items[offset:end]}
 	if end < len(items) {
 		page.NextCursor = encodeRecordCursor(end)
@@ -216,10 +220,10 @@ func (w *Worker) managementRecords(
 ) ([]management.JobRecord, error) {
 	items := make([]management.JobRecord, 0, len(records))
 	for _, record := range records {
-		attempts := uint32(record.Attempts)
-		if attempts == 0 || int64(attempts) != record.Attempts {
+		if record.Attempts < 1 || record.Attempts > math.MaxUint32 {
 			return nil, fmt.Errorf("valkeystream: invalid management record attempts")
 		}
+		attempts := uint32(record.Attempts)
 		payload := management.Payload{Visibility: visibility, Size: int64(len(record.Body))}
 		if visibility == management.PayloadRevealed {
 			payload.ContentType = "application/octet-stream"

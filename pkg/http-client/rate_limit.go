@@ -429,7 +429,6 @@ func (limiter *tokenBucketLimiter) Acquire(ctx context.Context, maximum time.Dur
 		candidate = last
 	} else {
 		tokens = math.Min(limiter.burst, tokens+candidate.Sub(last).Seconds()*limiter.rate)
-		last = candidate
 	}
 	missing := math.Max(0, 1-tokens)
 	delay := time.Duration(math.Ceil(missing / limiter.rate * float64(time.Second)))
