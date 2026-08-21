@@ -5,7 +5,7 @@ package terminal
 import "golang.org/x/sys/unix"
 
 const (
-	terminalEchoFlag             = unix.ECHO
+	terminalEchoFlag = unix.ECHO
 	terminalOutputProcessingFlag = unix.OPOST
 )
 

@@ -4,9 +4,24 @@ package prompts
 const keyCount = 21
 
 var configurableKeys = [...]Key{
-	KeyEnter, KeyEscape, KeyCtrlC, KeyCtrlD, KeyTab, KeyShiftTab,
-	KeyBackspace, KeyDelete, KeyLeft, KeyRight, KeyUp, KeyDown,
-	KeyHome, KeyEnd, KeyWordLeft, KeyWordRight, KeyPageUp, KeyPageDown,
+	KeyEnter,
+	KeyEscape,
+	KeyCtrlC,
+	KeyCtrlD,
+	KeyTab,
+	KeyShiftTab,
+	KeyBackspace,
+	KeyDelete,
+	KeyLeft,
+	KeyRight,
+	KeyUp,
+	KeyDown,
+	KeyHome,
+	KeyEnd,
+	KeyWordLeft,
+	KeyWordRight,
+	KeyPageUp,
+	KeyPageDown,
 	KeyNewline,
 }
 

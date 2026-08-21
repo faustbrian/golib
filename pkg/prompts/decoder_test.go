@@ -222,10 +222,16 @@ func TestDecoderValidatesLimitsAndBufferBound(t *testing.T) {
 	}
 	decoder.Reset()
 	events, err := decoder.Feed([]byte("1234"))
-	if err != nil || !reflect.DeepEqual(events, []prompts.InputEvent{
-		prompts.RuneEvent('1'), prompts.RuneEvent('2'),
-		prompts.RuneEvent('3'), prompts.RuneEvent('4'),
-	}) {
+	if err != nil ||
+		!reflect.DeepEqual(
+			events,
+			[]prompts.InputEvent{
+				prompts.RuneEvent('1'),
+				prompts.RuneEvent('2'),
+				prompts.RuneEvent('3'),
+				prompts.RuneEvent('4'),
+			},
+		) {
 		t.Fatalf("exact-bound Feed() = %#v, %v", events, err)
 	}
 	if events, err := decoder.Feed(nil); err != nil || len(events) != 0 {
@@ -236,33 +242,37 @@ func TestDecoderValidatesLimitsAndBufferBound(t *testing.T) {
 func TestDecoderAcceptsPasteAtTheExactByteLimit(t *testing.T) {
 	t.Parallel()
 
-	for name, chunks := range map[string][][]byte{
-		"complete marker": {[]byte("\x1b[200~1234\x1b[201~")},
-		"split marker": {
-			[]byte("\x1b[200~1234\x1b[20"),
-			[]byte("1~"),
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+	for name, chunks := range
+		map[string][][]byte{
+			"complete marker": {[]byte("\x1b[200~1234\x1b[201~")},
+			"split marker": {[]byte("\x1b[200~1234\x1b[20"), []byte("1~")},
+		} {
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
 
-			decoder, err := prompts.NewDecoder(prompts.DecoderConfig{
-				MaxPasteBytes: 4, MaxBufferBytes: 32,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			var events []prompts.InputEvent
-			for _, chunk := range chunks {
-				decoded, feedErr := decoder.Feed(chunk)
-				if feedErr != nil {
-					t.Fatalf("Feed() error = %v", feedErr)
+				decoder, err := prompts.NewDecoder(
+					prompts.DecoderConfig{MaxPasteBytes: 4, MaxBufferBytes: 32},
+				)
+				if err != nil {
+					t.Fatal(err)
 				}
-				events = append(events, decoded...)
-			}
-			if !reflect.DeepEqual(events, []prompts.InputEvent{prompts.PasteEvent("1234")}) {
-				t.Fatalf("paste events = %#v", events)
-			}
-		})
+				var events []prompts.InputEvent
+				for _, chunk := range chunks {
+					decoded, feedErr := decoder.Feed(chunk)
+					if feedErr != nil {
+						t.Fatalf("Feed() error = %v", feedErr)
+					}
+					events = append(events, decoded...)
+				}
+				if !reflect.DeepEqual(
+					events,
+					[]prompts.InputEvent{prompts.PasteEvent("1234")},
+				) {
+					t.Fatalf("paste events = %#v", events)
+				}
+			},
+		)
 	}
 }

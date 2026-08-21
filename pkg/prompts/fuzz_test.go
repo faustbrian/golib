@@ -85,21 +85,23 @@ func FuzzHyperlinkNeverInjectsTerminalControls(fuzz *testing.F) {
 					t.Fatalf("Hyperlink() error = %v", err)
 				}
 
-			return
-		}
-		output, err := (prompts.ANSIRenderer{}).Render(
-			prompts.NewFrame(prompts.Line(link)), prompts.RenderOptions{Hyperlinks: true},
-		)
-		if err != nil {
-			t.Fatalf("Render() error = %v", err)
-		}
-		owned := "\x1b]8;;" + link.Target() + "\x1b\\"
-		output = strings.ReplaceAll(output, owned, "")
-		output = strings.ReplaceAll(output, "\x1b]8;;\x1b\\", "")
-		if strings.ContainsRune(output, '\x1b') {
-			t.Fatalf("hyperlink output retained unowned ESC: %q", output)
-		}
-	})
+				return
+			}
+			output, err := (prompts.ANSIRenderer{}).Render(
+				prompts.NewFrame(prompts.Line(link)),
+				prompts.RenderOptions{Hyperlinks: true},
+			)
+			if err != nil {
+				t.Fatalf("Render() error = %v", err)
+			}
+			owned := "\x1b]8;;" + link.Target() + "\x1b\\"
+			output = strings.ReplaceAll(output, owned, "")
+			output = strings.ReplaceAll(output, "\x1b]8;;\x1b\\", "")
+			if strings.ContainsRune(output, '\x1b') {
+				t.Fatalf("hyperlink output retained unowned ESC: %q", output)
+			}
+		},
+	)
 }
 
 func FuzzDecoderBoundsArbitraryBytes(fuzz *testing.F) {

@@ -35,14 +35,14 @@ func TestKeyMapRebindingRemovesEveryPreviousMeaning(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := map[Key]Key{
-		KeyTab:     KeyEscape,
-		KeyEscape:  KeyIgnored,
-		KeyCtrlC:   KeyIgnored,
-		KeyEnd:     KeyEnter,
-		KeyEnter:   KeyIgnored,
-		KeyHome:    KeyNewline,
+		KeyTab: KeyEscape,
+		KeyEscape: KeyIgnored,
+		KeyCtrlC: KeyIgnored,
+		KeyEnd: KeyEnter,
+		KeyEnter: KeyIgnored,
+		KeyHome: KeyNewline,
 		KeyNewline: KeyIgnored,
-		KeyDown:    KeyDown,
+		KeyDown: KeyDown,
 	}
 	for input, want := range tests {
 		if got := keyMap.translate(KeyEvent(input)).Key; got != want {
@@ -62,9 +62,8 @@ func TestKeyMapRejectsAndIgnoresTheExactKeyCountBoundary(t *testing.T) {
 	if got := keyMap.translate(KeyEvent(boundary)).Key; got != boundary {
 		t.Fatalf("translate(keyCount) = %d, want %d", got, boundary)
 	}
-	if _, err := NewKeyMap(KeyBinding{
-		Input: boundary, Meaning: KeyEnter,
-	}); !errors.Is(err, ErrInvalidDefinition) {
+	if _, err := NewKeyMap(KeyBinding{Input: boundary, Meaning: KeyEnter});
+		!errors.Is(err, ErrInvalidDefinition) {
 		t.Fatalf("NewKeyMap(keyCount) error = %v", err)
 	}
 }

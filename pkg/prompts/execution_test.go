@@ -134,19 +134,133 @@ func TestRunInteractionPolicyMatrix(t *testing.T) {
 		want string
 		wantErr error
 	}{
-		{"required without permission", prompts.InteractionPolicy{Mode: prompts.InteractiveRequired}, terminal, "", prompts.ErrInteractionNotPermitted},
-		{"required without input terminal", prompts.InteractionPolicy{Mode: prompts.InteractiveRequired, PermitInteraction: true}, prompts.Capabilities{OutputTerminal: true}, "", prompts.ErrTerminalUnavailable},
-		{"required without output terminal", prompts.InteractionPolicy{Mode: prompts.InteractiveRequired, PermitInteraction: true}, prompts.Capabilities{InputTerminal: true}, "", prompts.ErrTerminalUnavailable},
-		{"required interactive", prompts.InteractionPolicy{Mode: prompts.InteractiveRequired, PermitInteraction: true}, terminal, "", prompts.ErrTerminalUnavailable},
-		{"preferred interactive", prompts.InteractionPolicy{Mode: prompts.InteractivePreferred, PermitInteraction: true}, terminal, "", prompts.ErrTerminalUnavailable},
-		{"preferred fallback", prompts.InteractionPolicy{Mode: prompts.InteractivePreferred, PermitInteraction: true}, prompts.Capabilities{}, "batch-name", nil},
-		{"preferred input only", prompts.InteractionPolicy{Mode: prompts.InteractivePreferred, PermitInteraction: true}, prompts.Capabilities{InputTerminal: true}, "batch-name", nil},
-		{"preferred output only", prompts.InteractionPolicy{Mode: prompts.InteractivePreferred, PermitInteraction: true}, prompts.Capabilities{OutputTerminal: true}, "batch-name", nil},
-		{"auto lacks permission", prompts.InteractionPolicy{Mode: prompts.AutoDetect}, terminal, "batch-name", nil},
-		{"auto requires input", prompts.InteractionPolicy{Mode: prompts.AutoDetect, PermitInteraction: true, Auto: prompts.AutoRules{RequireInputTerminal: true}}, prompts.Capabilities{OutputTerminal: true}, "batch-name", nil},
-		{"auto requires output", prompts.InteractionPolicy{Mode: prompts.AutoDetect, PermitInteraction: true, Auto: prompts.AutoRules{RequireOutputTerminal: true}}, prompts.Capabilities{InputTerminal: true}, "batch-name", nil},
-		{"auto caller permits detected terminal", prompts.InteractionPolicy{Mode: prompts.AutoDetect, PermitInteraction: true, Auto: prompts.AutoRules{RequireInputTerminal: true, RequireOutputTerminal: true}}, terminal, "", prompts.ErrTerminalUnavailable},
-		{"invalid mode", prompts.InteractionPolicy{Mode: prompts.InteractionMode(200)}, terminal, "", prompts.ErrUnsupported},
+		{
+			"required without permission",
+			prompts.InteractionPolicy{Mode: prompts.InteractiveRequired},
+			terminal,
+			"",
+			prompts.ErrInteractionNotPermitted,
+		},
+		{
+			"required without input terminal",
+			prompts.InteractionPolicy{
+				Mode: prompts.InteractiveRequired,
+				PermitInteraction: true,
+			},
+			prompts.Capabilities{OutputTerminal: true},
+			"",
+			prompts.ErrTerminalUnavailable,
+		},
+		{
+			"required without output terminal",
+			prompts.InteractionPolicy{
+				Mode: prompts.InteractiveRequired,
+				PermitInteraction: true,
+			},
+			prompts.Capabilities{InputTerminal: true},
+			"",
+			prompts.ErrTerminalUnavailable,
+		},
+		{
+			"required interactive",
+			prompts.InteractionPolicy{
+				Mode: prompts.InteractiveRequired,
+				PermitInteraction: true,
+			},
+			terminal,
+			"",
+			prompts.ErrTerminalUnavailable,
+		},
+		{
+			"preferred interactive",
+			prompts.InteractionPolicy{
+				Mode: prompts.InteractivePreferred,
+				PermitInteraction: true,
+			},
+			terminal,
+			"",
+			prompts.ErrTerminalUnavailable,
+		},
+		{
+			"preferred fallback",
+			prompts.InteractionPolicy{
+				Mode: prompts.InteractivePreferred,
+				PermitInteraction: true,
+			},
+			prompts.Capabilities{},
+			"batch-name",
+			nil,
+		},
+		{
+			"preferred input only",
+			prompts.InteractionPolicy{
+				Mode: prompts.InteractivePreferred,
+				PermitInteraction: true,
+			},
+			prompts.Capabilities{InputTerminal: true},
+			"batch-name",
+			nil,
+		},
+		{
+			"preferred output only",
+			prompts.InteractionPolicy{
+				Mode: prompts.InteractivePreferred,
+				PermitInteraction: true,
+			},
+			prompts.Capabilities{OutputTerminal: true},
+			"batch-name",
+			nil,
+		},
+		{
+			"auto lacks permission",
+			prompts.InteractionPolicy{Mode: prompts.AutoDetect},
+			terminal,
+			"batch-name",
+			nil,
+		},
+		{
+			"auto requires input",
+			prompts.InteractionPolicy{
+				Mode: prompts.AutoDetect,
+				PermitInteraction: true,
+				Auto: prompts.AutoRules{RequireInputTerminal: true},
+			},
+			prompts.Capabilities{OutputTerminal: true},
+			"batch-name",
+			nil,
+		},
+		{
+			"auto requires output",
+			prompts.InteractionPolicy{
+				Mode: prompts.AutoDetect,
+				PermitInteraction: true,
+				Auto: prompts.AutoRules{RequireOutputTerminal: true},
+			},
+			prompts.Capabilities{InputTerminal: true},
+			"batch-name",
+			nil,
+		},
+		{
+			"auto caller permits detected terminal",
+			prompts.InteractionPolicy{
+				Mode: prompts.AutoDetect,
+				PermitInteraction: true,
+				Auto: prompts.AutoRules{
+					RequireInputTerminal: true,
+					RequireOutputTerminal: true,
+				},
+			},
+			terminal,
+			"",
+			prompts.ErrTerminalUnavailable,
+		},
+		{
+			"invalid mode",
+			prompts.InteractionPolicy{Mode: prompts.InteractionMode(200)},
+			terminal,
+			"",
+			prompts.ErrUnsupported,
+		},
 	}
 
 	for _, test := range tests {

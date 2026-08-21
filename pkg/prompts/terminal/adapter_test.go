@@ -81,27 +81,14 @@ func TestAdapterDecodesBytePasteWithoutStringPayload(t *testing.T) {
 func TestAdapterFlushesEscapeAndRejectsTruncation(t *testing.T) {
 	t.Parallel()
 
-	for name, input := range map[string][]byte{
-		"escape":    {0x1b},
-		"truncated": []byte("\x1b["),
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			reader, writer, err := os.Pipe()
-			if err != nil {
-				t.Fatalf("Pipe() error = %v", err)
-			}
-			defer reader.Close()
-			adapter, err := terminal.New(reader, writer, terminal.Config{})
-			if err != nil {
-				t.Fatalf("New() error = %v", err)
-			}
-			_, _ = writer.Write(input)
-			_ = writer.Close()
-			event, nextErr := adapter.Next(testContext(t))
-			if name == "escape" {
-				if nextErr != nil || event != prompts.KeyEvent(prompts.KeyEscape) {
-					t.Fatalf("Next() = %#v, %v", event, nextErr)
+	for name, input := range map[string][]byte{"escape": {0x1b}, "truncated": []byte("\x1b[")} {
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
+				reader, writer, err := os.Pipe()
+				if err != nil {
+					t.Fatalf("Pipe() error = %v", err)
 				}
 				defer reader.Close()
 				adapter, err := terminal.New(reader, writer, terminal.Config{})
@@ -110,7 +97,7 @@ func TestAdapterFlushesEscapeAndRejectsTruncation(t *testing.T) {
 				}
 				_, _ = writer.Write(input)
 				_ = writer.Close()
-				event, nextErr := adapter.Next(context.Background())
+				event, nextErr := adapter.Next(testContext(t))
 				if name == "escape" {
 					if nextErr != nil ||
 						event != prompts.KeyEvent(prompts.KeyEscape) {
@@ -209,7 +196,8 @@ func TestAdapterCancellationAndReadFailures(t *testing.T) {
 	closedAdapter, _ := terminal.New(closedReader, closedWriter, terminal.Config{})
 	_ = closedReader.Close()
 	defer closedWriter.Close()
-	if _, err := closedAdapter.Next(testContext(t)); !errors.Is(err, prompts.ErrTerminalDetached) {
+	if _, err := closedAdapter.Next(testContext(t));
+		!errors.Is(err, prompts.ErrTerminalDetached) {
 		t.Fatalf("closed Next() error = %v", err)
 	}
 
@@ -298,7 +286,7 @@ func TestAdapterValidatesConfigAndNonTerminalControl(t *testing.T) {
 
 func testContext(t *testing.T) context.Context {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
 	t.Cleanup(cancel)
 
 	return ctx

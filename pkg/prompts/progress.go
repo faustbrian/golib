@@ -167,7 +167,7 @@ func (progress *Progress) updateTiming(current int64) {
 	if progress.snapshot.Total == 0 {
 		return
 	}
-	etaNanos := float64(progress.snapshot.Total-current) / rate * float64(time.Second)
+	etaNanos := float64(progress.snapshot.Total - current) / rate * float64(time.Second)
 	estimate, ok := progressDuration(etaNanos)
 	if !ok {
 		return

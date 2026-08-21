@@ -16,7 +16,8 @@ func TestProgressDurationExactBounds(t *testing.T) {
 		t.Fatalf("maximum duration = %v, %t", duration, ok)
 	}
 	belowMaximum := math.Nextafter(float64(math.MaxInt64), 0)
-	if duration, ok := progressDuration(belowMaximum); !ok || duration <= 0 || duration >= time.Duration(math.MaxInt64) {
+	if duration, ok := progressDuration(belowMaximum);
+		!ok || duration <= 0 || duration >= time.Duration(math.MaxInt64) {
 		t.Fatalf("below-maximum duration = %v, %t", duration, ok)
 	}
 }

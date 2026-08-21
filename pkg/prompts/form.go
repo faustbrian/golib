@@ -243,7 +243,7 @@ func RunForm(
 			interaction.captured = nil
 		}
 		if errors.Is(err, errFormBack) {
-			target := max(0, index-1)
+			target := max(0, index - 1)
 			for target != 0 && !form.fields[target].condition(result) {
 				target--
 			}

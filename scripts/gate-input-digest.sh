@@ -396,6 +396,34 @@ append_verification_environment() {
     fi
 }
 
+normalize_irrelevant_formatter_dispatch() {
+    awk -v selected_gate="${gate}" '
+        BEGIN { quote = sprintf("%c", 39) }
+        selected_gate != "format" && selected_gate != "format-check" &&
+        $0 == "        format)" {
+            print "        format)"
+            print "            find . -name " quote "*.go" quote " -not -path " quote "./.tools/*" quote " -print0 | xargs -0 gofmt -w"
+            print "            ;;"
+            print "        format-check)"
+            print "            unformatted=\"$(find . -name " quote "*.go" quote " -not -path " quote "./.tools/*" quote " -print0 | xargs -0 gofmt -l)\""
+            print "            [[ -z \"${unformatted}\" ]] || {"
+            print "                printf " quote "unformatted Go files:\\n%s\\n" quote " \"${unformatted}\" >&2"
+            print "                exit 1"
+            print "            }"
+            print "            ;;"
+            skip_formatter_dispatch = 1
+            next
+        }
+        skip_formatter_dispatch && $0 == "        tidy-check)" {
+            skip_formatter_dispatch = 0
+            print
+            next
+        }
+        skip_formatter_dispatch { next }
+        { print }
+    '
+}
+
 append_verification_tool_files() {
     local check_module_digest legacy_runner_digest
     local paths=(
@@ -475,8 +503,9 @@ append_verification_tool_files() {
     if [[ -f "${root}/scripts/check-module.sh" ]]; then
         if [[ "${gate}" == "docs" ]]; then
             check_module_digest="$(
-                sed 's/ --allow-parallel-runners//g' \
-                    "${root}/scripts/check-module.sh" |
+                normalize_irrelevant_formatter_dispatch \
+                    <"${root}/scripts/check-module.sh" |
+                    sed 's/ --allow-parallel-runners//g' |
                     git hash-object --stdin
             )"
         else
@@ -496,6 +525,7 @@ append_verification_tool_files() {
                     skip_root_documentation { next }
                     { print }
                 ' "${root}/scripts/check-module.sh" |
+                    normalize_irrelevant_formatter_dispatch |
                     sed 's/ --allow-parallel-runners//g' |
                     git hash-object --stdin
             )"

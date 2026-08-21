@@ -31,9 +31,11 @@ func TestAdapterRestoresWhenOutputConfigurationFails(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	outputFailure := errors.New("output configuration failed")
-	adapter.setOutput = func(uintptr) error { return outputFailure }
-	if err := adapter.Acquire(internalTestContext(t)); !errors.Is(err, prompts.ErrAdapter) ||
-		!errors.Is(err, outputFailure) {
+	adapter.setOutput = func(uintptr) error {
+		return outputFailure
+	}
+	if err := adapter.Acquire(internalTestContext(t));
+		!errors.Is(err, prompts.ErrAdapter) || !errors.Is(err, outputFailure) {
 		t.Fatalf("Acquire() error = %v", err)
 	}
 	after, err := term.GetState(int(replica.Fd()))
@@ -70,8 +72,11 @@ func TestAdapterPropagatesDecoderAndReaderFailures(t *testing.T) {
 	}
 
 	readFailure := errors.New("read failed")
-	adapter.read = func([]byte) (int, error) { return 0, readFailure }
-	if _, err := adapter.Next(internalTestContext(t)); !errors.Is(err, prompts.ErrReader) || !errors.Is(err, readFailure) {
+	adapter.read = func([]byte) (int, error) {
+		return 0, readFailure
+	}
+	if _, err := adapter.Next(internalTestContext(t));
+		!errors.Is(err, prompts.ErrReader) || !errors.Is(err, readFailure) {
 		t.Fatalf("reader Next() error = %v", err)
 	}
 }
@@ -90,9 +95,14 @@ func TestAdapterRejectsUnsupportedDeadlineFailure(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	deadlineFailure := errors.New("deadline failed")
-	adapter.setDeadline = func(time.Time) error { return deadlineFailure }
-	adapter.read = func([]byte) (int, error) { return 0, errors.New("unexpected read") }
-	if _, err := adapter.Next(internalTestContext(t)); !errors.Is(err, prompts.ErrAdapter) || !errors.Is(err, deadlineFailure) {
+	adapter.setDeadline = func(time.Time) error {
+		return deadlineFailure
+	}
+	adapter.read = func([]byte) (int, error) {
+		return 0, errors.New("unexpected read")
+	}
+	if _, err := adapter.Next(internalTestContext(t));
+		!errors.Is(err, prompts.ErrAdapter) || !errors.Is(err, deadlineFailure) {
 		t.Fatalf("Next() error = %v", err)
 	}
 }
@@ -141,13 +151,19 @@ func TestAdapterConfigurationAndReadBoundaries(t *testing.T) {
 	defer writer.Close()
 
 	defaults, err := New(reader, writer, Config{})
-	if err != nil || defaults.readBuffer != defaultReadBuffer || defaults.pollInterval != defaultPollInterval {
+	if err != nil ||
+		defaults.readBuffer != defaultReadBuffer ||
+		defaults.pollInterval != defaultPollInterval {
 		t.Fatalf("default adapter = %#v, %v", defaults, err)
 	}
-	limits, err := New(reader, writer, Config{
-		ReadBuffer: maximumReadBuffer, PollInterval: maximumPollInterval,
-	})
-	if err != nil || limits.readBuffer != maximumReadBuffer || limits.pollInterval != maximumPollInterval {
+	limits, err := New(
+		reader,
+		writer,
+		Config{ReadBuffer: maximumReadBuffer, PollInterval: maximumPollInterval},
+	)
+	if err != nil ||
+		limits.readBuffer != maximumReadBuffer ||
+		limits.pollInterval != maximumPollInterval {
 		t.Fatalf("limit adapter = %#v, %v", limits, err)
 	}
 	if validConfig(reader, writer, Config{ReadBuffer: maximumReadBuffer + 1}) ||
@@ -164,7 +180,12 @@ func TestAdapterConfigurationAndReadBoundaries(t *testing.T) {
 func TestAdapterSelectsBoundedReadDeadline(t *testing.T) {
 	now := time.Now()
 	pollInterval := 2 * time.Second
-	if got, want := nextReadDeadline(context.Background(), pollInterval, now), now.Add(pollInterval); !got.Equal(want) {
+	if got, want := nextReadDeadline(
+		context.Background(),
+		pollInterval,
+		now,
+	), now.Add(pollInterval);
+		!got.Equal(want) {
 		t.Fatalf("background deadline = %v, want %v", got, want)
 	}
 	earlier := now.Add(time.Second)
@@ -176,7 +197,8 @@ func TestAdapterSelectsBoundedReadDeadline(t *testing.T) {
 	later := now.Add(3 * time.Second)
 	laterContext, cancelLater := context.WithDeadline(context.Background(), later)
 	defer cancelLater()
-	if got, want := nextReadDeadline(laterContext, pollInterval, now), now.Add(pollInterval); !got.Equal(want) {
+	if got, want := nextReadDeadline(laterContext, pollInterval, now), now.Add(pollInterval);
+		!got.Equal(want) {
 		t.Fatalf("later context deadline = %v, want %v", got, want)
 	}
 }
@@ -189,68 +211,89 @@ func TestAdapterReadLoopHandlesTimeoutAndEmptyProgress(t *testing.T) {
 	defer reader.Close()
 	defer writer.Close()
 
-	t.Run("timeout flushes a pending escape", func(t *testing.T) {
-		adapter, newErr := New(reader, writer, Config{})
-		if newErr != nil {
-			t.Fatalf("New() error = %v", newErr)
-		}
-		adapter.setDeadline = func(time.Time) error { return nil }
-		adapter.read = func(buffer []byte) (int, error) {
-			buffer[0] = 0x1b
-			return 1, testTimeoutError{}
-		}
-		event, nextErr := adapter.Next(internalTestContext(t))
-		if nextErr != nil || event != prompts.KeyEvent(prompts.KeyEscape) {
-			t.Fatalf("Next() = %#v, %v", event, nextErr)
-		}
-	})
+	t.Run(
+		"timeout flushes a pending escape",
+		func(t *testing.T) {
+			adapter, newErr := New(reader, writer, Config{})
+			if newErr != nil {
+				t.Fatalf("New() error = %v", newErr)
+			}
+			adapter.setDeadline = func(time.Time) error {
+				return nil
+			}
+			adapter.read = func(buffer []byte) (int, error) {
+				buffer[0] = 0x1b
+				return 1, testTimeoutError{}
+			}
+			event, nextErr := adapter.Next(internalTestContext(t))
+			if nextErr != nil || event != prompts.KeyEvent(prompts.KeyEscape) {
+				t.Fatalf("Next() = %#v, %v", event, nextErr)
+			}
+		},
+	)
 
-	t.Run("timeout without an event observes cancellation", func(t *testing.T) {
-		adapter, newErr := New(reader, writer, Config{})
-		if newErr != nil {
-			t.Fatalf("New() error = %v", newErr)
-		}
-		ctx, cancel := context.WithCancel(context.Background())
-		adapter.setDeadline = func(time.Time) error { return nil }
-		reads := 0
-		adapter.read = func([]byte) (int, error) {
-			reads++
-			cancel()
-			return 0, testTimeoutError{}
-		}
-		if _, nextErr := adapter.Next(ctx); !errors.Is(nextErr, context.Canceled) || reads != 1 {
-			t.Fatalf("Next() error = %v after %d reads", nextErr, reads)
-		}
-	})
+	t.Run(
+		"timeout without an event observes cancellation",
+		func(t *testing.T) {
+			adapter, newErr := New(reader, writer, Config{})
+			if newErr != nil {
+				t.Fatalf("New() error = %v", newErr)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			adapter.setDeadline = func(time.Time) error {
+				return nil
+			}
+			reads := 0
+			adapter.read = func([]byte) (int, error) {
+				reads++
+				cancel()
+				return 0, testTimeoutError{}
+			}
+			if _, nextErr := adapter.Next(ctx);
+				!errors.Is(nextErr, context.Canceled) || reads != 1 {
+				t.Fatalf("Next() error = %v after %d reads", nextErr, reads)
+			}
+		},
+	)
 
-	t.Run("empty successful read observes cancellation", func(t *testing.T) {
-		adapter, newErr := New(reader, writer, Config{})
-		if newErr != nil {
-			t.Fatalf("New() error = %v", newErr)
-		}
-		ctx, cancel := context.WithCancel(context.Background())
-		adapter.setDeadline = func(time.Time) error { return nil }
-		reads := 0
-		adapter.read = func([]byte) (int, error) {
-			reads++
-			cancel()
-			return 0, nil
-		}
-		if _, nextErr := adapter.Next(ctx); !errors.Is(nextErr, context.Canceled) || reads != 1 {
-			t.Fatalf("Next() error = %v after %d reads", nextErr, reads)
-		}
-	})
+	t.Run(
+		"empty successful read observes cancellation",
+		func(t *testing.T) {
+			adapter, newErr := New(reader, writer, Config{})
+			if newErr != nil {
+				t.Fatalf("New() error = %v", newErr)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			adapter.setDeadline = func(time.Time) error {
+				return nil
+			}
+			reads := 0
+			adapter.read = func([]byte) (int, error) {
+				reads++
+				cancel()
+				return 0, nil
+			}
+			if _, nextErr := adapter.Next(ctx);
+				!errors.Is(nextErr, context.Canceled) || reads != 1 {
+				t.Fatalf("Next() error = %v after %d reads", nextErr, reads)
+			}
+		},
+	)
 }
 
 type testTimeoutError struct{}
 
-func (testTimeoutError) Error() string { return "timeout" }
+func (testTimeoutError) Error() string {
+	return "timeout"
+}
 
-func (testTimeoutError) Timeout() bool { return true }
+func (testTimeoutError) Timeout() bool {
+	return true
+}
 
 func internalTestContext(t *testing.T) context.Context {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
 	t.Cleanup(cancel)
 
 	return ctx

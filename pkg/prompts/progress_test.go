@@ -82,7 +82,9 @@ func TestProgressRejectsRegressionOverflowAndTerminalMutation(t *testing.T) {
 	if err := bounded.Increment(6, "too far"); !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("bounded increment error = %v", err)
 	}
-	exact, err := prompts.NewProgress(prompts.ProgressConfig{ID: "exact", Label: "Exact", Total: 10})
+	exact, err := prompts.NewProgress(
+		prompts.ProgressConfig{ID: "exact", Label: "Exact", Total: 10},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +117,8 @@ func TestProgressRejectsRegressionOverflowAndTerminalMutation(t *testing.T) {
 	if err := indeterminate.Increment(0, "still max"); err != nil {
 		t.Fatalf("zero Increment() error = %v", err)
 	}
-	if err := indeterminate.Increment(1, "overflow"); !errors.Is(err, prompts.ErrInvalidDefinition) {
+	if err := indeterminate.Increment(1, "overflow");
+		!errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("increment overflow error = %v", err)
 	}
 }
@@ -270,7 +273,8 @@ func TestProgressCalculatesExplicitClockRateAndETA(t *testing.T) {
 		err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	if output := terminal.Output(); !strings.Contains(output, "Download: 4/10 (40%) @ 2.00/s (eta 3s)") {
+	if output := terminal.Output();
+		!strings.Contains(output, "Download: 4/10 (40%) @ 2.00/s (eta 3s)") {
 		t.Fatalf("rate output = %q", output)
 	}
 }
@@ -279,9 +283,9 @@ func TestProgressTimingUsesNonzeroBaselineAndExactCompletion(t *testing.T) {
 	t.Parallel()
 
 	clock := prompts.NewVirtualClock(time.Time{})
-	progress, err := prompts.NewProgress(prompts.ProgressConfig{
-		ID: "copy", Label: "Copy", Total: 4, Clock: clock,
-	})
+	progress, err := prompts.NewProgress(
+		prompts.ProgressConfig{ID: "copy", Label: "Copy", Total: 4, Clock: clock},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,8 +310,11 @@ func TestProgressTimingUsesNonzeroBaselineAndExactCompletion(t *testing.T) {
 	snapshot := progress.Snapshot()
 	rate, rateOK := snapshot.RatePerSecond.Get()
 	estimate, estimateOK := snapshot.EstimatedRemaining.Get()
-	if !rateOK || rate != 1 || snapshot.Elapsed != 2*time.Second ||
-		!estimateOK || estimate != 0 {
+	if !rateOK ||
+		rate != 1 ||
+		snapshot.Elapsed != 2 * time.Second ||
+		!estimateOK ||
+		estimate != 0 {
 		t.Fatalf("exact completion snapshot = %#v", snapshot)
 	}
 }
@@ -481,10 +488,9 @@ func TestSpinnerIsCallerDrivenAndReducedMotionSafe(t *testing.T) {
 		t.Fatalf("Snapshot() = %#v", snapshot)
 	}
 	spinner.Advance("ignored")
-	for _, config := range []prompts.SpinnerConfig{
-		{}, {ID: "spinner"}, {Label: "Spinner"},
-	} {
-		if _, err := prompts.NewSpinner(config); !errors.Is(err, prompts.ErrInvalidDefinition) {
+	for _, config := range []prompts.SpinnerConfig{{}, {ID: "spinner"}, {Label: "Spinner"}} {
+		if _, err := prompts.NewSpinner(config);
+			!errors.Is(err, prompts.ErrInvalidDefinition) {
 			t.Fatalf("invalid spinner error = %v", err)
 		}
 	}

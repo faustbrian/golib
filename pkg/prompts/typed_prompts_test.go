@@ -218,12 +218,16 @@ func TestPromptDescriptorContainsExecutionContract(t *testing.T) {
 func TestPromptDescriptorAcceptsMaximumExecutionBehaviorValues(t *testing.T) {
 	t.Parallel()
 
-	prompt := newTextPrompt(t, prompts.TextConfig{
-		ID: "name", Label: "Name",
-		Cancel:     prompts.CancelUseFallback,
-		EndOfInput: prompts.EOFUseFallback,
-		Secret:     prompts.SecretOther,
-	})
+	prompt := newTextPrompt(
+		t,
+		prompts.TextConfig{
+			ID: "name",
+			Label: "Name",
+			Cancel: prompts.CancelUseFallback,
+			EndOfInput: prompts.EOFUseFallback,
+			Secret: prompts.SecretOther,
+		},
+	)
 	descriptor := prompt.Describe()
 	if descriptor.Cancel != prompts.CancelUseFallback ||
 		descriptor.EndOfInput != prompts.EOFUseFallback ||
@@ -421,9 +425,13 @@ func TestValueTypeCanonicalBoundaries(t *testing.T) {
 		t.Fatalf("NewPath() error = %v", err)
 	}
 	assertInvalidSubmission(t, pathPrompt, "")
-	directoryPrompt, err := prompts.NewPath(prompts.PathConfig{
-		ID: "directory", Label: "Directory", Kind: prompts.PathDirectory,
-	})
+	directoryPrompt, err := prompts.NewPath(
+		prompts.PathConfig{
+			ID: "directory",
+			Label: "Directory",
+			Kind: prompts.PathDirectory,
+		},
+	)
 	if err != nil || parseValue(t, directoryPrompt, "/tmp").Kind() != prompts.PathDirectory {
 		t.Fatalf("directory path prompt = %#v, %v", directoryPrompt.Describe(), err)
 	}

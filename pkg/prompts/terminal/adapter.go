@@ -50,7 +50,11 @@ type Adapter struct {
 // New constructs an inert adapter without reading or mutating either file.
 func New(input, output *os.File, config Config) (*Adapter, error) {
 	if !validConfig(input, output, config) {
-		return nil, adapterFailure(prompts.ErrorInvalidDefinition, "define terminal adapter", prompts.ErrInvalidDefinition)
+		return nil, adapterFailure(
+			prompts.ErrorInvalidDefinition,
+			"define terminal adapter",
+			prompts.ErrInvalidDefinition,
+		)
 	}
 	if config.ReadBuffer == 0 {
 		config.ReadBuffer = defaultReadBuffer
@@ -273,8 +277,12 @@ func (adapter *Adapter) Next(ctx context.Context) (prompts.InputEvent, error) {
 }
 
 func validConfig(input, output *os.File, config Config) bool {
-	return input != nil && output != nil && config.ReadBuffer >= 0 && config.ReadBuffer <= maximumReadBuffer &&
-		config.PollInterval >= 0 && config.PollInterval <= maximumPollInterval
+	return input != nil &&
+		output != nil &&
+		config.ReadBuffer >= 0 &&
+		config.ReadBuffer <= maximumReadBuffer &&
+		config.PollInterval >= 0 &&
+		config.PollInterval <= maximumPollInterval
 }
 
 func nextReadDeadline(ctx context.Context, pollInterval time.Duration, now time.Time) time.Time {

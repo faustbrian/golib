@@ -11,70 +11,90 @@ import (
 )
 
 func TestTerminalControlMutatesRequestedEchoState(t *testing.T) {
-	for _, test := range []struct {
-		name              string
-		initial           bool
-		enabled           bool
-		preserveUnrelated bool
-	}{
-		{name: "disable", initial: true, enabled: false},
-		{name: "enable", initial: false, enabled: true, preserveUnrelated: true},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			state := &terminalState{}
-			if test.initial {
-				state.Lflag |= terminalEchoFlag
-			}
-			unrelatedFlag := (state.Lflag | terminalEchoFlag) << 1
-			if test.preserveUnrelated {
-				state.Lflag |= unrelatedFlag
-			}
-			written := false
-			err := setEchoUsing(
-				23,
-				test.enabled,
-				func(descriptor uintptr) (*terminalState, error) {
-					if descriptor != 23 {
-						t.Fatalf("read descriptor = %d", descriptor)
-					}
-					return state, nil
-				},
-				func(descriptor uintptr, got *terminalState) error {
-					written = true
-					if descriptor != 23 || got != state {
-						t.Fatalf("write = %d, %p; want 23, %p", descriptor, got, state)
-					}
-					return nil
-				},
-			)
-			if err != nil || !written {
-				t.Fatalf("setEchoUsing() = %v, written %v", err, written)
-			}
-			if got := state.Lflag&terminalEchoFlag != 0; got != test.enabled {
-				t.Fatalf("echo enabled = %v, want %v", got, test.enabled)
-			}
-			if test.preserveUnrelated && state.Lflag&unrelatedFlag == 0 {
-				t.Fatal("setEchoUsing() removed an unrelated local flag")
-			}
-		})
+	for _, test := range
+		[]struct {
+			name string
+			initial bool
+			enabled bool
+			preserveUnrelated bool
+		}{
+			{name: "disable", initial: true, enabled: false},
+			{name: "enable", initial: false, enabled: true, preserveUnrelated: true},
+		} {
+		t.Run(
+			test.name,
+			func(t *testing.T) {
+				state := &terminalState{}
+				if test.initial {
+					state.Lflag |= terminalEchoFlag
+				}
+				unrelatedFlag := (state.Lflag | terminalEchoFlag) << 1
+				if test.preserveUnrelated {
+					state.Lflag |= unrelatedFlag
+				}
+				written := false
+				err := setEchoUsing(
+					23,
+					test.enabled,
+					func(descriptor uintptr) (*terminalState, error) {
+						if descriptor != 23 {
+							t.Fatalf("read descriptor = %d", descriptor)
+						}
+						return state, nil
+					},
+					func(descriptor uintptr, got *terminalState) error {
+						written = true
+						if descriptor != 23 || got != state {
+							t.Fatalf(
+								"write = %d, %p; want 23, %p",
+								descriptor,
+								got,
+								state,
+							)
+						}
+						return nil
+					},
+				)
+				if err != nil || !written {
+					t.Fatalf("setEchoUsing() = %v, written %v", err, written)
+				}
+				if got := state.Lflag & terminalEchoFlag != 0; got != test.enabled {
+					t.Fatalf("echo enabled = %v, want %v", got, test.enabled)
+				}
+				if test.preserveUnrelated && state.Lflag & unrelatedFlag == 0 {
+					t.Fatal("setEchoUsing() removed an unrelated local flag")
+				}
+			},
+		)
 	}
 
 	readFailure := errors.New("read failed")
 	if err := setEchoUsing(
 		23,
 		true,
-		func(uintptr) (*terminalState, error) { return nil, readFailure },
-		func(uintptr, *terminalState) error { t.Fatal("write called after read failure"); return nil },
-	); !errors.Is(err, readFailure) {
+		func(uintptr) (*terminalState, error) {
+			return nil, readFailure
+		},
+		func(uintptr, *terminalState) error {
+			t.Fatal("write called after read failure")
+			return nil
+		},
+	);
+		!errors.Is(err, readFailure) {
 		t.Fatalf("read failure = %v", err)
 	}
 	writeFailure := errors.New("write failed")
 	if err := setEchoUsing(
 		23,
 		true,
-		func(uintptr) (*terminalState, error) { return &terminalState{}, nil },
-		func(uintptr, *terminalState) error { return writeFailure },
-	); !errors.Is(err, writeFailure) {
+		func(uintptr) (*terminalState, error) {
+			return &terminalState{}, nil
+		},
+		func(uintptr, *terminalState) error {
+			return writeFailure
+		},
+	);
+		!errors.Is(err, writeFailure) {
 		t.Fatalf("write failure = %v", err)
 	}
 }
@@ -108,7 +128,7 @@ func TestTerminalControlAppliesEchoAndOutputFlags(t *testing.T) {
 		t.Fatalf("setEcho(false) error = %v", err)
 	}
 	current, err := readTerminalState(replica.Fd())
-	if err != nil || current.Lflag&terminalEchoFlag != 0 {
+	if err != nil || current.Lflag & terminalEchoFlag != 0 {
 		t.Fatalf("disabled echo state = %#v, %v", current, err)
 	}
 	current.Lflag &^= terminalEchoFlag
@@ -119,7 +139,7 @@ func TestTerminalControlAppliesEchoAndOutputFlags(t *testing.T) {
 		t.Fatalf("setEcho(true) error = %v", err)
 	}
 	current, err = readTerminalState(replica.Fd())
-	if err != nil || current.Lflag&terminalEchoFlag == 0 {
+	if err != nil || current.Lflag & terminalEchoFlag == 0 {
 		t.Fatalf("enabled echo state = %#v, %v", current, err)
 	}
 	current.Oflag &^= terminalOutputProcessingFlag
@@ -130,7 +150,7 @@ func TestTerminalControlAppliesEchoAndOutputFlags(t *testing.T) {
 		t.Fatalf("setOutputProcessing() error = %v", err)
 	}
 	current, err = readTerminalState(replica.Fd())
-	if err != nil || current.Oflag&terminalOutputProcessingFlag == 0 {
+	if err != nil || current.Oflag & terminalOutputProcessingFlag == 0 {
 		t.Fatalf("output processing state = %#v, %v", current, err)
 	}
 }

@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Honor explicit module `format` and `format-check` targets in the canonical
+  repository runner, while retaining gofmt as the fallback for modules without
+  formatter ownership.
 - Restore trusted content-addressed mutation checkpoints before CI module
   verification so unchanged packages retain their exact proof while changed,
   missing, malformed, or stale evidence executes normally.

@@ -29,16 +29,23 @@ func TestInteractiveSelectionContainsOwnedParserFailure(t *testing.T) {
 	}
 	terminal := NewVirtualTerminal(40, 8)
 	terminal.Push(KeyEvent(KeyEnter))
-	_, err := Run(context.Background(), prompt, Execution{
-		Output: terminal,
-		Events: boundedInternalEventSource{
-			EventSource: terminal,
-			Wait:        100 * time.Millisecond,
+	_, err := Run(
+		context.Background(),
+		prompt,
+		Execution{
+			Output: terminal,
+			Events: boundedInternalEventSource{
+				EventSource: terminal,
+				Wait: 100 * time.Millisecond,
+			},
+			Terminal: terminal,
+			Capabilities: Capabilities{InputTerminal: true, OutputTerminal: true},
+			Policy: InteractionPolicy{
+				Mode: InteractiveRequired,
+				PermitInteraction: true,
+			},
 		},
-		Terminal:     terminal,
-		Capabilities: Capabilities{InputTerminal: true, OutputTerminal: true},
-		Policy:       InteractionPolicy{Mode: InteractiveRequired, PermitInteraction: true},
-	})
+	)
 	if !errors.Is(err, ErrValidationExhausted) || !terminal.Released() {
 		t.Fatalf("Run() error = %v, released %v", err, terminal.Released())
 	}
@@ -152,16 +159,16 @@ func TestInteractiveSelectionReplayAndExactEventBoundaries(t *testing.T) {
 	t.Parallel()
 
 	details := selectionDetails{
-		options: []selectionOption{
-			{id: "one", label: "One"},
-			{id: "two", label: "Two"},
-		},
-		initialIDs: []string{"one"}, maximum: 1,
+		options: []selectionOption{{id: "one", label: "One"}, {id: "two", label: "Two"}},
+		initialIDs: []string{"one"},
+		maximum: 1,
 	}
-	interaction := &formInteraction{initial: &formReplay{
-		kind:      formReplaySelection,
-		selection: selectionReplay{focusID: "two"},
-	}}
+	interaction := &formInteraction{
+		initial: &formReplay{
+			kind: formReplaySelection,
+			selection: selectionReplay{focusID: "two"},
+		},
+	}
 	ctx := context.WithValue(context.Background(), formNavigationContextKey{}, interaction)
 	value, err := runSelectionEvents(ctx, details, KeyEvent(KeyEnter))
 	if err != nil || value != "two" {
@@ -180,26 +187,38 @@ func TestInteractiveSelectionReplayAndExactEventBoundaries(t *testing.T) {
 
 	search := details
 	search.searchPolicy = SearchPolicy{MaxOptions: 2, MaxResults: 2, MaxQueryRunes: 3}
-	for name, events := range map[string][]InputEvent{
-		"missing search policy": {PasteEvent(""), KeyEvent(KeyEnter)},
-		"invalid UTF-8":         {PasteEvent(string([]byte{0xff})), KeyEvent(KeyEscape)},
-		"paste overflow":        {PasteEvent("four"), KeyEvent(KeyEscape)},
-		"rune overflow": {
-			RuneEvent('a'), RuneEvent('b'), RuneEvent('c'), RuneEvent('d'),
-			KeyEvent(KeyEscape),
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+	for name, events := range
+		map[string][]InputEvent{
+			"missing search policy": {PasteEvent(""), KeyEvent(KeyEnter)},
+			"invalid UTF-8": {PasteEvent(string([]byte{0xff})), KeyEvent(KeyEscape)},
+			"paste overflow": {PasteEvent("four"), KeyEvent(KeyEscape)},
+			"rune overflow": {
+				RuneEvent('a'),
+				RuneEvent('b'),
+				RuneEvent('c'),
+				RuneEvent('d'),
+				KeyEvent(KeyEscape),
+			},
+		} {
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
 
-			policy := search
-			if name == "missing search policy" {
-				policy = details
-			}
-			if _, runErr := runSelectionEvents(context.Background(), policy, events...); !errors.Is(runErr, ErrReader) {
-				t.Fatalf("selection boundary error = %v", runErr)
-			}
-		})
+				policy := search
+				if name == "missing search policy" {
+					policy = details
+				}
+				if _, runErr := runSelectionEvents(
+					context.Background(),
+					policy,
+					events...,
+				);
+					!errors.Is(runErr, ErrReader) {
+					t.Fatalf("selection boundary error = %v", runErr)
+				}
+			},
+		)
 	}
 }
 
@@ -211,7 +230,9 @@ func TestInteractiveSelectionDistinguishesSearchFromMultiSelectToggle(t *testing
 			{id: "alpha", label: "Alpha"},
 			{id: "beta", label: "Beta"},
 		},
-		initialIDs: []string{"alpha"}, multiple: true, maximum: 2,
+		initialIDs: []string{"alpha"},
+		multiple: true,
+		maximum: 2,
 		searchPolicy: SearchPolicy{MaxOptions: 2, MaxResults: 2, MaxQueryRunes: 4},
 	}
 	value, err := runSelectionEvents(
@@ -231,7 +252,8 @@ func TestInteractiveSelectionDistinguishesSearchFromMultiSelectToggle(t *testing
 			{id: "beta", label: "Beta"},
 			{id: "gamma", label: "Gamma"},
 		},
-		initialIDs: []string{"alpha"}, maximum: 1,
+		initialIDs: []string{"alpha"},
+		maximum: 1,
 	}
 	value, err = runSelectionEvents(
 		context.Background(),
@@ -253,7 +275,8 @@ func TestSelectionStateExactReplayAndNavigationBoundaries(t *testing.T) {
 			{id: "two", label: "Two"},
 			{id: "three", label: "Three"},
 		},
-		initialIDs: []string{"two"}, maximum: 1,
+		initialIDs: []string{"two"},
+		maximum: 1,
 	}
 	state := newSelectionState(details, 20, 8)
 	if state.focus != 1 {
@@ -283,21 +306,26 @@ func TestSelectionStateExactReplayAndNavigationBoundaries(t *testing.T) {
 		t.Fatalf("backward focus = %d, want 0", state.focus)
 	}
 
-	disabledLast := newSelectionState(selectionDetails{
-		options: []selectionOption{
-			{id: "first", label: "First"},
-			{id: "active", label: "Active"},
-			{id: "disabled", label: "Disabled", disabled: true},
+	disabledLast := newSelectionState(
+		selectionDetails{
+			options: []selectionOption{
+				{id: "first", label: "First"},
+				{id: "active", label: "Active"},
+				{id: "disabled", label: "Disabled", disabled: true},
+			},
+			maximum: 1,
 		},
-		maximum: 1,
-	}, 20, 8)
+		20,
+		8,
+	)
 	disabledLast.focusLast()
 	if disabledLast.focus != 1 {
 		t.Fatalf("last enabled focus = %d, want 1", disabledLast.focus)
 	}
 
 	search := selectionDetails{
-		options: []selectionOption{{id: "wide", label: "界"}}, maximum: 1,
+		options: []selectionOption{{id: "wide", label: "界"}},
+		maximum: 1,
 		searchPolicy: SearchPolicy{MaxOptions: 1, MaxResults: 1, MaxQueryRunes: 1},
 	}
 	query := newSelectionState(search, 20, 8)
@@ -311,28 +339,33 @@ func TestSelectionPageSizeAndRenderingUseExactSemanticState(t *testing.T) {
 	t.Parallel()
 
 	state := selectionState{
-		details:  selectionDetails{searchPolicy: SearchPolicy{MaxQueryRunes: 1}},
-		height:   10,
+		details: selectionDetails{searchPolicy: SearchPolicy{MaxQueryRunes: 1}},
+		height: 10,
 		metadata: 2,
-		message:  "invalid",
+		message: "invalid",
 	}
 	if size := state.pageSize(); size != 5 {
 		t.Fatalf("page size = %d, want 5", size)
 	}
 
-	details := selectionDetails{maximum: 1, options: []selectionOption{
-		{id: "a", label: "A"},
-		{id: "b", label: "B"},
-		{id: "c", label: "C"},
-		{id: "d", label: "D", description: "fourth"},
-		{id: "e", label: "E"},
-	}}
+	details := selectionDetails{
+		maximum: 1,
+		options: []selectionOption{
+			{id: "a", label: "A"},
+			{id: "b", label: "B"},
+			{id: "c", label: "C"},
+			{id: "d", label: "D", description: "fourth"},
+			{id: "e", label: "E"},
+		},
+	}
 	visible := []int{0, 1, 2, 3, 4}
 	var frame Frame
-	renderer := internalRendererFunc(func(value Frame, _ RenderOptions) (string, error) {
-		frame = value
-		return "", nil
-	})
+	renderer := internalRendererFunc(
+		func(value Frame, _ RenderOptions) (string, error) {
+			frame = value
+			return "", nil
+		},
+	)
 	err := writeSelection(
 		Execution{Output: &strings.Builder{}, Renderer: renderer},
 		definition[string]{id: "choice", label: "Choice"},
@@ -350,9 +383,12 @@ func TestSelectionPageSizeAndRenderingUseExactSemanticState(t *testing.T) {
 	if len(first) != 1 || first[0].Content != "C" || first[0].Role != RoleValue {
 		t.Fatalf("first visible option = %#v", first)
 	}
-	if len(second) != 4 || second[0].Role != RoleFocus ||
-		second[1].Content != "D" || second[2].Content != " - " ||
-		second[3].Role != RoleHint || second[3].Content != "fourth" {
+	if len(second) != 4 ||
+		second[0].Role != RoleFocus ||
+		second[1].Content != "D" ||
+		second[2].Content != " - " ||
+		second[3].Role != RoleHint ||
+		second[3].Content != "fourth" {
 		t.Fatalf("focused described option = %#v", second)
 	}
 
@@ -367,7 +403,7 @@ func TestSelectionPageSizeAndRenderingUseExactSemanticState(t *testing.T) {
 	lines = frame.Lines()
 	first = lines[1].Segments()
 	second = lines[2].Segments()
-	if first[len(first)-1].Content != "C" || second[0].Content != "D" {
+	if first[len(first) - 1].Content != "C" || second[0].Content != "D" {
 		t.Fatalf("exact-page-boundary options = %#v, %#v", first, second)
 	}
 
@@ -375,10 +411,15 @@ func TestSelectionPageSizeAndRenderingUseExactSemanticState(t *testing.T) {
 		Execution{Output: &strings.Builder{}, Renderer: renderer},
 		definition[string]{id: "choice", label: "Choice"},
 		selectionState{
-			details: selectionDetails{maximum: 1, options: []selectionOption{{
-				id: "disabled", label: "Disabled", disabled: true,
-			}}},
-			visible: []int{0}, focus: 0, height: 3,
+			details: selectionDetails{
+				maximum: 1,
+				options: []selectionOption{
+					{id: "disabled", label: "Disabled", disabled: true},
+				},
+			},
+			visible: []int{0},
+			focus: 0,
+			height: 3,
 		},
 	)
 	if err != nil {
@@ -399,22 +440,37 @@ func runSelectionEvents(
 	if err := terminal.Push(events...); err != nil {
 		return "", err
 	}
-	prompt := Prompt[string]{definition: definition[string]{
-		kind: KindSelect, id: "choice", label: "Choice",
-		retry: RetryPolicy{MaxAttempts: 1}, selection: &details,
-		parse: func(value string) (string, error) { return value, nil },
-	}}
+	prompt := Prompt[string]{
+		definition: definition[string]{
+			kind: KindSelect,
+			id: "choice",
+			label: "Choice",
+			retry: RetryPolicy{MaxAttempts: 1},
+			selection: &details,
+			parse: func(value string) (string, error) {
+				return value, nil
+			},
+		},
+	}
 
-	return runInteractiveSelection(ctx, prompt, Execution{
-		Output: terminal,
-		Events: boundedInternalEventSource{
-			EventSource: terminal,
-			Wait:        100 * time.Millisecond,
+	return runInteractiveSelection(
+		ctx,
+		prompt,
+		Execution{
+			Output: terminal,
+			Events: boundedInternalEventSource{
+				EventSource: terminal,
+				Wait: 100 * time.Millisecond,
+			},
+			Capabilities: Capabilities{
+				InputTerminal: true,
+				OutputTerminal: true,
+				Width: 40,
+				Height: 8,
+			},
 		},
-		Capabilities: Capabilities{
-			InputTerminal: true, OutputTerminal: true, Width: 40, Height: 8,
-		},
-	}, details)
+		details,
+	)
 }
 
 type internalRendererFunc func(Frame, RenderOptions) (string, error)

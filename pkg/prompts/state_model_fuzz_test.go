@@ -157,49 +157,28 @@ func FuzzSelectionFilterAndStateMatchesReferenceModel(fuzz *testing.F) {
 				if len(visible) == 0 {
 					return
 				}
-				focus = (focus + direction + len(visible)) % len(visible)
-			}
-		}
-		move := func(direction, steps int) {
-			if len(visible) == 0 {
-				return
-			}
-			for range steps {
-				focus = (focus + direction + len(visible)) % len(visible)
-				ensureEnabled(direction)
-			}
-		}
-		setQuery := func(query string) {
-			state.query = lineEditor{maxBytes: 64}
-			if err := state.query.insert(query, false); err != nil {
-				t.Fatal(err)
-			}
-			state.filter()
-			focus = 0
-			visible = visible[:0]
-			for index, label := range labels {
-				if query == "" || query == label {
-					visible = append(visible, index)
+				for range visible {
+					if !options[visible[focus]].disabled {
+						return
+					}
+					focus = (focus + direction + len(visible)) % len(visible)
 				}
 			}
-			ensureEnabled(1)
-		}
-		for index, value := range raw {
-			switch value % 10 {
-			case 0:
-				state.move(1, 1)
-				move(1, 1)
-			case 1:
-				state.move(-1, 1)
-				move(-1, 1)
-			case 2:
-				state.move(1, state.pageSize())
-				move(1, max(1, height-2))
-			case 3:
-				state.move(-1, state.pageSize())
-				move(-1, max(1, height-2))
-			case 4:
-				state.focusFirst()
+			move := func(direction, steps int) {
+				if len(visible) == 0 {
+					return
+				}
+				for range steps {
+					focus = (focus + direction + len(visible)) % len(visible)
+					ensureEnabled(direction)
+				}
+			}
+			setQuery := func(query string) {
+				state.query = lineEditor{maxBytes: 64}
+				if err := state.query.insert(query, false); err != nil {
+					t.Fatal(err)
+				}
+				state.filter()
 				focus = 0
 				visible = visible[:0]
 				for index, label := range labels {
@@ -212,17 +191,17 @@ func FuzzSelectionFilterAndStateMatchesReferenceModel(fuzz *testing.F) {
 			for index, value := range raw {
 				switch value % 10 {
 				case 0:
-					state.move(1)
-					move(1)
+					state.move(1, 1)
+					move(1, 1)
 				case 1:
-					state.move(-1)
-					move(-1)
+					state.move(-1, 1)
+					move(-1, 1)
 				case 2:
-					state.move(state.pageSize())
-					move(max(1, height - 2))
+					state.move(1, state.pageSize())
+					move(1, max(1, height - 2))
 				case 3:
-					state.move(-state.pageSize())
-					move(-max(1, height - 2))
+					state.move(-1, state.pageSize())
+					move(-1, max(1, height - 2))
 				case 4:
 					state.focusFirst()
 					focus = 0

@@ -79,9 +79,9 @@ make fuzz
 make benchmark
 ```
 
-Formatting uses the exact Gox development revision pinned in the module
+Formatting uses the exact Glippy development revision pinned in the module
 Makefile. Do not run gofmt, goimports, gofumpt, or golines over this module;
-their output is not compatible with the canonical Gox layout.
+their output is not compatible with the canonical Glippy layout.
 
 Licensed under Apache-2.0.
 

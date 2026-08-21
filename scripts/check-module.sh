@@ -250,14 +250,22 @@ run_gate() {
     printf '\n[%s] %s\n' "${module}" "${selected}"
     case "${selected}" in
         format)
-            find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -w
+            if target="$(find_make_target format)"; then
+                make GOWORK=off "${target}"
+            else
+                find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -w
+            fi
             ;;
         format-check)
-            unformatted="$(find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -l)"
-            [[ -z "${unformatted}" ]] || {
-                printf 'unformatted Go files:\n%s\n' "${unformatted}" >&2
-                exit 1
-            }
+            if target="$(find_make_target format-check)"; then
+                make GOWORK=off "${target}"
+            else
+                unformatted="$(find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -l)"
+                [[ -z "${unformatted}" ]] || {
+                    printf 'unformatted Go files:\n%s\n' "${unformatted}" >&2
+                    exit 1
+                }
+            fi
             ;;
         tidy-check)
             enable_local_proxy

@@ -106,16 +106,28 @@ func TestDynamicOptionsRejectsStaleGeneration(t *testing.T) {
 			close(release)
 		}
 	}()
-	dynamic, err := prompts.NewDynamicOptions(prompts.DynamicOptionsConfig[string]{
-		Clock: clock,
-		Provider: func(_ context.Context, query string) ([]prompts.Option[string], error) {
-			if query == "old" {
-				close(started)
-				<-release
-			}
-			return []prompts.Option[string]{mustOption(t, prompts.OptionConfig[string]{
-				ID: query, Label: query, Value: query,
-			})}, nil
+	dynamic, err := prompts.NewDynamicOptions(
+		prompts.DynamicOptionsConfig[string]{
+			Clock: clock,
+			Provider: func(
+				_ context.Context,
+				query string,
+			) ([]prompts.Option[string], error) {
+				if query == "old" {
+					close(started)
+					<-release
+				}
+				return []prompts.Option[string]{
+					mustOption(
+						t,
+						prompts.OptionConfig[string]{
+							ID: query,
+							Label: query,
+							Value: query,
+						},
+					),
+				}, nil
+			},
 		},
 	)
 	if err != nil {
@@ -293,15 +305,23 @@ func TestDynamicOptionsValidatesDefinitionAndResults(t *testing.T) {
 	}
 
 	providerCalls := 0
-	dynamic, _ := prompts.NewDynamicOptions(prompts.DynamicOptionsConfig[int]{
-		Clock: validClock,
-		Provider: func(context.Context, string) ([]prompts.Option[int], error) {
-			providerCalls++
-			return nil, nil
+	dynamic, _ := prompts.NewDynamicOptions(
+		prompts.DynamicOptionsConfig[int]{
+			Clock: validClock,
+			Provider: func(context.Context, string) ([]prompts.Option[int], error) {
+				providerCalls++
+				return nil, nil
+			},
 		},
-	})
-	if _, applied, err := dynamic.Resolve(context.Background(), 99); err != nil || applied || providerCalls != 0 {
-		t.Fatalf("unknown generation Resolve() = %t, %v; calls = %d", applied, err, providerCalls)
+	)
+	if _, applied, err := dynamic.Resolve(context.Background(), 99);
+		err != nil || applied || providerCalls != 0 {
+		t.Fatalf(
+			"unknown generation Resolve() = %t, %v; calls = %d",
+			applied,
+			err,
+			providerCalls,
+		)
 	}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()

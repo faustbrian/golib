@@ -166,14 +166,19 @@ func TestSecretDefinitionsRequireClassification(t *testing.T) {
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("invalid secret class error = %v", err)
 	}
-	if _, err := prompts.NewSecret(prompts.SecretConfig{
-		ID: "other", Label: "Other", Class: prompts.SecretOther,
-	}); err != nil {
+	if _, err := prompts.NewSecret(
+		prompts.SecretConfig{ID: "other", Label: "Other", Class: prompts.SecretOther},
+	);
+		err != nil {
 		t.Fatalf("maximum secret class error = %v", err)
 	}
-	bytesPrompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "other-bytes", Label: "Other bytes", Class: prompts.SecretOther,
-	})
+	bytesPrompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{
+			ID: "other-bytes",
+			Label: "Other bytes",
+			Class: prompts.SecretOther,
+		},
+	)
 	if err != nil {
 		t.Fatalf("maximum secret bytes class error = %v", err)
 	}

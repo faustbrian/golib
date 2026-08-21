@@ -253,10 +253,10 @@ func decodeEscape(input []byte) (InputEvent, int, escapeStatus) {
 }
 
 func terminalPrefixSuffix(content, marker []byte) int {
-	maximum := min(len(content), len(marker)-1)
+	maximum := min(len(content), len(marker) - 1)
 	for offset := range maximum {
 		size := maximum - offset
-		if bytes.Equal(content[len(content)-size:], marker[:size]) {
+		if bytes.Equal(content[len(content) - size:], marker[:size]) {
 			return size
 		}
 	}

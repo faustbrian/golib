@@ -268,7 +268,11 @@ func NewMultiSelect[T any](config MultiSelectConfig[T]) (Prompt[[]T], error) {
 		maximum = len(options)
 	}
 	if config.Min < 0 || maximum < config.Min || maximum > len(options) {
-		return Prompt[[]T]{}, invalidBehaviorDefinition("define multi-select prompt", config.ID, fmt.Errorf("%w: invalid selection bounds", ErrInvalidDefinition))
+		return Prompt[[]T]{}, invalidBehaviorDefinition(
+			"define multi-select prompt",
+			config.ID,
+			fmt.Errorf("%w: invalid selection bounds", ErrInvalidDefinition),
+		)
 	}
 	resolve := func(identities []string) ([]T, error) {
 		return resolveOptions(identities, options, byID, config.Min, maximum)

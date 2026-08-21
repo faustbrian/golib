@@ -10,6 +10,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Adopt Glippy as the sole formatter authority for module source, checks, and
+  contributor workflows, replacing gofmt and goimports formatting passes.
 - Accept repeated owned hyperlink wrappers in the hostile-input fuzz oracle so
   valid multiline links do not fail verification.
 - Give each allocation-budget iteration its own bounded context so race

@@ -35,9 +35,12 @@ func BenchmarkInteractiveTextEditing(benchmark *testing.B) {
 	benchmark.ReportAllocs()
 	for benchmark.Loop() {
 		terminal := prompts.NewVirtualTerminal(80, 24)
-		terminal.Push(prompts.PasteEvent("emoji 👩‍💻 and combining e\u0301"),
-			prompts.KeyEvent(prompts.KeyWordLeft), prompts.RuneEvent('X'),
-			prompts.KeyEvent(prompts.KeyEnter))
+		terminal.Push(
+			prompts.PasteEvent("emoji 👩‍💻 and combining e\u0301"),
+			prompts.KeyEvent(prompts.KeyWordLeft),
+			prompts.RuneEvent('X'),
+			prompts.KeyEvent(prompts.KeyEnter),
+		)
 		execution := unboundedInteractiveExecution(terminal)
 		execution.Output = io.Discard
 		if _, err := prompts.Run(context.Background(), prompt, execution); err != nil {

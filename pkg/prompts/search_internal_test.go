@@ -23,15 +23,16 @@ func TestSearchExactLimitsAndTokenMatching(t *testing.T) {
 	if tokensMatch([]string{"z"}, []string{"a", "b"}, strings.HasPrefix) {
 		t.Fatal("tokensMatch() accepted a missing token")
 	}
-	for name, test := range map[string]struct {
-		options []Option[int]
-		query   string
-		policy  SearchPolicy
-	}{
-		"options": {[]Option[int]{option, option}, "a", policy},
-		"query":   {[]Option[int]{option}, "aa", policy},
-		"policy":  {[]Option[int]{option}, "a", SearchPolicy{}},
-	} {
+	for name, test := range
+		map[string]struct {
+			options []Option[int]
+			query string
+			policy SearchPolicy
+		}{
+			"options": {[]Option[int]{option, option}, "a", policy},
+			"query": {[]Option[int]{option}, "aa", policy},
+			"policy": {[]Option[int]{option}, "a", SearchPolicy{}},
+		} {
 		if name == "policy" {
 			test.policy = SearchPolicy{MaxOptions: 0, MaxResults: 1, MaxQueryRunes: 1}
 		}

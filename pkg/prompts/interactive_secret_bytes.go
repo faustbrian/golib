@@ -258,7 +258,7 @@ func (editor *byteLineEditor) insert(input []byte) error {
 			return ErrReader
 		}
 		if !unicode.IsControl(char) && !isBidiControl(char) {
-			clean = append(clean, input[index:index+size]...)
+			clean = append(clean, input[index:index + size]...)
 		}
 	}
 	defer clear(clean)
