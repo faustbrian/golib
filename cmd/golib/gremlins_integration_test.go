@@ -108,7 +108,7 @@ func TestGolibGremlinsDiffSelectsChangedNestedModuleSource(t *testing.T) {
 	if err := os.MkdirAll(module, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(module, "go.mod"), "module example.test/fixture\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(module, "go.mod"), "module example.test/fixture\n\ngo 1.26.6\n")
 	source := filepath.Join(module, "fixture.go")
 	writeFile(t, source, `package fixture
 

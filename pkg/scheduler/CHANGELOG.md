@@ -5,8 +5,16 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Make fuzz-target discovery portable to minimal CI runners without ripgrep.
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Deep-copy nested schedule parameters when compiling a registry so caller
   mutations cannot alter compiled execution input.
 - Classify task-lease heartbeat failures deterministically before canceling the

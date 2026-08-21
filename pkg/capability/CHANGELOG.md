@@ -5,6 +5,10 @@ the module follows semantic versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Auditable capability-v1 specification decisions, expanded RFC provenance,
@@ -34,6 +38,8 @@ the module follows semantic versioning.
 
 ### Changed
 
+- Invalid-profile verification now isolates every required URL-profile field,
+  preventing logical-condition mutations from surviving through timeouts.
 - Verification now preserves trusted unknown-key and algorithm-mismatch policy
   failures through bounded resolver layers while continuing to redact private
   resolver diagnostics.

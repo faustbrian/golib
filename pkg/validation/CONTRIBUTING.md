@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or later. Behavior changes require a failing test first. Run
+Use Go 1.26.6 or later. Behavior changes require a failing test first. Run
 `make check` before handing off a change and `make check-all` when the advisory
 NilAway download is available.
 

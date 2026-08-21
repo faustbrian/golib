@@ -482,6 +482,17 @@ func TestSnapshotRejectsInvalidStateInputsAndContexts(t *testing.T) {
 	t.Parallel()
 
 	validLimits := testLimits()
+	if err := PreflightInitialEntries(0, Limits{}); !errors.Is(err, errInvalidLimits) {
+		t.Fatalf("invalid initial-entry preflight limits error = %v", err)
+	}
+	var invalidSnapshot Snapshot
+	if err := invalidSnapshot.PreflightApply(1); !errors.Is(err, errInvalidSnapshot) {
+		t.Fatalf("invalid snapshot preflight error = %v", err)
+	}
+	validSnapshot := newTestSnapshot(t, nil)
+	if err := validSnapshot.PreflightApply(0); err != nil {
+		t.Fatalf("empty update preflight error = %v", err)
+	}
 	invalidLimits := []Limits{{}}
 	for _, invalidate := range []func(*Limits){
 		func(limits *Limits) { limits.MaxEntries = 0 },

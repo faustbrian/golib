@@ -39,7 +39,7 @@ func TestDynamicOptionsDebouncesBoundsAndCopies(t *testing.T) {
 	}
 
 	generation, err := dynamic.Schedule("one")
-	if err != nil || generation == 0 {
+	if err != nil || generation != 1 {
 		t.Fatalf("Schedule() = %d, %v", generation, err)
 	}
 	options, applied, err := dynamic.Resolve(context.Background(), generation)
@@ -81,6 +81,10 @@ func TestDynamicOptionsDebouncesBoundsAndCopies(t *testing.T) {
 	if again[0].ID() != "one" {
 		t.Fatal("Snapshot retained caller mutation")
 	}
+	exactGeneration, err := dynamic.Schedule("four")
+	if err != nil || exactGeneration != 2 {
+		t.Fatalf("exact-bound Schedule() = %d, %v", exactGeneration, err)
+	}
 
 	if _, err := dynamic.Schedule("12345"); !errors.Is(err, prompts.ErrUnsupported) {
 		t.Fatalf("oversized Schedule() error = %v", err)
@@ -95,28 +99,23 @@ func TestDynamicOptionsRejectsStaleGeneration(t *testing.T) {
 	clock := prompts.NewVirtualClock(time.Unix(200, 0))
 	started := make(chan struct{})
 	release := make(chan struct{})
-	dynamic, err := prompts.NewDynamicOptions(
-		prompts.DynamicOptionsConfig[string]{
-			Clock: clock,
-			Provider: func(
-				_ context.Context,
-				query string,
-			) ([]prompts.Option[string], error) {
-				if query == "old" {
-					close(started)
-					<-release
-				}
-				return []prompts.Option[string]{
-					mustOption(
-						t,
-						prompts.OptionConfig[string]{
-							ID: query,
-							Label: query,
-							Value: query,
-						},
-					),
-				}, nil
-			},
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+	dynamic, err := prompts.NewDynamicOptions(prompts.DynamicOptionsConfig[string]{
+		Clock: clock,
+		Provider: func(_ context.Context, query string) ([]prompts.Option[string], error) {
+			if query == "old" {
+				close(started)
+				<-release
+			}
+			return []prompts.Option[string]{mustOption(t, prompts.OptionConfig[string]{
+				ID: query, Label: query, Value: query,
+			})}, nil
 		},
 	)
 	if err != nil {
@@ -133,14 +132,23 @@ func TestDynamicOptionsRejectsStaleGeneration(t *testing.T) {
 		options, applied, resolveErr := dynamic.Resolve(context.Background(), oldGeneration)
 		oldResult <- result{options: options, applied: applied, err: resolveErr}
 	}()
-	<-started
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("old provider did not start")
+	}
 	newGeneration, _ := dynamic.Schedule("new")
 	options, applied, err := dynamic.Resolve(context.Background(), newGeneration)
 	if err != nil || !applied || options[0].ID() != "new" {
 		t.Fatalf("new Resolve() = %#v, %t, %v", options, applied, err)
 	}
 	close(release)
-	stale := <-oldResult
+	var stale result
+	select {
+	case stale = <-oldResult:
+	case <-time.After(time.Second):
+		t.Fatal("stale provider did not finish")
+	}
 	if stale.err != nil || stale.applied || stale.options != nil {
 		t.Fatalf("stale Resolve() = %#v, %t, %v", stale.options, stale.applied, stale.err)
 	}
@@ -284,11 +292,16 @@ func TestDynamicOptionsValidatesDefinitionAndResults(t *testing.T) {
 		)
 	}
 
-	dynamic, _ := prompts.NewDynamicOptions(
-		prompts.DynamicOptionsConfig[int]{Clock: validClock, Provider: provider},
-	)
-	if _, applied, err := dynamic.Resolve(context.Background(), 99); err != nil || applied {
-		t.Fatalf("unknown generation Resolve() = %t, %v", applied, err)
+	providerCalls := 0
+	dynamic, _ := prompts.NewDynamicOptions(prompts.DynamicOptionsConfig[int]{
+		Clock: validClock,
+		Provider: func(context.Context, string) ([]prompts.Option[int], error) {
+			providerCalls++
+			return nil, nil
+		},
+	})
+	if _, applied, err := dynamic.Resolve(context.Background(), 99); err != nil || applied || providerCalls != 0 {
+		t.Fatalf("unknown generation Resolve() = %t, %v; calls = %d", applied, err, providerCalls)
 	}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()

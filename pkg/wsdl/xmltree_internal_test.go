@@ -163,6 +163,69 @@ func TestXMLTreeAcceptsExactTextAndNamespaceBoundaries(t *testing.T) {
 	}
 }
 
+func TestXMLTreeTracksSuccessfulAttributeAndTextTotals(t *testing.T) {
+	t.Parallel()
+
+	decoder := xml.NewDecoder(bytes.NewBufferString(`<root first="" second="">text</root>`))
+	token, err := decoder.Token()
+	if err != nil {
+		t.Fatalf("Token() error = %v", err)
+	}
+	state := &parseState{options: ParseOptions{
+		MaxDepth: 1, MaxElements: 2, MaxAttributes: 3, MaxTextBytes: 5,
+	}, elements: 1, attributes: 1, textBytes: 1}
+	node, err := readXMLNode(decoder, token.(xml.StartElement), state, 1)
+	if err != nil {
+		t.Fatalf("readXMLNode() error = %v", err)
+	}
+	if node.text.String() != "text" || state.elements != 2 || state.attributes != 3 || state.textBytes != 5 {
+		t.Fatalf("node text = %q, state = %#v", node.text.String(), state)
+	}
+}
+
+func TestXMLTreeNCNameValidationContinuesToMessageLabel(t *testing.T) {
+	t.Parallel()
+
+	node := &xmlNode{
+		name:       xml.Name{Space: NamespaceWSDL20, Local: "input"},
+		attributes: []xml.Attr{{Name: xml.Name{Local: "messageLabel"}, Value: "not valid"}},
+	}
+	if err := validateCoreNCNames(node, NamespaceWSDL20); err == nil {
+		t.Fatal("validateCoreNCNames() error = nil")
+	}
+}
+
+func TestComponentCountingDistinguishesBothSidesOfSchemaIdentity(t *testing.T) {
+	t.Parallel()
+
+	for name, node := range map[string]*xmlNode{
+		"schema namespace with other local": {name: xml.Name{Space: NamespaceXMLSchema, Local: "element"}},
+		"schema local with other namespace": {name: xml.Name{Space: "urn:extension", Local: "schema"}},
+	} {
+		counts := componentCounts{}
+		countComponents(node, NamespaceWSDL20, true, &counts)
+		if counts.extensions != 1 {
+			t.Errorf("%s extensions = %d", name, counts.extensions)
+		}
+	}
+	counts := componentCounts{}
+	countComponents(&xmlNode{name: xml.Name{Space: NamespaceXMLSchema, Local: "schema"}}, NamespaceWSDL20, true, &counts)
+	if counts.extensions != 0 {
+		t.Fatalf("XML Schema root extensions = %d", counts.extensions)
+	}
+}
+
+func TestQNameParsingRejectsEmptyAndPaddedLexicalValuesIndependently(t *testing.T) {
+	t.Parallel()
+
+	node := &xmlNode{namespaces: map[string]string{}}
+	for _, value := range []string{"", " Value", "Value "} {
+		if _, err := node.parseQName(value); err == nil {
+			t.Errorf("parseQName(%q) error = nil", value)
+		}
+	}
+}
+
 func TestComponentCountingDistinguishesCoreSchemaAndExtensions(t *testing.T) {
 	t.Parallel()
 

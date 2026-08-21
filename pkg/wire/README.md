@@ -11,7 +11,7 @@ benchmarked, and held to meaningful 100% production coverage.
 
 ## Requirements
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 
 ## Installation
 
@@ -92,3 +92,8 @@ Review [docs/security.md](docs/security.md) before decoding untrusted payloads.
 `wire` is available under the [MIT License](LICENSE). Attribution and
 third-party policy are recorded in [NOTICE](NOTICE) and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

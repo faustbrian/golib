@@ -5,8 +5,15 @@ and will use semantic versioning after the first stable release.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
 - Pin owned sibling modules to exact resolvable main pseudo-versions so

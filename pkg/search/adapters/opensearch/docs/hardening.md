@@ -39,9 +39,12 @@ Configuration validation also places absolute caps on in-flight admission,
 queued callers, locale analyzers, and discovery trust rules before allocating
 channels or cloning configuration collections.
 
-`make benchmark-integration` records ten independent samples by default for
-the fake, adapter, and direct official client over the same 128-document corpus,
+`make benchmark-integration` records ten independent samples by default for the
+fake, adapter, and direct official client over the same 128-document corpus,
 external-version writes, exact ordered query results, and pagination sequence.
+Each write sample performs one complete `refresh=wait_for` operation so the
+fixed refresh interval cannot make the gate exceed its timeout. Read and
+pagination samples perform 20 operations to reduce measurement noise.
 Release evidence retains the raw `-benchmem` output, Go/OpenSearch versions,
 host CPU and memory, mapping/shard/refresh configuration, and a pinned
 `benchstat` comparison under the ignored module-scoped `.artifacts` directory;

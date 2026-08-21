@@ -1,10 +1,6 @@
 # openrpc
 
-[![CI](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/ci.yml)
-[![Mutation](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/mutation.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/mutation.yml)
-[![Fuzz](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/fuzz.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/fuzz.yml)
-[![Security](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/security.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/security.yml)
-[![Benchmarks](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/benchmark.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/benchmark.yml)
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
 
 `openrpc` is a design-first Go implementation of OpenRPC 1.3.x and 1.4.x. It
 models their shared document shape, preserves arbitrary Draft 7 schemas and
@@ -161,3 +157,8 @@ The implementation is still working toward the goal's meaningful 100%
 production statement coverage. `make coverage` reports the current value; it
 does not disguise uncovered code as generated or unreachable. `make check-all`
 is intentionally blocking until coverage and mutation requirements are met.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

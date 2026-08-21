@@ -1,6 +1,6 @@
 # Compatibility
 
-The module requires Go 1.26.5. Public API and binary persistence changes follow
+The module requires Go 1.26.6. Public API and binary persistence changes follow
 semantic versioning after the first release.
 
 Envelope version 1 is AES-256-GCM with a 32-byte data key and 12-byte nonce.

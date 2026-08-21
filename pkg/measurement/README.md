@@ -43,3 +43,8 @@ caller-selected `Profile`; no locale or preferred unit is inferred.
 
 Run `make check` for all blocking local gates. See [CONTRIBUTING.md](CONTRIBUTING.md)
 and [CHANGELOG.md](CHANGELOG.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -2,7 +2,8 @@ GO ?= go
 FUZZ_TIME ?= 10s
 SOAK_DURATION ?= 5s
 STRESS_COUNT ?= 10
-INTEGRATION_BENCH_TIME ?= 20x
+INTEGRATION_WRITE_BENCH_TIME ?= 1x
+INTEGRATION_READ_BENCH_TIME ?= 20x
 INTEGRATION_BENCH_COUNT ?= 10
 
 .PHONY: api-compat benchmark benchmark-integration check check-local check-release clean-consumer conformance coverage docs fault format-check fuzz image-pins integration integration-matrix interoperability leak mutation operations race rolling-upgrade safety security-matrix soak soak-integration specification-sources stress test tidy-check vet vuln
@@ -40,7 +41,8 @@ benchmark:
 
 benchmark-integration:
 	@test -n "$${OPENSEARCH_URL:-}" -a -n "$${OPENSEARCH_EXPECTED_VERSION:-}" || { echo 'OPENSEARCH_URL and OPENSEARCH_EXPECTED_VERSION are required'; exit 1; }
-	$(GO) test -tags=integration -run='^$$' -bench='^BenchmarkSharedSearchSemantics$$' -benchmem -benchtime=$(INTEGRATION_BENCH_TIME) -count=$(INTEGRATION_BENCH_COUNT) .
+	$(GO) test -tags=integration -run='^$$' -bench='^BenchmarkSharedSearchSemantics$$/.*/^(indexing|bulk_indexing)$$' -benchmem -benchtime=$(INTEGRATION_WRITE_BENCH_TIME) -count=$(INTEGRATION_BENCH_COUNT) .
+	$(GO) test -tags=integration -run='^$$' -bench='^BenchmarkSharedSearchSemantics$$/.*/^(query|pagination|cursor_pagination)$$' -benchmem -benchtime=$(INTEGRATION_READ_BENCH_TIME) -count=$(INTEGRATION_BENCH_COUNT) .
 
 stress:
 	$(GO) test -race -run='^TestEvidenceStress' -count=$(STRESS_COUNT) .

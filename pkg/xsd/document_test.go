@@ -359,8 +359,9 @@ func TestParseRejectsMisplacedOrRepeatedComponentAnnotations(t *testing.T) {
  <attributeGroup name="G"><attribute name="a"/><annotation/></attributeGroup>
 </schema>`,
 	} {
-		if _, err := xsd.Parse(context.Background(), []byte(schema), xsd.ParseOptions{}); err == nil {
-			t.Fatalf("Parse(%s) error = nil, want invalid annotation placement", schema)
+		if _, err := xsd.Parse(context.Background(), []byte(schema), xsd.ParseOptions{}); err == nil ||
+			!strings.Contains(err.Error(), "annotation must be the first and only annotation child") {
+			t.Fatalf("Parse(%s) error = %v, want invalid annotation placement", schema, err)
 		}
 	}
 }
@@ -514,8 +515,8 @@ func TestParseRejectsUseOnGlobalAttribute(t *testing.T) {
 		`<schema xmlns="http://www.w3.org/2001/XMLSchema">
  <attribute name="value" use="required"/>
 </schema>`), xsd.ParseOptions{})
-	if err == nil {
-		t.Fatal("Parse() error = nil, want global attribute use rejection")
+	if err == nil || !strings.Contains(err.Error(), "global attribute declaration cannot specify use") {
+		t.Fatalf("Parse() error = %v, want global attribute use rejection", err)
 	}
 }
 

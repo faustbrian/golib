@@ -133,6 +133,12 @@ shown here.
 - Evidence MUST NOT be reused when input identity cannot be proven. Missing,
   incomplete, manually asserted, or ambiguous fingerprints make the evidence
   stale and require execution.
+- Mutation evidence reuse MUST match the exact behavior-affecting verifier
+  identity, including the upstream source checksum, semantic patches, enabled
+  operators, coverage contract, and invocation policy. A tool version string
+  alone MUST NOT authorize reuse. Executable hashes MUST remain recorded for
+  traceability, but platform-specific binary bytes MUST NOT replace the
+  portable semantic identity used for content-equivalent reuse.
 - If repository tooling invalidates evidence solely because `HEAD` changed,
   agents MUST correct the evidence model instead of launching a repository-wide
   rerun with no changed gate inputs.

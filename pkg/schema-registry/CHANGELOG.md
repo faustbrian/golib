@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Make provenance, SBOM, and Confluent wire-reference checks portable to
+  minimal CI runners without ripgrep.
+
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Replace the obsolete JSON Schema pseudo-version with the canonical monorepo
   dependency version used by clean local and CI resolution.
 - Fence cache invalidation and explicit priming against older in-flight loads.

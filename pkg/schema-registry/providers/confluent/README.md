@@ -44,3 +44,8 @@ with Confluent's official Java `PrefixSchemaIdSerializer` from
 framing benchmarks for the official serializer and the Go framers. The Maven
 runtime, primary Confluent artifact checksum, Maven cache, and Go build cache
 are isolated and verified by the gate.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

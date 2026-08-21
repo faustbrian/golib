@@ -275,7 +275,7 @@ transactions do not measure relay publication or Kafka delivery.
 
 ## Adoption, compatibility, and migration
 
-This pre-v1 adapter requires Go 1.26.5, pgx v5, the event-sourcing PostgreSQL
+This pre-v1 adapter requires Go 1.26.6, pgx v5, the event-sourcing PostgreSQL
 schema, and the outbox PostgreSQL schema declared by the sibling modules. The
 codec and outbox writer must share exactly the same limits. PostgreSQL 18 is
 the pinned integration target; support for another major version requires its
@@ -311,3 +311,8 @@ version conflict.
 
 No. Replay and read APIs remain outside this staging adapter and have no outbox
 side effects.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

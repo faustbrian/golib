@@ -7019,6 +7019,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/service/integration/reference-durability",
+      "directory": "cmd/recovery-probe",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-durability/cmd/recovery-probe",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/service/integration/reference-external",
       "directory": ".",
       "name": "referenceexternal",
@@ -7327,6 +7339,18 @@
       "production": true,
       "executable": true,
       "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "examples/internal/exampleconfig",
+      "name": "exampleconfig",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/examples/internal/exampleconfig",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
       "build_required": true,
       "build_tags": []
     },

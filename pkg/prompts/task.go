@@ -138,15 +138,12 @@ func (group *TaskGroup) Snapshot() []TaskSnapshot {
 // Render writes a deterministic nested task summary in Add order.
 func (group *TaskGroup) Render(ctx context.Context, execution Execution) error {
 	snapshots := group.Snapshot()
-	lines := make([]SemanticLine, 0, len(snapshots) + 1)
+	lines := make([]SemanticLine, 0, len(snapshots))
 	lines = append(lines, Line(Text(RoleLabel, group.label)))
 	parents := make(map[string]string, len(snapshots))
 	for _, snapshot := range snapshots {
 		parents[snapshot.ID] = snapshot.ParentID
-		depth := 0
-		for parent := snapshot.ParentID; parent != ""; parent = parents[parent] {
-			depth++
-		}
+		depth := taskDepth(parents, snapshot.ParentID)
 		role := RoleProgress
 		switch snapshot.State {
 		case ProgressPending, ProgressRunning:
@@ -173,4 +170,17 @@ func (group *TaskGroup) Render(ctx context.Context, execution Execution) error {
 		lines = append(lines, Line(Text(role, text)))
 	}
 	return renderOutput(ctx, group.id, NewFrame(lines...), execution)
+}
+
+func taskDepth(parents map[string]string, parent string) int {
+	depth := 0
+	for range len(parents) {
+		if parent == "" {
+			return depth
+		}
+		depth++
+		parent = parents[parent]
+	}
+
+	return depth
 }

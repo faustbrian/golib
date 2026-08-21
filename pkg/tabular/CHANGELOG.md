@@ -7,6 +7,13 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Compatibility
 
 - Added a pinned module export baseline so incompatible public API changes
@@ -66,4 +73,4 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Classify corrupt ZIP entry read failures through `ErrorArchive` while
   preserving the standard library's declared-size boundary.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/tabular/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/tabular

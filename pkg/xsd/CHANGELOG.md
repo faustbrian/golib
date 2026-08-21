@@ -5,8 +5,14 @@ at its first stable release.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Validate native and JAXP benchmark output with the standard shell toolchain
+  so clean Linux CI runners do not require an undeclared ripgrep installation.
 - Link conformance and migration guidance directly to the canonical
   specification decision register.
 - Delegate local mutation checks to the canonical exact-100 repository runner
@@ -29,6 +35,8 @@ at its first stable release.
 
 ### Fixed
 
+- Preserve root confinement for platform-native file URIs and accept resources
+  whose size exactly matches the configured byte limit.
 - Reject simple types without a restriction, list, or union during parsing
   instead of returning a document that deterministic serialization rejects.
 - Propagate resolver file-close failures without discarding read failures and

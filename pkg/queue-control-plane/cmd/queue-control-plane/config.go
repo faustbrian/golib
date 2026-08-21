@@ -93,8 +93,8 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	}
 
 	if encoded := getenv("QUEUE_CONTROL_ACCESS_MAX_BYTES"); encoded != "" {
-		value, err := strconv.ParseInt(encoded, 10, 64)
-		if err != nil || value < 1 || value > defaultAccessDocumentSize {
+		value, ok := parseDocumentSize(encoded)
+		if !ok {
 			return Config{}, ErrInvalidRuntimeConfiguration
 		}
 		config.AccessDocumentSize = value
@@ -116,8 +116,8 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		}
 		config.RetentionDocumentSize = defaultAccessDocumentSize
 		if retentionSize != "" {
-			value, err := strconv.ParseInt(retentionSize, 10, 64)
-			if err != nil || value < 1 || value > defaultAccessDocumentSize {
+			value, ok := parseDocumentSize(retentionSize)
+			if !ok {
 				return Config{}, ErrInvalidRuntimeConfiguration
 			}
 			config.RetentionDocumentSize = value
@@ -139,8 +139,8 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		}
 		config.KubernetesTenantSize = defaultAccessDocumentSize
 		if tenantSize != "" {
-			value, err := strconv.ParseInt(tenantSize, 10, 64)
-			if err != nil || value < 1 || value > defaultAccessDocumentSize {
+			value, ok := parseDocumentSize(tenantSize)
+			if !ok {
 				return Config{}, ErrInvalidRuntimeConfiguration
 			}
 			config.KubernetesTenantSize = value
@@ -159,8 +159,8 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		}
 		config.ManagementTenantSize = defaultAccessDocumentSize
 		if managementSize != "" {
-			value, err := strconv.ParseInt(managementSize, 10, 64)
-			if err != nil || value < 1 || value > defaultAccessDocumentSize {
+			value, ok := parseDocumentSize(managementSize)
+			if !ok {
 				return Config{}, ErrInvalidRuntimeConfiguration
 			}
 			config.ManagementTenantSize = value
@@ -180,6 +180,15 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	}
 
 	return config, nil
+}
+
+func parseDocumentSize(encoded string) (int64, bool) {
+	value, err := strconv.ParseInt(encoded, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	return value, value >= 1 && value <= defaultAccessDocumentSize
 }
 
 func loadTelemetryConfig(config *Config, getenv func(string) string) bool {

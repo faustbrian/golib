@@ -79,9 +79,8 @@ func removeXMLWhitespace(value string) (string, bool) {
 	for _, character := range value {
 		switch character {
 		case ' ', '\t', '\n', '\r':
-			continue
 		default:
-			if character > utf8.RuneSelf {
+			if character >= utf8.RuneSelf {
 				return "", false
 			}
 			result.WriteRune(character)

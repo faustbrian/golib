@@ -2,7 +2,7 @@
 
 `calendar` provides immutable civil dates, Gregorian calendar arithmetic,
 typed calendar periods, explicit DST conversion, and bounded business
-calendars for Go 1.26.5 and later.
+calendars for Go 1.26.6 and later.
 
 A `calendar.Date` is a day on a calendar. It is not a `time.Time`, has no
 timezone, and cannot accidentally be used as an elapsed duration.
@@ -55,3 +55,8 @@ that denominator. See [hardening evidence](docs/hardening.md).
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

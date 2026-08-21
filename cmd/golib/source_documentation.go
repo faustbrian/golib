@@ -94,7 +94,10 @@ func auditModuleSourceDocumentation(root string, item module, current catalog) (
 			relative = ""
 		}
 		if entry.IsDir() {
-			if relative == ".git" || relative == ".artifacts" || relative == "vendor" || relative == "testdata" || strings.Contains(relative, "/.artifacts") || strings.Contains(relative, "/vendor/") || strings.Contains(relative, "/testdata/") {
+			if relative == ".git" || relative == ".artifacts" || relative == "vendor" ||
+				relative == "testdata" || entry.Name() == "node_modules" ||
+				strings.Contains(relative, "/.artifacts") || strings.Contains(relative, "/vendor/") ||
+				strings.Contains(relative, "/testdata/") {
 				return filepath.SkipDir
 			}
 			if relative != item.Directory && nestedModules[relative] {

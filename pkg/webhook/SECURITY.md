@@ -2,9 +2,10 @@
 
 ## Supported versions
 
-Only the latest released minor version receives security fixes. Before v1,
-users must pin an exact version and review every upgrade. After v1, fixes are
-backported only when the maintainer explicitly announces a supported branch.
+No release has been published. Before v1, security fixes are applied to `main`
+and users must pin an exact revision and review every upgrade. After v1, fixes
+are backported only when the maintainer explicitly announces a supported
+branch.
 
 ## Reporting
 

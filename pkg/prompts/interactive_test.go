@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	prompts "github.com/faustbrian/golib/pkg/prompts"
 )
@@ -390,9 +391,19 @@ func TestInteractiveAcquireCancellationIsTypedAsCancellation(t *testing.T) {
 }
 
 func interactiveExecution(terminal *prompts.VirtualTerminal) prompts.Execution {
+	execution := unboundedInteractiveExecution(terminal)
+	execution.Events = boundedEventSource{
+		EventSource: terminal,
+		Wait:        5 * time.Millisecond,
+	}
+
+	return execution
+}
+
+func unboundedInteractiveExecution(terminal *prompts.VirtualTerminal) prompts.Execution {
 	return prompts.Execution{
-		Output: terminal,
-		Events: terminal,
+		Output:   terminal,
+		Events:   terminal,
 		Terminal: terminal,
 		Capabilities: prompts.Capabilities{
 			InputTerminal: true,
@@ -408,9 +419,19 @@ func interactiveExecution(terminal *prompts.VirtualTerminal) prompts.Execution {
 	}
 }
 
-type failingWriter struct {
-	err error
+type boundedEventSource struct {
+	prompts.EventSource
+	Wait time.Duration
 }
+
+func (source boundedEventSource) Next(ctx context.Context) (prompts.InputEvent, error) {
+	bounded, cancel := context.WithTimeout(ctx, source.Wait)
+	defer cancel()
+
+	return source.EventSource.Next(bounded)
+}
+
+type failingWriter struct{ err error }
 
 func (writer *failingWriter) Write([]byte) (int, error) {
 	return 0, writer.err
@@ -642,6 +663,24 @@ func TestInteractiveResizeInvalidEventsAndParsing(t *testing.T) {
 	if !errors.Is(err, prompts.ErrReader) {
 		t.Fatalf("input limit error = %v", err)
 	}
+
+	exact := prompts.NewVirtualTerminal(80, 24)
+	exact.Push(
+		prompts.ResizeEvent(0, 0), prompts.PasteEvent("four"),
+		prompts.KeyEvent(prompts.KeyEnter),
+	)
+	execution = interactiveExecution(exact)
+	execution.Limits = prompts.InputLimits{MaxPasteBytes: 4, MaxInputBytes: 4}
+	value, err := prompts.Run(context.Background(), prompt, execution)
+	if err != nil || value != "four" || exact.Width() != 0 || exact.Height() != 0 {
+		t.Fatalf("exact-bound Run() = %q, %v; size %dx%d", value, err, exact.Width(), exact.Height())
+	}
+
+	unsafeRune := prompts.NewVirtualTerminal(80, 24)
+	unsafeRune.Push(prompts.RuneEvent('\n'), prompts.KeyEvent(prompts.KeyEnter))
+	if _, err := prompts.Run(context.Background(), prompt, interactiveExecution(unsafeRune)); !errors.Is(err, prompts.ErrReader) {
+		t.Fatalf("unsafe rune error = %v", err)
+	}
 }
 
 func TestInteractiveCapabilityChangesUpdateFallbackAndDetectLoss(t *testing.T) {
@@ -671,6 +710,17 @@ func TestInteractiveCapabilityChangesUpdateFallbackAndDetectLoss(t *testing.T) {
 	_, err = prompts.Run(context.Background(), prompt, interactiveExecution(terminal))
 	if !errors.Is(err, prompts.ErrTerminalDetached) || !terminal.Released() {
 		t.Fatalf("terminal loss = %v, released %v", err, terminal.Released())
+	}
+	for name, capabilities := range map[string]prompts.Capabilities{
+		"input":  {OutputTerminal: true},
+		"output": {InputTerminal: true},
+	} {
+		terminal = prompts.NewVirtualTerminal(80, 24)
+		terminal.Push(prompts.CapabilityEvent(capabilities))
+		_, err = prompts.Run(context.Background(), prompt, interactiveExecution(terminal))
+		if !errors.Is(err, prompts.ErrTerminalDetached) {
+			t.Fatalf("missing %s terminal error = %v", name, err)
+		}
 	}
 
 	terminal = prompts.NewVirtualTerminal(80, 24)

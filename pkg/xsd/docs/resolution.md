@@ -7,8 +7,10 @@ and applications that already control all resource bytes.
 `resolve.File` is an opt-in local filesystem capability. It accepts only
 hostless absolute `file` URIs beneath one absolute configured root, confines
 opens with `os.Root`, rejects symlink and traversal escapes, and caps each
-resource with `FileOptions.MaxBytes` (16 MiB by default). Close it when the
-compiler no longer needs it:
+resource with the inclusive `FileOptions.MaxBytes` limit (16 MiB by default).
+Platform-native absolute paths, including Windows drive paths, remain confined
+to the configured root. Close the resolver when the compiler no longer needs
+it:
 
 ```go
 files, err := resolve.NewFile(resolve.FileOptions{

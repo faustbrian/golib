@@ -5,8 +5,15 @@ versioning after v1.0.0.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Isolate live Valkey verification from interrupted mutation subprocesses by
   re-establishing the required `noeviction` policy before each process uses the
   disposable backend.

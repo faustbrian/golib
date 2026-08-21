@@ -4,12 +4,22 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
-- Adopt Gox as the sole formatter authority for module source, checks, and
-  contributor workflows, replacing gofmt and goimports formatting passes.
+- Accept repeated owned hyperlink wrappers in the hostile-input fuzz oracle so
+  valid multiline links do not fail verification.
+- Give each allocation-budget iteration its own bounded context so race
+  instrumentation cannot expire later iterations while hangs remain bounded.
+- Keep the PTY controller open through terminal-state verification so secret
+  prompt restoration is portable across Linux and BSD terminal semantics.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   instead of maintaining package-local thresholds and exclusions.
+- Keep task nesting traversal proportional to actual ancestry while retaining
+  a deterministic bound for corrupted parent graphs.
 
 ### Added
 
@@ -121,6 +131,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Fixed
 
+- Reject estimated progress durations at the integer-conversion overflow
+  boundary instead of retaining a wrapped negative duration.
+- Make terminal decoding, byte-secret editing, selection navigation, Unicode
+  sanitization, search ranking, and exact-limit behavior distinguishable under
+  the repository's complete mutation operator set.
 - Raw-mode public prompts now keep kernel echo disabled while input is owned by
   the semantic renderer, preventing carriage returns from appearing as `^M`
   and avoiding duplicate terminal-managed input.

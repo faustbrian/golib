@@ -1,6 +1,6 @@
 # lease
 
-`lease` is a fenced, time-bounded distributed lease primitive for Go 1.26.5
+`lease` is a fenced, time-bounded distributed lease primitive for Go 1.26.6
 and newer. It provides explicit owners, backend-anchored expiry, renewal,
 validation, compare-and-release, and monotonically increasing fencing tokens
 for native Valkey and PostgreSQL backends.
@@ -51,3 +51,8 @@ the returned error. No acquisition order or starvation guarantee is provided.
 
 See the [documentation index](docs/README.md), [security policy](SECURITY.md),
 and [changelog](CHANGELOG.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

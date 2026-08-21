@@ -61,6 +61,38 @@ func TestBuilderZeroAndCorruptValuesRejectUse(t *testing.T) {
 	}
 }
 
+func TestBuilderUpdateRejectsEachInvalidBuilderInvariant(t *testing.T) {
+	t.Parallel()
+
+	valid, err := NewBuilder(
+		boundedTestContext(t), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	previous, err := valid.Build(
+		boundedTestContext(t),
+		[]Entry{{Key: testKey(1, 0), Value: testValue(1)}},
+	)
+	if err != nil {
+		t.Fatalf("build previous tree: %v", err)
+	}
+
+	invalid := map[string]*Builder{
+		"nil":            nil,
+		"invalid flag":   {limits: testLimits(), engine: valid.engine},
+		"nil engine":     {limits: testLimits(), valid: true},
+		"invalid limits": {engine: valid.engine, valid: true},
+	}
+	for name, builder := range invalid {
+		if _, updateErr := builder.Update(
+			boundedTestContext(t), previous, previous.entries,
+		); !errors.Is(updateErr, errInvalidBuilder) {
+			t.Fatalf("%s error = %v, want %v", name, updateErr, errInvalidBuilder)
+		}
+	}
+}
+
 func TestBuilderUpdateRejectsInvalidTreeAndPreparation(t *testing.T) {
 	t.Parallel()
 
@@ -476,6 +508,73 @@ func TestTopologyLookupAndRebuildCancellationBoundaries(t *testing.T) {
 	}
 }
 
+func TestTopologyLookupsEnforceCanonicalDepthAndEdges(t *testing.T) {
+	t.Parallel()
+
+	keys := make([]Key, 4)
+	keys[1][2] = 1
+	keys[2][1] = 1
+	keys[3][1] = 1
+	keys[3][2] = 1
+	entries := make([]Entry, len(keys))
+	for index := range keys {
+		entries[index] = Entry{Key: keys[index], Value: testValue(byte(index + 1))}
+	}
+	tree, err := Build(
+		boundedTestContext(t), entries, testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("build branching lookup tree: %v", err)
+	}
+	prefix := [31]byte(keys[3][:31])
+	index, found, err := tree.findInternalNode(boundedTestContext(t), prefix, 2)
+	if err != nil || !found {
+		t.Fatalf("depth-two internal lookup = (%d, %t, %v)", index, found, err)
+	}
+	if tree.nodes[index].kind != nodeInternal || tree.nodes[index].depth != 2 {
+		t.Fatalf("depth-two node = kind %d, depth %d", tree.nodes[index].kind, tree.nodes[index].depth)
+	}
+
+	badKind := tree
+	badKind.nodes = slices.Clone(tree.nodes)
+	badKind.nodes[badKind.root].kind = nodeStem
+	if _, found, err := badKind.findInternalNode(
+		boundedTestContext(t), prefix, 1,
+	); err != nil || found {
+		t.Fatalf("wrong-kind lookup = (%t, %v)", found, err)
+	}
+	badDepth := tree
+	badDepth.nodes = slices.Clone(tree.nodes)
+	badDepth.nodes[badDepth.root].depth = 1
+	if _, found, err := badDepth.findInternalNode(
+		boundedTestContext(t), prefix, 1,
+	); err != nil || found {
+		t.Fatalf("wrong-depth lookup = (%t, %v)", found, err)
+	}
+
+	deepLeft := Key{}
+	deepRight := Key{}
+	deepRight[30] = 1
+	deepTree, err := Build(
+		boundedTestContext(t),
+		[]Entry{
+			{Key: deepLeft, Value: testValue(1)},
+			{Key: deepRight, Value: testValue(2)},
+		},
+		testLimits(),
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("build maximum-depth lookup tree: %v", err)
+	}
+	stemIndex, found, err := deepTree.findStemNode(
+		boundedTestContext(t), [31]byte(deepRight[:31]),
+	)
+	if err != nil || !found || deepTree.nodes[stemIndex].stem != [31]byte(deepRight[:31]) {
+		t.Fatalf("maximum-depth stem lookup = (%d, %t, %v)", stemIndex, found, err)
+	}
+}
+
 func TestBuilderUpdateReusesIdenticalTree(t *testing.T) {
 	t.Parallel()
 
@@ -591,7 +690,7 @@ func TestSparseVectorUpdateChunksAndFallsBackDeterministically(t *testing.T) {
 		capacityOverride: &one,
 	}
 	got, err := updateVectorCommitment(
-		context.Background(), chunked, oldCommitment, oldVector, newVector,
+		boundedTestContext(t), chunked, oldCommitment, oldVector, newVector,
 	)
 	if err != nil {
 		t.Fatalf("chunk sparse updates: %v", err)
@@ -611,7 +710,7 @@ func TestSparseVectorUpdateChunksAndFallsBackDeterministically(t *testing.T) {
 		capacityOverride: &zero,
 	}
 	got, err = updateVectorCommitment(
-		context.Background(), fallback, oldCommitment, oldVector, newVector,
+		boundedTestContext(t), fallback, oldCommitment, oldVector, newVector,
 	)
 	if err != nil {
 		t.Fatalf("fallback full commit: %v", err)

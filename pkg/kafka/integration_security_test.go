@@ -20,15 +20,13 @@ import (
 	"io"
 	"math/big"
 	"net"
-	"net/netip"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/faustbrian/golib/pkg/kafka"
-	"github.com/moby/moby/api/types/container"
-	dockernetwork "github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -64,6 +62,7 @@ const (
 type secureKafkaBroker struct {
 	container     testcontainers.Container
 	endpoint      string
+	proxy         *secureKafkaEndpointProxy
 	pki           secureKafkaPKI
 	storePassword string
 
@@ -79,6 +78,7 @@ type secureKafkaBrokerOptions struct {
 	oauthJWKSTrustPEM []byte
 	hostAccessPorts   []int
 	oauthKey          *rsa.PrivateKey
+	stableEndpoint    bool
 }
 
 type secureKafkaPKI struct {
@@ -93,6 +93,16 @@ type secureKafkaPKI struct {
 	clientKeyPEM   []byte
 	clientIdentity tls.Certificate
 	roots          *x509.CertPool
+}
+
+type secureKafkaEndpointProxy struct {
+	listener    net.Listener
+	target      atomic.Value
+	closed      atomic.Bool
+	closeOnce   sync.Once
+	mutex       sync.Mutex
+	connections map[net.Conn]struct{}
+	wait        sync.WaitGroup
 }
 
 func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
@@ -916,12 +926,17 @@ func TestApacheKafkaTransactionalIDAuthorizationCompatibility(t *testing.T) {
 }
 
 func TestApacheKafkaPlainCredentialReplacementCompatibility(t *testing.T) {
-	runKafkaBrokerIntegration(t)
+	runExclusiveKafkaBrokerIntegration(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	broker := startSecureKafkaBroker(t, ctx, secureKafkaSASL)
+	broker := startSecureKafkaBrokerWithOptions(
+		t,
+		ctx,
+		secureKafkaSASL,
+		secureKafkaBrokerOptions{stableEndpoint: true},
+	)
 	broker.assertRuntimeVersions(t, ctx)
 	adminMechanism := franzscram.Auth{
 		User: "scram256-user",
@@ -1458,14 +1473,6 @@ func startSecureKafkaBrokerWithOptions(
 ) *secureKafkaBroker {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("reserve secured Apache Kafka port: %v", err)
-	}
-	hostPort := listener.Addr().(*net.TCPAddr).Port
-	if err := listener.Close(); err != nil {
-		t.Fatalf("release secured Apache Kafka port: %v", err)
-	}
 	request := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        apacheKafkaImage,
@@ -1481,16 +1488,6 @@ func startSecureKafkaBrokerWithOptions(
 				"while [ ! -f /tmp/golib-kafka-secure-ready ]; do " +
 					"sleep 0.05; done; exec /bin/bash " +
 					"/tmp/golib-kafka-secure-start.sh",
-			},
-			HostConfigModifier: func(config *container.HostConfig) {
-				config.PortBindings = dockernetwork.PortMap{
-					dockernetwork.MustParsePort(secureKafkaClientPort): {
-						{
-							HostIP:   netip.MustParseAddr("127.0.0.1"),
-							HostPort: fmt.Sprint(hostPort),
-						},
-					},
-				}
 			},
 		},
 	}
@@ -1523,7 +1520,14 @@ func startSecureKafkaBrokerWithOptions(
 		)
 	})
 
-	endpoint := waitForSecureKafkaPortEndpoint(t, ctx, container)
+	containerEndpoint := waitForSecureKafkaPortEndpoint(t, ctx, container)
+	endpoint := containerEndpoint
+	var proxy *secureKafkaEndpointProxy
+	if options.stableEndpoint {
+		proxy = startSecureKafkaEndpointProxy(t)
+		proxy.setTarget(containerEndpoint)
+		endpoint = proxy.endpoint()
+	}
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil {
 		t.Fatalf("parse secured Apache Kafka endpoint: %v", err)
@@ -1532,6 +1536,7 @@ func startSecureKafkaBrokerWithOptions(
 	broker := &secureKafkaBroker{
 		container:        container,
 		endpoint:         endpoint,
+		proxy:            proxy,
 		pki:              pki,
 		plainPassword:    randomSecureKafkaCredential(t),
 		limitedPassword:  randomSecureKafkaCredential(t),
@@ -1737,6 +1742,118 @@ func waitForSecureKafkaPortEndpoint(
 		case <-ticker.C:
 		}
 	}
+}
+
+func startSecureKafkaEndpointProxy(t *testing.T) *secureKafkaEndpointProxy {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for secured Apache Kafka endpoint proxy: %v", err)
+	}
+	proxy := &secureKafkaEndpointProxy{
+		listener:    listener,
+		connections: make(map[net.Conn]struct{}),
+	}
+	proxy.target.Store("")
+	proxy.wait.Add(1)
+	go proxy.serve()
+	t.Cleanup(proxy.close)
+
+	return proxy
+}
+
+func (proxy *secureKafkaEndpointProxy) endpoint() string {
+	return proxy.listener.Addr().String()
+}
+
+func (proxy *secureKafkaEndpointProxy) setTarget(endpoint string) {
+	proxy.target.Store(endpoint)
+}
+
+func (proxy *secureKafkaEndpointProxy) serve() {
+	defer proxy.wait.Done()
+	for {
+		connection, err := proxy.listener.Accept()
+		if err != nil {
+			if proxy.closed.Load() {
+				return
+			}
+			continue
+		}
+		proxy.wait.Add(1)
+		go proxy.forward(connection)
+	}
+}
+
+func (proxy *secureKafkaEndpointProxy) forward(client net.Conn) {
+	defer proxy.wait.Done()
+	if !proxy.track(client) {
+		_ = client.Close()
+		return
+	}
+	defer proxy.untrack(client)
+	defer client.Close()
+
+	target := proxy.target.Load().(string)
+	if target == "" {
+		return
+	}
+	upstream, err := net.DialTimeout("tcp", target, 3*time.Second)
+	if err != nil {
+		return
+	}
+	if !proxy.track(upstream) {
+		_ = upstream.Close()
+		return
+	}
+	defer proxy.untrack(upstream)
+	defer upstream.Close()
+
+	requestComplete := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(upstream, client)
+		if tcp, ok := upstream.(*net.TCPConn); ok {
+			_ = tcp.CloseWrite()
+		}
+		close(requestComplete)
+	}()
+	_, _ = io.Copy(client, upstream)
+	if tcp, ok := client.(*net.TCPConn); ok {
+		_ = tcp.CloseWrite()
+	}
+	_ = upstream.Close()
+	<-requestComplete
+}
+
+func (proxy *secureKafkaEndpointProxy) track(connection net.Conn) bool {
+	proxy.mutex.Lock()
+	defer proxy.mutex.Unlock()
+	if proxy.closed.Load() {
+		return false
+	}
+	proxy.connections[connection] = struct{}{}
+
+	return true
+}
+
+func (proxy *secureKafkaEndpointProxy) untrack(connection net.Conn) {
+	proxy.mutex.Lock()
+	delete(proxy.connections, connection)
+	proxy.mutex.Unlock()
+}
+
+func (proxy *secureKafkaEndpointProxy) close() {
+	proxy.closeOnce.Do(func() {
+		proxy.closed.Store(true)
+		_ = proxy.listener.Close()
+		proxy.mutex.Lock()
+		for connection := range proxy.connections {
+			_ = connection.Close()
+		}
+		proxy.mutex.Unlock()
+		proxy.wait.Wait()
+	})
 }
 
 func secureKafkaServerProperties(
@@ -2644,13 +2761,7 @@ func restartSecureKafkaWithPlainCredential(
 		t.Fatalf("restart secured Kafka after PLAIN credential replacement: %v", startErr)
 	}
 	restartedEndpoint := waitForSecureKafkaPortEndpoint(t, ctx, broker.container)
-	if restartedEndpoint != broker.endpoint {
-		t.Fatalf(
-			"secured Kafka endpoint after PLAIN replacement = %q, want %q",
-			restartedEndpoint,
-			broker.endpoint,
-		)
-	}
+	broker.proxy.setTarget(restartedEndpoint)
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(broker.endpoint),
 		kgo.ClientID("golib-secure-plain-restart-observer"),

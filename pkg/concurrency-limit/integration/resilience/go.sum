@@ -6,5 +6,13 @@ github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1x
 github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/failsafe-go/failsafe-go v0.9.6 h1:vPSH2cry0Ee5cnR9wc9qshCDO6jdrMA9elBJNwyo4Uk=
 github.com/failsafe-go/failsafe-go v0.9.6/go.mod h1:IeRpglkcwzKagjDMh90ZhN2l4Ovt3+jemQBUbThag54=
+github.com/faustbrian/golib/pkg/concurrency-limit v0.0.0 h1:pMJfnSpHs0vlXQ9g+3oFYfwLB/zuk/PdA1MzADRMfKA=
+github.com/faustbrian/golib/pkg/concurrency-limit v0.0.0/go.mod h1:USRywVjckB37XoMN64h0abPGKBBHou8AJ1kxiPjWSBA=
+github.com/faustbrian/golib/pkg/hedge v0.0.0 h1:WL5m/se6pJXWKHoYZ1hyba6QPeqfGBJoo0uzVarflEk=
+github.com/faustbrian/golib/pkg/hedge v0.0.0/go.mod h1:fJ1mVsqCI/vMHUn7FjtDnVCeu4HdHI6WUUsH506KPsQ=
+github.com/faustbrian/golib/pkg/resilience v0.0.0 h1:YOgwc0C+jFZd7JHfCQUdYielbyTo7KZjdkIlmY9c534=
+github.com/faustbrian/golib/pkg/resilience v0.0.0/go.mod h1:xwwwPOI8l7cRlD9mt8pIF4iKg6J5ZT3bsSv/Q2uZc+c=
+github.com/faustbrian/golib/pkg/retry v0.0.0 h1:/wOXJL1pFTtqON10n5MvI8SeV0ee1p91RkpxKCLC5e8=
+github.com/faustbrian/golib/pkg/retry v0.0.0/go.mod h1:RY+0Aifg7B7/9IkfdNbDAd8tlec9jCiFDqJ7FhBvcZA=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=

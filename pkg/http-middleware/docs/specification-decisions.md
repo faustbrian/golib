@@ -15,7 +15,7 @@ replacement.
 
 - **Status, owner, and classification:** `resolved`; `http-middleware`
   maintainers; application policy and defensive composition behavior.
-- **Source and issue:** Go 1.26.5 [`net/http.Handler`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+- **Source and issue:** Go 1.26.6 [`net/http.Handler`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go)
   defines handler execution,
   but no standard defines middleware declaration order, duplicate concern
   ownership, or ordering metadata. Applying decorators in declaration order
@@ -65,7 +65,7 @@ replacement.
 
 - **Status, owner, and classification:** `resolved`; maintainers; Go runtime
   interoperability and defensive response policy.
-- **Source and issue:** Go 1.26.5 [`net/http`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+- **Source and issue:** Go 1.26.6 [`net/http`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go)
   defines `ErrAbortHandler` and
   response commitment, while `recover` permits interception of other panics.
   It does not define a reusable middleware's error body, observer data, stack
@@ -92,8 +92,8 @@ replacement.
 - **Status, owner, and classification:** `resolved`; maintainers; Go transport
   behavior with defensive resource policy.
 - **Source and issue:** RFC 9110 [content](https://www.rfc-editor.org/rfc/rfc9110.html#section-6.4)
-  describes message content, while Go 1.26.5
-  [`http.MaxBytesReader`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/request.go)
+  describes message content, while Go 1.26.6
+  [`http.MaxBytesReader`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/request.go)
   bounds bytes
   visible to a handler. Neither can recover bytes consumed before middleware or
   define whether a generic limit applies before or after content decoding.
@@ -120,8 +120,8 @@ replacement.
 
 - **Status, owner, and classification:** `resolved`; maintainers; Go context
   semantics plus explicit bounded timeout policy.
-- **Source and issue:** Go 1.26.5 [`context`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/context/context.go)
-  and [`net/http`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+- **Source and issue:** Go 1.26.6 [`context`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/context/context.go)
+  and [`net/http`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go)
   distinguish context
   cancellation from interrupting handler code. Producing a timeout response
   before a handler returns requires buffering or concurrent execution, which
@@ -302,9 +302,9 @@ replacement.
 
 ## HTTPMIDDLEWARE-DEC-011: ResponseWriter capabilities and commitment
 
-- **Status, owner, and classification:** `resolved`; maintainers; Go 1.26.5
+- **Status, owner, and classification:** `resolved`; maintainers; Go 1.26.6
   `net/http` interoperability policy.
-- **Source and issue:** Go 1.26.5 [`ResponseWriter`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go),
+- **Source and issue:** Go 1.26.6 [`ResponseWriter`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/server.go),
   `Flusher`, `Hijacker`, `Pusher`,
   `ResponseController`, informational response, and trailer contracts are
   capability-sensitive. Wrappers can accidentally advertise an optional

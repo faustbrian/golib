@@ -178,7 +178,7 @@ func decodeExtensibilityExcept(
 		ExtensionAttributes: decodeExtensionAttributes(node, coreNamespace),
 	}
 	for _, child := range node.children {
-		if child.name.Space == coreNamespace || (skip != nil && skip(child)) {
+		if !shouldDecodeExtension(child, coreNamespace, skip) {
 			continue
 		}
 		extension, err := decodeExtension(child, coreNamespace)
@@ -188,6 +188,16 @@ func decodeExtensibilityExcept(
 		value.Extensions = append(value.Extensions, extension)
 	}
 	return value, nil
+}
+
+func shouldDecodeExtension(child *xmlNode, coreNamespace string, skip func(*xmlNode) bool) bool {
+	if child.name.Space == coreNamespace {
+		return false
+	}
+	if skip == nil {
+		return true
+	}
+	return !skip(child)
 }
 
 func registerSymbol(symbols map[string]struct{}, kind, name string) error {

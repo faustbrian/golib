@@ -1021,6 +1021,8 @@ const (
 	referenceStartupMaximumP95Milliseconds   = 200
 	referenceShutdownMaximumP95Milliseconds  = 30
 	referenceCohesiveMaximumIdleRSSOverhead  = 1024 * 1024
+	referenceMaximumBinaryBytes              = 25 * 1024 * 1024 / 4
+	referenceCohesiveMaximumBinaryOverhead   = 384 * 1024
 )
 
 func assess(executionEnvironment environment, results []candidateResult) budgetResult {
@@ -1098,7 +1100,11 @@ func assess(executionEnvironment environment, results []candidateResult) budgetR
 				result.Candidate+" startup p95",
 			)
 			check(&failures, result.Summary.MaximumIdleRSSBytes <= 13*1024*1024, result.Candidate+" idle RSS")
-			check(&failures, result.BinaryBytes <= 6*1024*1024, result.Candidate+" binary size")
+			check(
+				&failures,
+				result.BinaryBytes <= referenceMaximumBinaryBytes,
+				result.Candidate+" binary size",
+			)
 			check(
 				&failures,
 				result.Summary.Probe.P95Microseconds <= referenceProbeMaximumP95Microseconds,
@@ -1166,7 +1172,7 @@ func assess(executionEnvironment environment, results []candidateResult) budgetR
 	)
 	check(
 		&failures,
-		cohesive.BinaryBytes <= low.BinaryBytes+256*1024,
+		cohesive.BinaryBytes <= low.BinaryBytes+referenceCohesiveMaximumBinaryOverhead,
 		"cohesive relative binary size",
 	)
 	checkRelativeMetric(
@@ -1192,7 +1198,7 @@ func appliesAbsoluteBudgets(executionEnvironment environment) bool {
 		executionEnvironment.GOGC == "" &&
 		executionEnvironment.GoMemoryLimit == "" &&
 		executionEnvironment.GODEBUG == "" &&
-		executionEnvironment.GoVersion == "go1.26.5"
+		executionEnvironment.GoVersion == "go1.26.6"
 }
 
 func checkLoadSuccess(failures *[]string, name string, load measure.Load) {

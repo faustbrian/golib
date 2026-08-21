@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- make documentation and specification checks work on stock CI runners without
+  a nonstandard search tool
 - suppress unproved standard producer-send and poll-receive signals, restrict
   remaining standard metric dimensions to the pinned 1.44.0 schemas, keep
   adapter metrics identity-free, fail closed on unmapped observations, and
@@ -17,6 +19,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add an auditable specification decision register for span semantics,
+  identity and propagation bounds, and caller-owned provider lifecycle
 - exhaustive span, metric, attribute, lifecycle, sampling, shutdown,
   concurrency, fuzz, and benchmark contracts plus enforced API, privacy, FAQ,
   and migration documentation

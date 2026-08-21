@@ -1,6 +1,6 @@
 # Compatibility
 
-The minimum supported toolchain is Go 1.26.5. The module has no runtime
+The minimum supported toolchain is Go 1.26.6. The module has no runtime
 third-party dependencies. Linux, macOS, and Windows are supported where the Go
 standard library is supported; CI's primary environment is Linux.
 

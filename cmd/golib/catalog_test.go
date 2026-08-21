@@ -266,6 +266,46 @@ func TestGoalEvidenceTracksRequirementsImplementationAndCanonicalGates(t *testin
 	}
 }
 
+func TestGoalEvidenceDefersFutureSecurityGoalAndSecurityGates(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	hardeningGoal := "pkg/sample/.ai/GOAL_HARDEN.md"
+	securityGoal := "pkg/sample/.ai/GOAL_SECURITY.md"
+	mustWriteFile(t, filepath.Join(root, hardeningGoal), "# Hardening Goal\n")
+	mustWriteFile(t, filepath.Join(root, securityGoal), "# Future Goal: Security Audit\n")
+	mustWriteFile(t, filepath.Join(root, "pkg/sample/README.md"), "# Sample\n")
+
+	records, err := goalEvidenceFor(
+		root,
+		"pkg/sample",
+		[]string{hardeningGoal, securityGoal},
+		[]string{"test", "vulnerability", "secrets", "mutation"},
+	)
+	if err != nil {
+		t.Fatalf("goalEvidenceFor() error = %v", err)
+	}
+	if len(records) != 2 {
+		t.Fatalf("goalEvidenceFor() records = %d, want 2", len(records))
+	}
+	active := records[0]
+	if active.ImplementationStatus != "implemented-requires-fresh-verification" {
+		t.Fatalf("active goal status = %q", active.ImplementationStatus)
+	}
+	if !slices.Equal(active.VerificationGates, []string{"test", "mutation"}) {
+		t.Fatalf("active verification gates = %v", active.VerificationGates)
+	}
+	record := records[1]
+	if record.ImplementationStatus != "future-not-started" {
+		t.Fatalf("future goal status = %q", record.ImplementationStatus)
+	}
+	if len(record.ImplementationEvidence) != 0 {
+		t.Fatalf("future implementation evidence = %v, want empty", record.ImplementationEvidence)
+	}
+	if len(record.VerificationGates) != 0 {
+		t.Fatalf("future verification gates = %v, want empty", record.VerificationGates)
+	}
+}
+
 func TestGoalEvidenceIncludesExplicitDesignLanguage(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -758,7 +798,7 @@ func TestHTTPClientSpecificationCatalogMetadata(t *testing.T) {
 func TestHTTPMiddlewareSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/http-middleware"); !slices.Equal(got, []string{
-		"Go 1.26.5 net/http and context contracts",
+		"Go 1.26.6 net/http and context contracts",
 		"RFC 9110 HTTP Semantics",
 		"RFC 9111 HTTP Caching",
 		"RFC 7239 Forwarded HTTP Extension",
@@ -780,7 +820,7 @@ func TestHTTPMiddlewareSpecificationCatalogMetadata(t *testing.T) {
 func TestRouterSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/router"); !slices.Equal(got, []string{
-		"Go 1.26.5 net/http and net/url contracts",
+		"Go 1.26.6 net/http and net/url contracts",
 		"RFC 3986 URI Generic Syntax",
 		"RFC 9110 HTTP Semantics",
 		"RFC 9112 HTTP/1.1 request-target forms",

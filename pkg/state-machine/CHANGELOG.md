@@ -5,8 +5,16 @@ based on Keep a Changelog, and the project follows Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Fixed
 
+- Validate benchmark output with the standard shell toolchain so clean Linux
+  CI runners do not require an undeclared ripgrep installation.
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Bound reachability analysis by the compiled state count while continuing
   past unknown destinations and reporting every disconnected state.
 - Reuse and reset an injected PostgreSQL service during repository

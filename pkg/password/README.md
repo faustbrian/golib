@@ -7,7 +7,7 @@ endpoints, sessions, password reset, MFA, authorization, or reversible secrets.
 
 ## Requirements
 
-- Go 1.26.5 or newer.
+- Go 1.26.6 or newer.
 - `golang.org/x/crypto` v0.54.0.
 
 ## Install
@@ -126,3 +126,8 @@ PostgreSQL examples.
 ## License
 
 MIT
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

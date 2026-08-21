@@ -292,10 +292,7 @@ func buildStatelessProofIndexes(
 	if err := checkTreeProofContext(ctx); err != nil {
 		return nil, nil, err
 	}
-	commitments := make(
-		map[statelessPath]backend.VectorCommitment,
-		len(proof.commitments)+1,
-	)
+	commitments := make(map[statelessPath]backend.VectorCommitment)
 	commitments[statelessPath{}] = root
 	for index := range proof.commitments {
 		if err := checkTreeProofContext(ctx); err != nil {
@@ -753,13 +750,12 @@ func statelessStemRetained(
 		return bytes.Compare(claims.claims[index].key[:31], stem[:]) >= 0
 	})
 	updateIndex := 0
-	for claimIndex < len(claims.claims) {
+	for _, claim := range claims.claims[claimIndex:] {
 		if err := checkTreeProofContext(ctx); err != nil {
 			return false, err
 		}
-		claim := claims.claims[claimIndex]
 		if Stem(claim.key[:31]) != stem {
-			break
+			return false, nil
 		}
 		for updateIndex < len(updates) &&
 			bytes.Compare(updates[updateIndex].key[:], claim.key[:]) < 0 {
@@ -772,7 +768,6 @@ func statelessStemRetained(
 			(updateIndex == len(updates) || updates[updateIndex].key != claim.key) {
 			return true, nil
 		}
-		claimIndex++
 	}
 
 	return false, nil

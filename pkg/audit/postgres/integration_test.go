@@ -8,12 +8,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/url"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -138,7 +136,7 @@ func TestFreshInstallPreflightAtomicallyReservesRoles(t *testing.T) {
 				probe.Stop()
 				t.Fatalf("concurrent creation of %s did not wait for the reserved role", creator.role)
 			case <-probe.C:
-				if err := pool.QueryRow(ctx, `SELECT EXISTS (
+				if err := migrationTx.QueryRow(ctx, `SELECT EXISTS (
 					SELECT 1 FROM pg_stat_activity
 					WHERE pid = $1 AND wait_event_type = 'Lock'
 				)`, creator.pid).Scan(&blocked); err != nil {
@@ -1063,25 +1061,6 @@ func TestPostgreSQLBackupRestoreAndReconciliation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pgDump, err := exec.LookPath("pg_dump")
-	if err != nil {
-		t.Fatalf("pg_dump is required: %v", err)
-	}
-	pgRestore, err := exec.LookPath("pg_restore")
-	if err != nil {
-		t.Fatalf("pg_restore is required: %v", err)
-	}
-	psql, err := exec.LookPath("psql")
-	if err != nil {
-		t.Fatalf("psql is required: %v", err)
-	}
-	archive := filepath.Join(t.TempDir(), "audit.dump")
-	if err := exec.CommandContext(ctx, pgDump, "--format=custom", "--no-acl", "--file="+archive, database.DSN()).Run(); err != nil {
-		t.Fatalf("pg_dump failed: %v", err)
-	}
-	if _, err := pool.Exec(ctx, "CREATE DATABASE audit_restore TEMPLATE template0"); err != nil {
-		t.Fatal(err)
-	}
 	restoreURL, err := url.Parse(database.DSN())
 	if err != nil {
 		t.Fatal(err)
@@ -1089,21 +1068,22 @@ func TestPostgreSQLBackupRestoreAndReconciliation(t *testing.T) {
 	if restoreURL.Scheme != "postgres" && restoreURL.Scheme != "postgresql" {
 		t.Fatal("PostgreSQL test DSN is not a URL")
 	}
+	databaseName := strings.TrimPrefix(restoreURL.Path, "/")
+	username := restoreURL.User.Username()
+	const archive = "/tmp/golib-audit.dump"
+	runPostgreSQLContainerCommand(t, ctx, database,
+		"pg_dump", "--format=custom", "--no-acl", "--file="+archive,
+		"--username="+username, "--dbname="+databaseName,
+	)
+	if _, err := pool.Exec(ctx, "CREATE DATABASE audit_restore TEMPLATE template0"); err != nil {
+		t.Fatal(err)
+	}
 	restoreURL.Path = "/audit_restore"
 	restoreDSN := restoreURL.String()
-	restoreSQL, err := exec.CommandContext(ctx, pgRestore, "--no-owner", "--file=-", archive).Output()
-	if err != nil {
-		t.Fatalf("pg_restore render failed: %v", err)
-	}
-	// A newer pg_restore may emit a session setting unknown to an older target.
-	// It does not affect archive contents and must not make supported restores
-	// depend on the developer machine's client major.
-	restoreSQL = compatibleRestoreSQL(restoreSQL)
-	restoreCommand := exec.CommandContext(ctx, psql, "--set=ON_ERROR_STOP=1", "--dbname="+restoreDSN)
-	restoreCommand.Stdin = bytes.NewReader(restoreSQL)
-	if output, err := restoreCommand.CombinedOutput(); err != nil {
-		t.Fatalf("psql restore failed: %v: %s", err, safeCommandDiagnostic(output, restoreDSN))
-	}
+	runPostgreSQLContainerCommand(t, ctx, database,
+		"pg_restore", "--no-owner", "--exit-on-error", "--username="+username,
+		"--dbname=audit_restore", archive,
+	)
 	restoredPool, err := pgxpool.New(ctx, restoreDSN)
 	if err != nil {
 		t.Fatal(err)
@@ -1185,24 +1165,29 @@ func TestPostgreSQLBackupRestoreAndReconciliation(t *testing.T) {
 	assertRoleDenied(t, ctx, restoredPool, restoredRoles.Writer, "SELECT canonical_record FROM audit.records WHERE record_id = 'backup-record'")
 }
 
-func compatibleRestoreSQL(input []byte) []byte {
-	lines := bytes.Split(input, []byte{'\n'})
-	compatible := make([][]byte, 0, len(lines))
-	for _, line := range lines {
-		if bytes.Equal(line, []byte("SET transaction_timeout = 0;")) ||
-			bytes.HasPrefix(line, []byte(`\restrict `)) || bytes.HasPrefix(line, []byte(`\unrestrict `)) {
-			continue
-		}
-		compatible = append(compatible, line)
+func runPostgreSQLContainerCommand(
+	t *testing.T,
+	ctx context.Context,
+	database *postgrestest.Database,
+	command ...string,
+) {
+	t.Helper()
+	exitCode, output, err := database.Container().Exec(ctx, command)
+	if err != nil {
+		t.Fatalf("execute PostgreSQL container command %q: %v", command[0], err)
 	}
-	return bytes.Join(compatible, []byte{'\n'})
+	diagnostic, err := io.ReadAll(output)
+	if err != nil {
+		t.Fatalf("read PostgreSQL container command %q output: %v", command[0], err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("PostgreSQL container command %q exited with %d: %s", command[0], exitCode, boundedCommandDiagnostic(diagnostic))
+	}
 }
 
-func safeCommandDiagnostic(output []byte, connectionString string) string {
+func boundedCommandDiagnostic(output []byte) string {
 	const maximum = 512
-	value := strings.ReplaceAll(string(output), connectionString, "[connection redacted]")
-	value = regexp.MustCompile(`postgres(?:ql)?://[^[:space:]]+`).ReplaceAllString(value, "[connection redacted]")
-	value = regexp.MustCompile(`password=[^[:space:]]+`).ReplaceAllString(value, "password=[redacted]")
+	value := string(output)
 	if len(value) > maximum {
 		value = value[:maximum]
 	}

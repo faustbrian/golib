@@ -7,6 +7,13 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Compatibility
 
 - Added a pinned module export baseline so incompatible public API changes
@@ -14,6 +21,8 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Pin specification-derived JSON:API fixtures and make security, resource,
   compatibility, and wire consequences explicit for every protocol decision.
 - Ignore non-compliant members during core and Atomic decoding as required by
@@ -156,4 +165,4 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Decouple validated changelog release dates from the wall-clock day on which
   a prepared tag is published.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/jsonapi/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/jsonapi

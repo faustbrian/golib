@@ -72,13 +72,15 @@ func TestLinksetMediaTypeSchemaRejectsIncompleteShapes(t *testing.T) {
 			}}
 		}}
 	}}`)
-	if !validLinksetMediaTypeSchema(
-		context.Background(),
-		reference.Resource{Root: validExplicit},
-		validExplicit,
-		DefaultOptions(),
-	) {
-		t.Fatal("valid explicit-relation linkset schema was rejected")
+	for range 64 {
+		if !validLinksetMediaTypeSchema(
+			context.Background(),
+			reference.Resource{Root: validExplicit},
+			validExplicit,
+			DefaultOptions(),
+		) {
+			t.Fatal("valid explicit-relation linkset schema was rejected")
+		}
 	}
 	root := testValidationValue(t, `{}`)
 	for _, schema := range []string{

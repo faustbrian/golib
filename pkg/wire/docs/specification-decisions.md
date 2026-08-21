@@ -11,7 +11,7 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-001: Specification editions and codec delegation
 
-**Authoritative reference:** [Go 1.26.5 encoding source](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/encoding/).
+**Authoritative reference:** [Go 1.26.6 encoding source](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/encoding/).
 
 - **Status, owner, and classification:** `resolved`; wire maintainers;
   normative-source and interoperability policy.
@@ -29,7 +29,7 @@ review. Superseded decisions remain linked from their replacements.
   Security, resource, compatibility, and wire consequences are included in
   the selected behavior below.
   JSON and XML delegate syntax and Go
-  value mapping to Go 1.26.5; SOAP builds on that XML boundary. YAML, TOML,
+  value mapping to Go 1.26.6; SOAP builds on that XML boundary. YAML, TOML,
   MessagePack, CBOR, and BSON use the exact modules in `go.mod`, with package
   preflight, limits, options, and error classification defining the public
   contract. Dependency behavior is never promoted to a broader conformance

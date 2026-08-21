@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Link the conformance source matrix directly to the canonical specification
   decision register.
 - Record HTTP, authentication, retry, caching, range, pagination, cookie,
@@ -40,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replace the obsolete owned-module pseudo-version pin with the monorepo's
+  local `v0.0.0` source-proxy coordinate; release tooling continues to emit
+  the exact `v1.0.0` dependency version.
 - Consolidate stale cache refresh and conditional revalidation onto one
   coalesced fetch path while preserving caller-supplied validators.
 - Make cache capacity, freshness, invalidation, parser, and request-flight

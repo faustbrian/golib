@@ -63,6 +63,38 @@ func TestSerializerPropagatesWriteFailuresAtEveryBoundary(t *testing.T) {
 	}
 }
 
+func TestSimpleTypeSerializerPropagatesNestedFailures(t *testing.T) {
+	t.Parallel()
+
+	annotation := &Annotation{Documentation: []Documentation{{Content: "type"}}}
+	stringType := QName{Namespace: Namespace, Local: "string"}
+	inline := SimpleType{
+		Variety:           SimpleRestriction,
+		Base:              stringType,
+		VarietyAnnotation: annotation,
+	}
+	definitions := []SimpleType{
+		{Variety: SimpleRestriction, InlineBase: &inline, VarietyAnnotation: annotation},
+		{Variety: SimpleList, InlineItem: &inline, VarietyAnnotation: annotation},
+		{Variety: SimpleUnion, InlineMembers: []SimpleType{inline}, VarietyAnnotation: annotation},
+	}
+	for _, definition := range definitions {
+		serializer := newSerializer(&Document{})
+		counter := &countingTokenEncoder{delegate: serializer.encoder}
+		serializer.encoder = counter
+		if err := serializer.simpleType(definition); err != nil {
+			t.Fatalf("simpleType() error = %v", err)
+		}
+		for failAt := 1; failAt <= counter.tokens; failAt++ {
+			serializer := newSerializer(&Document{})
+			serializer.encoder = &failingTokenEncoder{delegate: serializer.encoder, failAt: failAt}
+			if err := serializer.simpleType(definition); !errors.Is(err, errSerializerWrite) {
+				t.Fatalf("token %d: simpleType() error = %v", failAt, err)
+			}
+		}
+	}
+}
+
 func TestSerializerRejectsUnknownQNameNamespaces(t *testing.T) {
 	t.Parallel()
 
@@ -202,6 +234,200 @@ func TestMarshalLimitInternalsFailClosed(t *testing.T) {
 	}
 	if err := budget.value(reflect.ValueOf([]int{1, 2}), 0); !errors.Is(err, ErrLimitExceeded) {
 		t.Fatalf("slice component limit error = %v", err)
+	}
+}
+
+func TestMarshalLimitsTrackExactRemainingWork(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	writer := &marshalLimitWriter{writer: &output, remaining: 3, maximum: 3}
+	if written, err := writer.Write([]byte("ab")); written != 2 || err != nil || writer.remaining != 1 {
+		t.Fatalf("first limited write = %d, %v, remaining %d", written, err, writer.remaining)
+	}
+	if written, err := writer.Write([]byte("cd")); written != 1 ||
+		!errors.Is(err, ErrLimitExceeded) || writer.remaining != 0 || output.String() != "abc" {
+		t.Fatalf("overflowing write = %d, %v, remaining %d, output %q", written, err, writer.remaining, output.String())
+	}
+
+	budget := &marshalBudget{
+		limits: marshalLimits{MaxDepth: 1, MaxComponents: 2},
+		active: make(map[marshalPointer]struct{}),
+	}
+	if err := budget.value(reflect.ValueOf(struct{}{}), 1); err != nil || budget.work != 1 {
+		t.Fatalf("exact-depth value error = %v, work = %d", err, budget.work)
+	}
+	if err := budget.add(1); err != nil || budget.work != 2 {
+		t.Fatalf("exact component budget error = %v, work = %d", err, budget.work)
+	}
+	if err := budget.add(1); !errors.Is(err, ErrLimitExceeded) || budget.work != 2 {
+		t.Fatalf("overflow component budget error = %v, work = %d", err, budget.work)
+	}
+	if err := budget.value(reflect.ValueOf(struct{}{}), 2); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("depth overflow error = %v", err)
+	}
+}
+
+func TestNamespacePrefixAllocationUsesFirstAvailablePrefix(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		namespaces map[string]string
+		want       string
+	}{
+		{namespaces: map[string]string{"ns1": "urn:one", "ns3": "urn:three"}, want: "ns2"},
+		{namespaces: map[string]string{"ns1": "urn:one", "ns2": "urn:two"}, want: "ns3"},
+	} {
+		if prefix := nextNamespacePrefix(test.namespaces); prefix != test.want {
+			t.Fatalf("nextNamespacePrefix(%v) = %q, want %q", test.namespaces, prefix, test.want)
+		}
+	}
+}
+
+func TestSerializerBuildsCanonicalNamespaceRegistry(t *testing.T) {
+	t.Parallel()
+
+	document := &Document{
+		TargetNamespace: "urn:known",
+		Namespaces: map[string]string{
+			"":      "urn:default",
+			"xml":   "http://www.w3.org/XML/1998/namespace",
+			"empty": "",
+			"z":     "urn:known",
+			"a":     "urn:known",
+		},
+		Elements: []Element{{Type: QName{Namespace: "urn:missing", Local: "External"}}},
+	}
+	serializer := newSerializer(document)
+	if _, exists := serializer.namespaces[""]; exists {
+		t.Fatal("serializer retained the default namespace as a prefixed declaration")
+	}
+	if _, exists := serializer.namespaces["xml"]; exists {
+		t.Fatal("serializer retained the reserved xml prefix")
+	}
+	if _, exists := serializer.namespaces["empty"]; exists {
+		t.Fatal("serializer retained an empty namespace")
+	}
+	if _, exists := serializer.namespaces["tns"]; exists {
+		t.Fatal("serializer added tns despite an existing target namespace prefix")
+	}
+	if serializer.prefixes["urn:known"] != "a" || serializer.namespaces["ns1"] != "urn:missing" {
+		t.Fatalf("namespace registry = %#v, reverse = %#v", serializer.namespaces, serializer.prefixes)
+	}
+}
+
+func TestSchemaSerializationDistinguishesSystemAndBaseURIs(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name    string
+		base    string
+		system  string
+		present bool
+	}{
+		{name: "same URI", base: "https://example.test/schema.xsd", system: "https://example.test/schema.xsd"},
+		{name: "different URI", base: "https://example.test/base/", system: "https://example.test/schema.xsd", present: true},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := Marshal(&Document{BaseURI: test.base, SystemID: test.system})
+			if err != nil {
+				t.Fatal(err)
+			}
+			hasBase := bytes.Contains(encoded, []byte(`xml:base="`))
+			if hasBase != test.present {
+				t.Fatalf("Marshal() = %s, xml:base presence = %v", encoded, hasBase)
+			}
+		})
+	}
+}
+
+func TestRedefinitionSerializationConsumesBodiesExactlyOnce(t *testing.T) {
+	t.Parallel()
+
+	document := &Document{
+		References: []SchemaReference{
+			{Kind: ReferenceRedefine, Location: "first.xsd"},
+			{Kind: ReferenceRedefine, Location: "second.xsd"},
+		},
+		Redefinitions: []Redefinition{{
+			Reference:   SchemaReference{Kind: ReferenceRedefine, Location: "first.xsd"},
+			SimpleTypes: []SimpleType{{Name: "Code", Variety: SimpleRestriction}},
+		}},
+	}
+	encoded, err := Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Count(encoded, []byte(`<xs:redefine`)) != 2 ||
+		bytes.Count(encoded, []byte(`<xs:simpleType name="Code"`)) != 1 {
+		t.Fatalf("Marshal() = %s", encoded)
+	}
+}
+
+func TestRedefinitionReferenceFallbackPropagatesWriteFailure(t *testing.T) {
+	t.Parallel()
+
+	document := &Document{References: []SchemaReference{{
+		Kind: ReferenceRedefine, Location: "fallback.xsd",
+	}}}
+	serializer := newSerializer(document)
+	serializer.encoder = &failingTokenEncoder{
+		delegate: serializer.encoder,
+		failAt:   2,
+	}
+	if err := serializer.schema(document); !errors.Is(err, errSerializerWrite) {
+		t.Fatalf("schema() error = %v", err)
+	}
+}
+
+func TestIdentityConstraintSerializationHandlesSparseFieldMetadata(t *testing.T) {
+	t.Parallel()
+
+	document := &Document{Elements: []Element{{
+		Name: "root",
+		IdentityConstraints: []IdentityConstraint{{
+			Kind:             IdentityKey,
+			Name:             "key",
+			Selector:         ".",
+			Fields:           []string{"@first", "@second"},
+			FieldIDs:         []string{"first-id"},
+			FieldAnnotations: []*Annotation{{}},
+		}},
+	}}}
+	encoded, err := Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Count(encoded, []byte(`<xs:field`)) != 2 ||
+		bytes.Count(encoded, []byte(`id="first-id"`)) != 1 ||
+		bytes.Count(encoded, []byte(`<xs:annotation`)) != 1 {
+		t.Fatalf("Marshal() = %s", encoded)
+	}
+}
+
+func TestComplexTypeSerializationPreservesIndependentContentFlags(t *testing.T) {
+	t.Parallel()
+
+	encoded, err := Marshal(&Document{ComplexTypes: []ComplexType{
+		{Name: "ImplicitMixed", Mixed: true},
+		{Name: "ExplicitFalse", MixedSet: true},
+		{
+			Name:       "ComplexRestriction",
+			Derivation: DerivationRestriction,
+			SimpleFacets: []Facet{{
+				Kind: FacetLength, Value: "1",
+			}},
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(encoded, []byte(`name="ImplicitMixed" mixed="true"`)) ||
+		!bytes.Contains(encoded, []byte(`name="ExplicitFalse" mixed="false"`)) ||
+		bytes.Contains(encoded, []byte(`<xs:length value="1"`)) {
+		t.Fatalf("Marshal() = %s", encoded)
 	}
 }
 

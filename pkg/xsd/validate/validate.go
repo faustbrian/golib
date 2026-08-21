@@ -2,6 +2,7 @@ package validate
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/hex"
@@ -21,6 +22,117 @@ import (
 	"github.com/faustbrian/golib/pkg/xsd/compile"
 	"github.com/faustbrian/golib/pkg/xsd/datatype"
 )
+
+type boundedInteger interface {
+	~int | ~int64
+}
+
+func isNegative[T boundedInteger](value T) bool {
+	var zero T
+	return cmp.Compare(value, zero) == -1
+}
+
+func exceedsLimit[T boundedInteger](value, limit T) bool {
+	return cmp.Compare(value, limit) == 1
+}
+
+func addWithinLimit[T boundedInteger](left, right, limit T) (T, bool) {
+	var zero T
+	if isNegative(left) || isNegative(right) || isNegative(limit) {
+		return zero, false
+	}
+	if exceedsLimit(left, limit) || exceedsLimit(right, limit-left) {
+		return zero, false
+	}
+	return left + right, true
+}
+
+func multiplyWithinLimit(left, right, limit int) (int, bool) {
+	if isNegative(left) || isNegative(right) || isNegative(limit) {
+		return 0, false
+	}
+	if left == 0 || right == 0 {
+		return 0, true
+	}
+	if exceedsLimit(left, limit/right) {
+		return 0, false
+	}
+	return left * right, true
+}
+
+type operandValidity uint8
+
+const (
+	neitherOperandValid operandValidity = iota
+	oneOperandValid
+	bothOperandsValid
+)
+
+func classifyOperandValidity(left, right bool) operandValidity {
+	switch {
+	case left && right:
+		return bothOperandsValid
+	case left || right:
+		return oneOperandValid
+	default:
+		return neitherOperandValid
+	}
+}
+
+func bothValidAnd(leftValid, rightValid, condition bool) bool {
+	if !leftValid {
+		return false
+	}
+	if !rightValid {
+		return false
+	}
+	return condition
+}
+
+func occurrenceAllowed(unbounded bool, count, maximum uint64) bool {
+	if unbounded {
+		return true
+	}
+	return cmp.Compare(count, maximum) == -1
+}
+
+func occurrenceMinimumMet(count, minimum uint64) bool {
+	return cmp.Compare(count, minimum) != -1
+}
+
+func indexInRange(index, length int) bool {
+	if isNegative(index) {
+		return false
+	}
+	return cmp.Compare(index, length) == -1
+}
+
+func nextOccurrence(count uint64) uint64 {
+	return count + 1
+}
+
+func nextIndex(index int) int {
+	next, _ := addWithinLimit(index, 1, math.MaxInt)
+	return next
+}
+
+func xmlFloatBitSize(local string) int {
+	if local == "float" {
+		return 32
+	}
+	return 64
+}
+
+func identityAttributeStep(steps []string) bool {
+	if len(steps) == 0 {
+		return false
+	}
+	last := steps[len(steps)-1]
+	if strings.HasPrefix(last, "@") {
+		return true
+	}
+	return strings.HasPrefix(last, "attribute::")
+}
 
 var ErrLimitExceeded = errors.New("xsd validate: resource limit exceeded")
 
@@ -98,9 +210,10 @@ func New(set *compile.Set, options Options) (*Validator, error) {
 	if limits.MaxIdentityValues == 0 {
 		limits.MaxIdentityValues = defaultMaxIdentityValues
 	}
-	if limits.MaxBytes < 0 || limits.MaxDepth < 0 || limits.MaxTextBytes < 0 ||
-		limits.MaxDiagnostics < 0 || limits.MaxNodes < 0 || limits.MaxAttributes < 0 ||
-		limits.MaxXPathSteps < 0 || limits.MaxIdentityValues < 0 {
+	if isNegative(limits.MaxBytes) || isNegative(limits.MaxDepth) ||
+		isNegative(limits.MaxTextBytes) || isNegative(limits.MaxDiagnostics) ||
+		isNegative(limits.MaxNodes) || isNegative(limits.MaxAttributes) ||
+		isNegative(limits.MaxXPathSteps) || isNegative(limits.MaxIdentityValues) {
 		return nil, fmt.Errorf("xsd validate: limits must not be negative")
 	}
 	return &Validator{set: set, systemID: options.SystemID, limits: limits}, nil
@@ -205,32 +318,34 @@ func (s *treeCloneState) clone(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if depth > s.validator.limits.MaxDepth {
+	if exceedsLimit(depth, s.validator.limits.MaxDepth) {
 		return nil, fmt.Errorf(
 			"%w: element depth exceeds %d",
 			ErrLimitExceeded,
 			s.validator.limits.MaxDepth,
 		)
 	}
-	s.nodes++
-	if s.nodes > s.validator.limits.MaxNodes {
+	nodes, withinLimit := addWithinLimit(s.nodes, 1, s.validator.limits.MaxNodes)
+	if !withinLimit {
 		return nil, fmt.Errorf(
 			"%w: node count exceeds %d",
 			ErrLimitExceeded,
 			s.validator.limits.MaxNodes,
 		)
 	}
+	s.nodes = nodes
 	if source.Name.Local == "" {
 		return nil, fmt.Errorf("xsd validate: tree node has no local name")
 	}
-	s.textBytes += len(source.Text)
-	if s.textBytes > s.validator.limits.MaxTextBytes {
+	textBytes, withinLimit := addWithinLimit(s.textBytes, len(source.Text), s.validator.limits.MaxTextBytes)
+	if !withinLimit {
 		return nil, fmt.Errorf(
 			"%w: text bytes exceed %d",
 			ErrLimitExceeded,
 			s.validator.limits.MaxTextBytes,
 		)
 	}
+	s.textBytes = textBytes
 	node := &instanceNode{
 		Name:           source.Name,
 		Attributes:     make(map[xsd.QName]string, len(source.Attributes)),
@@ -241,14 +356,15 @@ func (s *treeCloneState) clone(
 		Location:       source.Location,
 	}
 	for name, value := range source.Attributes {
-		s.attributes++
-		if s.attributes > s.validator.limits.MaxAttributes {
+		attributes, withinLimit := addWithinLimit(s.attributes, 1, s.validator.limits.MaxAttributes)
+		if !withinLimit {
 			return nil, fmt.Errorf(
 				"%w: attribute count exceeds %d",
 				ErrLimitExceeded,
 				s.validator.limits.MaxAttributes,
 			)
 		}
+		s.attributes = attributes
 		if name.Local == "" {
 			return nil, fmt.Errorf("xsd validate: tree attribute has no local name")
 		}
@@ -277,7 +393,7 @@ type instanceNode struct {
 }
 
 func (v *Validator) parseInstance(ctx context.Context, source []byte) (*instanceNode, error) {
-	if int64(len(source)) > v.limits.MaxBytes {
+	if exceedsLimit(int64(len(source)), v.limits.MaxBytes) {
 		return nil, fmt.Errorf("%w: instance bytes exceed %d", ErrLimitExceeded, v.limits.MaxBytes)
 	}
 	return v.parseInstanceReader(ctx, bytes.NewReader(source))
@@ -285,8 +401,8 @@ func (v *Validator) parseInstance(ctx context.Context, source []byte) (*instance
 
 func (v *Validator) parseInstanceReader(ctx context.Context, reader io.Reader) (*instanceNode, error) {
 	readLimit := v.limits.MaxBytes
-	if readLimit < math.MaxInt64 {
-		readLimit++
+	if readLimit != math.MaxInt64 {
+		readLimit, _ = addWithinLimit(readLimit, int64(1), int64(math.MaxInt64))
 	}
 	limited := &io.LimitedReader{
 		R: &contextReader{ctx: ctx, reader: reader},
@@ -304,28 +420,33 @@ func (v *Validator) parseInstanceReader(ctx context.Context, reader io.Reader) (
 	for {
 		token, err := decoder.Token()
 		if err != nil {
-			if limited.N == 0 && v.limits.MaxBytes < math.MaxInt64 {
+			if limited.N == 0 && v.limits.MaxBytes != math.MaxInt64 {
 				return nil, fmt.Errorf("%w: instance bytes exceed %d", ErrLimitExceeded, v.limits.MaxBytes)
 			}
 			if errors.Is(err, io.EOF) {
-				break
+				if root == nil {
+					return nil, parseError(decoder, v.systemID, io.ErrUnexpectedEOF)
+				}
+				return root, nil
 			}
 			return nil, parseError(decoder, v.systemID, err)
 		}
-		if decoder.InputOffset() > v.limits.MaxBytes {
+		if exceedsLimit(decoder.InputOffset(), v.limits.MaxBytes) {
 			return nil, fmt.Errorf("%w: instance bytes exceed %d", ErrLimitExceeded, v.limits.MaxBytes)
 		}
 		switch value := token.(type) {
 		case xml.Directive:
 			return nil, parseError(decoder, v.systemID, xsd.ErrDTDForbidden)
 		case xml.StartElement:
-			if len(stack)+1 > v.limits.MaxDepth {
+			_, withinLimit := addWithinLimit(len(stack), 1, v.limits.MaxDepth)
+			if !withinLimit {
 				return nil, fmt.Errorf("%w: element depth exceeds %d", ErrLimitExceeded, v.limits.MaxDepth)
 			}
-			nodes++
-			if nodes > v.limits.MaxNodes {
+			nextNodes, withinLimit := addWithinLimit(nodes, 1, v.limits.MaxNodes)
+			if !withinLimit {
 				return nil, fmt.Errorf("%w: node count exceeds %d", ErrLimitExceeded, v.limits.MaxNodes)
 			}
+			nodes = nextNodes
 			line, column := decoder.InputPos()
 			var parentNamespaces map[string]string
 			if len(stack) > 0 {
@@ -352,14 +473,15 @@ func (v *Validator) parseInstanceReader(ctx context.Context, reader io.Reader) (
 					node.Namespaces[prefix] = attribute.Value
 					continue
 				}
-				attributes++
-				if attributes > v.limits.MaxAttributes {
+				nextAttributes, withinLimit := addWithinLimit(attributes, 1, v.limits.MaxAttributes)
+				if !withinLimit {
 					return nil, fmt.Errorf(
 						"%w: attribute count exceeds %d",
 						ErrLimitExceeded,
 						v.limits.MaxAttributes,
 					)
 				}
+				attributes = nextAttributes
 				name := xsd.QName{Namespace: attribute.Name.Space, Local: attribute.Name.Local}
 				if _, duplicate := node.Attributes[name]; duplicate {
 					return nil, parseError(decoder, v.systemID, fmt.Errorf(
@@ -381,24 +503,19 @@ func (v *Validator) parseInstanceReader(ctx context.Context, reader io.Reader) (
 			}
 			stack = append(stack, node)
 		case xml.EndElement:
-			if len(stack) > 0 {
-				stack = stack[:len(stack)-1]
-			}
+			stack = stack[:len(stack)-1]
 		case xml.CharData:
-			if len(stack) == 0 {
-				continue
+			if len(stack) != 0 {
+				nextTextBytes, withinLimit := addWithinLimit(textBytes, len(value), v.limits.MaxTextBytes)
+				if !withinLimit {
+					return nil, fmt.Errorf("%w: text bytes exceed %d", ErrLimitExceeded, v.limits.MaxTextBytes)
+				}
+				textBytes = nextTextBytes
+				current := stack[len(stack)-1]
+				current.Text = current.Text + string(value)
 			}
-			textBytes += len(value)
-			if textBytes > v.limits.MaxTextBytes {
-				return nil, fmt.Errorf("%w: text bytes exceed %d", ErrLimitExceeded, v.limits.MaxTextBytes)
-			}
-			stack[len(stack)-1].Text += string(value)
 		}
 	}
-	if root == nil {
-		return nil, parseError(decoder, v.systemID, io.ErrUnexpectedEOF)
-	}
-	return root, nil
 }
 
 func cloneNamespaces(source map[string]string) map[string]string {
@@ -423,6 +540,16 @@ func validatorAttributeDefaultSet(attribute xsd.AttributeUse) bool {
 
 func validatorAttributeFixedSet(attribute xsd.AttributeUse) bool {
 	return attribute.FixedSet || attribute.Fixed != ""
+}
+
+func elementContentAbsent(nilled bool, node *instanceNode) bool {
+	if nilled {
+		return false
+	}
+	if len(node.Children) != 0 {
+		return false
+	}
+	return node.Text == ""
 }
 
 func isNamespaceDeclaration(name xml.Name) bool {
@@ -519,7 +646,15 @@ func (s *validationState) validateElementContent(
 		}
 		if nilled {
 			nilledElement = true
-			if len(node.Children) > 0 || strings.TrimSpace(node.Text) != "" {
+			if len(node.Children) > 0 {
+				return s.add(
+					node.Location,
+					path,
+					"cvc-elt.3.2.1",
+					"a nilled element must have empty content",
+				)
+			}
+			if strings.TrimSpace(node.Text) != "" {
 				return s.add(
 					node.Location,
 					path,
@@ -531,12 +666,16 @@ func (s *validationState) validateElementContent(
 	}
 
 	effective := node
-	if !nilledElement && len(node.Children) == 0 && node.Text == "" {
+	if elementContentAbsent(nilledElement, node) {
 		value := element.Fixed
 		if !validatorElementFixedSet(element) {
 			value = element.Default
 		}
-		if validatorElementFixedSet(element) || validatorElementDefaultSet(element) {
+		if validatorElementFixedSet(element) {
+			clone := *node
+			clone.Text = value
+			effective = &clone
+		} else if validatorElementDefaultSet(element) {
 			clone := *node
 			clone.Text = value
 			effective = &clone
@@ -548,14 +687,17 @@ func (s *validationState) validateElementContent(
 		Local:     "type",
 	}]; present {
 		override, ok := resolveInstanceQName(lexical, node.Namespaces)
-		if !ok || !s.typeExists(override) {
+		if !ok {
+			return s.add(node.Location, path, "cvc-elt.4.2", "xsi:type does not name a known type")
+		}
+		if !s.typeExists(override) {
 			return s.add(node.Location, path, "cvc-elt.4.2", "xsi:type does not name a known type")
 		}
 		if complexType, exists := s.validator.set.ComplexType(override); exists && complexType.Abstract {
 			return s.add(node.Location, path, "cvc-type.2", "xsi:type names an abstract type")
 		}
 		methods, derived := s.typeDerivationMethods(override, typeName)
-		if typeName.Local != "" && !derived {
+		if !derived {
 			return s.add(node.Location, path, "cvc-elt.4.3", "xsi:type is not validly derived from the declared type")
 		}
 		if s.derivationBlocked(methods, element, typeName) {
@@ -654,7 +796,10 @@ func (s *validationState) validateElementFixedConstraint(
 	nilledElement bool,
 	path string,
 ) error {
-	if !validatorElementFixedSet(element) || nilledElement {
+	if !validatorElementFixedSet(element) {
+		return nil
+	}
+	if nilledElement {
 		return nil
 	}
 	if len(node.Children) > 0 {
@@ -675,8 +820,9 @@ func (s *validationState) validateElementFixedConstraint(
 			effective.Namespaces,
 			element.ValueNamespaces,
 		)
-		if compareErr != nil || equal {
-			return compareErr
+		_ = compareErr
+		if equal {
+			return nil
 		}
 		return s.add(
 			node.Location,
@@ -703,9 +849,8 @@ func (s *validationState) validateElementFixedConstraint(
 		}
 		return s.add(node.Location, path, "cvc-elt.5.2.2.2.1", "element value does not match its fixed constraint")
 	}
-	if complexType, ok := s.validator.set.ComplexType(typeName); ok &&
-		complexType.SimpleContent {
-		if complexType.InlineSimpleType != nil {
+	if complexType, ok := s.validator.set.ComplexType(typeName); ok {
+		if complexType.SimpleContent && complexType.InlineSimpleType != nil {
 			equal, compareErr := s.inlineSimpleValuesEqualContext(
 				*complexType.InlineSimpleType,
 				effective.Text,
@@ -713,8 +858,9 @@ func (s *validationState) validateElementFixedConstraint(
 				effective.Namespaces,
 				element.ValueNamespaces,
 			)
-			if compareErr != nil || equal {
-				return compareErr
+			_ = compareErr
+			if equal {
+				return nil
 			}
 			return s.add(
 				node.Location,
@@ -723,7 +869,9 @@ func (s *validationState) validateElementFixedConstraint(
 				"element value does not match its fixed constraint",
 			)
 		}
-		typeName = complexType.SimpleBase
+		if complexType.SimpleContent {
+			typeName = complexType.SimpleBase
+		}
 	}
 	equal, compareErr := s.simpleValuesEqualContext(
 		typeName,
@@ -732,8 +880,9 @@ func (s *validationState) validateElementFixedConstraint(
 		effective.Namespaces,
 		element.ValueNamespaces,
 	)
-	if compareErr != nil || equal {
-		return compareErr
+	_ = compareErr
+	if equal {
+		return nil
 	}
 	return s.add(
 		node.Location,
@@ -746,11 +895,10 @@ func (s *validationState) validateElementFixedConstraint(
 func (s *validationState) validateAnyType(node *instanceNode, path string) error {
 	for _, child := range node.Children {
 		declaration, declared := s.validator.set.Element(child.Name)
-		if !declared {
-			continue
-		}
-		if err := s.validateElement(child, declaration, path+"/"+child.Name.Local); err != nil {
-			return err
+		if declared {
+			if err := s.validateElement(child, declaration, path+"/"+child.Name.Local); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -758,16 +906,15 @@ func (s *validationState) validateAnyType(node *instanceNode, path string) error
 
 func (s *validationState) validateSimpleAttributeSet(node *instanceNode, path string) error {
 	for _, name := range sortedAttributeNames(node.Attributes) {
-		if permittedSchemaInstanceAttribute(name) {
-			continue
-		}
-		if err := s.add(
-			node.Location,
-			path,
-			"cvc-type.3.1.1",
-			fmt.Sprintf("attribute {%s}%s is not allowed on simple content", name.Namespace, name.Local),
-		); err != nil {
-			return err
+		if !permittedSchemaInstanceAttribute(name) {
+			if err := s.add(
+				node.Location,
+				path,
+				"cvc-type.3.1.1",
+				fmt.Sprintf("attribute {%s}%s is not allowed on simple content", name.Namespace, name.Local),
+			); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -775,7 +922,10 @@ func (s *validationState) validateSimpleAttributeSet(node *instanceNode, path st
 
 func resolveInstanceQName(lexical string, namespaces map[string]string) (xsd.QName, bool) {
 	lexical = strings.TrimSpace(lexical)
-	if lexical == "" || strings.ContainsAny(lexical, " \t\r\n") {
+	if lexical == "" {
+		return xsd.QName{}, false
+	}
+	if strings.ContainsAny(lexical, " \t\r\n") {
 		return xsd.QName{}, false
 	}
 	prefix, local, qualified := strings.Cut(lexical, ":")
@@ -783,7 +933,10 @@ func resolveInstanceQName(lexical string, namespaces map[string]string) (xsd.QNa
 		local = prefix
 		prefix = ""
 	}
-	if local == "" || strings.Contains(local, ":") {
+	if local == "" {
+		return xsd.QName{}, false
+	}
+	if strings.Contains(local, ":") {
 		return xsd.QName{}, false
 	}
 	namespace, ok := namespaces[prefix]
@@ -808,43 +961,48 @@ func (s *validationState) typeDerivationMethods(
 	derived xsd.QName,
 	base xsd.QName,
 ) ([]xsd.Derivation, bool) {
-	if base.Local == "" || base == (xsd.QName{Namespace: xsd.Namespace, Local: "anyType"}) {
+	if base.Local == "" {
+		return nil, true
+	}
+	if base == (xsd.QName{Namespace: xsd.Namespace, Local: "anyType"}) {
 		return nil, true
 	}
 	methods := make([]xsd.Derivation, 0)
 	current := derived
 	for current != base {
-		if complexType, ok := s.validator.set.ComplexType(current); ok {
-			if complexType.Base.Local == "" || complexType.Derivation == "" {
-				return nil, false
-			}
-			methods = append(methods, complexType.Derivation)
-			current = complexType.Base
-			continue
+		next, method, ok := s.typeDerivationStep(current)
+		if !ok {
+			return nil, false
 		}
-		if simpleType, ok := s.validator.set.SimpleType(current); ok {
-			method := xsd.Derivation(simpleType.Variety)
-			next := simpleType.Base
-			if simpleType.Variety == xsd.SimpleList ||
-				simpleType.Variety == xsd.SimpleUnion {
-				next = xsd.QName{Namespace: xsd.Namespace, Local: "anySimpleType"}
-			}
-			methods = append(methods, method)
-			current = next
-			continue
-		}
-		if current.Namespace == xsd.Namespace {
-			parent, method, ok := datatype.BuiltInDerivation(current.Local)
-			if !ok {
-				return nil, false
-			}
-			methods = append(methods, xsd.Derivation(method))
-			current = xsd.QName{Namespace: xsd.Namespace, Local: parent}
-			continue
-		}
-		return nil, false
+		methods = append(methods, method)
+		current = next
 	}
 	return methods, true
+}
+
+func (s *validationState) typeDerivationStep(current xsd.QName) (xsd.QName, xsd.Derivation, bool) {
+	if complexType, ok := s.validator.set.ComplexType(current); ok {
+		if complexType.Base.Local == "" {
+			return xsd.QName{}, "", false
+		}
+		return complexType.Base, complexType.Derivation, true
+	}
+	if simpleType, ok := s.validator.set.SimpleType(current); ok {
+		next := simpleType.Base
+		switch simpleType.Variety {
+		case xsd.SimpleList, xsd.SimpleUnion:
+			next = xsd.QName{Namespace: xsd.Namespace, Local: "anySimpleType"}
+		}
+		return next, xsd.Derivation(simpleType.Variety), true
+	}
+	if current.Namespace != xsd.Namespace {
+		return xsd.QName{}, "", false
+	}
+	parent, method, ok := datatype.BuiltInDerivation(current.Local)
+	if !ok {
+		return xsd.QName{}, "", false
+	}
+	return xsd.QName{Namespace: xsd.Namespace, Local: parent}, xsd.Derivation(method), true
 }
 
 func (s *validationState) derivationBlocked(
@@ -921,108 +1079,109 @@ func (s *validationState) validateIdentityConstraints(
 		}
 	}
 	for _, constraint := range constraints {
-		if constraint.Kind == xsd.IdentityKeyRef {
-			continue
-		}
-		if err := s.consumeIdentityWork(node, constraint); err != nil {
-			return err
-		}
-		table := make(identityNodeTable)
-		duplicateTuples := make(map[string]struct{})
-		selectedNodes := selectIdentityNodes(node, constraint)
-		if err := s.consumeIdentityValues(len(selectedNodes)); err != nil {
-			return err
-		}
-		for _, selected := range selectedNodes {
-			tuple, complete, multiple := s.identityTuple(selected, constraint)
-			if multiple {
-				if err := s.add(
-					selected.Location,
-					path,
-					"cvc-identity-constraint",
-					"identity field selects more than one value",
-				); err != nil {
-					return err
-				}
-				continue
+		if constraint.Kind != xsd.IdentityKeyRef {
+			if err := s.validateIdentityDefinition(node, constraint, path, tables, conflicts); err != nil {
+				return err
 			}
-			if !complete {
-				if constraint.Kind == xsd.IdentityKey {
-					if err := s.add(
-						selected.Location,
-						path,
-						"cvc-identity-constraint",
-						"key field has no value",
-					); err != nil {
-						return err
-					}
-				}
-				continue
-			}
-			if constraint.Kind == xsd.IdentityKey &&
-				s.identityKeySelectsNillable(selected, constraint) {
-				if err := s.add(
-					selected.Location,
-					path,
-					"cvc-identity-constraint",
-					"key field selects an element declared as nillable",
-				); err != nil {
-					return err
-				}
-				continue
-			}
-			_, alreadyDuplicate := duplicateTuples[tuple]
-			if _, duplicate := table[tuple]; duplicate || alreadyDuplicate {
-				if err := s.add(
-					selected.Location,
-					path,
-					"cvc-identity-constraint",
-					fmt.Sprintf("identity constraint %s has a duplicate value", constraint.Name),
-				); err != nil {
-					return err
-				}
-				delete(table, tuple)
-				duplicateTuples[tuple] = struct{}{}
-				continue
-			}
-			table[tuple] = selected
 		}
-		name := xsd.QName{
-			Namespace: constraint.TargetNamespace,
-			Local:     constraint.Name,
-		}
-		mergeIdentityNodeTable(tables, conflicts, name, table)
 	}
 	for _, constraint := range constraints {
-		if constraint.Kind != xsd.IdentityKeyRef {
-			continue
-		}
-		if err := s.consumeIdentityWork(node, constraint); err != nil {
-			return err
-		}
-		table := tables[constraint.Refer]
-		selectedNodes := selectIdentityNodes(node, constraint)
-		if err := s.consumeIdentityValues(len(selectedNodes)); err != nil {
-			return err
-		}
-		for _, selected := range selectedNodes {
-			tuple, complete, multiple := s.identityTuple(selected, constraint)
-			if multiple {
-				if err := s.add(
-					selected.Location,
-					path,
-					"cvc-identity-constraint",
-					"keyref field selects more than one value",
-				); err != nil {
-					return err
-				}
-				continue
+		if constraint.Kind == xsd.IdentityKeyRef {
+			if err := s.validateIdentityReference(node, constraint, path, tables[constraint.Refer]); err != nil {
+				return err
 			}
-			if complete {
-				_, found := table[tuple]
-				if found {
-					continue
-				}
+		}
+	}
+	s.identityTables[node] = tables
+	return nil
+}
+
+func (s *validationState) validateIdentityDefinition(
+	node *instanceNode,
+	constraint xsd.IdentityConstraint,
+	path string,
+	tables map[xsd.QName]identityNodeTable,
+	conflicts map[xsd.QName]map[string]struct{},
+) error {
+	if err := s.consumeIdentityWork(node, constraint); err != nil {
+		return err
+	}
+	table := make(identityNodeTable)
+	duplicateTuples := make(map[string]struct{})
+	selectedNodes := selectIdentityNodes(node, constraint)
+	if err := s.consumeIdentityValues(len(selectedNodes)); err != nil {
+		return err
+	}
+	for _, selected := range selectedNodes {
+		if err := s.addIdentityDefinitionValue(selected, constraint, path, table, duplicateTuples); err != nil {
+			return err
+		}
+	}
+	name := xsd.QName{Namespace: constraint.TargetNamespace, Local: constraint.Name}
+	mergeIdentityNodeTable(tables, conflicts, name, table)
+	return nil
+}
+
+func (s *validationState) addIdentityDefinitionValue(
+	selected *instanceNode,
+	constraint xsd.IdentityConstraint,
+	path string,
+	table identityNodeTable,
+	duplicateTuples map[string]struct{},
+) error {
+	tuple, complete, multiple := s.identityTuple(selected, constraint)
+	if multiple {
+		return s.add(selected.Location, path, "cvc-identity-constraint", "identity field selects more than one value")
+	}
+	if !complete {
+		if constraint.Kind == xsd.IdentityKey {
+			return s.add(selected.Location, path, "cvc-identity-constraint", "key field has no value")
+		}
+		return nil
+	}
+	if constraint.Kind == xsd.IdentityKey && s.identityKeySelectsNillable(selected, constraint) {
+		return s.add(selected.Location, path, "cvc-identity-constraint", "key field selects an element declared as nillable")
+	}
+	_, duplicate := table[tuple]
+	_, alreadyDuplicate := duplicateTuples[tuple]
+	if duplicate || alreadyDuplicate {
+		if err := s.add(
+			selected.Location,
+			path,
+			"cvc-identity-constraint",
+			fmt.Sprintf("identity constraint %s has a duplicate value", constraint.Name),
+		); err != nil {
+			return err
+		}
+		delete(table, tuple)
+		duplicateTuples[tuple] = struct{}{}
+		return nil
+	}
+	table[tuple] = selected
+	return nil
+}
+
+func (s *validationState) validateIdentityReference(
+	node *instanceNode,
+	constraint xsd.IdentityConstraint,
+	path string,
+	table identityNodeTable,
+) error {
+	if err := s.consumeIdentityWork(node, constraint); err != nil {
+		return err
+	}
+	selectedNodes := selectIdentityNodes(node, constraint)
+	if err := s.consumeIdentityValues(len(selectedNodes)); err != nil {
+		return err
+	}
+	for _, selected := range selectedNodes {
+		tuple, complete, multiple := s.identityTuple(selected, constraint)
+		if multiple {
+			if err := s.add(selected.Location, path, "cvc-identity-constraint", "keyref field selects more than one value"); err != nil {
+				return err
+			}
+		} else if complete {
+			if _, found := table[tuple]; !found {
 				if err := s.add(
 					selected.Location,
 					path,
@@ -1034,7 +1193,6 @@ func (s *validationState) validateIdentityConstraints(
 			}
 		}
 	}
-	s.identityTables[node] = tables
 	return nil
 }
 
@@ -1051,15 +1209,14 @@ func mergeIdentityNodeTable(
 		conflicts[name] = make(map[string]struct{})
 	}
 	for tuple, node := range source {
-		if _, conflicted := conflicts[name][tuple]; conflicted {
-			continue
+		if _, conflicted := conflicts[name][tuple]; !conflicted {
+			if previous, duplicate := tables[name][tuple]; duplicate && previous != node {
+				delete(tables[name], tuple)
+				conflicts[name][tuple] = struct{}{}
+			} else {
+				tables[name][tuple] = node
+			}
 		}
-		if previous, duplicate := tables[name][tuple]; duplicate && previous != node {
-			delete(tables[name], tuple)
-			conflicts[name][tuple] = struct{}{}
-			continue
-		}
-		tables[name][tuple] = node
 	}
 }
 
@@ -1069,32 +1226,46 @@ func (s *validationState) consumeIdentityWork(
 ) error {
 	paths := 0
 	for _, branch := range strings.Split(constraint.Selector, "|") {
-		paths += len(strings.Split(branch, "/"))
+		var withinLimit bool
+		paths, withinLimit = addWithinLimit(paths, len(strings.Split(branch, "/")), s.validator.limits.MaxXPathSteps)
+		if !withinLimit {
+			return fmt.Errorf("%w: identity XPath steps exceed %d", ErrLimitExceeded, s.validator.limits.MaxXPathSteps)
+		}
 	}
 	for _, field := range constraint.Fields {
-		paths += len(strings.Split(field, "/"))
+		var withinLimit bool
+		paths, withinLimit = addWithinLimit(paths, len(strings.Split(field, "/")), s.validator.limits.MaxXPathSteps)
+		if !withinLimit {
+			return fmt.Errorf("%w: identity XPath steps exceed %d", ErrLimitExceeded, s.validator.limits.MaxXPathSteps)
+		}
 	}
-	work := identityNodeCount(node) * paths
-	if work > s.validator.limits.MaxXPathSteps-s.xpathSteps {
+	remaining, withinLimit := addWithinLimit(s.xpathSteps, 0, s.validator.limits.MaxXPathSteps)
+	if !withinLimit {
+		return fmt.Errorf("%w: identity XPath steps exceed %d", ErrLimitExceeded, s.validator.limits.MaxXPathSteps)
+	}
+	remaining = s.validator.limits.MaxXPathSteps - remaining
+	work, withinLimit := multiplyWithinLimit(identityNodeCount(node), paths, remaining)
+	if !withinLimit {
 		return fmt.Errorf(
 			"%w: identity XPath steps exceed %d",
 			ErrLimitExceeded,
 			s.validator.limits.MaxXPathSteps,
 		)
 	}
-	s.xpathSteps += work
+	s.xpathSteps, _ = addWithinLimit(s.xpathSteps, work, s.validator.limits.MaxXPathSteps)
 	return nil
 }
 
 func (s *validationState) consumeIdentityValues(count int) error {
-	if count > s.validator.limits.MaxIdentityValues-s.identityValues {
+	values, withinLimit := addWithinLimit(s.identityValues, count, s.validator.limits.MaxIdentityValues)
+	if !withinLimit {
 		return fmt.Errorf(
 			"%w: identity values exceed %d",
 			ErrLimitExceeded,
 			s.validator.limits.MaxIdentityValues,
 		)
 	}
-	s.identityValues += count
+	s.identityValues = values
 	return nil
 }
 
@@ -1145,11 +1316,10 @@ func selectIdentityNodes(
 			)
 		}
 		for _, candidate := range selected {
-			if _, duplicate := seen[candidate]; duplicate {
-				continue
+			if _, duplicate := seen[candidate]; !duplicate {
+				seen[candidate] = struct{}{}
+				result = append(result, candidate)
 			}
-			seen[candidate] = struct{}{}
-			result = append(result, candidate)
 		}
 	}
 	return result
@@ -1177,18 +1347,17 @@ func followIdentityElementPath(
 		if step == "" {
 			return nil
 		}
-		if step == "." {
-			continue
-		}
-		next := make([]*instanceNode, 0)
-		for _, node := range nodes {
-			for _, child := range node.Children {
-				if identityNameMatches(child.Name, step, namespaces) {
-					next = append(next, child)
+		if step != "." {
+			next := make([]*instanceNode, 0)
+			for _, node := range nodes {
+				for _, child := range node.Children {
+					if identityNameMatches(child.Name, step, namespaces) {
+						next = append(next, child)
+					}
 				}
 			}
+			nodes = next
 		}
-		nodes = next
 	}
 	return nodes
 }
@@ -1223,11 +1392,10 @@ func (s *validationState) identityFieldValues(
 		seenBranches := make(map[string]struct{})
 		for _, branch := range strings.Split(field, "|") {
 			branch = strings.TrimSpace(branch)
-			if _, duplicate := seenBranches[branch]; duplicate {
-				continue
+			if _, duplicate := seenBranches[branch]; !duplicate {
+				seenBranches[branch] = struct{}{}
+				values = append(values, s.identityFieldValues(node, branch, namespaces)...)
 			}
-			seenBranches[branch] = struct{}{}
-			values = append(values, s.identityFieldValues(node, branch, namespaces)...)
 		}
 		return values
 	}
@@ -1242,8 +1410,7 @@ func (s *validationState) identityFieldValues(
 	}
 	steps := strings.Split(field, "/")
 	attribute := ""
-	if len(steps) > 0 && (strings.HasPrefix(steps[len(steps)-1], "@") ||
-		strings.HasPrefix(steps[len(steps)-1], "attribute::")) {
+	if identityAttributeStep(steps) {
 		attribute = strings.TrimPrefix(steps[len(steps)-1], "@")
 		attribute = strings.TrimPrefix(attribute, "attribute::")
 		steps = steps[:len(steps)-1]
@@ -1347,8 +1514,7 @@ func identityFieldSelectsNillable(
 		field = strings.TrimPrefix(field, "./")
 	}
 	steps := strings.Split(field, "/")
-	if len(steps) > 0 && (strings.HasPrefix(steps[len(steps)-1], "@") ||
-		strings.HasPrefix(steps[len(steps)-1], "attribute::")) {
+	if identityAttributeStep(steps) {
 		return false
 	}
 	var nodes []*instanceNode
@@ -1379,15 +1545,17 @@ func (s *validationState) canonicalIdentityValue(
 		if typeDefinition, ok := s.validator.set.SimpleType(typeName); ok {
 			return s.canonicalIdentityDefinition(typeDefinition, lexical, namespaces)
 		}
-		if typeDefinition, ok := s.validator.set.ComplexType(typeName); ok && typeDefinition.SimpleContent {
-			if typeDefinition.InlineSimpleType != nil {
+		if typeDefinition, ok := s.validator.set.ComplexType(typeName); ok {
+			if typeDefinition.SimpleContent && typeDefinition.InlineSimpleType != nil {
 				return s.canonicalIdentityDefinition(
 					*typeDefinition.InlineSimpleType,
 					lexical,
 					namespaces,
 				)
 			}
-			return s.canonicalIdentityValue(typeDefinition.SimpleBase, lexical, namespaces)
+			if typeDefinition.SimpleContent {
+				return s.canonicalIdentityValue(typeDefinition.SimpleBase, lexical, namespaces)
+			}
 		}
 	}
 	primitive := s.primitiveType(typeName)
@@ -1402,10 +1570,7 @@ func (s *validationState) canonicalIdentityValue(
 			return "decimal:" + value.String()
 		}
 	case "float", "double":
-		bitSize := 64
-		if primitive.Local == "float" {
-			bitSize = 32
-		}
+		bitSize := xmlFloatBitSize(primitive.Local)
 		if value, ok := parseXMLFloat(normalized, bitSize); ok {
 			if math.IsNaN(value) {
 				return primitive.Local + ":NaN"
@@ -1467,8 +1632,10 @@ func (s *validationState) canonicalIdentityDefinition(
 		return canonical.String()
 	case xsd.SimpleUnion:
 		for _, member := range typeDefinition.MemberTypes {
-			if s.simpleLexicalValid(member, lexical) && s.simpleContextValid(member, lexical, namespaces) {
-				return s.canonicalIdentityValue(member, lexical, namespaces)
+			if s.simpleLexicalValid(member, lexical) {
+				if s.simpleContextValid(member, lexical, namespaces) {
+					return s.canonicalIdentityValue(member, lexical, namespaces)
+				}
 			}
 		}
 		for _, member := range typeDefinition.InlineMembers {
@@ -1492,10 +1659,13 @@ func identityNameMatches(
 	}
 	if prefix, local, qualified := strings.Cut(expression, ":"); qualified && local == "*" {
 		namespace, ok := namespaces[prefix]
-		return ok && name.Namespace == namespace
+		if !ok {
+			return false
+		}
+		return name.Namespace == namespace
 	}
 	expected, ok := identityQName(expression, namespaces)
-	return ok && name == expected
+	return bothValidAnd(ok, true, name == expected)
 }
 
 func identityQName(expression string, namespaces map[string]string) (xsd.QName, bool) {
@@ -1505,7 +1675,14 @@ func identityQName(expression string, namespaces map[string]string) (xsd.QName, 
 		return xsd.QName{Local: parts[0]}, parts[0] != ""
 	case 2:
 		namespace, ok := namespaces[parts[0]]
-		return xsd.QName{Namespace: namespace, Local: parts[1]}, ok && parts[1] != ""
+		name := xsd.QName{Namespace: namespace, Local: parts[1]}
+		if !ok {
+			return name, false
+		}
+		if parts[1] == "" {
+			return name, false
+		}
+		return name, true
 	default:
 		return xsd.QName{}, false
 	}
@@ -1542,23 +1719,27 @@ func (s *validationState) simpleValuesEqual(
 					return false, nil
 				}
 				for index := range leftItems {
-					equal, err := s.simpleValuesEqual(
+					equal, _ := s.simpleValuesEqual(
 						simpleType.ItemType,
 						leftItems[index],
 						rightItems[index],
 					)
-					if err != nil || !equal {
-						return false, err
+					if !equal {
+						return false, nil
 					}
 				}
 				return true, nil
 			case xsd.SimpleUnion:
 				for _, member := range simpleType.MemberTypes {
-					if !s.simpleLexicalValid(member, left) || !s.simpleLexicalValid(member, right) {
-						continue
-					}
-					if equal, err := s.simpleValuesEqual(member, left, right); err != nil || equal {
-						return equal, err
+					validity := classifyOperandValidity(
+						s.simpleLexicalValid(member, left),
+						s.simpleLexicalValid(member, right),
+					)
+					if validity == bothOperandsValid {
+						equal, _ := s.simpleValuesEqual(member, left, right)
+						if equal {
+							return true, nil
+						}
 					}
 				}
 				return false, nil
@@ -1572,7 +1753,7 @@ func (s *validationState) simpleValuesEqual(
 	case "boolean":
 		leftValue, leftOK := parseSchemaBoolean(s.normalizeLexical(typeName, left))
 		rightValue, rightOK := parseSchemaBoolean(s.normalizeLexical(typeName, right))
-		return leftOK && rightOK && leftValue == rightValue, nil
+		return bothValidAnd(leftOK, rightOK, leftValue == rightValue), nil
 	case "decimal":
 		leftValue, err := datatype.ParseDecimal(left)
 		if err != nil {
@@ -1584,17 +1765,17 @@ func (s *validationState) simpleValuesEqual(
 		}
 		return leftValue.Compare(rightValue) == 0, nil
 	case "float", "double":
-		bitSize := 64
-		if typeName.Local == "float" {
-			bitSize = 32
-		}
+		bitSize := xmlFloatBitSize(typeName.Local)
 		leftValue, leftOK := parseXMLFloat(s.normalizeLexical(typeName, left), bitSize)
 		rightValue, rightOK := parseXMLFloat(s.normalizeLexical(typeName, right), bitSize)
-		if !leftOK || !rightOK {
+		if classifyOperandValidity(leftOK, rightOK) != bothOperandsValid {
 			return false, nil
 		}
-		if math.IsNaN(leftValue) && math.IsNaN(rightValue) {
-			return true, nil
+		if math.IsNaN(leftValue) {
+			return math.IsNaN(rightValue), nil
+		}
+		if math.IsNaN(rightValue) {
+			return false, nil
 		}
 		return leftValue == rightValue, nil
 	case "integer", "nonPositiveInteger", "negativeInteger", "long", "int",
@@ -1612,7 +1793,7 @@ func (s *validationState) simpleValuesEqual(
 	case "hexBinary":
 		leftValue, leftErr := hex.DecodeString(s.normalizeLexical(typeName, left))
 		rightValue, rightErr := hex.DecodeString(s.normalizeLexical(typeName, right))
-		return leftErr == nil && rightErr == nil && bytes.Equal(leftValue, rightValue), nil
+		return bothValidAnd(leftErr == nil, rightErr == nil, bytes.Equal(leftValue, rightValue)), nil
 	case "base64Binary":
 		leftValue, leftErr := base64.StdEncoding.Strict().DecodeString(
 			strings.Join(strings.Fields(left), ""),
@@ -1620,7 +1801,7 @@ func (s *validationState) simpleValuesEqual(
 		rightValue, rightErr := base64.StdEncoding.Strict().DecodeString(
 			strings.Join(strings.Fields(right), ""),
 		)
-		return leftErr == nil && rightErr == nil && bytes.Equal(leftValue, rightValue), nil
+		return bothValidAnd(leftErr == nil, rightErr == nil, bytes.Equal(leftValue, rightValue)), nil
 	case "duration":
 		return durationValuesEqual(
 			s.normalizeLexical(typeName, left),
@@ -1632,7 +1813,7 @@ func (s *validationState) simpleValuesEqual(
 			s.normalizeLexical(typeName, left),
 			s.normalizeLexical(typeName, right),
 		)
-		return comparable && comparison == 0, nil
+		return bothValidAnd(comparable, true, comparison == 0), nil
 	default:
 		return s.normalizeLexical(typeName, left) == s.normalizeLexical(typeName, right), nil
 	}
@@ -1674,9 +1855,8 @@ func (s *validationState) simpleValuesEqualContext(
 				}
 				for index := range leftItems {
 					var equal bool
-					var err error
 					if typeDefinition.InlineItem != nil {
-						equal, err = s.inlineSimpleValuesEqualContext(
+						equal, _ = s.inlineSimpleValuesEqualContext(
 							*typeDefinition.InlineItem,
 							leftItems[index],
 							rightItems[index],
@@ -1684,7 +1864,7 @@ func (s *validationState) simpleValuesEqualContext(
 							rightNamespaces,
 						)
 					} else {
-						equal, err = s.simpleValuesEqualContext(
+						equal, _ = s.simpleValuesEqualContext(
 							typeDefinition.ItemType,
 							leftItems[index],
 							rightItems[index],
@@ -1692,8 +1872,8 @@ func (s *validationState) simpleValuesEqualContext(
 							rightNamespaces,
 						)
 					}
-					if err != nil || !equal {
-						return false, err
+					if !equal {
+						return false, nil
 					}
 				}
 				return true, nil
@@ -1703,10 +1883,10 @@ func (s *validationState) simpleValuesEqualContext(
 						s.simpleContextValid(member, left, leftNamespaces)
 					rightValid := s.simpleLexicalValid(member, right) &&
 						s.simpleContextValid(member, right, rightNamespaces)
-					if !leftValid && !rightValid {
+					switch classifyOperandValidity(leftValid, rightValid) {
+					case neitherOperandValid:
 						continue
-					}
-					if !leftValid || !rightValid {
+					case oneOperandValid:
 						return false, nil
 					}
 					return s.simpleValuesEqualContext(
@@ -1722,10 +1902,10 @@ func (s *validationState) simpleValuesEqualContext(
 						s.inlineSimpleContextValid(member, left, leftNamespaces)
 					rightValid := s.inlineSimpleLexicalValid(member, right) &&
 						s.inlineSimpleContextValid(member, right, rightNamespaces)
-					if !leftValid && !rightValid {
+					switch classifyOperandValidity(leftValid, rightValid) {
+					case neitherOperandValid:
 						continue
-					}
-					if !leftValid || !rightValid {
+					case oneOperandValid:
 						return false, nil
 					}
 					return s.inlineSimpleValuesEqualContext(
@@ -1744,7 +1924,7 @@ func (s *validationState) simpleValuesEqualContext(
 		(typeName.Local == "QName" || typeName.Local == "NOTATION") {
 		leftName, leftOK := resolveInstanceQName(strings.TrimSpace(left), leftNamespaces)
 		rightName, rightOK := resolveInstanceQName(strings.TrimSpace(right), rightNamespaces)
-		return leftOK && rightOK && leftName == rightName, nil
+		return bothValidAnd(leftOK, rightOK, leftName == rightName), nil
 	}
 	return s.simpleValuesEqual(typeName, left, right)
 }
@@ -1768,22 +1948,21 @@ func (s *validationState) inlineSimpleValuesEqual(
 		}
 		for index := range leftItems {
 			var equal bool
-			var err error
 			if typeDefinition.InlineItem != nil {
-				equal, err = s.inlineSimpleValuesEqual(
+				equal, _ = s.inlineSimpleValuesEqual(
 					*typeDefinition.InlineItem,
 					leftItems[index],
 					rightItems[index],
 				)
 			} else {
-				equal, err = s.simpleValuesEqual(
+				equal, _ = s.simpleValuesEqual(
 					typeDefinition.ItemType,
 					leftItems[index],
 					rightItems[index],
 				)
 			}
-			if err != nil || !equal {
-				return false, err
+			if !equal {
+				return false, nil
 			}
 		}
 		return true, nil
@@ -1791,10 +1970,10 @@ func (s *validationState) inlineSimpleValuesEqual(
 		for _, member := range typeDefinition.MemberTypes {
 			leftValid := s.simpleLexicalValid(member, left)
 			rightValid := s.simpleLexicalValid(member, right)
-			if !leftValid && !rightValid {
+			switch classifyOperandValidity(leftValid, rightValid) {
+			case neitherOperandValid:
 				continue
-			}
-			if !leftValid || !rightValid {
+			case oneOperandValid:
 				return false, nil
 			}
 			return s.simpleValuesEqual(member, left, right)
@@ -1802,10 +1981,10 @@ func (s *validationState) inlineSimpleValuesEqual(
 		for _, member := range typeDefinition.InlineMembers {
 			leftValid := s.inlineSimpleLexicalValid(member, left)
 			rightValid := s.inlineSimpleLexicalValid(member, right)
-			if !leftValid && !rightValid {
+			switch classifyOperandValidity(leftValid, rightValid) {
+			case neitherOperandValid:
 				continue
-			}
-			if !leftValid || !rightValid {
+			case oneOperandValid:
 				return false, nil
 			}
 			return s.inlineSimpleValuesEqual(member, left, right)
@@ -1836,16 +2015,15 @@ func (s *validationState) validateSimple(
 	path string,
 ) error {
 	for _, name := range sortedAttributeNames(node.Attributes) {
-		if permittedSchemaInstanceAttribute(name) {
-			continue
-		}
-		message := fmt.Sprintf(
-			"attribute {%s}%s is not allowed on simple content",
-			name.Namespace,
-			name.Local,
-		)
-		if err := s.add(node.Location, path, "cvc-type.3.1.1", message); err != nil {
-			return err
+		if !permittedSchemaInstanceAttribute(name) {
+			message := fmt.Sprintf(
+				"attribute {%s}%s is not allowed on simple content",
+				name.Namespace,
+				name.Local,
+			)
+			if err := s.add(node.Location, path, "cvc-type.3.1.1", message); err != nil {
+				return err
+			}
 		}
 	}
 	if len(node.Children) > 0 {
@@ -1970,10 +2148,15 @@ func (s *validationState) recordIDValues(
 func (s *validationState) idTypeKind(typeName xsd.QName) string {
 	for typeName.Namespace != xsd.Namespace {
 		typeDefinition, ok := s.validator.set.SimpleType(typeName)
-		if !ok || typeDefinition.Variety != xsd.SimpleRestriction {
+		if !ok {
 			return ""
 		}
-		typeName = typeDefinition.Base
+		switch typeDefinition.Variety {
+		case xsd.SimpleRestriction:
+			typeName = typeDefinition.Base
+		default:
+			return ""
+		}
 	}
 	switch typeName.Local {
 	case "ID", "IDREF", "IDREFS":
@@ -2059,7 +2242,10 @@ func (s *validationState) simpleLexicalValid(typeName xsd.QName, lexical string)
 		"short", "byte", "nonNegativeInteger", "unsignedLong", "unsignedInt",
 		"unsignedShort", "unsignedByte", "positiveInteger":
 		value, err := datatype.ParseInteger(normalized)
-		return err == nil && datatype.ValidateBuiltInInteger(typeName.Local, value) == nil
+		if err != nil {
+			return false
+		}
+		return datatype.ValidateBuiltInInteger(typeName.Local, value) == nil
 	default:
 		return datatype.ValidateBuiltInLexical(typeName.Local, normalized) == nil
 	}
@@ -2072,9 +2258,10 @@ func (s *validationState) facetsValid(typeDefinition xsd.SimpleType, lexical str
 		normalized = strings.Join(strings.Fields(lexical), " ")
 		length = uint64(len(strings.Fields(normalized)))
 	}
-	if base, ok := s.validator.set.SimpleType(typeDefinition.Base); ok &&
-		base.Variety == xsd.SimpleList {
-		length = uint64(len(strings.Fields(normalized)))
+	if base, ok := s.validator.set.SimpleType(typeDefinition.Base); ok {
+		if base.Variety == xsd.SimpleList {
+			length = uint64(len(strings.Fields(normalized)))
+		}
 	}
 	switch s.primitiveType(typeDefinition.Base).Local {
 	case "NMTOKENS", "IDREFS", "ENTITIES":
@@ -2101,15 +2288,15 @@ func (s *validationState) facetsValid(typeDefinition xsd.SimpleType, lexical str
 			}
 			switch facet.Kind {
 			case xsd.FacetLength:
-				if length != bound {
+				if cmp.Compare(length, bound) != 0 {
 					return false
 				}
 			case xsd.FacetMinLength:
-				if length < bound {
+				if cmp.Compare(length, bound) == -1 {
 					return false
 				}
 			case xsd.FacetMaxLength:
-				if length > bound {
+				if cmp.Compare(length, bound) == 1 {
 					return false
 				}
 			}
@@ -2122,8 +2309,7 @@ func (s *validationState) facetsValid(typeDefinition xsd.SimpleType, lexical str
 				return false
 			}
 		case xsd.FacetWhiteSpace:
-			if facet.Value != "preserve" && facet.Value != "replace" &&
-				facet.Value != "collapse" {
+			if !validWhitespaceFacet(facet.Value) {
 				return false
 			}
 		case xsd.FacetPattern:
@@ -2132,11 +2318,15 @@ func (s *validationState) facetsValid(typeDefinition xsd.SimpleType, lexical str
 			if err != nil {
 				return false
 			}
-			patternMatched = patternMatched || pattern.MatchString(normalized)
+			if pattern.MatchString(normalized) {
+				patternMatched = true
+			}
 		}
 	}
-	if hasPattern && !patternMatched {
-		return false
+	if hasPattern {
+		if !patternMatched {
+			return false
+		}
 	}
 	if len(enumerations) > 0 {
 		if s.simpleTypeUsesNamespaceContext(typeDefinition.Base) {
@@ -2153,6 +2343,15 @@ func (s *validationState) facetsValid(typeDefinition xsd.SimpleType, lexical str
 	return true
 }
 
+func validWhitespaceFacet(value string) bool {
+	switch value {
+	case "preserve", "replace", "collapse":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *validationState) contextualEnumerationValid(
 	typeDefinition xsd.SimpleType,
 	lexical string,
@@ -2160,19 +2359,18 @@ func (s *validationState) contextualEnumerationValid(
 ) bool {
 	hasEnumeration := false
 	for _, facet := range typeDefinition.Facets {
-		if facet.Kind != xsd.FacetEnumeration {
-			continue
-		}
-		hasEnumeration = true
-		equal, err := s.simpleValuesEqualContext(
-			typeDefinition.Base,
-			lexical,
-			facet.Value,
-			namespaces,
-			facet.Namespaces,
-		)
-		if err == nil && equal {
-			return true
+		if facet.Kind == xsd.FacetEnumeration {
+			hasEnumeration = true
+			equal, err := s.simpleValuesEqualContext(
+				typeDefinition.Base,
+				lexical,
+				facet.Value,
+				namespaces,
+				facet.Namespaces,
+			)
+			if err == nil && equal {
+				return true
+			}
 		}
 	}
 	return !hasEnumeration
@@ -2253,53 +2451,58 @@ func (s *validationState) numericFacetValid(
 		switch facet.Kind {
 		case xsd.FacetTotalDigits:
 			bound, parseErr := strconv.Atoi(facet.Value)
-			return parseErr == nil && bound > 0 && value.TotalDigits() <= bound
+			if parseErr != nil {
+				return false
+			}
+			if cmp.Compare(bound, 0) != 1 {
+				return false
+			}
+			return !exceedsLimit(value.TotalDigits(), bound)
 		case xsd.FacetFractionDigits:
 			bound, parseErr := strconv.Atoi(facet.Value)
-			return parseErr == nil && bound >= 0 && value.FractionDigits() <= bound
+			if parseErr != nil {
+				return false
+			}
+			if isNegative(bound) {
+				return false
+			}
+			return !exceedsLimit(value.FractionDigits(), bound)
 		}
 		boundary, parseErr := datatype.ParseDecimal(facet.Value)
 		if parseErr != nil {
 			return false
 		}
-		comparison := value.Compare(boundary)
-		switch facet.Kind {
-		case xsd.FacetMinInclusive:
-			return comparison >= 0
-		case xsd.FacetMinExclusive:
-			return comparison > 0
-		case xsd.FacetMaxInclusive:
-			return comparison <= 0
-		case xsd.FacetMaxExclusive:
-			return comparison < 0
-		}
+		return comparisonSatisfiesFacet(value.Compare(boundary), facet.Kind)
 	}
-	if primitive.Local == "float" || primitive.Local == "double" {
-		bitSize := 64
-		if primitive.Local == "float" {
-			bitSize = 32
-		}
+	switch primitive.Local {
+	case "float", "double":
+		bitSize := xmlFloatBitSize(primitive.Local)
 		value, valueOK := parseXMLFloat(lexical, bitSize)
 		boundary, boundaryOK := parseXMLFloat(facet.Value, bitSize)
-		if !valueOK || !boundaryOK || math.IsNaN(value) || math.IsNaN(boundary) {
+		if classifyOperandValidity(valueOK, boundaryOK) != bothOperandsValid {
 			return false
 		}
-		comparison := 0
-		if value < boundary {
-			comparison = -1
-		} else if value > boundary {
-			comparison = 1
+		if math.IsNaN(value) {
+			return false
+		}
+		if math.IsNaN(boundary) {
+			return false
+		}
+		return comparisonSatisfiesFacet(cmp.Compare(value, boundary), facet.Kind)
+	case "duration":
+		comparison, comparable := compareDurations(lexical, facet.Value)
+		if !comparable {
+			return false
 		}
 		return comparisonSatisfiesFacet(comparison, facet.Kind)
-	}
-	if primitive.Local == "duration" {
-		comparison, comparable := compareDurations(lexical, facet.Value)
-		return comparable && comparisonSatisfiesFacet(comparison, facet.Kind)
 	}
 	switch primitive.Local {
 	case "dateTime", "time", "date", "gYearMonth", "gYear", "gMonthDay", "gDay", "gMonth":
 		comparison, comparable := compareCalendarValues(primitive.Local, lexical, facet.Value)
-		return comparable && comparisonSatisfiesFacet(comparison, facet.Kind)
+		if !comparable {
+			return false
+		}
+		return comparisonSatisfiesFacet(comparison, facet.Kind)
 	}
 	return false
 }
@@ -2307,13 +2510,13 @@ func (s *validationState) numericFacetValid(
 func comparisonSatisfiesFacet(comparison int, kind xsd.FacetKind) bool {
 	switch kind {
 	case xsd.FacetMinInclusive:
-		return comparison >= 0
+		return cmp.Compare(comparison, 0) != -1
 	case xsd.FacetMinExclusive:
-		return comparison > 0
+		return cmp.Compare(comparison, 0) == 1
 	case xsd.FacetMaxInclusive:
-		return comparison <= 0
+		return cmp.Compare(comparison, 0) != 1
 	case xsd.FacetMaxExclusive:
-		return comparison < 0
+		return cmp.Compare(comparison, 0) == -1
 	default:
 		return false
 	}
@@ -2360,12 +2563,15 @@ func compareDurations(left, right string) (int, bool) {
 func durationValuesEqual(left, right string) bool {
 	leftValue, leftOK := parseDurationValue(left)
 	rightValue, rightOK := parseDurationValue(right)
-	if !leftOK || !rightOK {
+	if classifyOperandValidity(leftOK, rightOK) != bothOperandsValid {
 		return false
 	}
 	leftMonths, leftSeconds := durationComponents(leftValue)
 	rightMonths, rightSeconds := durationComponents(rightValue)
-	return leftMonths.Cmp(rightMonths) == 0 && leftSeconds.Cmp(rightSeconds) == 0
+	if leftMonths.Cmp(rightMonths) != 0 {
+		return false
+	}
+	return leftSeconds.Cmp(rightSeconds) == 0
 }
 
 func durationComponents(value durationValue) (*big.Int, *big.Rat) {
@@ -2376,7 +2582,7 @@ func durationComponents(value durationValue) (*big.Int, *big.Rat) {
 	days.Add(days, new(big.Int).Mul(&value.minutes, big.NewInt(60)))
 	seconds := new(big.Rat).SetInt(days)
 	seconds.Add(seconds, &value.seconds)
-	if value.sign < 0 {
+	if isNegative(value.sign) {
 		months.Neg(months)
 		seconds.Neg(seconds)
 	}
@@ -2390,12 +2596,20 @@ func compareCalendarValues(kind, left, right string) (int, bool) {
 func (s *validationState) primitiveType(typeName xsd.QName) xsd.QName {
 	for typeName.Namespace != xsd.Namespace {
 		typeDefinition, ok := s.validator.set.SimpleType(typeName)
-		if !ok || typeDefinition.Variety != xsd.SimpleRestriction {
+		if !ok {
 			return xsd.QName{}
 		}
-		typeName = typeDefinition.Base
+		switch typeDefinition.Variety {
+		case xsd.SimpleRestriction:
+			typeName = typeDefinition.Base
+		default:
+			return xsd.QName{}
+		}
 	}
-	if typeName.Local == "integer" || isIntegerDerived(typeName.Local) {
+	if typeName.Local == "integer" {
+		return xsd.QName{Namespace: xsd.Namespace, Local: "decimal"}
+	}
+	if isIntegerDerived(typeName.Local) {
 		return xsd.QName{Namespace: xsd.Namespace, Local: "decimal"}
 	}
 	return typeName
@@ -2453,14 +2667,13 @@ func (s *validationState) normalizeRestrictionLexical(
 		}
 	}
 	for _, facet := range typeDefinition.Facets {
-		if facet.Kind != xsd.FacetWhiteSpace {
-			continue
-		}
-		switch facet.Value {
-		case "replace":
-			normalized = strings.NewReplacer("\t", " ", "\n", " ", "\r", " ").Replace(normalized)
-		case "collapse":
-			normalized = strings.Join(strings.Fields(normalized), " ")
+		if facet.Kind == xsd.FacetWhiteSpace {
+			switch facet.Value {
+			case "replace":
+				normalized = strings.NewReplacer("\t", " ", "\n", " ", "\r", " ").Replace(normalized)
+			case "collapse":
+				normalized = strings.Join(strings.Fields(normalized), " ")
+			}
 		}
 	}
 	return normalized
@@ -2545,9 +2758,17 @@ func (s *validationState) validateComplex(
 	if err != nil {
 		return err
 	}
-	if !matched || next != len(node.Children) {
+	if !matched {
+		return s.add(
+			node.Location,
+			path,
+			"cvc-complex-type.2.4.a",
+			"child element sequence does not match the content model",
+		)
+	}
+	if next != len(node.Children) {
 		location := node.Location
-		if next < len(node.Children) {
+		if indexInRange(next, len(node.Children)) {
 			location = node.Children[next].Location
 		}
 		return s.add(
@@ -2571,11 +2792,13 @@ func (s *validationState) validateAttributes(
 	for _, use := range uses {
 		effective := use
 		name := use.Ref
+		referenceResolved := true
 		if name.Local == "" {
 			name = xsd.QName{Namespace: use.Namespace, Local: use.Name}
 		} else {
 			declaration, ok := s.validator.set.Attribute(name)
 			if !ok {
+				referenceResolved = false
 				if err := s.add(node.Location, path, "src-resolve", fmt.Sprintf(
 					"attribute {%s}%s is not defined",
 					name.Namespace,
@@ -2583,17 +2806,22 @@ func (s *validationState) validateAttributes(
 				)); err != nil {
 					return err
 				}
-				continue
+			} else {
+				effective.Name = declaration.Name
+				effective.Type = declaration.Type
+				effective.InlineSimpleType = declaration.InlineSimpleType
+				if !validatorAttributeDefaultSet(effective) {
+					if !validatorAttributeFixedSet(effective) {
+						effective.Default = declaration.Default
+						effective.Fixed = declaration.Fixed
+						effective.DefaultSet = declaration.DefaultSet
+						effective.FixedSet = declaration.FixedSet
+					}
+				}
 			}
-			effective.Name = declaration.Name
-			effective.Type = declaration.Type
-			effective.InlineSimpleType = declaration.InlineSimpleType
-			if !validatorAttributeDefaultSet(effective) && !validatorAttributeFixedSet(effective) {
-				effective.Default = declaration.Default
-				effective.Fixed = declaration.Fixed
-				effective.DefaultSet = declaration.DefaultSet
-				effective.FixedSet = declaration.FixedSet
-			}
+		}
+		if !referenceResolved {
+			continue
 		}
 		known[name] = struct{}{}
 		value, present := node.Attributes[name]
@@ -2666,70 +2894,63 @@ func (s *validationState) validateAttributes(
 		}
 	}
 	for _, name := range sortedAttributeNames(node.Attributes) {
-		if permittedSchemaInstanceAttribute(name) {
-			continue
-		}
-		if _, ok := known[name]; ok {
-			continue
-		}
-		if wildcardMatches(wildcard, name.Namespace, typeNamespace) {
-			if wildcard.ProcessContents == xsd.ProcessSkip {
-				continue
-			}
-			declaration, declared := s.validator.set.Attribute(name)
-			if !declared && wildcard.ProcessContents == xsd.ProcessLax {
-				continue
-			}
-			if !declared {
-				if err := s.add(node.Location, path+"/@"+name.Local, "cvc-wildcard", fmt.Sprintf(
-					"attribute {%s}%s has no declaration",
-					name.Namespace,
-					name.Local,
-				)); err != nil {
-					return err
-				}
-				continue
-			}
-			if declaration.InlineSimpleType != nil {
-				if !s.inlineSimpleLexicalValid(
-					*declaration.InlineSimpleType,
-					node.Attributes[name],
-				) {
-					if err := s.add(
-						node.Location,
-						path+"/@"+name.Local,
-						"cvc-datatype-valid.1.2.1",
-						"wildcard attribute is not valid for its anonymous type",
-					); err != nil {
-						return err
-					}
-				}
-			} else {
-				attributeNode := &instanceNode{
-					Name:       name,
-					Text:       node.Attributes[name],
-					Location:   node.Location,
-					Namespaces: node.Namespaces,
-				}
-				if err := s.validateSimple(
-					attributeNode,
-					declaration.Type,
-					path+"/@"+name.Local,
-				); err != nil {
+		if !permittedSchemaInstanceAttribute(name) {
+			if _, ok := known[name]; !ok {
+				if err := s.validateAdditionalAttribute(node, name, typeNamespace, wildcard, path); err != nil {
 					return err
 				}
 			}
-			continue
-		}
-		if err := s.add(node.Location, path, "cvc-complex-type.3.2.2", fmt.Sprintf(
-			"attribute {%s}%s is not allowed",
-			name.Namespace,
-			name.Local,
-		)); err != nil {
-			return err
 		}
 	}
 	return nil
+}
+
+func (s *validationState) validateAdditionalAttribute(
+	node *instanceNode,
+	name xsd.QName,
+	typeNamespace string,
+	wildcard *xsd.Wildcard,
+	path string,
+) error {
+	if !wildcardMatches(wildcard, name.Namespace, typeNamespace) {
+		return s.add(node.Location, path, "cvc-complex-type.3.2.2", fmt.Sprintf(
+			"attribute {%s}%s is not allowed",
+			name.Namespace,
+			name.Local,
+		))
+	}
+	if wildcard.ProcessContents == xsd.ProcessSkip {
+		return nil
+	}
+	declaration, declared := s.validator.set.Attribute(name)
+	if !declared {
+		if wildcard.ProcessContents == xsd.ProcessLax {
+			return nil
+		}
+		return s.add(node.Location, path+"/@"+name.Local, "cvc-wildcard", fmt.Sprintf(
+			"attribute {%s}%s has no declaration",
+			name.Namespace,
+			name.Local,
+		))
+	}
+	if declaration.InlineSimpleType != nil {
+		if s.inlineSimpleLexicalValid(*declaration.InlineSimpleType, node.Attributes[name]) {
+			return nil
+		}
+		return s.add(
+			node.Location,
+			path+"/@"+name.Local,
+			"cvc-datatype-valid.1.2.1",
+			"wildcard attribute is not valid for its anonymous type",
+		)
+	}
+	attributeNode := &instanceNode{
+		Name:       name,
+		Text:       node.Attributes[name],
+		Location:   node.Location,
+		Namespaces: node.Namespaces,
+	}
+	return s.validateSimple(attributeNode, declaration.Type, path+"/@"+name.Local)
 }
 
 func (s *validationState) attributeValuesEqual(
@@ -2792,9 +3013,8 @@ func (s *validationState) inlineSimpleValuesEqualContext(
 		}
 		for index := range leftItems {
 			var equal bool
-			var err error
 			if typeDefinition.InlineItem != nil {
-				equal, err = s.inlineSimpleValuesEqualContext(
+				equal, _ = s.inlineSimpleValuesEqualContext(
 					*typeDefinition.InlineItem,
 					leftItems[index],
 					rightItems[index],
@@ -2802,7 +3022,7 @@ func (s *validationState) inlineSimpleValuesEqualContext(
 					rightNamespaces,
 				)
 			} else {
-				equal, err = s.simpleValuesEqualContext(
+				equal, _ = s.simpleValuesEqualContext(
 					typeDefinition.ItemType,
 					leftItems[index],
 					rightItems[index],
@@ -2810,8 +3030,8 @@ func (s *validationState) inlineSimpleValuesEqualContext(
 					rightNamespaces,
 				)
 			}
-			if err != nil || !equal {
-				return false, err
+			if !equal {
+				return false, nil
 			}
 		}
 		return true, nil
@@ -2821,10 +3041,10 @@ func (s *validationState) inlineSimpleValuesEqualContext(
 				s.simpleContextValid(member, left, leftNamespaces)
 			rightValid := s.simpleLexicalValid(member, right) &&
 				s.simpleContextValid(member, right, rightNamespaces)
-			if !leftValid && !rightValid {
+			switch classifyOperandValidity(leftValid, rightValid) {
+			case neitherOperandValid:
 				continue
-			}
-			if !leftValid || !rightValid {
+			case oneOperandValid:
 				return false, nil
 			}
 			return s.simpleValuesEqualContext(
@@ -2840,10 +3060,10 @@ func (s *validationState) inlineSimpleValuesEqualContext(
 				s.inlineSimpleContextValid(member, left, leftNamespaces)
 			rightValid := s.inlineSimpleLexicalValid(member, right) &&
 				s.inlineSimpleContextValid(member, right, rightNamespaces)
-			if !leftValid && !rightValid {
+			switch classifyOperandValidity(leftValid, rightValid) {
+			case neitherOperandValid:
 				continue
-			}
-			if !leftValid || !rightValid {
+			case oneOperandValid:
 				return false, nil
 			}
 			return s.inlineSimpleValuesEqualContext(
@@ -2877,10 +3097,10 @@ func sortedAttributeNames(attributes map[xsd.QName]string) []xsd.QName {
 		names = append(names, name)
 	}
 	sort.Slice(names, func(left, right int) bool {
-		if names[left].Namespace == names[right].Namespace {
-			return names[left].Local < names[right].Local
-		}
-		return names[left].Namespace < names[right].Namespace
+		return cmp.Or(
+			cmp.Compare(names[left].Namespace, names[right].Namespace),
+			cmp.Compare(names[left].Local, names[right].Local),
+		) == -1
 	})
 	return names
 }
@@ -2897,7 +3117,7 @@ func (s *validationState) matchGroup(
 	}
 	current := index
 	count := uint64(0)
-	for group.Unbounded || count < group.MaxOccurs {
+	for occurrenceAllowed(group.Unbounded, count, group.MaxOccurs) {
 		next, matched, err := s.matchGroupOnce(
 			group,
 			children,
@@ -2909,15 +3129,15 @@ func (s *validationState) matchGroup(
 			return index, false, err
 		}
 		if !matched {
-			break
+			return current, occurrenceMinimumMet(count, group.MinOccurs), nil
 		}
-		count++
+		count = nextOccurrence(count)
 		if next == current {
-			break
+			return current, occurrenceMinimumMet(count, group.MinOccurs), nil
 		}
 		current = next
 	}
-	return current, count >= group.MinOccurs, nil
+	return current, occurrenceMinimumMet(count, group.MinOccurs), nil
 }
 
 func (s *validationState) matchGroupOnce(
@@ -2938,8 +3158,11 @@ func (s *validationState) matchGroupOnce(
 				typeNamespace,
 				path,
 			)
-			if err != nil || !matched {
+			if err != nil {
 				return index, false, err
+			}
+			if !matched {
+				return index, false, nil
 			}
 			current = next
 		}
@@ -2960,49 +3183,78 @@ func (s *validationState) matchGroupOnce(
 			if matched && next != index {
 				return next, true, nil
 			}
-			nullable = nullable || matched
+			if matched {
+				nullable = true
+			}
 		}
 		return index, nullable, nil
 	case xsd.All:
 		current := index
 		counts := make([]uint64, len(group.Particles))
-		for current < len(children) {
-			consumed := false
-			for particleIndex, particle := range group.Particles {
-				if !particle.Unbounded && counts[particleIndex] >= particle.MaxOccurs {
-					continue
-				}
-				next, matched, err := s.matchParticleOnce(
-					particle,
-					children,
-					current,
-					typeNamespace,
-					path,
-				)
-				if err != nil {
-					return index, false, err
-				}
-				if !matched {
-					continue
-				}
-				counts[particleIndex]++
-				current = next
-				consumed = true
-				break
+		for indexInRange(current, len(children)) {
+			next, particleIndex, consumed, err := s.matchAllParticle(
+				group.Particles,
+				counts,
+				children,
+				current,
+				typeNamespace,
+				path,
+			)
+			if err != nil {
+				return index, false, err
 			}
 			if !consumed {
-				break
+				return validateAllMinimums(group.Particles, counts, index, current)
 			}
+			counts[particleIndex] = nextOccurrence(counts[particleIndex])
+			current = next
 		}
-		for particleIndex, particle := range group.Particles {
-			if counts[particleIndex] < particle.MinOccurs {
-				return index, false, nil
-			}
-		}
-		return current, true, nil
+		return validateAllMinimums(group.Particles, counts, index, current)
 	default:
 		return index, false, nil
 	}
+}
+
+func (s *validationState) matchAllParticle(
+	particles []xsd.Particle,
+	counts []uint64,
+	children []*instanceNode,
+	current int,
+	typeNamespace string,
+	path string,
+) (int, int, bool, error) {
+	for particleIndex, particle := range particles {
+		if occurrenceAllowed(particle.Unbounded, counts[particleIndex], particle.MaxOccurs) {
+			next, matched, err := s.matchParticleOnce(
+				particle,
+				children,
+				current,
+				typeNamespace,
+				path,
+			)
+			if err != nil {
+				return current, 0, false, err
+			}
+			if matched {
+				return next, particleIndex, true, nil
+			}
+		}
+	}
+	return current, 0, false, nil
+}
+
+func validateAllMinimums(
+	particles []xsd.Particle,
+	counts []uint64,
+	initial int,
+	current int,
+) (int, bool, error) {
+	for particleIndex, particle := range particles {
+		if !occurrenceMinimumMet(counts[particleIndex], particle.MinOccurs) {
+			return initial, false, nil
+		}
+	}
+	return current, true, nil
 }
 
 func (s *validationState) matchParticle(
@@ -3014,7 +3266,7 @@ func (s *validationState) matchParticle(
 ) (int, bool, error) {
 	current := index
 	count := uint64(0)
-	for particle.Unbounded || count < particle.MaxOccurs {
+	for occurrenceAllowed(particle.Unbounded, count, particle.MaxOccurs) {
 		next, matched, err := s.matchParticleOnce(
 			particle,
 			children,
@@ -3026,15 +3278,15 @@ func (s *validationState) matchParticle(
 			return index, false, err
 		}
 		if !matched {
-			break
+			return current, occurrenceMinimumMet(count, particle.MinOccurs), nil
 		}
-		count++
+		count = nextOccurrence(count)
 		if next == current {
-			break
+			return current, occurrenceMinimumMet(count, particle.MinOccurs), nil
 		}
 		current = next
 	}
-	if count < particle.MinOccurs {
+	if !occurrenceMinimumMet(count, particle.MinOccurs) {
 		return index, false, nil
 	}
 	return current, true, nil
@@ -3048,7 +3300,7 @@ func (s *validationState) matchParticleOnce(
 	path string,
 ) (int, bool, error) {
 	if particle.Element != nil {
-		if index >= len(children) {
+		if !indexInRange(index, len(children)) {
 			return index, false, nil
 		}
 		declaration := *particle.Element
@@ -3092,27 +3344,31 @@ func (s *validationState) matchParticleOnce(
 		if err := s.validateElement(children[index], declaration, childPath); err != nil {
 			return index, true, err
 		}
-		return index + 1, true, nil
+		return nextIndex(index), true, nil
 	}
 	if particle.Group != nil {
 		return s.matchGroup(particle.Group, children, index, typeNamespace, path)
 	}
 	if particle.Wildcard != nil {
-		if index >= len(children) ||
-			!wildcardMatches(particle.Wildcard, children[index].Name.Namespace, typeNamespace) {
+		if !indexInRange(index, len(children)) {
+			return index, false, nil
+		}
+		if !wildcardMatches(particle.Wildcard, children[index].Name.Namespace, typeNamespace) {
 			return index, false, nil
 		}
 		child := children[index]
 		if particle.Wildcard.ProcessContents == xsd.ProcessSkip {
-			return index + 1, true, nil
+			return nextIndex(index), true, nil
 		}
 		declaration, declared := s.validator.set.Element(child.Name)
-		if !declared && particle.Wildcard.ProcessContents == xsd.ProcessLax {
-			return index + 1, true, nil
+		if !declared {
+			if particle.Wildcard.ProcessContents == xsd.ProcessLax {
+				return nextIndex(index), true, nil
+			}
 		}
 		childPath := path + "/" + child.Name.Local
 		if !declared {
-			return index + 1, true, s.add(
+			return nextIndex(index), true, s.add(
 				child.Location,
 				childPath,
 				"cvc-wildcard",
@@ -3124,9 +3380,9 @@ func (s *validationState) matchParticleOnce(
 			)
 		}
 		if err := s.validateElement(child, declaration, childPath); err != nil {
-			return index + 1, true, err
+			return nextIndex(index), true, err
 		}
-		return index + 1, true, nil
+		return nextIndex(index), true, nil
 	}
 	return index, false, nil
 }
@@ -3136,26 +3392,29 @@ func wildcardMatches(wildcard *xsd.Wildcard, namespace string, targetNamespace s
 		return false
 	}
 	for _, constraint := range wildcard.Namespaces {
-		switch constraint {
-		case "##any":
+		if wildcardConstraintMatches(constraint, namespace, targetNamespace) {
 			return true
-		case "##other":
-			return namespace != "" && namespace != targetNamespace
-		case "##local":
-			if namespace == "" {
-				return true
-			}
-		case "##targetNamespace":
-			if namespace == targetNamespace {
-				return true
-			}
-		default:
-			if namespace == constraint {
-				return true
-			}
 		}
 	}
 	return false
+}
+
+func wildcardConstraintMatches(constraint, namespace, targetNamespace string) bool {
+	switch constraint {
+	case "##any":
+		return true
+	case "##other":
+		if namespace == "" {
+			return false
+		}
+		return namespace != targetNamespace
+	case "##local":
+		return namespace == ""
+	case "##targetNamespace":
+		return namespace == targetNamespace
+	default:
+		return namespace == constraint
+	}
 }
 
 func parseError(decoder *xml.Decoder, systemID string, err error) error {

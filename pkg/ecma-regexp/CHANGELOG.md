@@ -7,6 +7,10 @@ and this project intends to use semantic versioning after its first release.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Provision Test262 in a task-owned disposable directory for conformance and

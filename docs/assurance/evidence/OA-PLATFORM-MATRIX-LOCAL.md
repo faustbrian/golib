@@ -1,6 +1,6 @@
 # OA-PLATFORM-MATRIX Local Evidence
 
-Observed at `2026-08-12T19:36:13Z` on Docker Engine `29.6.2` running
+Observed at `2026-08-13T10:29:28Z` on Docker Engine `29.6.2` running
 `linux/arm64`, with BuildKit `0.31.2` and Go `1.26.5`.
 
 ## Executed Proof

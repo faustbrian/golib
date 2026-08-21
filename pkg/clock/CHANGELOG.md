@@ -5,6 +5,15 @@ the module follows semantic versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+- Keep the changelog and security policy explicit that `v1.0.0` is planned but
+  has not been published.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Delegate local mutation checks to the canonical exact-100 repository runner
@@ -25,9 +34,11 @@ the module follows semantic versioning.
   explicitly waits on a nested or concurrent advancement, preventing reset
   deadlines from depending on goroutine scheduling.
 
-## [1.0.0] - 2026-07-16
+### Planned v1.0.0 scope
 
-### Added
+The following initial scope is implemented but remains unreleased.
+
+#### Added
 
 - Narrow wall-time, elapsed-time, sleep, timer, ticker, and callback contracts.
 - Standard-library-backed `System` behavior for Go 1.26.
@@ -39,5 +50,4 @@ the module follows semantic versioning.
 - Race, fuzz, leak, mutation, benchmark, security, compatibility, and release
   automation.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/clock/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/faustbrian/golib/pkg/clock/releases/tag/v1.0.0
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/clock

@@ -5,6 +5,13 @@ versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Preserve precomputed validator configuration through explicit constructors,
@@ -41,4 +48,4 @@ versioning.
 - A versioned six-target fuzz-corpus inventory and 90/90 mutation evidence
   spanning every standard-rule family and all hardening-critical boundaries.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/validation/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/validation

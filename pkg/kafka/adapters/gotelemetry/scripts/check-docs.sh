@@ -14,7 +14,7 @@ for heading in \
     '## FAQ' \
     '## Verification'
 do
-    rg -q -F "${heading}" README.md
+    grep -qF -- "${heading}" README.md
 done
 
 for required in \
@@ -65,7 +65,7 @@ for required in \
     'kafka.protocol.api_key' \
     'kafka.request.direction'
 do
-    rg -q -F "${required}" README.md
+    grep -qF -- "${required}" README.md
 done
 
 span_rows="$({

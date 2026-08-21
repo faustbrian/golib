@@ -6,6 +6,10 @@ semantic versioning after v1; pre-v1 compatibility decisions are described in
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.

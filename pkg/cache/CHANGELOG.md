@@ -5,8 +5,18 @@ Versioning and keeps an Unreleased section at the top.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Guard schema-prefix allocation arithmetic against the platform integer limit
   after enforcing the configured payload boundary.
 - Remove unused CLI-related indirect dependencies from canonical module
@@ -74,4 +84,4 @@ Versioning and keeps an Unreleased section at the top.
 - Keep backend conformance failure messages compatible with standard Go error
   style so strict static analysis remains clean for downstream test suites.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/cache/compare/HEAD...HEAD
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/cache

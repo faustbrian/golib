@@ -4,6 +4,13 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ## Unreleased
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Explicit immutable middleware chains and named order descriptors.
@@ -30,6 +37,8 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ### Fixed
 
+- Prove that requests admitted from free capacity bypass the bounded waiter
+  queue instead of inheriting its configured delay.
 - Give the real-listener informational-timeout assertion enough scheduling
   budget to remain deterministic under parallel CI load.
 - Make admission waiter-bound verification deterministic under heavily

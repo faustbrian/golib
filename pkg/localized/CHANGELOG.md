@@ -4,6 +4,15 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+- Keep the changelog and security policy explicit that `v1.0.0` is planned but
+  has not been published.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Fixed
 
 - Reject non-numeric matching weights instead of silently treating them as
@@ -11,6 +20,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
+- Upgrade `golang.org/x/text` to v0.41.0 so the isolated module graph remains
+  aligned with the repository security baseline.
 - Pin owned dependencies to published source revisions so clean consumers can
   resolve the module before the first tags.
 - Snapshot localized validation rules in an explicit immutable adapter instead
@@ -45,11 +59,12 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 - Reproducible dependency pins matching the exact locally verified sibling
   revisions.
 
-## [1.0.0] - 2026-07-16
+### Planned v1.0.0 scope
 
-### Added
+The following initial scope is implemented but remains unreleased.
+
+#### Added
 
 - Initial production contract for localized domain values.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/localized/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/faustbrian/golib/pkg/localized/releases/tag/v1.0.0
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/localized

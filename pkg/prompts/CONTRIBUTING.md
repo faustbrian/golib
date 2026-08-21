@@ -5,7 +5,7 @@ core independent of command dispatch and full-screen TUI types. New behavior
 needs deterministic tests, hostile-path coverage, documentation, and a
 changelog entry.
 
-Use Go 1.26.5 and verify the module independently:
+Use Go 1.26.6 and verify the module independently:
 
 ```sh
 GOWORK=off make check

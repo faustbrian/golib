@@ -1,5 +1,5 @@
 id	version	sections	role	url	sha256	status
-go-webhook	Go-1.26.5	crypto/hmac,crypto/sha256,crypto/sha512,encoding/base64,encoding/json,net/http,net/netip,net/url,time	runtime-cryptography-HTTP-URL-address-and-encoding-contracts	https://go.dev/dl/go1.26.5.src.tar.gz	495be4bc87176ac567392e5b4116abd98466d33d7b49d41e764ccc6976b2dc42	pinned
+go-webhook	Go-1.26.6	crypto/hmac,crypto/sha256,crypto/sha512,encoding/base64,encoding/json,net/http,net/netip,net/url,time	runtime-cryptography-HTTP-URL-address-and-encoding-contracts	https://go.dev/dl/go1.26.6.src.tar.gz	a0721c54c688901448d77ad9b3ec7ea7c474730755ff891382e92ecb93ff2cb1	pinned
 rfc2104	RFC-2104	all	HMAC-construction	https://www.rfc-editor.org/rfc/rfc2104.txt	64d5245a9101929025336e470e3737f118704001249d503c85a86e19fe9fbb01	pinned
 rfc4231	RFC-4231	all	HMAC-SHA-256-and-HMAC-SHA-512-test-cases	https://www.rfc-editor.org/rfc/rfc4231.txt	72178527ce93500e730bc8eb182b857e583096d652b64ece0879c52ba1df973b	pinned
 rfc4648	RFC-4648	3.2,5	base64url-alphabet-and-padding	https://www.rfc-editor.org/rfc/rfc4648.txt	84e14418f795d503be5f34bf23ce4ebaa119e9ec7c9f667d8caeb111385b178f	pinned

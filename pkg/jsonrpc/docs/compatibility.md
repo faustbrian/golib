@@ -9,9 +9,9 @@ Resolved choices in the
 compatibility policy. Changing one requires protocol review and a changelog
 entry even when exported Go signatures are unchanged.
 
-## Stable releases
+## Planned stable releases
 
-As of `v1.0.0`:
+Beginning with the first `v1.0.0` release:
 
 - patch releases fix defects without intentionally changing valid public
   behavior;

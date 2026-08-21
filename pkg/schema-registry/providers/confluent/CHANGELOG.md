@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Make official Java wire-reference verification portable to minimal CI
+  runners without ripgrep.
+
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Replace the obsolete JSON Schema pseudo-version with the canonical monorepo
   dependency version used by clean local and CI resolution.
 - Keep the real Confluent service suite behind its dedicated explicit tag and

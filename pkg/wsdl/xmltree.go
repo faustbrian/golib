@@ -32,19 +32,12 @@ var (
 
 func assignBaseURIs(node *xmlNode, inherited string) error {
 	base := inherited
-	for _, attribute := range node.attributes {
-		if attribute.Name != (xml.Name{
-			Space: "http://www.w3.org/XML/1998/namespace",
-			Local: "base",
-		}) {
-			continue
-		}
-		resolved, err := resolveURI(inherited, attribute.Value)
+	if reference, exists := xmlBaseReference(node.attributes); exists {
+		resolved, err := resolveURI(inherited, reference)
 		if err != nil {
-			return fmt.Errorf("wsdl: resolve xml:base %q: %w", attribute.Value, err)
+			return fmt.Errorf("wsdl: resolve xml:base %q: %w", reference, err)
 		}
 		base = resolved
-		break
 	}
 	node.baseURI = base
 	for _, child := range node.children {
@@ -53,6 +46,18 @@ func assignBaseURIs(node *xmlNode, inherited string) error {
 		}
 	}
 	return nil
+}
+
+func xmlBaseReference(attributes []xml.Attr) (string, bool) {
+	for _, attribute := range attributes {
+		if attribute.Name == (xml.Name{
+			Space: "http://www.w3.org/XML/1998/namespace",
+			Local: "base",
+		}) {
+			return attribute.Value, true
+		}
+	}
+	return "", false
 }
 
 func resolveURI(base, reference string) (string, error) {
@@ -409,7 +414,10 @@ func (n *xmlNode) qnameAttribute(local string) (QName, error) {
 
 func (n *xmlNode) parseQName(value string) (QName, error) {
 	lexical := value
-	if lexical == "" || strings.TrimSpace(lexical) != lexical {
+	if lexical == "" {
+		return QName{}, fmt.Errorf("wsdl: invalid QName %q", lexical)
+	}
+	if strings.TrimSpace(lexical) != lexical {
 		return QName{}, fmt.Errorf("wsdl: invalid QName %q", lexical)
 	}
 	parts := strings.Split(lexical, ":")
@@ -436,15 +444,7 @@ func (n *xmlNode) qnamesAttribute(local string) ([]QName, error) {
 	values := splitSpaceSeparated(n.attribute(local))
 	result := make([]QName, 0, len(values))
 	for _, value := range values {
-		copyNode := *n
-		copyNode.attributes = append([]xml.Attr(nil), n.attributes...)
-		for index := range copyNode.attributes {
-			attribute := &copyNode.attributes[index]
-			if attribute.Name.Space == "" && attribute.Name.Local == local {
-				attribute.Value = value
-			}
-		}
-		name, err := copyNode.qnameAttribute(local)
+		name, err := n.parseQName(value)
 		if err != nil {
 			return nil, err
 		}

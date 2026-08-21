@@ -20,7 +20,7 @@ rounding, conditions, and traps explicit. No conversion passes through
 
 See the [documentation index](docs/README.md), [cookbook](docs/cookbook.md),
 and [verification guide](docs/verification.md). The minimum supported toolchain
-is Go 1.26.5.
+is Go 1.26.6.
 
 ## Packages
 
@@ -40,3 +40,8 @@ advisory NilAway analysis. See [CHANGELOG.md](CHANGELOG.md) for releases and
 [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 Licensed under MIT.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -6,7 +6,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 
 | Module | Packages | Package gaps | Exported declarations | Missing comments | Malformed comments | Generated gaps | Markers |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `.` | 1 | 1 | 121 | 121 | 0 | 0 | 0 |
+| `.` | 1 | 1 | 135 | 135 | 0 | 0 | 0 |
 | `pkg/adaptive-throttle` | 1 | 0 | 106 | 66 | 0 | 0 | 0 |
 | `pkg/analysis` | 28 | 1 | 442 | 283 | 0 | 0 | 0 |
 | `pkg/analysis/testdata/coverage` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -127,14 +127,14 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/service/benchmarks/platform` | 12 | 8 | 122 | 41 | 0 | 0 | 0 |
 | `pkg/service/compatibility` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/service/integration/adoption` | 1 | 0 | 39 | 0 | 0 | 0 | 0 |
-| `pkg/service/integration/reference-durability` | 1 | 0 | 17 | 0 | 0 | 0 | 0 |
-| `pkg/service/integration/reference-external` | 1 | 0 | 24 | 10 | 0 | 0 | 0 |
-| `pkg/service/integration/reference-http` | 1 | 1 | 32 | 22 | 0 | 0 | 0 |
-| `pkg/service/integration/reference-platform` | 4 | 4 | 49 | 43 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-durability` | 2 | 0 | 36 | 0 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-external` | 1 | 0 | 24 | 0 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-http` | 1 | 1 | 32 | 12 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-platform` | 4 | 4 | 49 | 28 | 0 | 0 | 0 |
 | `pkg/settings` | 7 | 0 | 479 | 325 | 0 | 0 | 0 |
 | `pkg/state-machine` | 7 | 0 | 375 | 230 | 0 | 0 | 0 |
 | `pkg/tabular` | 2 | 0 | 149 | 76 | 0 | 0 | 0 |
-| `pkg/telemetry` | 14 | 2 | 242 | 105 | 0 | 0 | 0 |
+| `pkg/telemetry` | 15 | 2 | 243 | 105 | 0 | 0 | 0 |
 | `pkg/temporal` | 10 | 0 | 412 | 73 | 0 | 0 | 0 |
 | `pkg/tenancy` | 5 | 0 | 238 | 45 | 0 | 0 | 0 |
 | `pkg/validation` | 11 | 0 | 261 | 63 | 0 | 0 | 0 |

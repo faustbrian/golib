@@ -5,8 +5,18 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
 - Pin owned sibling modules to exact resolvable main pseudo-versions so
@@ -37,6 +47,9 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ### Fixed
 
+- Normalize standard OTLP endpoint URLs in the runnable service and worker
+  examples so explicit exporter configuration does not emit misleading SDK
+  parse errors or mis-handle transport security and HTTP path prefixes.
 - Resolve the unreleased service platform and its sibling modules from their
   main-branch pseudo-versions so clean consumers can install telemetry.
 - Select each independently versioned OpenTelemetry module explicitly in the
@@ -66,4 +79,4 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
   releases instead of relying on higher versions supplied by the repository
   workspace.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/telemetry/compare/main...HEAD
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/telemetry

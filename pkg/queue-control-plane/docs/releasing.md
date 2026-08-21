@@ -39,52 +39,27 @@ checks, and a multi-platform OCI build. It also smoke-runs the
 eight 10,000-worker, 100,000-audit-event, maximum-page, maximum-payload,
 reconnect-storm, and backend-outage benchmarks with allocation budgets but
 without a noisy hosted-runner latency threshold.
-The OCI artifact includes BuildKit SBOM and maximal provenance attestations. It
+The OCI build path can produce BuildKit SBOM and provenance attestations. It
 covers authenticated Redis Streams and Valkey Streams failure management, but
-not the remaining transport-level queue and failure load items above.
-The tagged release workflow signs both image
-digests after all current release-quality gates pass.
+not the remaining transport-level queue and failure load items above. The
+repository does not currently publish or sign those artifacts.
 
 ## Versioning and changelog
 
-Use semantic versioning once the public management protocol and API are
-frozen. Update `CHANGELOG.md` in the same pull request as every user-visible
-change. Before tagging, move Unreleased entries into a dated version section,
-verify upgrade and rollback guidance, and confirm `/version` reports the tag,
-commit, and RFC3339 build time.
+The module is unreleased. Its first public version will be `v1.0.0`, represented
+by the monorepo tag `pkg/queue-control-plane/v1.0.0`. Update `CHANGELOG.md` in
+the same pull request as every user-visible change. Before release, move
+Unreleased entries into a dated version section, verify upgrade and rollback
+guidance, and confirm `/version` reports the tag, commit, and RFC3339 build time.
 
-Tags must match `vMAJOR.MINOR.PATCH` with an optional semantic prerelease.
-Pushing a matching tag builds the server and CLI images for amd64 and arm64,
-pushes them to GHCR, attaches SBOM and provenance, signs each digest with the
-short-lived GitHub Actions OIDC identity, and immediately verifies that exact
-workflow identity. The workflow does not publish a mutable `latest` tag.
+Run `make release-dry-run MODULES=pkg/queue-control-plane` from the repository
+root to validate the module archive, clean consumer, dependency order, and
+proposed tag. `make release-public MODULES=pkg/queue-control-plane` performs
+public-resolution verification only; `scripts/release.sh` deliberately refuses
+to create tags or publish artifacts.
 
-Verify a released server image before deployment:
-
-```sh
-VERSION=v1.2.3
-cosign verify "ghcr.io/faustbrian/queue-control-plane:${VERSION}" \
-  --certificate-identity "https://github.com/faustbrian/golib/pkg/queue-control-plane/.github/workflows/release.yml@refs/tags/${VERSION}" \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
-```
-
-Replace the image name with `queue-control` to verify the CLI. Manual
-unsigned images are not an acceptable fallback.
-
-The release page contains standalone server and CLI archives for Linux, macOS,
-and Windows on amd64 and arm64. Verify the signed checksum manifest before
-extracting an archive:
-
-```sh
-VERSION=v1.2.3
-cosign verify-blob \
-  --bundle SHA256SUMS.bundle \
-  --certificate-identity "https://github.com/faustbrian/golib/pkg/queue-control-plane/.github/workflows/release.yml@refs/tags/${VERSION}" \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  SHA256SUMS
-shasum -a 256 -c SHA256SUMS
-```
-
-Archive metadata and server build metadata derive from the tagged commit time,
-so rebuilding the same tag with the documented toolchain produces the same
-archives and checksums.
+No reviewed publishing workflow, GHCR image, release archive, checksum bundle,
+signature, or stable certificate identity exists yet. Release automation MUST
+define those artifact names and identities before this guide can provide
+copy-paste verification commands. Do not infer a package-local GitHub Actions
+workflow path or treat a locally built image as a signed public release.

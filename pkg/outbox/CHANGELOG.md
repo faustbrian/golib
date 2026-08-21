@@ -8,8 +8,17 @@ publisher contracts are public compatibility surfaces.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Fixed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Pin standalone publisher adapters to resolvable immutable main revisions so
   their workspace-disabled module and release gates can run independently.
 

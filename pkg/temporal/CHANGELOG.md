@@ -4,6 +4,10 @@ This project follows Semantic Versioning. Dates use ISO 8601.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Fixed
 
 - Resolve API compatibility checks against the active monorepo workspace
@@ -15,6 +19,9 @@ This project follows Semantic Versioning. Dates use ISO 8601.
 
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   and remove the superseded package-local Gremlins toolchain and configuration.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

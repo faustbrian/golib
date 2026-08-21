@@ -12,6 +12,10 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Replace the obsolete owned-module pseudo-version pin with the monorepo's
+  local `v0.0.0` source-proxy coordinate and align indirect `x/sync` and
+  `x/text` versions with the current Outbox graph; release tooling continues
+  to emit the exact `v1.0.0` dependency version.
 - Rename the unpublished module from `adapters/gotelemetry` to
   `adapters/otel` and use `outboxotel` as its Go package identifier.
 - Version the instrumentation scope and replace raw attempt counts with fixed
@@ -25,6 +29,8 @@ All notable changes to this module are documented here.
   graph, including complete checksums for clean consumer resolution.
 
 ### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
 
 - Document instruments, cardinality, privacy, semantics, failure isolation,
   lifecycle ownership, API usage, adoption, compatibility, migration, security,

@@ -5,8 +5,18 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
 - Pin owned sibling modules to exact resolvable main pseudo-versions so
@@ -56,4 +66,4 @@ and releases use Semantic Versioning.
 - Explicit conformance assertions that decoding, defaults, environment
   loading, metadata, and snapshot cloning do not mutate private struct state.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/config/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/config

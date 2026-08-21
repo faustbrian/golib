@@ -67,7 +67,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | ---: | --- | --- | --- | --- |
 | 1 | Decisions | `implemented-unverified` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `implemented-unverified` | `.ai/GOAL_RESILIENCE.md` | 1 |
-| 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md` | 13, 19 |
 | 50 | Ecosystem cohesion | `implemented-unverified` | `.ai/GOAL_COHESION.md` | 3-49 |
 | 51 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-50 |
 | 52 | Repository audit | `implemented-unverified` | `.ai/GOAL_COMPATIBILITY.md` | 3-51 |
@@ -117,7 +116,7 @@ assurance scope.
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/kafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies the root Kafka policy library and its nine direct consumers across every catalog-selected mandatory gate, including exact coverage and mutation, race, fuzzing, real-broker interoperability, compatibility, performance, security, API, and documentation. Managed-service profiles remain explicitly unverified and unsupported until directly tested; they do not block the provider-independent Kafka contract. Requeue only when affected inputs, requirements, or claimed support change. |
-| `pkg/kafka/adapters/mskiam/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 24 has current scoped evidence for canonical AWS regions, bounded credential and token lifetimes, supported signer output, stable redacted failures, root Kafka TLS integration, workload-identity adoption, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 24. Current input-bound evidence verifies canonical AWS regions, bounded credential and token lifetimes, coordinated refresh, clock-skew and failure handling, stable redacted errors, root Kafka TLS integration, workload-identity adoption, exact 277/277 statement coverage, 184/184 viable mutants killed, and every mandatory module gate. Amazon MSK Provisioned and Serverless remain explicitly unverified and unsupported rather than silently claimed. Requeue only when affected inputs, requirements, or claimed managed-service support change. |
 | `pkg/kafka/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 25 has current scoped evidence for completed payload-free observation translation, deny-by-default identities, exact span and metric contracts, explicit bounded W3C Trace Context propagation through Apache Kafka 4.3.1, provider lifecycle behavior, documentation, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` is verified below. |
 | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 25. Current scoped evidence verifies payload-free bounded telemetry, deliberate semantic-convention mappings, fixed metric cardinality, provider failure isolation, cooperative deadline behavior, lifecycle and race safety, Kafka propagation interoperability, fuzzing, performance, exact statement and mutation coverage, and every mandatory scoped package gate; requeue only when affected inputs or requirements change. |
 | `pkg/event-sourcing/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 33 has current scoped evidence for the canonical versioned Kafka mapping, bounded hostile records, synchronous publication outcomes, owned decoding, at-least-once settlement, explicit retry and dead-letter boundaries, real-broker interoperability, documentation, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` is verified below. |
@@ -459,14 +458,14 @@ assurance scope.
 
 | Field | Record |
 | --- | --- |
-| Goal | `pkg/kafka/adapters/mskiam/.ai/GOAL.md` |
+| Goal | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` |
 | Scope | AWS SDK v2 default and caller-owned credential providers; canonical AWS regions; bounded retrieval, refresh, signing, token shape, lifetime and effective expiry; root Kafka TLS and outer credential deadlines; stable redacted failure categories; ECS, EKS, IAM, compatibility, API, adoption, FAQ, and security documentation. |
-| Status | `pending-reexecution` to `verified`; `pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md` remains pending. |
+| Status | `pending-reexecution` to `verified` for both goals. |
 | Evidence | The scoped module check against the final inputs through mutation execution, the content-bound mutation aggregate, the remaining direct scoped gates, and focused red-green regressions for region, signed-token, cancellation, timeout, expiry, malformed-output, and credential-bound behavior. |
-| Result | Passed every mandatory module gate with exact 253/253 statement coverage, 175/175 viable mutants killed with 100.00% efficacy and mutator coverage, race, two 10,000-execution fuzz targets, AWS signer interoperability, API, enforced documentation, security, supply-chain, and benchmark evidence. |
-| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run. |
-| Observed | 2026-08-11 |
-| Gaps | The aggregate root wrapper is unavailable because unrelated concurrent work currently deletes `go.work` and leaves `modules.json` stale; direct scoped module evidence is complete. Live Amazon MSK Provisioned and Serverless interoperability remains explicitly unverified. The separate hardening campaign remains pending. |
+| Result | Passed every mandatory module gate with exact 277/277 statement coverage, 184/184 viable mutants killed with 100% efficacy and mutant coverage, race, two 10,000-execution fuzz targets, AWS signer interoperability, API, enforced documentation, security, supply-chain, and benchmark evidence. |
+| Environment | Go 1.26.6 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
+| Observed | 2026-08-19 |
+| Gaps | Live Amazon MSK Provisioned and Serverless interoperability remains explicitly unverified, so neither managed profile is claimed as supported. This bounded non-claim does not invalidate the completed adapter goals. |
 
 ### Kafka OpenTelemetry adapter evidence
 
@@ -994,13 +993,13 @@ assurance scope.
 | Field | Record |
 | --- | --- |
 | Goal | `.ai/GOAL_RELEASE.md` and repository normalization Phase 10 clean-consumer proof. |
-| Scope | All 96 releasable modules whose owned dependency closure excludes the active Kafka, OpenSearch, and Verkle specialist scopes. |
-| Status | Release dry-run evidence complete for the unaffected release set; the repository release goal remains `pending`. |
-| Evidence | `./scripts/run-modules.sh release-dry-run --jobs 8 --modules <96-unaffected-releasable-modules>` after isolating each module's generated service environment in its own process. |
-| Result | All 96 modules passed isolated tidy, test, API compatibility, dependency-order, `v1.0.0` tag planning, local module-proxy publication, and clean external-consumer resolution. The run first reproduced cross-module environment leakage when `pkg/audit/postgres` inherited `POSTGRES_VERSION=18.4`; a focused regression failed before the root runner fix and passed afterward, and the original release dry-run then passed. |
+| Scope | All 107 releasable modules in the current catalog. |
+| Status | Deterministic local packaging and clean-consumer evidence is complete for the full release set; the repository release goal remains `pending`. |
+| Evidence | `docs/assurance/evidence/OA-RELEASE-CONSUMER-ALL-LOCAL.md`: two clean-clone local-proxy builds plus one external `GOWORK=off` consumer requiring every module at exact `v1.0.0`. |
+| Result | All 107 modules were packaged twice into byte-identical local proxies. The clean external consumer downloaded and listed one public package from every module at exact `v1.0.0`, with no module replacement. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; gate-managed PostgreSQL, Valkey, Redis, NATS, NSQ, and RabbitMQ services where cataloged. |
-| Observed | 2026-08-12T17:48:14Z |
-| Gaps | Release dry-runs remain for Kafka, OpenSearch, Verkle, and four releasable adapters whose dependency closure includes Kafka. Public proxy resolution, operational assurance, release signing and attestations, and explicit release authority remain outstanding; no tag or release was created. |
+| Observed | 2026-08-13T10:32:58Z |
+| Gaps | This composed proof does not replace each module's release gate. Public proxy and checksum resolution, tags, signatures, attestations, upgrade policy, operational assurance, and explicit release authority remain outstanding; no tag or release was created. |
 
 ### Operational assurance register
 
@@ -1008,12 +1007,12 @@ assurance scope.
 | --- | --- |
 | Goal | `.ai/GOAL_OPERATIONAL_ASSURANCE.md` and the assurance prerequisite in `.ai/GOAL_RELEASE.md`. |
 | Scope | All 107 releasable modules and the eleven mandatory reference-service, platform, failure/recovery, deployment, performance, security/privacy/supply-chain, operations, consistency, and release-consumer scenarios. |
-| Status | Remains `pending`; machine-readable governance and release enforcement are implemented, but scenario execution has not started. |
+| Status | Remains `pending`; machine-readable governance and release enforcement are implemented, two scenarios pass, and nine remain pending. |
 | Evidence | `operational-assurance.json`, `cmd/golib/assurance.go`, focused hostile-record and release-guard regression tests, `make operational-assurance`, and `docs/operational-assurance.md`. |
-| Result | The repository now validates exact releasable-module scope, required scenarios, statuses, evidence paths, content digests, current gate-input fingerprints for scoped modules and releasable reverse dependants, UTC observations, environment and module coverage, residual risks, and explicit named acceptances. Release plans expose the verdict and future mutating release execution fails before package work when the verdict is not ready. The current register truthfully reports `not ready`, 0/11 passed scenarios, six residual risks, and zero accepted risks. |
-| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run. |
-| Observed | 2026-08-12T18:10:00Z |
-| Gaps | Every operational scenario still requires real composed evidence. No reference-service, Linux platform matrix, ECS-compatible container, failure/recovery, rolling deployment, load/soak, operator drill, public-proxy, signing, or attestation result is claimed by this governance batch. |
+| Result | The repository validates exact releasable-module scope, required scenarios, statuses, evidence paths, content digests, current-input fingerprints for passed and accepted-risk evidence, recorded scope for historical partial evidence, UTC observations, environment and module coverage, residual risks, and explicit named acceptances. The current register truthfully reports `not ready`, 2/11 passed scenarios, five residual risks, and zero accepted risks. |
+| Environment | Go 1.26.6 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; scenario artifacts retain their own exact environments. |
+| Observed | 2026-08-14T02:50:00Z |
+| Gaps | Nine scenarios remain pending. Their retained partial evidence and exact missing production, platform, recovery, operations, security, and release boundaries are recorded in `docs/operational-assurance.md` and `docs/assurance/requirement-matrix.md`. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,

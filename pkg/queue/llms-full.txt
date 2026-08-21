@@ -17,7 +17,7 @@ integration evidence.
 
 ## Requirements
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - a supported broker for non-memory backends
 
 ## Installation
@@ -141,6 +141,11 @@ Review [docs/security.md](docs/security.md) before processing untrusted jobs.
 `queue` is available under the [MIT License](LICENSE). Fork provenance and
 third-party attribution are recorded in [NOTICE](NOTICE) and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.
 
 ## Source: docs/README.md
 
@@ -1059,7 +1064,7 @@ compatibility impact, and why the behavior belongs in this generic package.
 
 Requirements:
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - Git
 - `golangci-lint` v2
 - network access on the first mutation run so the pinned Gremlins binary can
@@ -1180,6 +1185,13 @@ All notable changes are documented here. The project follows semantic
 versioning and Keep a Changelog structure.
 
 ## [Unreleased]
+
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
 
 ### Added
 
@@ -1520,7 +1532,7 @@ versioning and Keep a Changelog structure.
   results do not depend on scheduler selection between simultaneously ready
   channels.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/queue/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/queue
 
 ## Source: docs/backend-support.md
 

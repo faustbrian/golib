@@ -164,14 +164,23 @@ func (progress *Progress) updateTiming(current int64) {
 	rate := float64(delta) / elapsed.Seconds()
 	progress.snapshot.Elapsed = elapsed
 	progress.snapshot.RatePerSecond = Some(rate)
-	if progress.snapshot.Total <= 0 {
+	if progress.snapshot.Total == 0 {
 		return
 	}
-	etaNanos := float64(progress.snapshot.Total - current) / rate * float64(time.Second)
-	if etaNanos < 0 || etaNanos > float64(math.MaxInt64) {
+	etaNanos := float64(progress.snapshot.Total-current) / rate * float64(time.Second)
+	estimate, ok := progressDuration(etaNanos)
+	if !ok {
 		return
 	}
-	progress.snapshot.EstimatedRemaining = Some(time.Duration(etaNanos))
+	progress.snapshot.EstimatedRemaining = Some(estimate)
+}
+
+func progressDuration(nanoseconds float64) (time.Duration, bool) {
+	if nanoseconds < 0 || nanoseconds >= float64(math.MaxInt64) {
+		return 0, false
+	}
+
+	return time.Duration(nanoseconds), true
 }
 
 func (progress *Progress) clearTiming() {
@@ -446,7 +455,7 @@ func (stream *StatusStream) Dropped() uint64 {
 // Render writes a deterministic linear stream snapshot.
 func (stream *StatusStream) Render(ctx context.Context, execution Execution) error {
 	entries := stream.Snapshot()
-	lines := make([]SemanticLine, 0, len(entries) + 1)
+	lines := make([]SemanticLine, 0, len(entries))
 	if dropped := stream.Dropped(); dropped > 0 {
 		lines = append(
 			lines,

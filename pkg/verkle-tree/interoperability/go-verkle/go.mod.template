@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/verkle-tree/interoperability/go-verkle
 
-go 1.26.5
+go 1.26.6
 
 require github.com/ethereum/go-verkle v0.2.3-0.20260102081149-aa0a270c0ed0
 

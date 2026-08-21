@@ -58,6 +58,10 @@ emit_evidence_status() (
 
 trap cleanup EXIT
 trap 'exit 130' HUP INT TERM
+if [[ -x "${root}/scripts/internal/migrate-runner-isolation-evidence.sh" ]]; then
+    "${root}/scripts/internal/migrate-runner-isolation-evidence.sh" \
+        "${module}" "${gate}"
+fi
 mkdir -p "${artifact}"
 mkdir -p "${lock_root}"
 while ! ln -s "$$" "${lock}" 2>/dev/null; do

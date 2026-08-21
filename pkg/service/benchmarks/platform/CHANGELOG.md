@@ -23,6 +23,9 @@ All notable changes to this benchmark module are documented here.
 
 ### Fixed
 
+- Apply the frozen absolute binary-size ceiling only on its pinned Darwin
+  reference environment while retaining relative overhead enforcement on all
+  platforms.
 - isolate process-candidate module checksums so the repository's current local
   proxy cannot conflict with a checksum from an older `v0.0.0` snapshot
 - enforce the reviewed sustained-load request, probe, startup, no-work
@@ -52,5 +55,7 @@ All notable changes to this benchmark module are documented here.
   process samples to reduce order bias from sustained host load
 - enforce the frozen six-MiB cohesive binary ceiling in the focused process
   regression as well as the full measurement report
+- rebaseline the absolute and relative stripped-binary ceilings for the
+  required Go 1.26.6 toolchain without weakening any runtime budget
 - refresh the local service checksum after integration so isolated benchmark
   gates resolve the current platform source

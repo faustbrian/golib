@@ -5,6 +5,10 @@ versioning after the first stable release.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
 - Replaced host Ruby documentation validation with a self-contained Go link

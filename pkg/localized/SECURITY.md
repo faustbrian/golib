@@ -2,8 +2,9 @@
 
 ## Supported versions
 
-The latest stable v1 release receives security fixes. Pre-release snapshots
-receive fixes on the default branch without compatibility guarantees.
+No release has been published. Before the first `v1.0.0` tag, security fixes
+are applied to `main` without stable compatibility guarantees. Supported
+release lines will be documented after publication.
 
 ## Reporting
 

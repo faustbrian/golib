@@ -618,6 +618,14 @@ Superseded decisions remain here and link to their replacements.
   `LifecycleCleanupGuard` checks and deletion inside the same exclusion.
   Missing, repeated, asynchronous, or contradictory callbacks fail with a
   stable typed error and do not expose coordinator details.
+  Security consequences: lifecycle authorization and exact resource validation
+  still run before the durable exclusion, and guard failures expose no tenant,
+  resource, lock, or coordinator details. Compatibility consequences: every
+  application instance that enables lifecycle mutation must configure the same
+  durable guard contract; process-local guards and mixed guarded/unguarded
+  deployments are unsupported. Wire consequences: REST request and response
+  shapes remain unchanged, but alias inspection and deletion execute inside
+  one serialized callback and no hidden retry or extra mutation is introduced.
 - **Evidence, public surface, upstream, and reconsideration:**
   `TestAliasMutationCannotBypassActiveCleanupExclusion`,
   `TestSharedMutationGuardSerializesAliasMutationAfterCleanup`, and

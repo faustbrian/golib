@@ -68,7 +68,7 @@ fallback, virtual-terminal interaction, forms, progress, and tables.
 
 ## Development
 
-Go 1.26.5 is the initial minimum toolchain. All commands must run with
+Go 1.26.6 is the initial minimum toolchain. All commands must run with
 `GOWORK=off` so the module is verified independently of sibling checkouts.
 
 ```sh
@@ -84,3 +84,8 @@ Makefile. Do not run gofmt, goimports, gofumpt, or golines over this module;
 their output is not compatible with the canonical Gox layout.
 
 Licensed under Apache-2.0.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

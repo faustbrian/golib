@@ -1,7 +1,6 @@
 # http-middleware
 
-[![CI](https://github.com/faustbrian/golib/pkg/http-middleware/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/http-middleware/actions/workflows/ci.yml)
-[![Release](https://github.com/faustbrian/golib/pkg/http-middleware/actions/workflows/release.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/http-middleware/actions/workflows/release.yml)
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/golib/pkg/http-middleware.svg)](https://pkg.go.dev/github.com/faustbrian/golib/pkg/http-middleware)
 [![Go Report Card](https://goreportcard.com/badge/github.com/faustbrian/golib/pkg/http-middleware)](https://goreportcard.com/report/github.com/faustbrian/golib/pkg/http-middleware)
 
@@ -111,7 +110,7 @@ authoritative sources and executable evidence.
 
 ## Compatibility
 
-The minimum toolchain is Go 1.26.5. Normal tracking and header wrappers preserve
+The minimum toolchain is Go 1.26.6. Normal tracking and header wrappers preserve
 the exact `Flusher`, `Hijacker`, `Pusher`, and `ReaderFrom` set of the underlying
 writer. Buffered timeout and compression intentionally do not expose streaming
 interfaces. See [the complete matrix](docs/responsewriter.md).
@@ -132,3 +131,8 @@ signed provenance attestation and release assets are published.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

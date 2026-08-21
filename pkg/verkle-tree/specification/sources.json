@@ -448,7 +448,7 @@
         "source_path": "interoperability/go-verkle/main.go.template",
         "source_sha256": "705d3fba2346a2177b9c71a86396a3d855798cc0a2d016902ae003f9345f4689",
         "manifest_path": "interoperability/go-verkle/go.mod.template",
-        "manifest_sha256": "f293addab607416fa98ba644fbd9faed0eab07b89600f7e03a301605f85ca087",
+        "manifest_sha256": "9cec3eff7e33a4561c098423aef4a8bb937e6a13e8e60d72392ed04bee211389",
         "lock_path": "interoperability/go-verkle/go.sum.template",
         "lock_sha256": "0e43002f1da42d80a87e5fd3af2241a207a7f3eb86ed46daff45a73d3c7131ae",
         "command": "scripts/check-interoperability.sh"

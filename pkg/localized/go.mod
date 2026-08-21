@@ -1,13 +1,13 @@
 module github.com/faustbrian/golib/pkg/localized
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/api-query v0.0.0
 	github.com/faustbrian/golib/pkg/http-client v0.0.0
 	github.com/faustbrian/golib/pkg/international v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
-	golang.org/x/text v0.40.0
+	golang.org/x/text v0.41.0
 )
 
 require (

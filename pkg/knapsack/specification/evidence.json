@@ -2,10 +2,10 @@
   "schema_version": "v1",
   "generated": {
     "package_commit": "f90fd82d29f276a19a514065b8503ea6536cc8d6",
-    "source_sha256": "ccaaafde7198fee297a288a3053c0b5037f22b74e481972c0483b2afef3b7a2f",
-    "go_version": "go1.26.5",
+    "source_sha256": "71abc6fc838a93bbb8d21f3445a91349627016985c5ea811bc58c1bfb03da454",
+    "go_version": "go1.26.6",
     "environment": "darwin/arm64",
-    "date": "2026-08-12",
+    "date": "2026-08-15",
     "commands": [
       "make check",
       "make release-check"
@@ -3315,7 +3315,7 @@
     {
       "feature": "fresh-process runtime comparison",
       "semantic_scope": "identical verified common subset with startup, serialization, RSS, and deadline treatment",
-      "status": "docs/benchmarks/raw/2026-08-12-boxpacker-runtime.json"
+      "status": "docs/benchmarks/raw/2026-08-15-boxpacker-runtime.json"
     },
     {
       "feature": "single-pass online packing",
@@ -3466,13 +3466,13 @@
   },
   "benchmarks": {
     "boxpacker_runtime_command": "scripts/benchmark-boxpacker.sh",
-    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-08-12-boxpacker-runtime.json",
+    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-08-15-boxpacker-runtime.json",
     "command": "make benchmark",
     "comparison_command": "make benchmark-compare",
-    "environment": "docs/benchmarks/2026-08-12-darwin-arm64.md",
-    "raw_output": "docs/benchmarks/raw/2026-08-12-darwin-arm64.txt",
+    "environment": "docs/benchmarks/2026-08-15-darwin-arm64.md",
+    "raw_output": "docs/benchmarks/raw/2026-08-15-darwin-arm64.txt",
     "rss_command": "make benchmark-rss",
-    "rss_raw_output": "docs/benchmarks/raw/2026-08-12-darwin-arm64-rss.tsv",
+    "rss_raw_output": "docs/benchmarks/raw/2026-08-15-darwin-arm64-rss.tsv",
     "rss_thresholds": "specification/benchmark-rss-thresholds.tsv",
     "semantic_normalization": "identical lattice, weights, rotations, stock, constraints, and objectives",
     "thresholds": "specification/benchmark-thresholds.tsv"

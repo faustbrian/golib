@@ -49,17 +49,8 @@ type Adapter struct {
 
 // New constructs an inert adapter without reading or mutating either file.
 func New(input, output *os.File, config Config) (*Adapter, error) {
-	if input == nil ||
-		output == nil ||
-		config.ReadBuffer < 0 ||
-		config.ReadBuffer > maximumReadBuffer ||
-		config.PollInterval < 0 ||
-		config.PollInterval > maximumPollInterval {
-		return nil, adapterFailure(
-			prompts.ErrorInvalidDefinition,
-			"define terminal adapter",
-			prompts.ErrInvalidDefinition,
-		)
+	if !validConfig(input, output, config) {
+		return nil, adapterFailure(prompts.ErrorInvalidDefinition, "define terminal adapter", prompts.ErrInvalidDefinition)
 	}
 	if config.ReadBuffer == 0 {
 		config.ReadBuffer = defaultReadBuffer
@@ -208,10 +199,7 @@ func (adapter *Adapter) Next(ctx context.Context) (prompts.InputEvent, error) {
 		if err := ctx.Err(); err != nil {
 			return prompts.InputEvent{}, err
 		}
-		deadline := time.Now().Add(adapter.pollInterval)
-		if contextDeadline, ok := ctx.Deadline(); ok && contextDeadline.Before(deadline) {
-			deadline = contextDeadline
-		}
+		deadline := nextReadDeadline(ctx, adapter.pollInterval, time.Now())
 		var count int
 		var readErr error
 		if err := adapter.setDeadline(deadline); errors.Is(err, os.ErrNoDeadline) {
@@ -241,7 +229,7 @@ func (adapter *Adapter) Next(ctx context.Context) (prompts.InputEvent, error) {
 		} else {
 			count, readErr = adapter.read(buffer)
 		}
-		if count > 0 {
+		if hasReadBytes(count) {
 			events, decodeErr := adapter.decoder.Feed(buffer[:count])
 			if decodeErr != nil {
 				return prompts.InputEvent{}, decodeErr
@@ -282,6 +270,24 @@ func (adapter *Adapter) Next(ctx context.Context) (prompts.InputEvent, error) {
 			return prompts.InputEvent{}, io.EOF
 		}
 	}
+}
+
+func validConfig(input, output *os.File, config Config) bool {
+	return input != nil && output != nil && config.ReadBuffer >= 0 && config.ReadBuffer <= maximumReadBuffer &&
+		config.PollInterval >= 0 && config.PollInterval <= maximumPollInterval
+}
+
+func nextReadDeadline(ctx context.Context, pollInterval time.Duration, now time.Time) time.Time {
+	deadline := now.Add(pollInterval)
+	if contextDeadline, ok := ctx.Deadline(); ok && contextDeadline.Before(deadline) {
+		return contextDeadline
+	}
+
+	return deadline
+}
+
+func hasReadBytes(count int) bool {
+	return count > 0
 }
 
 func (adapter *Adapter) dequeue() prompts.InputEvent {

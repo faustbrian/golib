@@ -14,7 +14,7 @@ trap 'rm -rf "${integration_dir}"' EXIT
 cat > "${integration_dir}/go.mod" <<EOF
 module integration.test/openrpcjsonrpc
 
-go 1.26.5
+go 1.26.6
 
 require (
     github.com/faustbrian/golib/pkg/jsonrpc v0.0.0

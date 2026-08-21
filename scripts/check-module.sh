@@ -385,7 +385,9 @@ run_gate() {
         docs)
             applicable documentation || { skip_not_applicable documentation; return; }
             enable_local_proxy
-            if target="$(find_make_target docs documentation)"; then
+            if [[ "${module}" == "." ]]; then
+                GOWORK=off "${root}/scripts/check-documentation.sh"
+            elif target="$(find_make_target docs documentation)"; then
                 make "${target}"
             else
                 GOWORK=off go test ./... -run '^Example' -count=1

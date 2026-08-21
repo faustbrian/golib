@@ -42,6 +42,8 @@ All notable changes to this module are documented here.
 
 ### Documentation
 
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Add the stable JWT, JOSE, JSON, remote-JWKS, cache, lifecycle, and diagnostic
   specification decision register with executable evidence links.
 - Document strict claim and algorithm policy, local and remote key ownership,
@@ -69,6 +71,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

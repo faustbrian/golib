@@ -9,10 +9,10 @@ to package-owned contracts and examples.
 | Audience | First step | Next step |
 | --- | --- | --- |
 | Evaluating one package | [Packages](packages.md) | Package README, compatibility, security, and performance docs |
-| Building an HTTP or RPC service | [API protocols](api-protocols.md) | [Recommended stacks](recommended-stacks.md) |
-| Building a worker, ingester, or scheduler | [Recommended stacks](recommended-stacks.md) | [Integration map](integration-map.md) |
-| Migrating from Laravel or PHP | [Migration](migration.md) | [Package selection](choosing-packages.md) |
-| Deploying and operating services | [Architecture](architecture.md) | [Troubleshooting](troubleshooting.md) |
+| Building an HTTP or RPC service | [API protocols](api-protocols.md) | [Runnable recipes](recipes/index.md) |
+| Building a worker, ingester, or scheduler | [Recommended stacks](recommended-stacks.md) | [Durable worker recipe](recipes/durable-worker.md) |
+| Migrating from Laravel or PHP | [Migration guides](migration/index.md) | [Laravel migration](migration/laravel.md) |
+| Deploying and operating services | [Operations](operations/index.md) | [Troubleshooting](troubleshooting.md) |
 | Reviewing security or architecture | [Threat model](security/threat-model.md) | [Security matrix](security/security-matrix.md), [risk register](security/residual-risks.md), and [hardening report](hardening-report.md) |
 | Contributing | [Contributing](../CONTRIBUTING.md) | [Quality](quality.md), [CI](ci.md), and [release policy](releases.md) |
 
@@ -30,12 +30,17 @@ to package-owned contracts and examples.
   adapters at the infrastructure boundary.
 - [Package selection](package-selection.md) records current family-level
   recommendations and tradeoffs.
+- [Comparisons](comparisons/index.md) explains when direct clients or
+  maintained alternatives are the better boundary.
+- [Limitations](limitations.md) surfaces unreleased, operational, platform, and
+  intentional ecosystem constraints.
 
 ## Reference
 
 - [Curated package entry point](packages.md)
 - [Generated package catalog](package-catalog.md)
 - [Engineering inventory](engineering-inventory.md)
+- [Goal traceability](goal-traceability.md)
 - [Module dependency graph](module-dependencies.md)
 - [Lifecycle policy](module-lifecycle.md)
 - [Versioning](versioning.md)
@@ -54,6 +59,7 @@ to package-owned contracts and examples.
 - [Specification governance](specification-governance.md)
 - [Dependency governance](dependency-governance.md)
 - [Operational assurance](operational-assurance.md)
+- [Operations](operations/index.md)
 - [Repository threat model](security/threat-model.md)
 - [Security matrix](security/security-matrix.md)
 - [Residual-risk register](security/residual-risks.md)
@@ -66,7 +72,11 @@ to package-owned contracts and examples.
 - [Continuous integration](ci.md)
 - [Release policy](releases.md)
 - [Operational assurance](operational-assurance.md)
-- [Migration](migration.md)
+- [Runnable recipes](recipes/index.md)
+- [Migration guides](migration/index.md)
+- [Operations](operations/index.md)
+- [Comparisons](comparisons/index.md)
+- [Limitations](limitations.md)
 - [Troubleshooting](troubleshooting.md)
 
 All public modules are currently unreleased. Consumers import only the modules

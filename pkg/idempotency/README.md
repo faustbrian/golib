@@ -68,3 +68,8 @@ production adoption.
 Licensed under the [MIT License](LICENSE). Release history is maintained in the
 [changelog](CHANGELOG.md), and the complete guide index is in
 [docs/README.md](docs/README.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

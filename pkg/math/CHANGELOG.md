@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 - Add immutable arbitrary-precision integer, rational, decimal, and binary
   float families.
 - Add shared limits, rounding, conditions, deterministic codecs, numeric laws,

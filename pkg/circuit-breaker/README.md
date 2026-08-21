@@ -107,3 +107,8 @@ make check
 
 The minimum supported toolchain is Go 1.24. See [SUPPORT.md](SUPPORT.md) for the
 compatibility policy. This project is licensed under the MIT License.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

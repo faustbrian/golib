@@ -2,7 +2,7 @@
 
 ## Selected release target
 
-As of 2026-08-12, progress against the selected **profile-conformant pre-v1**
+As of 2026-08-15, progress against the selected **profile-conformant pre-v1**
 non-security hardening target is **81/81**.
 
 This is a delivery-planning score, not a cryptographic security rating. The
@@ -69,13 +69,25 @@ by this score.
   [`CHANGELOG.md`](../CHANGELOG.md); the exported-surface result and migration
   boundary are in [`docs/api-audit.md`](../docs/api-audit.md) and
   [`docs/adoption.md`](../docs/adoption.md).
-- **Verification:** The earlier Go 1.26.5 darwin/arm64 campaign passed all 21
-  mandatory scoped gates, exact 6348/6348 statement coverage, exact mutation,
-  bounded fuzz, race, crash/recovery, API, documentation, ordinary pinned
-  interoperability, benchmark, and clean-consumer checks. Those gates did not
-  exercise degenerate transcript outputs and do not prove the future security
-  criteria. The 2026-08-12 specification gate and internal conformance suite
-  pass for the corrected documentation and ordinary-case corpus.
+- **Evidence closure:** The final mutation review added regressions for aggregate
+  query capacity at the first distinct stem byte and stable equal-key update
+  ordering. Both regressions kill their focused behavioral mutants. The
+  tree-layout comparison now expresses the same three-valued `bytes.Compare`
+  contract without an equivalent boundary mutant. The pinned `go-verkle`
+  module-template checksum now matches the current Go 1.26.6 template. The
+  dependency-worker race regression waits for observed gate admission instead
+  of relying on a scheduler delay.
+- **Verification:** The current Go 1.26.6 darwin/arm64 campaign passes all 19
+  mandatory non-security scoped gates: format, tidiness, safety, vet, tests,
+  race, exact coverage, lint, Staticcheck, licenses, SBOM, bounded fuzz, exact
+  mutation, NilAway advisory, documentation, API, conformance,
+  interoperability, and benchmarks. Coverage is exactly **6427/6427**
+  statements across every production package. Mutation is exactly
+  **4256/4256** killed with no surviving, uncovered, non-viable, or timed-out
+  mutant. All 23 registered fuzz targets pass 10,000 executions each. NilAway
+  remains advisory and retains diagnostics; it is not reported as clean static
+  analysis. These gates do not exercise degenerate transcript outputs and do
+  not prove the future security criteria.
 - **Future security work:** Degenerate challenge soundness,
   backend audit status, side-channel scope, uncancellable dependency work, and
   maintenance risks remain explicit in [`docs/backend-audit.md`](../docs/backend-audit.md)

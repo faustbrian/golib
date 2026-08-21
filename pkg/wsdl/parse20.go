@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"slices"
 	"strings"
 
 	xsd "github.com/faustbrian/golib/pkg/xsd"
@@ -280,12 +281,12 @@ func decodeInterfaceOperation20(node *xmlNode) (InterfaceOperation20, error) {
 				"wsdl: RPC signature must contain QName and direction pairs",
 			)
 		}
-		for index := 0; index < len(items); index += 2 {
-			name, parseErr := node.parseQName(items[index])
+		for pair := range slices.Chunk(items, 2) {
+			name, parseErr := node.parseQName(pair[0])
 			if parseErr != nil {
 				return InterfaceOperation20{}, parseErr
 			}
-			direction := RPCDirection(items[index+1])
+			direction := RPCDirection(pair[1])
 			if !validRPCDirection20(direction) {
 				return InterfaceOperation20{}, fmt.Errorf(
 					"wsdl: invalid RPC signature direction %q", direction,

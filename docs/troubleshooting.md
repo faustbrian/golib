@@ -1,5 +1,13 @@
 # Troubleshooting
 
+## Required Tools
+
+The repository command surface requires Go, Bash, GNU Make, Git, `jq`, `curl`,
+`tar`, and ripgrep. CI provisions ripgrep 15.2.0 from a checksum-pinned static
+archive; local environments must provide compatible `rg` behavior. Gates that
+need Docker or another interoperability runtime declare those requirements
+separately below.
+
 ## Manifest Drift
 
 Run `make manifests`, review the generated diff, then `make inventory`. Do not
@@ -32,5 +40,9 @@ on pre-existing `/tmp` content or an unversioned host tool.
 
 ## Stale Evidence
 
-Delete local `.artifacts/` and rerun the affected gate. CI does not restore
-coverage, mutation, generated, conformance, or benchmark evidence from caches.
+Delete the affected local `.artifacts/<module>/` directory and rerun the gate.
+CI restores only cataloged mutation checkpoints from the newest trusted
+same-repository `main` artifact. Complete input fingerprints and verifier
+identity are checked again before reuse, so stale or malformed checkpoints run
+fresh. CI does not restore coverage, generated, conformance, or benchmark
+evidence.

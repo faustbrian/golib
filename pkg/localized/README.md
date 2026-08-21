@@ -1,12 +1,6 @@
 # localized
 
-[![CI](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/ci.yml)
-[![PostgreSQL](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/postgres.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/postgres.yml)
-[![Mutation](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/mutation.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/mutation.yml)
-[![Fuzz](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/fuzz.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/fuzz.yml)
-[![Security](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/security.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/security.yml)
-[![Benchmarks](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/benchmark.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/benchmark.yml)
-[![Release](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/release.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/localized/actions/workflows/release.yml)
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
 
 `localized` provides immutable UTF-8 text keyed by canonical BCP 47 language
 tags. Exact lookup, language matching, and application fallback are separate
@@ -19,7 +13,7 @@ translation loading, language detection, or global locale policy.
 go get github.com/faustbrian/golib/pkg/localized
 ```
 
-Go 1.26.5 or later is required.
+Go 1.26.6 or later is required.
 
 ## Five-minute tour
 
@@ -115,3 +109,8 @@ services.
 
 MIT. See [LICENSE](LICENSE), [NOTICE](NOTICE), and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -15,7 +15,7 @@ preserves useful mathematics without copying mutable or PHP-specific APIs.
 go get github.com/faustbrian/golib/pkg/temporal
 ```
 
-The minimum supported toolchain is Go 1.26.5. Civil-date features use
+The minimum supported toolchain is Go 1.26.6. Civil-date features use
 `github.com/faustbrian/golib/pkg/calendar`; clocks and timers deliberately remain in
 `clock`.
 
@@ -130,3 +130,8 @@ See [docs/testing.md](docs/testing.md) for the evidence model and
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

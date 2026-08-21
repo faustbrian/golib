@@ -4,8 +4,17 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Refresh local `v0.0.0` checksums and aggregate evidence after the Math and
+  Measurement release archives changed; runtime behavior and public APIs are
+  unchanged.
+- Refresh native, peak-RSS, and BoxPacker comparison evidence with Go 1.26.6
+  after benchmark inputs changed.
 - Refreshed native, peak-RSS, and BoxPacker comparison evidence against the
   current implementation and expanded the fuzz manifest for cost objectives.
 

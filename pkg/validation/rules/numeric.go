@@ -85,23 +85,32 @@ func Precision(decimalPlaces int) validation.Validator[float64] {
 
 func precisionValidator(decimalPlaces int, scale float64) validation.Validator[float64] {
 	return validation.ValidatorFunc[float64](func(ctx validation.Context, value float64) validation.Report {
-		if decimalPlaces >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0) &&
-			math.Abs(value*scale-math.Round(value*scale)) <= 1e-9 {
-			return pass(ctx)
+		if decimalPlaces < 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+			return fail(ctx, "precision", map[string]string{"places": strconv.Itoa(decimalPlaces)})
 		}
-		return fail(ctx, "precision", map[string]string{"places": strconv.Itoa(decimalPlaces)})
+		scaled := value * scale
+		if math.IsNaN(scaled) || math.IsInf(scaled, 0) ||
+			math.Abs(scaled-math.Round(scaled)) > 1e-9 {
+			return fail(ctx, "precision", map[string]string{"places": strconv.Itoa(decimalPlaces)})
+		}
+		return pass(ctx)
 	})
 }
 
 // MultipleOf requires a finite value to be an integer multiple of divisor.
 func MultipleOf(divisor float64) validation.Validator[float64] {
 	return validation.ValidatorFunc[float64](func(ctx validation.Context, value float64) validation.Report {
-		quotient := value / divisor
-		if divisor > 0 && !math.IsInf(divisor, 0) && !math.IsNaN(quotient) &&
-			!math.IsInf(quotient, 0) &&
-			math.Abs(quotient-math.Round(quotient)) <= 1e-9 {
-			return pass(ctx)
+		if divisor == 0 || math.Signbit(divisor) || math.IsInf(divisor, 0) ||
+			math.IsNaN(divisor) {
+			return fail(ctx, "multiple_of", nil)
 		}
-		return fail(ctx, "multiple_of", nil)
+		quotient := value / divisor
+		if math.IsNaN(quotient) || math.IsInf(quotient, 0) {
+			return fail(ctx, "multiple_of", nil)
+		}
+		if math.Abs(quotient-math.Round(quotient)) > 1e-9 {
+			return fail(ctx, "multiple_of", nil)
+		}
+		return pass(ctx)
 	})
 }

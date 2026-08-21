@@ -1,6 +1,6 @@
 # Contributing
 
-Use Go 1.26.5 or later. New behavior starts with a focused failing test.
+Use Go 1.26.6 or later. New behavior starts with a focused failing test.
 Conversions and formulas must remain decimal-only, immutable, dimension-safe,
 and bounded. New units require an authoritative definition, an exact ratio,
 canonical conversion fixtures, round-trip properties, and documentation.

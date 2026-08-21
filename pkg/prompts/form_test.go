@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	prompts "github.com/faustbrian/golib/pkg/prompts"
 )
@@ -293,13 +294,11 @@ func TestFormSkipsFalseConditionAndDefensivelyCopiesResults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewForm() error = %v", err)
 	}
-	result, err := prompts.RunForm(
-		context.Background(),
-		form,
-		prompts.Execution{
-			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
-		},
-	)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	result, err := prompts.RunForm(ctx, form, prompts.Execution{
+		Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+	})
 	if err != nil {
 		t.Fatalf("RunForm() error = %v", err)
 	}
@@ -385,13 +384,18 @@ func TestFormRejectsInvalidDefinitionsAndCallbackPanic(t *testing.T) {
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("empty form error = %v", err)
 	}
-	if prompts.When(
-		nil,
-		func(prompts.FormResult) bool {
-			return true
-		},
-	) !=
-		nil {
+	validField := prompts.AsField(newTextPrompt(t, prompts.TextConfig{
+		ID: "field", Label: "Field",
+	}))
+	for name, config := range map[string]prompts.FormConfig{
+		"missing identity": {Fields: []prompts.FormField{validField}},
+		"missing fields":   {ID: "empty"},
+	} {
+		if _, definitionErr := prompts.NewForm(config); !errors.Is(definitionErr, prompts.ErrInvalidDefinition) {
+			t.Fatalf("%s form error = %v", name, definitionErr)
+		}
+	}
+	if prompts.When(nil, func(prompts.FormResult) bool { return true }) != nil {
 		t.Fatal("When() did not preserve a nil field")
 	}
 	_, err = prompts.NewForm(prompts.FormConfig{ID: "nil", Fields: []prompts.FormField{nil}})
@@ -441,6 +445,46 @@ func TestFormRejectsInvalidDefinitionsAndCallbackPanic(t *testing.T) {
 	)
 	if !errors.Is(err, prompts.ErrAdapter) {
 		t.Fatalf("condition panic error = %v", err)
+	}
+}
+
+func TestFormExecutionDependenciesOverrideDefinitionDependencies(t *testing.T) {
+	t.Parallel()
+
+	field := newTextPrompt(t, prompts.TextConfig{
+		ID: "name", Label: "Name", Fallback: prompts.Some("Ada"),
+		Headless: prompts.HeadlessUseFallback,
+	})
+	for name, test := range map[string]struct {
+		executionDependencies any
+		want                  string
+	}{
+		"definition fallback": {want: "definition"},
+		"execution override":  {executionDependencies: "execution", want: "execution"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var got any
+			form, err := prompts.NewForm(prompts.FormConfig{
+				ID: "dependencies", Fields: []prompts.FormField{prompts.AsField(field)},
+				Dependencies: "definition",
+				Validate: []prompts.FormValidator{func(_ context.Context, _ prompts.FormResult, validation prompts.ValidationContext) error {
+					got = validation.Dependencies
+					return nil
+				}},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = prompts.RunForm(context.Background(), form, prompts.Execution{
+				Dependencies: test.executionDependencies,
+				Policy:       prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+			})
+			if err != nil || got != test.want {
+				t.Fatalf("RunForm() error = %v, dependencies = %#v", err, got)
+			}
+		})
 	}
 }
 

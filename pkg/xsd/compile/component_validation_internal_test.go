@@ -79,6 +79,7 @@ func TestValidateSimpleTypeDefinitionRejectsEveryInvalidShape(t *testing.T) {
 		{Variety: xsd.SimpleRestriction, Base: stringType, Facets: []xsd.Facet{{Kind: xsd.FacetLength, Value: "1"}, {Kind: xsd.FacetLength, Value: "2"}}},
 		{Variety: xsd.SimpleRestriction, Base: xsd.QName{Namespace: xsd.Namespace, Local: "decimal"}, Facets: []xsd.Facet{{Kind: xsd.FacetTotalDigits, Value: "0"}}},
 		{Variety: xsd.SimpleRestriction, Base: xsd.QName{Namespace: xsd.Namespace, Local: "decimal"}, Facets: []xsd.Facet{{Kind: xsd.FacetFractionDigits, Value: "-1"}}},
+		{Variety: xsd.SimpleRestriction, Base: xsd.QName{Namespace: xsd.Namespace, Local: "decimal"}, Facets: []xsd.Facet{{Kind: xsd.FacetFractionDigits, Value: "invalid"}}},
 		{Variety: xsd.SimpleRestriction, Base: xsd.QName{Namespace: xsd.Namespace, Local: "decimal"}, Facets: []xsd.Facet{{Kind: xsd.FacetMinInclusive, Value: "invalid"}}},
 		{Variety: xsd.SimpleRestriction, Base: xsd.QName{Namespace: xsd.Namespace, Local: "decimal"}, Facets: []xsd.Facet{{Kind: xsd.FacetMinInclusive, Value: "1"}, {Kind: xsd.FacetMinExclusive, Value: "1"}}},
 		{Variety: xsd.SimpleRestriction, Base: xsd.QName{Namespace: xsd.Namespace, Local: "decimal"}, Facets: []xsd.Facet{{Kind: xsd.FacetMaxInclusive, Value: "1"}, {Kind: xsd.FacetMaxExclusive, Value: "1"}}},
@@ -110,6 +111,8 @@ func TestValidateSimpleTypeDefinitionRejectsEveryInvalidShape(t *testing.T) {
 		{Variety: xsd.SimpleList, InlineItem: &invalid},
 		{Variety: xsd.SimpleList, InlineItem: &xsd.SimpleType{Variety: xsd.SimpleList, ItemType: stringType}},
 		{Variety: xsd.SimpleList, InlineItem: &xsd.SimpleType{Variety: xsd.SimpleRestriction, InlineBase: &xsd.SimpleType{Variety: xsd.SimpleList, ItemType: stringType}}},
+		{Variety: xsd.SimpleList},
+		{Variety: xsd.SimpleList, ItemType: xsd.QName{Namespace: "urn:test", Local: "Missing"}},
 		{Variety: xsd.SimpleList, ItemType: xsd.QName{Namespace: "urn:test", Local: "NoList"}},
 		{Variety: xsd.SimpleList, ItemType: listName},
 		{Variety: xsd.SimpleList, ItemType: restrictedListName},
@@ -322,6 +325,9 @@ func TestFacetHelperBoundaryDecisions(t *testing.T) {
 	if !state.hasNotationEnumeration(xsd.SimpleType{Base: notationName}, 0) {
 		t.Fatal("hasNotationEnumeration(named base) failed")
 	}
+	if state.hasNotationEnumeration(xsd.SimpleType{Base: xsd.QName{Namespace: "urn:test", Local: "Missing"}}, 0) {
+		t.Fatal("hasNotationEnumeration(missing base) succeeded")
+	}
 	names := sortedComponentNames(map[xsd.QName]int{
 		{Namespace: "urn:z", Local: "a"}: 1,
 		{Namespace: "urn:a", Local: "z"}: 2,
@@ -342,6 +348,12 @@ func TestValidateIdentityConstraintsRejectsEveryInvalidShape(t *testing.T) {
 		state compileState
 	}{
 		{name: "incomplete", state: identityState(xsd.IdentityConstraint{Kind: xsd.IdentityKey})},
+		{name: "missing selector", state: identityState(xsd.IdentityConstraint{
+			Kind: xsd.IdentityKey, Name: "key", Fields: []string{"@id"},
+		})},
+		{name: "missing fields", state: identityState(xsd.IdentityConstraint{
+			Kind: xsd.IdentityKey, Name: "key", Selector: ".",
+		})},
 		{name: "duplicate", state: compileState{elements: map[xsd.QName]xsd.Element{
 			{Namespace: "urn:test", Local: "first"}:  {IdentityConstraints: []xsd.IdentityConstraint{validKey}},
 			{Namespace: "urn:test", Local: "second"}: {IdentityConstraints: []xsd.IdentityConstraint{validKey}},

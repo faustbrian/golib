@@ -1,7 +1,7 @@
 # queue-control-plane
 
 `queue-control-plane` is the administrative control plane for
-[`queue`](https://github.com/faustbrian/golib/pkg/queue). It provides durable,
+[`queue`](../queue). It provides durable,
 tenant-scoped commands, desired state, audit history, an HTTP API, an
 administrative CLI, and an optional narrow Kubernetes Deployment adapter.
 
@@ -19,7 +19,7 @@ also consume durable desired state through the typed client. See
 
 ## Five-minute local start
 
-Prerequisites: Go 1.26.5 or newer and an empty PostgreSQL database reachable
+Prerequisites: Go 1.26.6 or newer and an empty PostgreSQL database reachable
 through `DATABASE_URL`.
 
 Create `/tmp/queue-control-access.json` outside version control:
@@ -134,3 +134,8 @@ the reviewed baseline and fails on compatible or incompatible drift.
 This project is licensed under the [MIT License](LICENSE). A production release
 is not ready until all release gates described in the project objective are
 complete.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

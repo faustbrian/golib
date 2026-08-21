@@ -35,13 +35,10 @@ func BenchmarkInteractiveTextEditing(benchmark *testing.B) {
 	benchmark.ReportAllocs()
 	for benchmark.Loop() {
 		terminal := prompts.NewVirtualTerminal(80, 24)
-		terminal.Push(
-			prompts.PasteEvent("emoji 👩‍💻 and combining e\u0301"),
-			prompts.KeyEvent(prompts.KeyWordLeft),
-			prompts.RuneEvent('X'),
-			prompts.KeyEvent(prompts.KeyEnter),
-		)
-		execution := interactiveExecution(terminal)
+		terminal.Push(prompts.PasteEvent("emoji 👩‍💻 and combining e\u0301"),
+			prompts.KeyEvent(prompts.KeyWordLeft), prompts.RuneEvent('X'),
+			prompts.KeyEvent(prompts.KeyEnter))
+		execution := unboundedInteractiveExecution(terminal)
 		execution.Output = io.Discard
 		if _, err := prompts.Run(context.Background(), prompt, execution); err != nil {
 			benchmark.Fatal(err)
@@ -60,7 +57,7 @@ func BenchmarkInteractiveTextEditingMaximumBound(benchmark *testing.B) {
 	for benchmark.Loop() {
 		terminal := prompts.NewVirtualTerminal(80, 24)
 		terminal.Push(prompts.PasteEvent(input), prompts.KeyEvent(prompts.KeyEnter))
-		execution := interactiveExecution(terminal)
+		execution := unboundedInteractiveExecution(terminal)
 		execution.Output = io.Discard
 		execution.Limits = prompts.InputLimits{
 			MaxPasteBytes: maximum,
@@ -114,7 +111,7 @@ func BenchmarkInteractiveSearchNavigationPagination(benchmark *testing.B) {
 			prompts.ResizeEvent(32, 5),
 			prompts.KeyEvent(prompts.KeyEnter),
 		)
-		execution := interactiveExecution(terminal)
+		execution := unboundedInteractiveExecution(terminal)
 		execution.Output = io.Discard
 		if _, err := prompts.Run(context.Background(), prompt, execution); err != nil {
 			benchmark.Fatal(err)
@@ -171,7 +168,7 @@ func BenchmarkFormValidationAndTransitions(benchmark *testing.B) {
 			prompts.PasteEvent("42"),
 			prompts.KeyEvent(prompts.KeyEnter),
 		)
-		execution := interactiveExecution(terminal)
+		execution := unboundedInteractiveExecution(terminal)
 		execution.Output = io.Discard
 		if _, err := prompts.RunForm(context.Background(), form, execution); err != nil {
 			benchmark.Fatal(err)

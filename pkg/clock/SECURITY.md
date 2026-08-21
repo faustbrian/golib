@@ -4,9 +4,10 @@ Security reports should be submitted privately through GitHub's security
 advisory feature for `faustbrian/clock`. Do not include secrets, production
 timestamps, callback payloads, or customer data in a public issue.
 
-Version 1.x receives security fixes while it is the current major release. The
-maintainers will acknowledge a report, assess affected versions, coordinate a
-fix and advisory, and credit the reporter when requested.
+Before the first `v1.0.0` tag, security fixes are applied to `main`. After the
+first stable release, the current 1.x line will receive security fixes. The
+maintainers will acknowledge a report, assess affected revisions or versions,
+coordinate a fix and advisory, and credit the reporter when requested.
 
 The package has no production network, filesystem, cgo, unsafe, or runtime
 patching surface. Resource exhaustion, callback isolation, and process-global

@@ -46,6 +46,20 @@ config.Metrics.Exporter.Endpoint = "localhost:4318"
 config.Metrics.Exporter.URLPath = "/v1/metrics"
 ```
 
+The runnable examples accept the standard OpenTelemetry endpoint URL and
+protocol variables. Unlike the explicit Go `ExporterConfig.Endpoint` field,
+the standard environment endpoint includes its scheme:
+
+```text
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+```
+
+For `http/protobuf`, a path in the generic endpoint is treated as a prefix for
+`/v1/traces` and `/v1/metrics`. The examples reject malformed URLs,
+credentials, queries, fragments, unsupported protocols, and paths on gRPC
+endpoints instead of silently changing their meaning.
+
 Use the debug exporter only with non-sensitive development traffic. The same
 privacy rules apply locally because copied fixtures and URLs often contain real
 identifiers.

@@ -114,6 +114,10 @@ func managementHeartbeat(tenant string, worker queue.WorkerStatus) fleet.Heartbe
 
 func sortFleetWorkers(workers []fleet.WorkerSnapshot) {
 	sort.Slice(workers, func(i, j int) bool {
-		return workers[i].WorkerID < workers[j].WorkerID
+		return workerIDLess(workers[i].WorkerID, workers[j].WorkerID)
 	})
+}
+
+func workerIDLess(left, right string) bool {
+	return left < right
 }

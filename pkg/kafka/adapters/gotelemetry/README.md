@@ -389,6 +389,10 @@ and shut-down or no-op providers do not turn a Kafka success into a failure.
 
 ## Verification
 
+Observable interpretation choices are recorded in the
+[specification decision register](docs/specification-decisions.md), with exact
+upstream pins in `specification/manifest.json`.
+
 ```sh
 make check
 ```

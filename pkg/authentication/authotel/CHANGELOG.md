@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.
@@ -15,6 +19,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Normalize credential, outcome, and failure dimensions to the documented
   closed value sets; clamp negative durations; complete each attempt exactly
   once under duplicate or concurrent callbacks without making duplicates wait

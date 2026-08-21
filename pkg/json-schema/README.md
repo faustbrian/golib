@@ -11,7 +11,7 @@ executable compatibility evidence, not by itself a `v1.0.0` release claim.
 The module remains pre-v1 until every gate in [Conformance](docs/conformance.md)
 and [Releasing](RELEASING.md) is satisfied.
 
-The minimum supported toolchain is Go 1.26.5.
+The minimum supported toolchain is Go 1.26.6.
 
 ## Quick start
 
@@ -89,3 +89,8 @@ available. `go test -race ./...` is the concurrency gate. See
 ## License
 
 MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -30,5 +30,10 @@ classification procedure are in the [dataset report](docs/dataset-report.md).
 The requirement-to-test mapping, resource budgets, and local gate evidence are
 in the [verification report](docs/verification.md).
 
-Requires Go 1.26.5 or newer. Licensed under MIT; dataset licenses remain with
+Requires Go 1.26.6 or newer. Licensed under MIT; dataset licenses remain with
 their upstream publishers.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

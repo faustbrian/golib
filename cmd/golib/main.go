@@ -15,6 +15,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,7 +27,7 @@ import (
 
 const (
 	canonicalRoot = "github.com/faustbrian/golib"
-	requiredGo    = "1.26.5"
+	requiredGo    = "1.26.6"
 )
 
 var ownedDependencyPseudoVersionPattern = regexp.MustCompile(
@@ -36,6 +37,8 @@ var ownedDependencyPseudoVersionPattern = regexp.MustCompile(
 var mutationThresholdPattern = regexp.MustCompile(
 	`--threshold-(efficacy|mcover)(?:[[:space:]]+|=)[[:space:]]*([^[:space:]\\]+)`,
 )
+
+var catalogMarkdownLinkPattern = regexp.MustCompile(`\[([^]]+)]\(([^)]+)\)`)
 
 type catalog struct {
 	SchemaVersion int      `json:"schema_version"`
@@ -111,7 +114,7 @@ type modFile struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: golib <manifest|validate|cohesion|specifications|assurance|select|safety>")
+		fatal("usage: golib <manifest|validate|cohesion|documentation|specifications|assurance|select|safety>")
 	}
 
 	root, err := repositoryRoot()
@@ -126,6 +129,8 @@ func main() {
 		validate(root)
 	case "cohesion":
 		validateCohesion(root)
+	case "documentation":
+		documentation(root)
 	case "specifications":
 		validateSpecifications(root, os.Args[2:])
 	case "assurance":
@@ -1309,7 +1314,7 @@ func specifications(directory string) []string {
 	}
 	if directory == "pkg/http-middleware" {
 		return []string{
-			"Go 1.26.5 net/http and context contracts",
+			"Go 1.26.6 net/http and context contracts",
 			"RFC 9110 HTTP Semantics",
 			"RFC 9111 HTTP Caching",
 			"RFC 7239 Forwarded HTTP Extension",
@@ -1333,7 +1338,7 @@ func specifications(directory string) []string {
 	}
 	if directory == "pkg/router" {
 		return []string{
-			"Go 1.26.5 net/http and net/url contracts",
+			"Go 1.26.6 net/http and net/url contracts",
 			"RFC 3986 URI Generic Syntax",
 			"RFC 9110 HTTP Semantics",
 			"RFC 9112 HTTP/1.1 request-target forms",
@@ -1341,7 +1346,7 @@ func specifications(directory string) []string {
 	}
 	if directory == "pkg/wire" {
 		return []string{
-			"Go 1.26.5 encoding/json and encoding/xml contracts",
+			"Go 1.26.6 encoding/json and encoding/xml contracts",
 			"RFC 8259 JSON",
 			"XML 1.0 Fifth Edition and Namespaces in XML 1.0 Third Edition",
 			"SOAP 1.1 and SOAP 1.2 Part 1 Second Edition",
@@ -1380,7 +1385,7 @@ func specifications(directory string) []string {
 	}
 	if directory == "pkg/webhook" {
 		return []string{
-			"Go 1.26.5 cryptography, HTTP, URL, address, time, and encoding contracts",
+			"Go 1.26.6 cryptography, HTTP, URL, address, time, and encoding contracts",
 			"RFC 2104 HMAC and RFC 4231 HMAC-SHA-256/HMAC-SHA-512 vectors",
 			"RFC 4648 Base-N Encodings",
 			"RFC 3986 URI Generic Syntax",
@@ -1398,6 +1403,18 @@ func specifications(directory string) []string {
 		return []string{
 			"Apache Kafka protocol and client semantics",
 			"implemented Kafka Improvement Proposals",
+		}
+	}
+	if directory == "pkg/kafka/adapters/gotelemetry" {
+		return []string{
+			"OpenTelemetry semantic conventions 1.44.0 for Kafka messaging spans and metrics",
+			"OpenTelemetry Go API and SDK 1.44.0",
+		}
+	}
+	if directory == "pkg/kafka/adapters/mskiam" {
+		return []string{
+			"AWS MSK IAM SASL/OAUTHBEARER signer contract v1.0.4",
+			"AWS SDK for Go v2 credential-provider contract v1.43.0",
 		}
 	}
 	if directory == "pkg/search/adapters/opensearch" {
@@ -1476,6 +1493,18 @@ func conformanceCorpora(directory string) []string {
 			"Pinned TLS, mTLS, PLAIN, SCRAM, and OAUTHBEARER broker fixtures",
 			"Producer, consumer-group, transaction, replay, and inspection failure matrix",
 			"franz-go, kafka-go, and Sarama equivalent-behavior comparison matrix",
+		}
+	}
+	if directory == "pkg/kafka/adapters/gotelemetry" {
+		return []string{
+			"Pinned OpenTelemetry 1.44.0 Kafka messaging span and metric source matrix",
+			"Adapter mapping, propagation, cardinality, provider-failure, and lifecycle evidence",
+		}
+	}
+	if directory == "pkg/kafka/adapters/mskiam" {
+		return []string{
+			"Pinned AWS signer and SDK source archives plus reviewed AWS guidance snapshots",
+			"Signer-output, credential-refresh, expiry, redaction, and compatibility-boundary evidence",
 		}
 	}
 	if directory == "pkg/cloudevents" {
@@ -1688,26 +1717,55 @@ func goalEvidenceFor(
 	goals []string,
 	verificationGates []string,
 ) ([]goalEvidence, error) {
+	deferSecurityGates := false
+	for _, goal := range goals {
+		if filepath.Base(goal) != "GOAL_SECURITY.md" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(goal)))
+		if err != nil {
+			return nil, fmt.Errorf("read goal %s: %w", goal, err)
+		}
+		if bytes.HasPrefix(bytes.TrimSpace(data), []byte("# Future Goal:")) {
+			deferSecurityGates = true
+		}
+	}
+
 	result := make([]goalEvidence, 0, len(goals))
 	for _, goal := range goals {
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(goal)))
 		if err != nil {
 			return nil, fmt.Errorf("read goal %s: %w", goal, err)
 		}
+		future := bytes.HasPrefix(bytes.TrimSpace(data), []byte("# Future Goal:"))
 		digest := sha256.Sum256(data)
-		evidence, evidenceErr := implementationEvidence(root, directory, goal)
-		if evidenceErr != nil {
-			return nil, evidenceErr
+		evidence := []string{}
+		if !future {
+			var evidenceErr error
+			evidence, evidenceErr = implementationEvidence(root, directory, goal)
+			if evidenceErr != nil {
+				return nil, evidenceErr
+			}
+			if len(evidence) == 0 {
+				return nil, fmt.Errorf("goal %s has no implementation evidence", goal)
+			}
 		}
-		if len(evidence) == 0 {
-			return nil, fmt.Errorf("goal %s has no implementation evidence", goal)
+		status := "implemented-requires-fresh-verification"
+		gates := slices.Clone(verificationGates)
+		if future {
+			status = "future-not-started"
+			gates = []string{}
+		} else if deferSecurityGates {
+			gates = slices.DeleteFunc(gates, func(gate string) bool {
+				return gate == "vulnerability" || gate == "secrets"
+			})
 		}
 		result = append(result, goalEvidence{
 			File:                   goal,
 			RequirementsSHA256:     hex.EncodeToString(digest[:]),
 			ImplementationEvidence: evidence,
-			VerificationGates:      slices.Clone(verificationGates),
-			ImplementationStatus:   "implemented-requires-fresh-verification",
+			VerificationGates:      gates,
+			ImplementationStatus:   status,
 		})
 	}
 	return result, nil
@@ -2227,7 +2285,7 @@ func catalogDocumentation(current catalog) map[string]string {
 				moduleLink,
 				markdownCell(item.Kind),
 				markdownCell(item.Lifecycle),
-				markdownCell(item.Purpose),
+				markdownCatalogText(item.Purpose),
 				markdownList(item.OwnedDependencies),
 				markdownList(item.RequiredServices),
 				markdownList(item.Specifications),
@@ -2254,7 +2312,7 @@ func catalogDocumentation(current catalog) map[string]string {
 			markdownCell(item.Kind),
 			markdownOptionalCell(item.Family),
 			markdownCell(item.Lifecycle),
-			markdownCell(item.Purpose),
+			markdownCatalogText(item.Purpose),
 			markdownList(item.OwnedDependencies),
 			markdownList(item.RequiredServices),
 			markdownList(item.Specifications),
@@ -2306,6 +2364,18 @@ func catalogDocumentation(current catalog) map[string]string {
 func markdownCell(value string) string {
 	value = strings.Join(strings.Fields(value), " ")
 	return strings.ReplaceAll(value, "|", "\\|")
+}
+
+func markdownCatalogText(value string) string {
+	portable := catalogMarkdownLinkPattern.ReplaceAllStringFunc(value, func(link string) string {
+		parts := catalogMarkdownLinkPattern.FindStringSubmatch(link)
+		parsed, err := url.Parse(parts[2])
+		if err == nil && parsed.IsAbs() {
+			return link
+		}
+		return parts[1]
+	})
+	return markdownCell(portable)
 }
 
 func markdownOptionalCell(value string) string {

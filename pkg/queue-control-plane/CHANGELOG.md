@@ -6,6 +6,15 @@ Versioning.
 
 ## Unreleased
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+- Replace the invalid GitHub package URL with a portable repository-relative
+  link to `queue`.
+
 ### Compatibility
 
 - Added a pinned module export baseline so incompatible public API changes
@@ -13,6 +22,11 @@ Versioning.
 
 ### Changed
 
+- Require each CLI connection credential independently, with mutation-precise
+  regression coverage for every missing environment value.
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - New durable command identifiers are lowercase ULIDs. The PostgreSQL upgrade
   preserves historical UUID command identifiers while changing command and
   reference columns to text so existing audit history remains addressable.

@@ -124,6 +124,199 @@ func TestSerializersPropagateEveryTokenWriteFailure(t *testing.T) {
 	})
 }
 
+func TestSerializersEmitEveryRepeatedCollectionMember(t *testing.T) {
+	t.Parallel()
+
+	t.Run("WSDL 1.1", func(t *testing.T) {
+		t.Parallel()
+		multipart := []MIMEMultipart11{
+			{Parts: []MIMEPart11{
+				{Contents: []MIMEContent11{{Part: "first", Type: "text/plain"}}},
+				{Contents: []MIMEContent11{{Part: "second", Type: "text/plain"}}},
+			}},
+			{Parts: []MIMEPart11{
+				{Contents: []MIMEContent11{{Part: "third", Type: "text/plain"}}},
+				{Contents: []MIMEContent11{{Part: "fourth", Type: "text/plain"}}},
+			}},
+		}
+		binding := Binding11{Name: "Binding", Operations: []BindingOperation11{{
+			Name: "Call", Input: &BindingMessage11{MIME: &MIMEMessage11{Multipart: multipart}},
+		}}}
+		document := &Document{version: Version11, definitions11: &Definitions11{
+			TargetNamespace: "urn:test",
+			Messages: []Message11{{Name: "Message", Parts: []Part11{
+				{Name: "first", Type: QName{Namespace: NamespaceXMLSchema, Local: "string"}},
+				{Name: "second", Type: QName{Namespace: NamespaceXMLSchema, Local: "string"}},
+			}}},
+			Bindings: []Binding11{binding},
+		}}
+		output, err := Marshal(document, MarshalOptions{})
+		if err != nil {
+			t.Fatalf("Marshal() error = %v", err)
+		}
+		for _, fragment := range []string{
+			`name="first"`, `name="second"`, `part="first"`, `part="second"`,
+			`part="third"`, `part="fourth"`,
+		} {
+			if !bytes.Contains(output, []byte(fragment)) {
+				t.Errorf("serialized WSDL is missing %s: %s", fragment, output)
+			}
+		}
+		if got := bytes.Count(output, []byte("<mime:multipartRelated>")); got != 2 {
+			t.Fatalf("multipart count = %d: %s", got, output)
+		}
+	})
+
+	t.Run("WSDL 2.0", func(t *testing.T) {
+		t.Parallel()
+		tns := func(local string) QName { return QName{Namespace: "urn:test", Local: local} }
+		document := &Document{version: Version20, description20: &Description20{
+			TargetNamespace: "urn:test",
+			Imports:         []Import20{{Namespace: "urn:first", Location: "first.wsdl"}, {Namespace: "urn:second", Location: "second.wsdl"}},
+			Includes:        []Include20{{Location: "first.inc.wsdl"}, {Location: "second.inc.wsdl"}},
+			Bindings: []Binding20{{Name: "Binding", Interface: tns("API"), Operations: []BindingOperation20{
+				{Ref: tns("First")}, {Ref: tns("Second")},
+			}}},
+			Services: []Service20{{Name: "Service", Interface: tns("API"), Endpoints: []Endpoint20{
+				{Name: "FirstEndpoint", Binding: tns("Binding")},
+				{Name: "SecondEndpoint", Binding: tns("Binding")},
+			}}},
+		}}
+		output, err := Marshal(document, MarshalOptions{})
+		if err != nil {
+			t.Fatalf("Marshal() error = %v", err)
+		}
+		for _, fragment := range []string{
+			`location="first.wsdl"`, `location="second.wsdl"`,
+			`location="first.inc.wsdl"`, `location="second.inc.wsdl"`,
+			`ref="tns:First"`, `ref="tns:Second"`,
+			`name="FirstEndpoint"`, `name="SecondEndpoint"`,
+		} {
+			if !bytes.Contains(output, []byte(fragment)) {
+				t.Errorf("serialized WSDL is missing %s: %s", fragment, output)
+			}
+		}
+	})
+}
+
+func TestNamespaceSelectionRejectsInvalidAndConflictingCandidates(t *testing.T) {
+	t.Parallel()
+
+	makeValue := func(namespaces map[string]string) marshalValue {
+		document := &Document{version: Version20, description20: &Description20{
+			TargetNamespace: "urn:test",
+			Types:           &Types20{Schemas: []*xsd.Document{{Namespaces: namespaces}}},
+			Extensibility: Extensibility{ExtensionAttributes: []ExtensionAttribute{{
+				Name: QName{Namespace: "urn:extension", Local: "value"},
+			}}},
+		}}
+		value, err := newMarshalValue(document)
+		if err != nil {
+			t.Fatalf("newMarshalValue() error = %v", err)
+		}
+		return value
+	}
+	if got := makeValue(map[string]string{"xml": "urn:extension", "zz": "urn:extension"}).prefixes["urn:extension"]; got != "zz" {
+		t.Fatalf("prefix after reserved candidate = %q", got)
+	}
+	if got := makeValue(map[string]string{"xs": "urn:extension", "zz": "urn:extension"}).prefixes["urn:extension"]; got != "zz" {
+		t.Fatalf("prefix after conflicting candidate = %q", got)
+	}
+	if got := makeValue(map[string]string{"aa": "urn:extension", "bb": "urn:extension"}).prefixes["urn:extension"]; got != "aa" {
+		t.Fatalf("prefix with multiple candidates = %q", got)
+	}
+}
+
+func TestGeneratedPrefixSelectionUsesOnlyExactPositiveNumericSuffixes(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		used map[string]struct{}
+		want string
+	}{
+		"empty":        {used: map[string]struct{}{}, want: "ns1"},
+		"first used":   {used: map[string]struct{}{"ns1": {}}, want: "ns2"},
+		"several used": {used: map[string]struct{}{"ns1": {}, "ns2": {}}, want: "ns3"},
+		"higher used":  {used: map[string]struct{}{"ns2": {}}, want: "ns1"},
+		"gap":          {used: map[string]struct{}{"ns1": {}, "ns3": {}}, want: "ns2"},
+		"leading zero": {used: map[string]struct{}{"ns01": {}}, want: "ns1"},
+		"invalid":      {used: map[string]struct{}{"other": {}, "nsbad": {}, "ns0": {}, "ns-1": {}}, want: "ns1"},
+	} {
+		if got := nextGeneratedPrefix(test.used); got != test.want {
+			t.Errorf("%s prefix = %q, want %q", name, got, test.want)
+		}
+	}
+	for prefix, want := range map[string]bool{
+		"ns1": true, "ns0": false, "ns01": false, "1": false, "nsbad": false,
+	} {
+		_, valid := generatedPrefixNumber(prefix)
+		if valid != want {
+			t.Errorf("generatedPrefixNumber(%q) valid = %t, want %t", prefix, valid, want)
+		}
+	}
+	for name, test := range map[string]struct {
+		prefixes  map[string]string
+		target    string
+		candidate string
+		want      bool
+	}{
+		"same namespace":        {prefixes: map[string]string{"urn:target": "value"}, target: "urn:target", candidate: "value", want: true},
+		"other namespace same":  {prefixes: map[string]string{"urn:other": "value"}, target: "urn:target", candidate: "value"},
+		"other namespace other": {prefixes: map[string]string{"urn:other": "other"}, target: "urn:target", candidate: "value", want: true},
+	} {
+		if got := prefixAvailable(test.prefixes, test.target, test.candidate); got != test.want {
+			t.Errorf("%s available = %t, want %t", name, got, test.want)
+		}
+	}
+}
+
+func TestNamespaceHelpersRejectEveryIncompleteBinding(t *testing.T) {
+	t.Parallel()
+
+	preferred := map[string][]string{}
+	collectPreferredPrefixes(map[string]string{"": "urn:value", "prefix": ""}, preferred)
+	if len(preferred) != 0 {
+		t.Fatalf("preferred prefixes = %#v", preferred)
+	}
+	if attributes := namespaceAttributes(map[string]string{"": "prefix", "urn:value": ""}); len(attributes) != 0 {
+		t.Fatalf("namespace attributes = %#v", attributes)
+	}
+	value := marshalValue{prefixes: map[string]string{"urn:empty": ""}}
+	for name, qname := range map[string]QName{
+		"missing":      {Namespace: "urn:missing", Local: "Value"},
+		"empty prefix": {Namespace: "urn:empty", Local: "Value"},
+	} {
+		if _, err := value.qname(qname); err == nil {
+			t.Errorf("qname(%s) error = nil", name)
+		}
+	}
+}
+
+func TestNamespaceCollectionIgnoresUnsetAndAnySOAPFaultCodes(t *testing.T) {
+	t.Parallel()
+
+	for name, soap := range map[string]*SOAPFaultBinding20{
+		"unset": {Code: QName{Namespace: "urn:code", Local: "Value"}},
+		"any":   {Code: QName{Namespace: "urn:code", Local: "Value"}, CodeSet: true, CodeAny: true},
+	} {
+		result := map[string]struct{}{}
+		collectDescription20Namespaces(Description20{Bindings: []Binding20{{
+			Faults: []BindingFault20{{SOAP: soap}},
+		}}}, result)
+		if _, exists := result["urn:code"]; exists {
+			t.Errorf("%s fault code namespace was collected", name)
+		}
+	}
+}
+
+func TestDefaultMarshalLimitIsEightMiB(t *testing.T) {
+	t.Parallel()
+
+	if defaultMaxOutputBytes != 8*1024*1024 {
+		t.Fatalf("defaultMaxOutputBytes = %d", defaultMaxOutputBytes)
+	}
+}
+
 func assertTokenWriteFailures(t *testing.T, document *Document) {
 	t.Helper()
 

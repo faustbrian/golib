@@ -1,5 +1,5 @@
 id	version	sections	role	url	sha256	status
-go-net-http	Go-1.26.5	net/http,context	Go-handler-and-writer-contracts	https://go.dev/dl/go1.26.5.src.tar.gz	495be4bc87176ac567392e5b4116abd98466d33d7b49d41e764ccc6976b2dc42	pinned
+go-net-http	Go-1.26.6	net/http,context	Go-handler-and-writer-contracts	https://go.dev/dl/go1.26.6.src.tar.gz	a0721c54c688901448d77ad9b3ec7ea7c474730755ff891382e92ecb93ff2cb1	pinned
 rfc9110	RFC-9110	5-12,15	HTTP-semantics	https://www.rfc-editor.org/rfc/rfc9110.txt	21c1cdce6ab0e5509b04d84a28000836c7a087cf786efe6f04877ebfff47232a	pinned
 rfc9111	RFC-9111	5.2	HTTP-cache-directives	https://www.rfc-editor.org/rfc/rfc9111.txt	aeb52adb3279d5f23dae34f68af11bd5cef0a0aff7ffcd014c9ca93c5302cf3e	pinned
 rfc7239	RFC-7239	4-8	Forwarded-field	https://www.rfc-editor.org/rfc/rfc7239.txt	f15c45c9e079684bc4284d041be63285923962448cb0d8540d54106c68c2a40d	pinned

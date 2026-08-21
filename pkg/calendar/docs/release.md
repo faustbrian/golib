@@ -1,6 +1,6 @@
 # Release process
 
-1. Use a clean tree and the pinned Go 1.26.5 toolchain.
+1. Use a clean tree and the pinned Go 1.26.6 toolchain.
 2. Update [CHANGELOG.md](../CHANGELOG.md) and version guidance.
 3. Run `make check-all`; inspect advisory NilAway output.
 4. Run the hosted matrix for OS/timezone and PostgreSQL 14–18.

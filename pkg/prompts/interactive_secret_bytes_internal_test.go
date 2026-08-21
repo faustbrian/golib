@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"testing"
+	"time"
 )
 
 func TestByteLineEditorCoversEditingAndBounds(t *testing.T) {
@@ -87,6 +88,88 @@ func TestByteLineEditorCoversEditingAndBounds(t *testing.T) {
 	}
 }
 
+func TestByteLineEditorExactStateTransitionsAndWordBoundaries(t *testing.T) {
+	t.Parallel()
+
+	exact := byteLineEditor{maxBytes: 4}
+	if err := exact.insert([]byte("ab")); err != nil {
+		t.Fatal(err)
+	}
+	if err := exact.insert([]byte("cd")); err != nil || exact.size != 4 ||
+		exact.cursor != len(exact.cells) || string(exact.bytes()) != "abcd" {
+		t.Fatalf("exact insert = %q, size %d, cursor %d, error %v", exact.bytes(), exact.size, exact.cursor, err)
+	}
+	if err := exact.insert([]byte("e")); !errors.Is(err, ErrReader) {
+		t.Fatalf("overflow error = %v", err)
+	}
+
+	empty := byteLineEditor{maxBytes: 4}
+	for _, key := range []Key{KeyBackspace, KeyDelete, KeyLeft, KeyRight} {
+		if err := empty.applyKey(KeyEvent(key)); err != nil || empty.cursor != 0 || empty.size != 0 {
+			t.Fatalf("empty %v = cursor %d, size %d, error %v", key, empty.cursor, empty.size, err)
+		}
+	}
+
+	backspace := byteLineEditor{maxBytes: 4}
+	if err := backspace.insert([]byte("ab")); err != nil {
+		t.Fatal(err)
+	}
+	if err := backspace.applyKey(KeyEvent(KeyBackspace)); err != nil ||
+		string(backspace.bytes()) != "a" || backspace.cursor != 1 || backspace.size != 1 {
+		t.Fatalf("backspace = %q, cursor %d, size %d, error %v", backspace.bytes(), backspace.cursor, backspace.size, err)
+	}
+	if err := backspace.applyKey(KeyEvent(KeyEnd)); err != nil {
+		t.Fatal(err)
+	}
+	if err := backspace.applyKey(KeyEvent(KeyDelete)); err != nil || string(backspace.bytes()) != "a" {
+		t.Fatalf("delete at end = %q, error %v", backspace.bytes(), err)
+	}
+
+	removed := byteLineEditor{maxBytes: 8}
+	if err := removed.insert([]byte("abcd")); err != nil {
+		t.Fatal(err)
+	}
+	removed.remove(1)
+	if string(removed.bytes()) != "acd" || removed.size != 3 {
+		t.Fatalf("remove = %q, size %d", removed.bytes(), removed.size)
+	}
+
+	words := byteLineEditor{maxBytes: 16}
+	if err := words.insert([]byte("one two")); err != nil {
+		t.Fatal(err)
+	}
+	words.wordLeft()
+	if words.cursor != 4 {
+		t.Fatalf("first word-left cursor = %d", words.cursor)
+	}
+	words.wordLeft()
+	if words.cursor != 0 {
+		t.Fatalf("second word-left cursor = %d", words.cursor)
+	}
+	words.wordRight()
+	if words.cursor != 4 {
+		t.Fatalf("first word-right cursor = %d", words.cursor)
+	}
+	words.wordRight()
+	if words.cursor != len(words.cells) {
+		t.Fatalf("second word-right cursor = %d", words.cursor)
+	}
+
+	spaces := byteLineEditor{maxBytes: 4}
+	if err := spaces.insert([]byte("  ")); err != nil {
+		t.Fatal(err)
+	}
+	spaces.wordLeft()
+	if spaces.cursor != 0 {
+		t.Fatalf("all-space word-left cursor = %d", spaces.cursor)
+	}
+
+	clusters := splitByteGraphemes([]byte("🇫🇮🇸🇪"))
+	if len(clusters) != 2 || string(clusters[0]) != "🇫🇮" || string(clusters[1]) != "🇸🇪" {
+		t.Fatalf("flag clusters = %q", clusters)
+	}
+}
+
 func TestHandleSecretByteEventCoversSemanticEvents(t *testing.T) {
 	t.Parallel()
 
@@ -142,6 +225,35 @@ func TestHandleSecretByteEventCoversSemanticEvents(t *testing.T) {
 	}
 }
 
+func TestHandleSecretByteEventAcceptsExactLimitsAndZeroSize(t *testing.T) {
+	t.Parallel()
+
+	limits := InputLimits{MaxPasteBytes: 4, MaxInputBytes: 4}
+	for name, event := range map[string]InputEvent{
+		"bytes": PasteBytesEvent([]byte("four")),
+		"text":  PasteEvent("four"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			editor := byteLineEditor{maxBytes: limits.MaxInputBytes}
+			width := 80
+			action, err := handleSecretByteEvent(&event, &editor, KeyMap{}, &width, limits)
+			if err != nil || action != secretContinue || string(editor.bytes()) != "four" {
+				t.Fatalf("handle() = %v, %v, bytes %q", action, err, editor.bytes())
+			}
+		})
+	}
+	resize := ResizeEvent(0, 0)
+	width := 80
+	action, err := handleSecretByteEvent(
+		&resize, &byteLineEditor{maxBytes: 4}, KeyMap{}, &width, limits,
+	)
+	if err != nil || action != secretContinue || width != 0 {
+		t.Fatalf("zero resize = %v, %v, width %d", action, err, width)
+	}
+}
+
 func TestSecretByteExecutionCoversReaderAndParserFailures(t *testing.T) {
 	t.Parallel()
 
@@ -156,50 +268,39 @@ func TestSecretByteExecutionCoversReaderAndParserFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, source := range
-		map[string]EventSource{
-			"reader": eventSourceFunc(
-				func(context.Context) (InputEvent, error) {
-					return InputEvent{}, errors.New("read failure")
-				},
-			),
-			"eof": eventSourceFunc(
-				func(context.Context) (InputEvent, error) {
-					return InputEvent{}, io.EOF
-				},
-			),
-			"semantic eof": eventSourceFunc(
-				func(context.Context) (InputEvent, error) {
-					return InputEvent{Kind: EventEOF}, nil
-				},
-			),
-			"detached": eventSourceFunc(
-				func(context.Context) (InputEvent, error) {
-					return InputEvent{Kind: EventDetached}, nil
-				},
-			),
-			"invalid event": eventSourceFunc(
-				func(context.Context) (InputEvent, error) {
-					return ResizeEvent(-1, 10), nil
-				},
-			),
-		} {
-		t.Run(
-			name,
-			func(t *testing.T) {
-				t.Parallel()
-				terminal := NewVirtualTerminal(80, 24)
-				execution := secretInteractiveExecution(terminal)
-				execution.Events = source
-				_, err := Run(context.Background(), prompt, execution)
-				if err == nil {
-					t.Fatal("Run() returned nil error")
-				}
-				if name == "detached" && !errors.Is(err, ErrTerminalDetached) {
-					t.Fatalf("detached error = %v", err)
-				}
-			},
-		)
+	for name, source := range map[string]EventSource{
+		"reader": eventSourceFunc(func(context.Context) (InputEvent, error) {
+			return InputEvent{}, errors.New("read failure")
+		}),
+		"eof": eventSourceFunc(func(context.Context) (InputEvent, error) {
+			return InputEvent{}, io.EOF
+		}),
+		"semantic eof": eventSourceFunc(func(context.Context) (InputEvent, error) {
+			return InputEvent{Kind: EventEOF}, nil
+		}),
+		"detached": eventSourceFunc(func(context.Context) (InputEvent, error) {
+			return InputEvent{Kind: EventDetached}, nil
+		}),
+		"invalid event": eventSourceFunc(func(context.Context) (InputEvent, error) {
+			return ResizeEvent(-1, 10), nil
+		}),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			terminal := NewVirtualTerminal(80, 24)
+			execution := secretInteractiveExecution(terminal)
+			execution.Events = source
+			_, err := Run(context.Background(), prompt, execution)
+			if err == nil {
+				t.Fatal("Run() returned nil error")
+			}
+			if name == "detached" && !errors.Is(err, ErrTerminalDetached) {
+				t.Fatalf("detached error = %v", err)
+			}
+			if name == "reader" && (!errors.Is(err, ErrReader) || errors.Is(err, ErrDeadlineExceeded)) {
+				t.Fatalf("reader error = %v", err)
+			}
+		})
 	}
 
 	parserFailure := errors.New("parser failure")
@@ -217,6 +318,14 @@ func TestSecretByteExecutionCoversReaderAndParserFailures(t *testing.T) {
 	if !errors.Is(err, ErrValidationExhausted) {
 		t.Fatalf("ParseBytes() parser error = %v", err)
 	}
+
+	terminal = NewVirtualTerminal(80, 24)
+	terminal.Push(KeyEvent(KeyShiftTab), KeyEvent(KeyEnter))
+	result, err := Run(context.Background(), prompt, secretInteractiveExecution(terminal))
+	if err != nil || result == nil || result.Len() != 0 {
+		t.Fatalf("standalone shift-tab Run() = %v, %v", result, err)
+	}
+	result.Destroy()
 }
 
 func TestSecretByteExecutionCoversRenderingRetryAndCallbackFailures(t *testing.T) {
@@ -406,7 +515,10 @@ func (source eventSourceFunc) Next(ctx context.Context) (InputEvent, error) {
 func secretInteractiveExecution(terminal *VirtualTerminal) Execution {
 	return Execution{
 		Output: terminal,
-		Events: terminal,
+		Events: boundedInternalEventSource{
+			EventSource: terminal,
+			Wait:        5 * time.Millisecond,
+		},
 		Terminal: terminal,
 		Capabilities: Capabilities{
 			InputTerminal: true,
@@ -418,9 +530,19 @@ func secretInteractiveExecution(terminal *VirtualTerminal) Execution {
 	}
 }
 
-type errorWriter struct {
-	err error
+type boundedInternalEventSource struct {
+	EventSource
+	Wait time.Duration
 }
+
+func (source boundedInternalEventSource) Next(ctx context.Context) (InputEvent, error) {
+	bounded, cancel := context.WithTimeout(ctx, source.Wait)
+	defer cancel()
+
+	return source.EventSource.Next(bounded)
+}
+
+type errorWriter struct{ err error }
 
 func (writer errorWriter) Write([]byte) (int, error) {
 	return 0, writer.err

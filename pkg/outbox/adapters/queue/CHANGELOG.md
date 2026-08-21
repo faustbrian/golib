@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Add a bounded, adapter-owned task payload with stable task, idempotency,
@@ -18,6 +22,11 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Rename the unpublished module from `adapters/goqueue` to `adapters/queue`
   and its Go package to `outboxqueue` before v1.
 - Publish the owned task payload instead of `Envelope.CanonicalJSON`, exclude

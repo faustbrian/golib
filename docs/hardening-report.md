@@ -1,13 +1,13 @@
 # Repository hardening report
 
-Audit date: 2026-08-11
+Audit date: 2026-08-13
 
 ## Scope and status
 
 This report covers the normalization and strict hardening of the complete
 `github.com/faustbrian/golib` multi-module repository. The authoritative
-catalog currently contains 134 modules, of which 107 are independently
-releasable, and 684 Go packages, of which 548 are production packages. Exact
+catalog currently contains 138 modules, of which 107 are independently
+releasable, and 693 Go packages, of which 548 are production packages. Exact
 statement coverage applies to the 546 production packages with executable
 statements; declaration-only production packages remain cataloged but have no
 statement denominator.
@@ -46,7 +46,7 @@ The repository pins the following release-verification inputs in
 
 | Tool or runtime | Version |
 | --- | --- |
-| Go | 1.26.5 |
+| Go | 1.26.6 |
 | golangci-lint | 2.12.2 |
 | Staticcheck | 0.7.0 |
 | NilAway | `9fd1b8d7bac8` pseudo-version |
@@ -57,6 +57,7 @@ The repository pins the following release-verification inputs in
 | CycloneDX Go | 1.10.0 |
 | actionlint | 1.7.12 |
 | apidiff | `764159d718ef` pseudo-version |
+| ripgrep | 15.2.0 checksum-pinned Linux archive in CI |
 | PostgreSQL image | `postgres:18.4-alpine` |
 | Valkey image | `valkey/valkey:9.1.0-alpine` |
 | Redis image | `redis:8.6.4-alpine` |
@@ -92,28 +93,26 @@ complete input fingerprint.
 ## Package-level outcomes
 
 The final package-attributable result is represented by the module matrix and
-its uploaded evidence, not by a repository-wide average. This execution lane
-does not own Kafka or Verkle Tree: specialists are actively implementing and
-verifying those modules, so this lane does not inspect their work, alter their
-processes, or classify their intermediate results as failures or blockers.
-Repository-wide release approval will consume their independently produced
-evidence when their work reaches its final boundary.
+its uploaded evidence, not by a repository-wide average. The Kafka and Verkle
+Tree specialist campaigns have reached their current boundaries and their
+independently produced evidence is consumed here without restarting unaffected
+content-identical campaigns. Verkle Tree's separate cryptographic-security goal
+remains future work and therefore no security-audit, production-suitability,
+stable-v1, or Ethereum-compatibility claim is made for that module.
 
-The remaining owned scope is still being verified. Every completed mutation
-campaign enforces 100% efficacy and 100% mutant coverage, but this intermediate
-report is not a substitute for the final matrix. Before release this section
-will be replaced with exact package-attributable outcomes and completion
-timestamps from the final tree.
+Current local goal audits verify all 104 goal-bearing modules. The final owned
+module, `pkg/search/adapters/opensearch`, now has current input-bound evidence
+for all 21 canonical gates, including its real-cluster test, race, exact
+1908/1908 statement coverage, fuzz, retained 1377/1377 mutation result,
+conformance, interoperability, and comparative benchmarks. This intermediate
+report is not a substitute for the final package matrix.
 
-The 2026-08-11 root audit validated all 134 module records, all 684 package
-records, and cohesion policy for all 107 releasable modules. Root tooling tests
-and authoritative workflow lint passed. The aggregate repository check remains
-red only at specification governance: Kafka specialist modules still lack
-their final specification metadata and decision registers, while the active
-OpenSearch hardening scope must add security, compatibility, and wire
-consequences to `OPENSEARCH-DEC-023`. These are unresolved release boundaries,
-not reasons to discard current package-attributable evidence or restart
-unaffected campaigns.
+The current root catalog validates 138 module records, 693 package records,
+and cohesion policy for all 107 releasable modules. OpenSearch specification
+governance and its security, compatibility, recovery, and operations evidence
+are complete. All 104 goal-bearing modules now have current goal-traceability
+records; Kafka and Verkle Tree retain their documented bounded support and
+security non-claims.
 
 ## Specification and interoperability evidence
 
@@ -147,9 +146,11 @@ gate.
 
 ## Release readiness
 
-Release readiness is currently **not established**. It requires all 107
-releasable modules to have current dependency-ordered `v1.0.0` dry-run and
-clean-consumer proof, all root and package gates to pass from the final tree, a
-clean worktree, and the final GitHub Actions matrix plus required summary and
-CodeQL jobs to succeed. The report will record the exact final revision and CI
-run only after those conditions are true.
+Release readiness is currently **not established**. Operational assurance is
+currently `not ready`: 2 of 11 scenarios pass and five residual risks remain
+open. All 107 releasable modules now have current dependency-ordered `v1.0.0`
+dry-run and deterministic all-module clean-consumer proof. Release readiness
+still requires all root and package gates to pass from the final tree, a clean
+worktree, public release artifacts and provenance, and the final GitHub Actions
+matrix plus required summary and CodeQL jobs to succeed. The report will record
+the exact final revision and CI run only after those conditions are true.

@@ -172,6 +172,7 @@ func TestIdentityXPathGrammarDecisionTables(t *testing.T) {
 		{expression: "not valid"},
 		{expression: "t:local", want: true},
 		{expression: "missing:local"},
+		{expression: "1bad:local"},
 		{expression: "t:not valid"},
 		{expression: "a:b:c"},
 	} {

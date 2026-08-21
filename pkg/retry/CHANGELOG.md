@@ -4,8 +4,20 @@ All notable changes use [Keep a Changelog](https://keepachangelog.com/) style.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
+### Changed
+
+- Replace the obsolete owned-module pseudo-version pin with the monorepo's
+  local `v0.0.0` source-proxy coordinate; release tooling continues to emit
+  the exact `v1.0.0` dependency version.
+
 ### Fixed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Zero-unit Fibonacci backoff now returns within a fixed computation bound even
   when callers supply the largest possible attempt number.
 - The shared resilience dependency now uses an immutable published revision so

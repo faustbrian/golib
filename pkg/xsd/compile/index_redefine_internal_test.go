@@ -57,6 +57,91 @@ func TestApplyRedefinitionPreservesNonSelfAttributeReferences(t *testing.T) {
 	}
 }
 
+func TestApplyRedefinitionValidatesEachSelfDerivationProperty(t *testing.T) {
+	t.Parallel()
+
+	name := xsd.QName{Namespace: "urn:test", Local: "Component"}
+	for _, definition := range []xsd.SimpleType{
+		{Name: name.Local, Variety: xsd.SimpleList, Base: name},
+		{Name: name.Local, Variety: xsd.SimpleRestriction, Base: xsd.QName{Namespace: "urn:test", Local: "Other"}},
+	} {
+		state := stateWithSimple(name)
+		if err := state.applyRedefinition(xsd.Redefinition{SimpleTypes: []xsd.SimpleType{definition}}, &xsd.Document{}, name.Namespace, false); err == nil {
+			t.Fatalf("applyRedefinition(%#v) succeeded", definition)
+		}
+	}
+
+	state := stateWithComplex(name)
+	if err := state.applyRedefinition(xsd.Redefinition{ComplexTypes: []xsd.ComplexType{{
+		Name: name.Local, Base: xsd.QName{Namespace: "urn:test", Local: "Other"}, Derivation: xsd.DerivationExtension,
+	}}}, &xsd.Document{}, name.Namespace, false); err == nil {
+		t.Fatal("applyRedefinition(complex wrong base) succeeded")
+	}
+}
+
+func TestApplyRedefinitionInheritsWildcardsAndReplacesSelfGroupReferences(t *testing.T) {
+	t.Parallel()
+
+	name := xsd.QName{Namespace: "urn:test", Local: "Component"}
+	state := stateWithAttributeGroup(name)
+	state.attributeGroups[name] = xsd.AttributeGroup{
+		Name: name.Local, Wildcard: &xsd.Wildcard{Namespaces: []string{"urn:base"}},
+	}
+	if err := state.applyRedefinition(xsd.Redefinition{AttributeGroups: []xsd.AttributeGroup{{
+		Name: name.Local, References: []xsd.QName{name},
+	}}}, &xsd.Document{}, name.Namespace, false); err != nil {
+		t.Fatalf("applyRedefinition(attribute wildcard) error = %v", err)
+	}
+	if wildcard := state.attributeGroups[name].Wildcard; wildcard == nil || !wildcardHas(wildcard, "urn:base") {
+		t.Fatalf("inherited attribute wildcard = %#v", wildcard)
+	}
+
+	state = stateWithComplex(name)
+	state.complexTypes[name] = xsd.ComplexType{
+		Name: name.Local, AttributeWildcard: &xsd.Wildcard{Namespaces: []string{"urn:base"}},
+	}
+	if err := state.applyRedefinition(xsd.Redefinition{ComplexTypes: []xsd.ComplexType{{
+		Name: name.Local, Base: name, Derivation: xsd.DerivationExtension,
+	}}}, &xsd.Document{}, name.Namespace, false); err != nil {
+		t.Fatalf("applyRedefinition(complex wildcard) error = %v", err)
+	}
+	if wildcard := state.complexTypes[name].AttributeWildcard; wildcard == nil || !wildcardHas(wildcard, "urn:base") {
+		t.Fatalf("inherited complex wildcard = %#v", wildcard)
+	}
+
+	original := &xsd.ModelGroup{Compositor: xsd.Sequence, Particles: []xsd.Particle{{Element: &xsd.Element{Name: "base"}}}}
+	group := &xsd.ModelGroup{Particles: []xsd.Particle{{GroupRef: name}, {Group: &xsd.ModelGroup{}}}}
+	replaceRedefinedGroupRefs(group, name, original)
+	if group.Particles[0].GroupRef.Local != "" || group.Particles[0].Group == nil {
+		t.Fatalf("replaced group reference = %#v", group.Particles[0])
+	}
+	replaceRedefinedGroupRefs(nil, name, original)
+}
+
+func TestIndexComponentsAppliesElementAndComplexTypeDefaults(t *testing.T) {
+	t.Parallel()
+
+	document, err := xsd.Parse(context.Background(), []byte(
+		`<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test" blockDefault="extension" finalDefault="restriction">`+
+			`<xs:element name="element"/>`+
+			`<xs:complexType name="Type"/>`+
+			`</xs:schema>`,
+	), xsd.ParseOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := emptyValidationState()
+	if err := state.indexComponents(document, "urn:test", false); err != nil {
+		t.Fatalf("indexComponents(defaults) error = %v", err)
+	}
+	if got := state.elements[xsd.QName{Namespace: "urn:test", Local: "element"}]; got.Block.String() == "" || got.Final.String() == "" {
+		t.Fatalf("element defaults = block %q, final %q", got.Block.String(), got.Final.String())
+	}
+	if got := state.complexTypes[xsd.QName{Namespace: "urn:test", Local: "Type"}]; got.Block.String() == "" || got.Final.String() == "" {
+		t.Fatalf("complex type defaults = block %q, final %q", got.Block.String(), got.Final.String())
+	}
+}
+
 func stateWithSimple(name xsd.QName) compileState {
 	state := emptyValidationState()
 	state.simpleTypes[name] = xsd.SimpleType{Name: name.Local, Variety: xsd.SimpleRestriction, Base: xsd.QName{Namespace: xsd.Namespace, Local: "string"}}

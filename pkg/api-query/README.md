@@ -5,7 +5,7 @@ immutable, storage-neutral plan. It covers field projection, relationships,
 typed filters, deterministic sorting, cursor or offset pagination, conservative
 costs, and strict transport adapters without becoming an ORM or SQL language.
 
-The minimum supported toolchain is Go 1.26.5.
+The minimum supported toolchain is Go 1.26.6.
 
 ## Five-minute JSON-RPC quickstart
 
@@ -97,3 +97,8 @@ The repository is preparing v1. Public compatibility rules are in
 [docs/compatibility.md](docs/compatibility.md), current changes are in
 [CHANGELOG.md](CHANGELOG.md), and the exported v1 candidate is recorded in
 `api/v1.txt`.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

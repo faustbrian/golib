@@ -3,7 +3,7 @@
 The package implements narrow server behavior; it does not claim full
 compliance with an entire specification.
 
-- Go 1.26.5 `net/http` handler, body, timeout, trailer, optional writer, and
+- Go 1.26.6 `net/http` handler, body, timeout, trailer, optional writer, and
   `ResponseController` contracts, including informational responses and valid
   status-code bounds.
 - RFC 9110 field lists, qvalues, media types, content coding selection,

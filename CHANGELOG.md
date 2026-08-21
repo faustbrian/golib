@@ -5,8 +5,105 @@ documented in each module's changelog.
 
 ## Unreleased
 
+### Fixed
+
+- Restore trusted content-addressed mutation checkpoints before CI module
+  verification so unchanged packages retain their exact proof while changed,
+  missing, malformed, or stale evidence executes normally.
+- Bind mutation checkpoints and reviewed zero-mutant packages to the complete
+  behavior-affecting Gremlins identity rather than its version label, preserve
+  exact executable hashes for traceability, and invalidate stale aggregate
+  reports as soon as a replacement campaign starts.
+- Accept ripgrep's upstream revision suffix while verifying the pinned CI
+  binary, so valid checksum-pinned releases reach module verification.
+- Provision checksum-pinned ripgrep for package checks that require its search
+  semantics, while keeping state-machine, WSDL, and XSD benchmark verification
+  portable on the standard shell toolchain.
+- Reconcile completed Kafka and Verkle specialist evidence into the aggregate
+  inventory, close the resolved Kafka specification-governance risk, and keep
+  managed-MSK and Verkle security non-claims explicit.
+- Make Kafka service overlapping-member shutdown evidence tolerate only the
+  documented transient observer-reentry fence without masking other failures.
+- Make HTTP admission verification distinguish immediate capacity from the
+  bounded waiter path without relabelling retained operational evidence.
+- Make queue-control CLI credential validation mutation-precise and remove the
+  scheduler fuzz gate's undeclared ripgrep dependency.
+- Remove undeclared ripgrep dependencies from schema-registry provenance,
+  SBOM, and official Confluent wire-reference verification.
+- Align the focused service-platform binary-size regression with the documented
+  Darwin-only absolute budget while preserving portable relative enforcement.
+- Make Kafka adapter documentation and specification checks portable to the
+  stock CI runner, register their pinned conformance decisions, restore PTY
+  tests before closing the controlling endpoint, and complete Linux-only
+  Merkle interoperability dependencies.
+- Provision the CLI shell-verification runtime from a checksum-pinned Ubuntu
+  package without invoking the runner package manager or its shared locks.
+- Run repository-contract validation independently from module selection so a
+  root metadata failure cannot suppress attributable module and CodeQL results,
+  while the required summary still fails closed on that validation.
+- Replay each passed operational-assurance record's captured input environment
+  when validating its fingerprints, so Linux CI can verify evidence produced
+  on another platform without changing the evidence identity.
+- Prevent parallel release snapshots from expanding dependency closures a
+  second time, so each selected module runs in exactly one isolated lane.
+- Normalize remaining non-specialist owned-module requirements to the local
+  `v0.0.0` source proxy and make mutation fingerprints ignore only owned
+  version locators, preserving content-identical evidence without hiding
+  source, test, fixture, tool, service, or external dependency changes.
+- Ignore ambient `node_modules` trees when generating source-documentation
+  manifests so local dependency installations cannot make fresh-clone
+  validation stale.
+- Propagate the task-owned isolated module file through an opt-in environment
+  contract so nested Go tooling can resolve current owned modules without
+  weakening unrelated child-process isolation.
+- Preserve content-identical package gate evidence across the runner process-
+  isolation refactor while keeping service setup and gate commands in each
+  checkpoint fingerprint.
+
 ### Added
 
+- Record the public durability composition across digest-pinned PostgreSQL 14
+  through 18 with Valkey 9.1.0 and correct already-proved OpenSearch partial
+  result and point-in-time failure coverage.
+- Add a maintained PostgreSQL 14 through 18 reference durability matrix against
+  Valkey 9.1.0 so supported database versions exercise the same public
+  idempotency, outbox, queue, and transaction composition.
+- Add a complete operational-assurance requirement matrix that distinguishes
+  proved, partial, external, specialist-owned, and consumer-owned work while
+  preserving the current `not ready` verdict and exact remaining proof.
+- Record executable OpenSearch dashboard, alert, incident-drill, and runbook
+  consistency evidence without treating repository artifacts as installed
+  production operations.
+- Record secured OpenSearch 2.19.6 and 3.8.0 TLS, least-privilege,
+  tenant-isolation, credential-rotation, DNS-change, and recovery evidence
+  without treating local test PKI as production identity proof.
+- Record real OpenSearch 2.19.6 and 3.8.0 version-matrix, snapshot/restore,
+  rebuild, reconciliation, bounded-load, mixed-version, outage-recovery, and
+  rolling-upgrade evidence without expanding it into managed-service or
+  production-capacity claims.
+- Reuse the unchanged HTTP composition proof as bounded observability evidence
+  for correlation, in-memory telemetry and audit, readiness recovery, graceful
+  shutdown, and restart without implying production operations readiness.
+- Reuse the unchanged HTTP composition proof as bounded security evidence for
+  signed requests, capabilities, authentication, tenant isolation, validation,
+  fail-closed audit delivery, and correlation without implying supply-chain or
+  production privacy readiness.
+- Record bounded cross-package adoption evidence for Track, Postal, and
+  Location role composition, correlation, resilience, lifecycle, and generic
+  bootstrap budgets without treating the fixtures as production services, and
+  classify its content-addressed module fingerprints as non-secret checksums.
+- Record PostgreSQL and Valkey scheduler lease-store evidence for server-time
+  fencing, cancellation atomicity, ambiguous-outcome reconciliation, caller-
+  owned schemas, and reconnect recovery.
+- Record Redis and Valkey queue lifecycle evidence for deadline redelivery,
+  dead-letter recovery, rolling worker replacement, process termination, and
+  the explicit at-least-once duplicate window.
+- Record focused workflow process-death, deadlock, snapshot-restore,
+  replica-promotion, unknown-outcome, fencing, and dead-letter recovery
+  evidence without expanding it into managed-service claims.
+- Add a task-owned process-death and PostgreSQL/Valkey replacement campaign
+  that proves fail-closed outages, exact replay, abandoned-task reclamation,
+  and acknowledgement persistence without claiming managed failover.
 - Add a constrained native-Linux service load campaign with explicit latency,
   throughput, heap, goroutine, descriptor, and error budgets while preserving
   soak and production capacity as open assurance work, and bind its proof to
@@ -14,8 +111,9 @@ documented in each module's changelog.
 - Add a maintained PostgreSQL and Valkey durability reference that proves
   transactional business, idempotency, outbox, relay, acknowledgement, replay,
   and unacknowledged-task recovery through public module APIs.
-- Record bounded current `v1.0.0` planning, local proxy, and clean-consumer
-  release evidence without implying public publication or release readiness.
+- Record current clean-clone release dry-runs and deterministic all-module
+  clean-consumer resolution for all 107 releasable modules at exact `v1.0.0`
+  without implying public publication or release readiness.
 - Add a content-addressed operational-assurance register and validator that
   inventories every releasable module and required composition scenario while
   keeping the current incomplete verdict explicitly `not ready`.
@@ -34,6 +132,21 @@ documented in each module's changelog.
 - Add the root documentation entry point, package and protocol decision guides,
   recommended compositions, integration ownership map, status, versioning, and
   shared terminology.
+- Link every non-specialist releasable module to the canonical documentation
+  portal and reject future missing backlinks while explicitly leaving the
+  Kafka and Verkle specialist-owned modules outside this documentation batch.
+- Reject repository documentation with missing or multiple top-level headings,
+  skipped heading levels, or unclosed fenced code blocks.
+- Reject malformed GitHub repository source links that omit a `blob` or `tree`
+  route and repair the propagated queue-control-plane catalog link.
+- Reject obsolete standalone-repository URLs across package documentation,
+  replace package-local workflow badges with the repository CI workflow, and
+  remove queue-control-plane publishing claims unsupported by automation.
+- Reject released-version changelog sections for pre-v1 modules and correct
+  package status, security, roadmap, and release-candidate guidance to match
+  the repository's unpublished state.
+- Enforce repository documentation spelling and local/external link integrity
+  with pinned, fail-closed, locally runnable CSpell and Lychee gates.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.
@@ -56,6 +169,13 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Enforce `v1.0.0` as every unpublished module's first public release even
+  when an obsolete package-local pre-v1 policy file remains present.
+- Preserve reviewed OpenSearch operational evidence across the corrected
+  real-cluster alias observer while retaining original observation times.
+- Preserve operational evidence across reviewed, exact transitive input-digest
+  migrations without rewriting observation times or accepting unlisted digest
+  changes, while still failing closed on stale artifacts and behavioral inputs.
 - Make release plans report operational readiness and make every future
   mutating release path fail before verification or publication when assurance
   is not ready.
@@ -179,6 +299,8 @@ documented in each module's changelog.
 
 ### Changed
 
+- Record the completed owned package-audit boundary without treating
+  specialist-owned work or retained content-identical evidence as a reset.
 - Rename the unpublished webhook adapter packages to target-oriented
   `idempotency`, `slog`, `outbox`, `queue`, and `otel` paths before v1.
 - Rename the unpublished outbox OpenTelemetry adapter to the target-oriented

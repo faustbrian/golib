@@ -100,7 +100,7 @@ replacement.
 
 - **Status, owner, and classification:** `resolved`; maintainers; Go URL
   interoperability and local request-target policy.
-- **Source and issue:** RFC 3986 defines URI components, while Go 1.26.5
+- **Source and issue:** RFC 3986 defines URI components, while Go 1.26.6
   `net/url` defines `EscapedPath`, form-style query parsing, and `Values.Encode`.
   Neither selects canonical webhook semantics for method case, percent escapes,
   plus signs, duplicate values, or an empty path.
@@ -565,7 +565,7 @@ replacement.
 
 ## WEBHOOK-DEC-021: DNS rebinding, redirects, proxies, and transport
 
-**Authoritative reference:** [Go 1.26.5 net/http source](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/).
+**Authoritative reference:** [Go 1.26.6 net/http source](https://cs.opensource.google/go/go/+/refs/tags/go1.26.6:src/net/http/).
 
 - **Status, owner, and classification:** `resolved`; maintainers; defensive Go
   HTTP transport policy.

@@ -36,7 +36,7 @@ complete.
 
 ## Local evidence snapshot
 
-The final local run uses the repository's pinned Go 1.26.5 toolchain and
+The final local run uses the repository's pinned Go 1.26.6 toolchain and
 published module revisions directly; no local `replace` or temporary Go
 workspace is required.
 

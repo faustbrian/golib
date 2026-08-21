@@ -1,28 +1,51 @@
-# OA-RELEASE-CONSUMER Local Evidence
+# All-Module Release Dry-Run Evidence
 
-Observed at `2026-08-12T20:16:39Z` on `darwin/arm64` with Go `1.26.5`.
+Observed at `2026-08-18T17:37:46Z` on `darwin/arm64` with Go `1.26.6`.
+Refreshed at `2026-08-19T20:04:18Z` after the filesystem fault-proxy
+correction.
+Refreshed again at `2026-08-19T20:54:13Z` after the HTTP-signature
+compatibility-filter correction.
 
 ## Executed Proof
 
-- The current release orchestrator planned `pkg/external-sort/v1.0.0`, reported
-  the repository's `not ready` operational-assurance verdict, and preserved the
-  dependency-first release order.
-- The module passed isolated tidy, test, and API compatibility checks.
-- A deterministic task-owned local module proxy exposed the proposed exact
-  version without workspace replacements.
-- A clean consumer outside the module workspace initialized with `GOWORK=off`,
-  resolved `github.com/faustbrian/golib/pkg/external-sort@v1.0.0`, and listed
-  the public package successfully.
-- The release checkpoint and its log were written immediately under the exact
-  current gate-input fingerprint. Disposable consumers, proxy data, and Go
-  caches were removed after the run.
+A disposable Git snapshot of the current release-candidate tree ran the
+release dry-run for all 107 releasable modules with five isolated parallel
+workers and task-owned cold Go caches. Content-identical current checkpoints
+were reused; checkpoints whose release inputs changed reran their isolated
+release gates. Every module's resulting current checkpoint proves that it:
+
+- planned the required initial `v1.0.0` directory-prefixed tag;
+- preserved dependency-first owned-module release ordering;
+- passed isolated tidy, test, and API compatibility checks;
+- built a deterministic task-owned local module proxy at exact `v1.0.0`; and
+- resolved and listed its public consumer package with `GOWORK=off` and no
+  module replacement.
+
+The aggregate command exited successfully. The snapshot excluded an unrelated
+working-tree-only checksum edit. The snapshot, local proxies, consumers,
+module cache, and build cache were task-owned and removed after the campaign.
+
+The refreshed `pkg/filesystem` release checkpoint reran its isolated tidy,
+test, API compatibility, local `v1.0.0` proxy, and clean external consumer
+checks against the corrected source. It passed with input digest
+`08622c9d5f5b8e8ee512fd7431c3f2138bd995b49e376ace9e753c38944b262b`.
+The other 106 release inputs are unchanged, so their exact content-identity
+checkpoints remain current without re-execution.
+
+The refreshed `pkg/http-signature` release checkpoint reran its isolated tidy,
+test, API compatibility, local `v1.0.0` proxy, and clean external consumer
+checks against the order-independent compatibility filter. It passed with
+input digest
+`370f753416c7c5601c01a010b125dac1036798e1a6d7e8371c44d608dd243740`.
+The other 106 release inputs remain content-identical to their current
+checkpoints and require no re-execution.
 
 ## Claim Boundary
 
-This current evidence is scoped only to `pkg/external-sort`. A prior aggregate
-dry-run covered 96 unaffected releasable modules before release planning gained
-the operational-assurance report; that historical execution is not relabeled
-as current proof here. No tag, release, or public artifact was created. Public
-proxy and checksum resolution, signatures, attestations, the remaining module
-matrix, specialist-owned scopes, and release authorization remain unproven.
+This proves the current local release command, isolated module release gates,
+dependency ordering, proposed tags, local packaging, and per-module clean
+consumer resolution. It does not create or verify public tags or artifacts,
+prove public proxy or checksum-database availability, verify signatures,
+attestations, SBOM provenance, upgrade or downgrade behavior, authorize a
+release, or establish the other operational-assurance scenarios.
 `OA-RELEASE-CONSUMER` therefore remains pending.

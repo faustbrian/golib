@@ -404,3 +404,8 @@ This project does not format code, fork the compiler, execute target programs,
 or claim ownership, borrow, or data-race proof. NilAway remains separately
 pinned and advisory; its exit status must not be hidden when reports are later
 normalized.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

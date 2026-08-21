@@ -1,8 +1,9 @@
 package prompts
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -47,14 +48,14 @@ func NewSearchSelect[T any](config SearchSelectConfig[T]) (Prompt[T], error) {
 // Search returns ranked option copies with stable declaration-order ties.
 func Search[T any](options []Option[T], query string, policy SearchPolicy) ([]Option[T], error) {
 	normalizedPolicy, err := normalizeSearchPolicy(policy)
-	if err != nil ||
-		len(options) > normalizedPolicy.MaxOptions ||
-		utf8.RuneCountInString(query) > normalizedPolicy.MaxQueryRunes {
-		return nil, &Error{
-			Kind: ErrorUnsupported,
-			Operation: "search options",
-			Cause: ErrUnsupported,
-		}
+	if err != nil {
+		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
+	}
+	if len(options) > normalizedPolicy.MaxOptions {
+		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
+	}
+	if utf8.RuneCountInString(query) > normalizedPolicy.MaxQueryRunes {
+		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
 	}
 	if len(options) == 0 {
 		return []Option[T]{}, nil
@@ -82,19 +83,10 @@ func Search[T any](options []Option[T], query string, policy SearchPolicy) ([]Op
 			matches = append(matches, match{option: option, rank: rank, index: index})
 		}
 	}
-	sort.SliceStable(
-		matches,
-		func(left, right int) bool {
-			if matches[left].rank != matches[right].rank {
-				return matches[left].rank < matches[right].rank
-			}
-
-			return matches[left].index < matches[right].index
-		},
-	)
-	if len(matches) > normalizedPolicy.MaxResults {
-		matches = matches[:normalizedPolicy.MaxResults]
-	}
+	slices.SortStableFunc(matches, func(left, right match) int {
+		return cmp.Compare(left.rank, right.rank)
+	})
+	matches = matches[:min(len(matches), normalizedPolicy.MaxResults)]
 	results := make([]Option[T], len(matches))
 	for index, matched := range matches {
 		results[index] = matched.option
@@ -143,13 +135,9 @@ func searchRank[T any](option Option[T], query string, queryTokens []string) (in
 
 func tokensMatch(queries []string, candidates []string, matches func(string, string) bool) bool {
 	for _, query := range queries {
-		found := false
-		for _, candidate := range candidates {
-			if matches(candidate, query) {
-				found = true
-				break
-			}
-		}
+		found := slices.ContainsFunc(candidates, func(candidate string) bool {
+			return matches(candidate, query)
+		})
 		if !found {
 			return false
 		}

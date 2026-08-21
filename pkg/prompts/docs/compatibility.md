@@ -1,6 +1,6 @@
 # Compatibility
 
-The initial minimum toolchain is Go 1.26.5. CI also runs the current stable Go
+The initial minimum toolchain is Go 1.26.6. CI also runs the current stable Go
 toolchain. The supported operating systems are Linux and macOS. CI tests the
 semantic core, virtual terminal, and optional terminal adapter on both.
 Windows is not supported or tested.

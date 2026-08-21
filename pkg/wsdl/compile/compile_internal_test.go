@@ -1004,6 +1004,123 @@ func TestStyleTypeHelpersCoverInlineMissingAndCycleBoundaries(t *testing.T) {
 	}
 }
 
+func TestLookupAndStyleHelpersCoverIndependentBoundaries(t *testing.T) {
+	t.Parallel()
+
+	interfaceName := wsdl.QName{Namespace: "urn:test", Local: "API"}
+	set := &Set{interfaces: []Interface{{
+		Name: interfaceName, Operations: []Operation{{Name: "Call"}},
+	}}}
+	for _, name := range []string{"Before", "Zulu"} {
+		if _, ok := set.Operation(interfaceName, name); ok {
+			t.Errorf("Operation(%q) unexpectedly succeeded", name)
+		}
+	}
+
+	if _, ok := elementComplexType(xsd.Element{
+		Type: xsd.QName{Namespace: "urn:test", Local: "Named"},
+	}, nil); ok {
+		t.Fatal("elementComplexType(named, nil) succeeded")
+	}
+
+	sequence := &xsd.ModelGroup{Compositor: xsd.Sequence}
+	for name, test := range map[string]struct {
+		value  xsd.ComplexType
+		exists bool
+		want   bool
+	}{
+		"missing":         {value: xsd.ComplexType{Content: sequence}},
+		"content missing": {exists: true},
+		"wrong compositor": {value: xsd.ComplexType{
+			Content: &xsd.ModelGroup{Compositor: xsd.Choice},
+		}, exists: true},
+		"simple content": {value: xsd.ComplexType{
+			Content: sequence, SimpleContent: true,
+		}, exists: true},
+		"sequence": {value: xsd.ComplexType{Content: sequence}, exists: true, want: true},
+	} {
+		if got := isComplexSequence(test.value, test.exists); got != test.want {
+			t.Errorf("isComplexSequence(%s) = %t, want %t", name, got, test.want)
+		}
+	}
+
+	for name, test := range map[string]struct {
+		value xsd.Element
+		want  bool
+	}{
+		"reference": {value: xsd.Element{Ref: xsd.QName{Local: "Global"}}},
+		"unnamed":   {},
+		"local":     {value: xsd.Element{Name: "value"}, want: true},
+	} {
+		if got := isLocalRPCElement(test.value); got != test.want {
+			t.Errorf("isLocalRPCElement(%s) = %t, want %t", name, got, test.want)
+		}
+	}
+}
+
+func TestIRINamedSimpleTypeFollowsCompiledBase(t *testing.T) {
+	t.Parallel()
+
+	compiler, err := xsdcompile.New(xsdcompile.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, err := compiler.Compile(context.Background(), xsdcompile.Source{
+		URI: "https://example.test/types.xsd",
+		Content: []byte(`<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"` +
+			` targetNamespace="urn:test"><xs:simpleType name="Binary">` +
+			`<xs:restriction base="xs:base64Binary"/></xs:simpleType>` +
+			`<xs:simpleType name="Alias"><xs:restriction base="tns:Binary"` +
+			` xmlns:tns="urn:test"/></xs:simpleType><xs:simpleType name="Text">` +
+			`<xs:restriction base="xs:string"/></xs:simpleType>` +
+			`<xs:simpleType name="TextAlias"><xs:restriction base="tns:Text"` +
+			` xmlns:tns="urn:test"/></xs:simpleType></xs:schema>`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias, ok := schemas.SimpleType(xsd.QName{Namespace: "urn:test", Local: "Alias"})
+	if !ok || !iriSimpleTypeForbidden(alias, schemas, make(map[xsd.QName]struct{})) {
+		t.Fatalf("IRI named base = (%#v, %t)", alias, ok)
+	}
+	textAlias, ok := schemas.SimpleType(xsd.QName{Namespace: "urn:test", Local: "TextAlias"})
+	if !ok || iriSimpleTypeForbidden(textAlias, schemas, make(map[xsd.QName]struct{})) {
+		t.Fatalf("IRI safe named base = (%#v, %t)", textAlias, ok)
+	}
+}
+
+func TestRPCSignatureRejectsEveryCrossDirectionPresence(t *testing.T) {
+	t.Parallel()
+
+	name := wsdl.QName{Namespace: "urn:test", Local: "value"}
+	for testName, test := range map[string]struct {
+		direction wsdl.RPCDirection
+		in        bool
+		out       bool
+	}{
+		"in also output":      {direction: wsdl.RPCDirectionIn, in: true, out: true},
+		"out also input":      {direction: wsdl.RPCDirectionOut, in: true, out: true},
+		"inout misses output": {direction: wsdl.RPCDirectionInOut, in: true},
+	} {
+		input := rpcMessageShape20{elements: make(map[wsdl.QName]xsd.QName)}
+		output := rpcMessageShape20{elements: make(map[wsdl.QName]xsd.QName)}
+		if test.in {
+			input.elements[name] = xsd.QName{Namespace: xsd.Namespace, Local: "string"}
+		}
+		if test.out {
+			output.elements[name] = xsd.QName{Namespace: xsd.Namespace, Local: "string"}
+		}
+		err := validateRPCSignature20(wsdl.InterfaceOperation20{
+			Name: "Call", RPCSignature: []wsdl.RPCSignatureParameter20{{
+				Name: name, Direction: test.direction,
+			}},
+		}, input, output)
+		if !errors.Is(err, ErrInvalidRPCStyle) {
+			t.Errorf("validateRPCSignature20(%s) error = %v", testName, err)
+		}
+	}
+}
+
 func TestFaultOrderingCoversDeclaredAndInheritedCollections(t *testing.T) {
 	t.Parallel()
 

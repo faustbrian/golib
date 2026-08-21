@@ -706,7 +706,7 @@ func (tree Tree) findStemNode(
 		child := tree.nodes[current]
 		switch child.kind {
 		case nodeInternal:
-			continue
+			// The enclosing loop continues after the switch.
 		case nodeStem:
 			return current, child.stem == stem, nil
 		default:

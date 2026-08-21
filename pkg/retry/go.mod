@@ -1,11 +1,11 @@
 module github.com/faustbrian/golib/pkg/retry
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/cenkalti/backoff/v5 v5.0.3
-	github.com/faustbrian/golib/pkg/resilience v0.0.0-20260803020800-aaf2ae9d0561
+	github.com/faustbrian/golib/pkg/resilience v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/metric v1.44.0
@@ -24,5 +24,5 @@ require (
 	go.opentelemetry.io/otel/sdk v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )

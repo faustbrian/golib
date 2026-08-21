@@ -41,6 +41,12 @@ func TestHTTPHeaderCarrierBoundsHostileDuplicates(t *testing.T) {
 	t.Parallel()
 
 	adapter, _ := tenanthttp.New(tenanthttp.Options{Trust: func(*http.Request) bool { return true }})
+	unrelated := httptest.NewRequest(http.MethodGet, "/", nil)
+	unrelated.Header.Set("X-Unrelated", "value")
+	if _, err := adapter.Extract(unrelated); !errors.Is(err, tenancy.ErrTenantMetadataMissing) {
+		t.Fatalf("Extract(unrelated) error = %v", err)
+	}
+
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.Header.Set("X-Unrelated", "value")
 	request.Header[tenanthttp.DefaultHeader] = []string{

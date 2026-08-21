@@ -5,8 +5,18 @@ Versioning after v1.0.0.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace obsolete standalone-repository links and workflow claims with
+  monorepo-canonical targets and current release guidance.
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Refresh local `v0.0.0` owned-module checksums after dependency manifests and
+  release notes were normalized; runtime behavior and public APIs are
+  unchanged.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 
@@ -44,4 +54,4 @@ Versioning after v1.0.0.
 - Replace unreachable owned-module pseudo-versions with published revisions so
   clean checkouts can reproduce every gate without local replacements.
 
-[Unreleased]: https://github.com/faustbrian/golib/pkg/opening-hours/commits/main
+[Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/opening-hours

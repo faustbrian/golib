@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/failsafe-go/failsafe-go v0.9.6

@@ -110,6 +110,24 @@ func TestTableAndSummaryAreBoundedDeterministicAndEscaped(t *testing.T) {
 	}
 }
 
+func TestTableAcceptsExactRowAndColumnLimits(t *testing.T) {
+	t.Parallel()
+
+	terminal := prompts.NewVirtualTerminal(80, 24)
+	err := prompts.WriteTable(context.Background(), prompts.Table{
+		Headers: []string{"Column"},
+		Rows:    [][]string{{"value"}},
+		MaxRows: 1, MaxColumns: 1,
+	}, prompts.Execution{Output: terminal})
+	if err != nil {
+		t.Fatalf("WriteTable() error = %v", err)
+	}
+	if got := terminal.Output(); !strings.Contains(got, "| Column |") ||
+		!strings.Contains(got, "| value  |") {
+		t.Fatalf("table output = %q", got)
+	}
+}
+
 func TestPresentationRejectsInvalidDefinitionsAndPropagatesIO(t *testing.T) {
 	t.Parallel()
 

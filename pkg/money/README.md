@@ -69,3 +69,8 @@ and correctness-gated comparative benchmarks.
 See [docs/api.md](docs/api.md),
 [docs/contexts-and-rounding.md](docs/contexts-and-rounding.md), and
 [docs/cookbook.md](docs/cookbook.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

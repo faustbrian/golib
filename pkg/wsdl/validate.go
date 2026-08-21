@@ -392,7 +392,7 @@ func validateOperationStyle11(
 	collector *diagnosticCollector,
 ) {
 	expected := operationStyle11(operation.Input, operation.Output, nil)
-	if operation.Style == "" || expected == "" || operation.Style != expected {
+	if operation.Style == "" || operation.Style != expected {
 		collector.add(Diagnostic{
 			Code: "WSDL11_OPERATION_STYLE", Severity: SeverityError,
 			Message: fmt.Sprintf(
@@ -452,13 +452,7 @@ func validateBindingOperation11(
 	)
 	for index := range bound.Faults {
 		fault := &bound.Faults[index]
-		var abstractFault *OperationMessage11
-		for abstractIndex := range abstract.Faults {
-			if abstract.Faults[abstractIndex].Name == fault.Name {
-				abstractFault = &abstract.Faults[abstractIndex]
-				break
-			}
-		}
+		abstractFault := operationFault11(abstract.Faults, fault.Name)
 		validateSOAPBindingMessage11(
 			fault,
 			abstractFault,
@@ -478,6 +472,15 @@ func validateBindingOperation11(
 			})
 		}
 	}
+}
+
+func operationFault11(faults []OperationMessage11, name string) *OperationMessage11 {
+	for index := range faults {
+		if faults[index].Name == name {
+			return &faults[index]
+		}
+	}
+	return nil
 }
 
 func matchingOperation11(bound BindingOperation11, operations []Operation11) *Operation11 {
@@ -549,24 +552,20 @@ func validateSOAPBindingMessage11(
 	}
 	if bound.SOAPBody != nil && abstract != nil {
 		parts, knownMessage := messageParts[abstract.Message]
-		if !knownMessage {
-			parts = nil
-		}
-		for _, part := range bound.SOAPBody.Parts {
-			if !knownMessage {
-				continue
+		if knownMessage {
+			for _, part := range bound.SOAPBody.Parts {
+				if _, exists := parts[part]; exists {
+					continue
+				}
+				collector.add(Diagnostic{
+					Code: "WSDL11_SOAP_BODY_PART", Severity: SeverityError,
+					Message: fmt.Sprintf(
+						"SOAP body references unknown message part %q",
+						part,
+					),
+					Location: bound.SOAPBody.Location,
+				})
 			}
-			if _, exists := parts[part]; exists {
-				continue
-			}
-			collector.add(Diagnostic{
-				Code: "WSDL11_SOAP_BODY_PART", Severity: SeverityError,
-				Message: fmt.Sprintf(
-					"SOAP body references unknown message part %q",
-					part,
-				),
-				Location: bound.SOAPBody.Location,
-			})
 		}
 	}
 	if bound.SOAPBody != nil {
@@ -1344,17 +1343,16 @@ func validateCustomMessageLabels20(
 				})
 				continue
 			}
-			if message.MessageLabel == "" {
-				continue
+			if message.MessageLabel != "" {
+				if _, exists := seen[message.MessageLabel]; exists {
+					collector.add(Diagnostic{
+						Code: "WSDL20_MESSAGE_LABEL", Severity: SeverityError,
+						Message:  fmt.Sprintf("duplicate message label %q", message.MessageLabel),
+						Location: message.Location,
+					})
+				}
+				seen[message.MessageLabel] = struct{}{}
 			}
-			if _, exists := seen[message.MessageLabel]; exists {
-				collector.add(Diagnostic{
-					Code: "WSDL20_MESSAGE_LABEL", Severity: SeverityError,
-					Message:  fmt.Sprintf("duplicate message label %q", message.MessageLabel),
-					Location: message.Location,
-				})
-			}
-			seen[message.MessageLabel] = struct{}{}
 		}
 	}
 }
@@ -1732,16 +1730,7 @@ func validateBindingFaults20(
 	collector *diagnosticCollector,
 ) {
 	for _, reference := range references {
-		matched := false
-		for _, interfaceReference := range interfaceReferences {
-			if reference.Ref == interfaceReference.Ref &&
-				(reference.MessageLabel == "" ||
-					reference.MessageLabel == interfaceReference.MessageLabel) {
-				matched = true
-				break
-			}
-		}
-		if matched {
+		if bindingFaultMatches20(reference, interfaceReferences) {
 			continue
 		}
 		collector.add(Diagnostic{
@@ -1755,6 +1744,19 @@ func validateBindingFaults20(
 			Location: reference.Location,
 		})
 	}
+}
+
+func bindingFaultMatches20(
+	reference BindingFaultReference20,
+	interfaceReferences []InterfaceFaultReference20,
+) bool {
+	for _, interfaceReference := range interfaceReferences {
+		if reference.Ref == interfaceReference.Ref &&
+			(reference.MessageLabel == "" || reference.MessageLabel == interfaceReference.MessageLabel) {
+			return true
+		}
+	}
+	return false
 }
 
 func validateFaultReference20(

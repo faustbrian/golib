@@ -4,8 +4,14 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Prove an append whose PostgreSQL backend dies during a blocked statement is
   not committed, reconciles as absent, and retries without duplicate events or
   a global-position gap.

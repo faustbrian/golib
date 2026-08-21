@@ -261,3 +261,8 @@ Run `make check` for the complete module contract. Run `make integration` with
 a Docker-compatible runtime for digest-pinned durable Valkey Streams evidence.
 See [hardening evidence](docs/hardening.md) for duplicate windows, fault and
 fuzz coverage, backend claim boundaries, and benchmark methodology.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

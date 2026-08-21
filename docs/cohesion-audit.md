@@ -9,7 +9,7 @@ module documentation remain the detailed source evidence.
 
 The baseline contains 134 Go modules and 684 Go packages. Of those, 107 are
 independently releasable libraries or adapters. All releasable modules target
-Go 1.26.5, are currently unpublished, and plan their first public release as
+Go 1.26.6, are currently unpublished, and plan their first public release as
 `v1.0.0`.
 
 The repository already has strong shared engineering policy, isolated module

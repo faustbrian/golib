@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/merkle-tree
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/cbergoon/merkletree v0.2.0

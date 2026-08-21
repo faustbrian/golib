@@ -2,8 +2,14 @@
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Changed
 
+- Validate benchmark output with the standard shell toolchain so clean Linux
+  CI runners do not require an undeclared ripgrep installation.
 - Consolidate WSDL 1.1, WSDL 2.0, and cross-version interpretation policies in
   a canonical decision register with stable identifiers, normative sources,
   consequences, and executable evidence.

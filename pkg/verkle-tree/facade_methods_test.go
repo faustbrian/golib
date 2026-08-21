@@ -284,6 +284,23 @@ func TestFacadeSnapshotPreflightsResourcesBeforeCopyingCallerSlices(t *testing.T
 			assertFacadeResourceError(t, err, test.resource, test.limit, test.actual)
 		})
 	}
+
+	snapshot, err := NewSnapshot(
+		context.Background(),
+		BandersnatchIPA256V0(),
+		nil,
+		testFacadeSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("construct duplicate-update snapshot: %v", err)
+	}
+	duplicate := Key{1}
+	if _, _, err := snapshot.Apply(
+		context.Background(),
+		[]Update{Set(duplicate, Value{}), Delete(duplicate)},
+	); !errors.Is(err, ErrDuplicateKey) {
+		t.Fatalf("duplicate update error = %v, want %v", err, ErrDuplicateKey)
+	}
 }
 
 func assertFacadeResourceError(

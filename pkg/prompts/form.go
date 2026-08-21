@@ -243,8 +243,8 @@ func RunForm(
 			interaction.captured = nil
 		}
 		if errors.Is(err, errFormBack) {
-			target := max(0, index - 1)
-			for target > 0 && !form.fields[target].condition(result) {
+			target := max(0, index-1)
+			for target != 0 && !form.fields[target].condition(result) {
 				target--
 			}
 			removeFormResultsFrom(&result, form.fields, target)
@@ -275,7 +275,7 @@ func RunForm(
 }
 
 func removeFormResultsFrom(result *FormResult, fields []FormField, start int) {
-	removed := make(map[string]struct{}, len(fields) - start)
+	removed := make(map[string]struct{})
 	for _, field := range fields[start:] {
 		identity := field.formID()
 		if stored, exists := result.values[identity]; exists {

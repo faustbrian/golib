@@ -1,5 +1,10 @@
 # golib
 
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-portal-0b7285)](docs/index.md)
+[![Security policy](https://img.shields.io/badge/security-policy-2f9e44)](SECURITY.md)
+[![Release status](https://img.shields.io/badge/release-unreleased-868e96)](docs/status.md)
+
 `golib` is a multi-module Go library monorepo for explicit, composable service
 infrastructure. Public modules live under `pkg/`, retain independent semantic
 versions, and use module paths such as
@@ -41,6 +46,13 @@ tools, fixtures, examples, interoperability harnesses, and benchmarks. See
 and [recommended stacks](docs/recommended-stacks.md) for audience paths,
 combinations, and tradeoffs.
 
+The fastest executable introduction is the
+[HTTP and JSON-RPC service recipe](docs/recipes/service.md). Use the
+[durable worker](docs/recipes/durable-worker.md) or
+[external integration](docs/recipes/external-integration.md) recipe for those
+boundaries. All modules are unreleased; the recipes run from this workspace and
+do not imply public availability or production readiness.
+
 ## Workspace
 
 Install the version from [`.go-version`](.go-version), then run:
@@ -49,6 +61,7 @@ Install the version from [`.go-version`](.go-version), then run:
 make inventory
 make cohesion
 make specification-decisions
+make docs MODULES=.
 make workspace-test MODULES=pkg/clock
 make check MODULES=pkg/jsonrpc
 make conformance MODULES=pkg/jsonrpc
@@ -64,6 +77,8 @@ Specification conformance and independent-implementation interoperability are
 separate attributable gates. The repository-wide
 [specification governance contract](docs/specification-governance.md) defines
 mandatory decision records, provenance, executable evidence, and review.
+The root documentation gate validates structure, navigation, spelling against
+the reviewed project dictionary, and every local and external link.
 
 ## Quality Contract
 

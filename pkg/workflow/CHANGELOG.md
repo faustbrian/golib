@@ -5,6 +5,10 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Added
 
 - Clean-consumer PostgreSQL interoperability proof for atomically staging
@@ -100,6 +104,8 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - PostgreSQL commits now archive completed, failed, cancelled, terminated, and
   continued-as-new instances atomically with their terminal history.
 - `StepChild` definitions now require `ChildDefinition`; existing child steps

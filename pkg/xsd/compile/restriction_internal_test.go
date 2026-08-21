@@ -273,7 +273,9 @@ func TestParticleRestrictionRules(t *testing.T) {
 		{name: "unbounded base permits finite", derived: base, base: unboundedElement("value", 1), want: true},
 		{name: "element term must match", derived: elementParticle("other", 1, 2), base: base},
 		{name: "nested groups restrict", derived: groupParticle(group(xsd.Sequence, elementParticle("value", 1, 1))), base: groupParticle(group(xsd.Sequence, elementParticle("value", 0, 2))), want: true},
+		{name: "group cannot restrict non-group", derived: groupParticle(group(xsd.Sequence)), base: base},
 		{name: "wildcards restrict", derived: wildcardParticle("urn:a"), base: wildcardParticle("urn:a", "urn:b"), want: true},
+		{name: "wildcard cannot restrict non-wildcard", derived: wildcardParticle("urn:a"), base: base},
 		{name: "term kinds must match", derived: elementParticle("value", 1, 1), base: wildcardParticle("##any")},
 	} {
 		test := test
@@ -334,6 +336,16 @@ func TestElementTermRestrictionRules(t *testing.T) {
 	if elementTermEqual(derived, base) {
 		t.Fatal("restriction changed nillability")
 	}
+	derived = base
+	derived.Namespace = "urn:other"
+	if elementTermEqual(derived, base) {
+		t.Fatal("restriction changed the element namespace")
+	}
+	derived = base
+	derived.Fixed = "other"
+	if elementTermEqual(derived, base) {
+		t.Fatal("restriction changed the fixed value")
+	}
 	inlineBase := xsd.Element{
 		Name:             "value",
 		InlineSimpleType: &xsd.SimpleType{Variety: xsd.SimpleRestriction},
@@ -364,6 +376,13 @@ func TestWildcardSetOperationsAndOverlap(t *testing.T) {
 	if got := unionWildcards(strictAny, laxA); !wildcardHas(got, "##any") || got.ProcessContents != xsd.ProcessLax {
 		t.Fatalf("union(any, a) = %#v", got)
 	}
+	if got := unionWildcards(laxA, strictAny); !wildcardHas(got, "##any") || got.ProcessContents != xsd.ProcessLax {
+		t.Fatalf("union(a, any) = %#v", got)
+	}
+	if processContentsRank(xsd.ProcessStrict) != 3 || processContentsRank(xsd.ProcessLax) != 2 ||
+		processContentsRank(xsd.ProcessSkip) != 1 {
+		t.Fatal("processContentsRank() ordering is incorrect")
+	}
 	if got := unionWildcards(laxA, skipAB); len(got.Namespaces) != 2 || got.ProcessContents != xsd.ProcessSkip {
 		t.Fatalf("union(a, ab) = %#v", got)
 	}
@@ -380,6 +399,9 @@ func TestWildcardSetOperationsAndOverlap(t *testing.T) {
 	}
 	if nameClassesOverlap(nameClass{name: &b}, nameClass{wildcard: laxA}, "urn:test") {
 		t.Fatal("disjoint name and wildcard overlap")
+	}
+	if nameClassesOverlap(nameClass{wildcard: laxA}, nameClass{name: &b}, "urn:test") {
+		t.Fatal("disjoint wildcard and name overlap")
 	}
 	local := &xsd.Wildcard{Namespaces: []string{"##local"}}
 	other := &xsd.Wildcard{Namespaces: []string{"##other"}}

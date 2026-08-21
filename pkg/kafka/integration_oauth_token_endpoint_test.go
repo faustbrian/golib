@@ -96,7 +96,7 @@ func (provider secureOAuthTokenEndpointProvider) Token(
 }
 
 func TestApacheKafkaExternalOAuthTokenEndpointCompatibility(t *testing.T) {
-	runKafkaBrokerIntegration(t)
+	runExclusiveKafkaBrokerIntegration(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()

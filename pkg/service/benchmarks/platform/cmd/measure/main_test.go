@@ -148,6 +148,47 @@ func TestAssessAcceptsReviewedReferenceBudgets(t *testing.T) {
 	}
 }
 
+func TestAssessAppliesCohesiveBinaryOverheadBoundary(t *testing.T) {
+	t.Parallel()
+
+	low := passingCandidate("low-level-service")
+	cohesive := passingCandidate("cohesive-service")
+	cohesive.BinaryBytes = low.BinaryBytes + 384*1024
+	if result := assess(
+		referenceBudgetEnvironment(),
+		[]candidateResult{low, cohesive},
+	); !result.Passed {
+		t.Fatalf("exact cohesive binary boundary = %v", result.Failures)
+	}
+
+	cohesive.BinaryBytes++
+	result := assess(referenceBudgetEnvironment(), []candidateResult{low, cohesive})
+	if result.Passed || !slices.Contains(result.Failures, "cohesive relative binary size") {
+		t.Fatalf("over-limit cohesive binary assessment = %#v", result)
+	}
+}
+
+func TestAssessAppliesReferenceBinarySizeBoundary(t *testing.T) {
+	t.Parallel()
+
+	low := passingCandidate("low-level-service")
+	cohesive := passingCandidate("cohesive-service")
+	cohesive.BinaryBytes = 25 * 1024 * 1024 / 4
+	low.BinaryBytes = cohesive.BinaryBytes - 384*1024
+	if result := assess(
+		referenceBudgetEnvironment(),
+		[]candidateResult{low, cohesive},
+	); !result.Passed {
+		t.Fatalf("exact cohesive binary boundary = %v", result.Failures)
+	}
+
+	cohesive.BinaryBytes++
+	result := assess(referenceBudgetEnvironment(), []candidateResult{low, cohesive})
+	if result.Passed || !slices.Contains(result.Failures, "cohesive-service binary size") {
+		t.Fatalf("over-limit cohesive binary assessment = %#v", result)
+	}
+}
+
 func TestAssessRequiresSignificantRelativeRegressions(t *testing.T) {
 	t.Parallel()
 
@@ -340,7 +381,7 @@ func referenceBudgetEnvironment() environment {
 		Architecture: "arm64",
 		LogicalCPUs:  16,
 		GoMaxProcs:   16,
-		GoVersion:    "go1.26.5",
+		GoVersion:    "go1.26.6",
 	}
 }
 
@@ -690,7 +731,7 @@ func checkpointFixture(samples int) (report, map[string][]preparedCandidate) {
 		Schema: "service-platform-process-benchmark/v3",
 		Environment: environment{
 			OS: "darwin", Architecture: "arm64", LogicalCPUs: 16,
-			GoMaxProcs: 16, GoVersion: "go1.26.5", OHAVersion: "oha 1.15.0",
+			GoMaxProcs: 16, GoVersion: "go1.26.6", OHAVersion: "oha 1.15.0",
 			Kernel: "kernel", SourceRevision: "revision", RevalidatedRevision: "revision",
 			GateInputDigest: "gate-input", ExecutionStarted: "new-start",
 		},

@@ -84,7 +84,11 @@ func TestStorePropagatesCommitAndCancellationFailures(t *testing.T) {
 }
 
 func TestStorePropagatesTransactionFailuresAndRetriesInsertRaces(t *testing.T) {
-	request := capability.Consumption{CapabilityID: "cap-fault", MaxUses: 2, ExpiresAt: time.Now().Add(time.Hour)}
+	request := capability.Consumption{
+		CapabilityID: "cap-fault",
+		MaxUses:      2,
+		ExpiresAt:    time.Unix(2_000_000_000, 123_456_789).UTC(),
+	}
 	backend := newFakeBackend()
 	backend.beginErr = errors.New("begin")
 	if _, err := newStore(backend).Consume(context.Background(), request); !errors.Is(err, backend.beginErr) {
@@ -211,7 +215,11 @@ func TestStoreValidatesConstructorAndConsumption(t *testing.T) {
 }
 
 func TestConsumeOnceDistinguishesMissingAndExistingRows(t *testing.T) {
-	request := capability.Consumption{CapabilityID: "missing", MaxUses: 2, ExpiresAt: time.Now().Add(time.Hour)}
+	request := capability.Consumption{
+		CapabilityID: "missing",
+		MaxUses:      2,
+		ExpiresAt:    time.Unix(2_000_000_000, 987_654_321).UTC(),
+	}
 	backend := newFakeBackend()
 	result, retry, err := newStore(backend).consumeOnce(context.Background(), request)
 	if err != nil || retry || result.Use != 1 || result.Remaining != 1 {
@@ -223,6 +231,28 @@ func TestConsumeOnceDistinguishesMissingAndExistingRows(t *testing.T) {
 	result, retry, err = newStore(backend).consumeOnce(context.Background(), request)
 	if err != nil || retry || result.Use != 2 || result.Remaining != 0 {
 		t.Fatalf("consumeOnce(existing) = %#v, %t, %v", result, retry, err)
+	}
+}
+
+func TestConsumeNormalizesExpiryToPostgreSQLPrecision(t *testing.T) {
+	request := capability.Consumption{
+		CapabilityID: "postgres-precision",
+		MaxUses:      2,
+		ExpiresAt:    time.Unix(1_700_000_000, 123_456_789).UTC(),
+	}
+	backend := newFakeBackend()
+	backend.records[request.CapabilityID] = fakeRecord{
+		uses:      1,
+		maxUses:   request.MaxUses,
+		expiresAt: request.ExpiresAt.Truncate(time.Microsecond),
+	}
+
+	result, err := newStore(backend).Consume(context.Background(), request)
+	if err != nil || result.Use != 2 || result.Remaining != 0 {
+		t.Fatalf("Consume() = %#v, %v", result, err)
+	}
+	if stored := backend.records[request.CapabilityID].expiresAt; !stored.Equal(request.ExpiresAt.Truncate(time.Microsecond)) {
+		t.Fatalf("stored expiry = %v", stored)
 	}
 }
 

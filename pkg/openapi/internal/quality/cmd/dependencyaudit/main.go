@@ -24,6 +24,7 @@ const (
 	maximumModuleListReadBytes               = 4_194_305
 	maximumStderrBytes                       = 65_536
 	moduleListTimeout          time.Duration = 30_000_000_000
+	isolatedModfileEnvironment               = "GOLIB_ISOLATED_MODFILE"
 )
 
 var evidenceHeader = []string{
@@ -84,6 +85,15 @@ func listModules(root string) ([]module, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), moduleListTimeout)
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "list", "-m", "-json", "all")
+	if modfile := os.Getenv(isolatedModfileEnvironment); modfile != "" {
+		if strings.ContainsAny(modfile, " \t\r\n") {
+			return nil, errors.New("dependency audit: invalid isolated module file")
+		}
+		flags := strings.TrimSpace(
+			os.Getenv("GOFLAGS") + " -modfile=" + modfile + " -mod=readonly",
+		)
+		command.Env = append(command.Environ(), "GOFLAGS="+flags)
+	}
 	command.Dir = root
 	var stdout limitedBuffer
 	stdout.remaining = maximumModuleListReadBytes

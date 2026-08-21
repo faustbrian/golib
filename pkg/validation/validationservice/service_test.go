@@ -52,4 +52,10 @@ func TestChainSkipsNilAndShortCircuits(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("calls = %d", calls)
 	}
+	calls = 0
+	report := validationservice.Chain(validation.CollectAll, fail, after).
+		Validate(context.Background(), ctx, 1)
+	if calls != 2 || !report.HasCode("stop") {
+		t.Fatalf("collect-all calls=%d report=%#v", calls, report.Violations())
+	}
 }

@@ -9,7 +9,7 @@ duplicate dispatch, and jobs must remain idempotent.
 
 ## Requirements
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - PostgreSQL or Valkey 9 for multi-replica deployments
 - `queue` with a durable backend for long-running business work
 
@@ -148,3 +148,8 @@ Security vulnerabilities should be reported through the private process in
 
 Run `make check`. PostgreSQL and Valkey conformance require the environment
 variables described in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

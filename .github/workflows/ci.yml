@@ -11,6 +11,7 @@ on:
     types: [published]
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -37,9 +38,6 @@ jobs:
         with:
           go-version-file: .go-version
           cache: false
-
-      - name: Validate repository contract
-        run: make repository-check
 
       - name: Select changed modules and reverse dependants
         id: selection
@@ -73,6 +71,25 @@ jobs:
             echo "kafka_arm64=$(jq -r 'any(.[]; .directory == "pkg/kafka")' <<<"${changed_matrix}")"
           } >>"${GITHUB_OUTPUT}"
 
+  repository-contract:
+    name: Repository contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: .go-version
+          cache: false
+
+      - name: Validate repository contract
+        run: make repository-check
+
   quality:
     name: Module / ${{ matrix.directory }}
     needs: prepare
@@ -95,13 +112,26 @@ jobs:
           go-version-file: .go-version
           cache: false
 
-      - name: Install repository verification tools
+      - name: Set up ripgrep
+        env:
+          RIPGREP_VERSION: 15.2.0
+          RIPGREP_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends ripgrep
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/ripgrep.tar.gz"
+          root="${RUNNER_TEMP}/ripgrep"
+          curl --fail --silent --show-error --location \
+            "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            --output "${archive}"
+          printf '%s  %s\n' "${RIPGREP_SHA256}" "${archive}" | sha256sum --check -
+          mkdir -p "${root}"
+          tar --extract --gzip --file "${archive}" --directory "${root}" \
+            --strip-components 1
+          echo "${root}" >> "${GITHUB_PATH}"
+          "${root}/rg" --version | grep -Eq "^ripgrep ${RIPGREP_VERSION}( |$)"
 
-      - name: Set up Node for browser and Test262 gates
-        if: matrix.directory == 'pkg/ecma-regexp' || matrix.directory == 'pkg/queue-control-plane'
+      - name: Set up Node for browser, Test262, and documentation gates
+        if: matrix.directory == '.' || matrix.directory == 'pkg/ecma-regexp' || matrix.directory == 'pkg/queue-control-plane'
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24.4.1'
@@ -114,11 +144,27 @@ jobs:
           deno-version: '2.9.4'
           cache: false
 
-      - name: Install CLI shell verification tools
+      - name: Set up CLI shell runtime
         if: matrix.directory == 'pkg/cli'
+        env:
+          ZSH_DEB_SHA256: bd5cc8dd3a01a6db38c0a815d75202c356a9c7f378674ba7bed9bc86dcba8af0
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends zsh=5.9-6ubuntu2
+          archive="${RUNNER_TEMP}/zsh_5.9-6ubuntu2_amd64.deb"
+          root="${RUNNER_TEMP}/zsh-runtime"
+          curl --fail --silent --show-error --location \
+            'https://archive.ubuntu.com/ubuntu/pool/main/z/zsh/zsh_5.9-6ubuntu2_amd64.deb' \
+            --output "${archive}"
+          printf '%s  %s\n' "${ZSH_DEB_SHA256}" "${archive}" | sha256sum --check -
+          mkdir -p "${root}"
+          dpkg-deb --extract "${archive}" "${root}"
+          echo "${root}/bin" >> "${GITHUB_PATH}"
+          "${root}/bin/zsh" --version | grep -Eq '^zsh 5\.9 '
+
+      - name: Restore content-addressed mutation evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+        run: ./scripts/restore-ci-mutation-evidence.sh '${{ matrix.directory }}'
 
       - name: Run strict module contract
         run: ./scripts/run-modules.sh check --modules '${{ matrix.directory }}'
@@ -239,11 +285,6 @@ jobs:
           go-version-file: .go-version
           cache: false
 
-      - name: Install repository verification tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends ripgrep
-
       - name: Run Kafka contract tests on Linux arm64
         run: ./scripts/run-modules.sh test --modules 'pkg/kafka'
 
@@ -260,13 +301,14 @@ jobs:
   required:
     name: Required
     if: always()
-    needs: [prepare, quality, codeql, kafka-arm64]
+    needs: [prepare, repository-contract, quality, codeql, kafka-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Require every expected result
         env:
           PREPARE_RESULT: ${{ needs.prepare.result }}
+          REPOSITORY_CONTRACT_RESULT: ${{ needs.repository-contract.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
           KAFKA_ARM64_REQUIRED: ${{ needs.prepare.outputs.kafka_arm64 }}
@@ -275,6 +317,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "${PREPARE_RESULT}" == success ]]
+          [[ "${REPOSITORY_CONTRACT_RESULT}" == success ]]
           [[ "${QUALITY_RESULT}" == success ]]
           [[ "${CODEQL_RESULT}" == success ]]
           if [[ "${KAFKA_ARM64_REQUIRED}" == true ]]; then

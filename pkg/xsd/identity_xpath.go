@@ -14,9 +14,8 @@ func NormalizeIdentityXPath(expression string) string {
 			continue
 		}
 		start := index
-		for index < len(expression) && identityXPathSpace(expression[index]) {
-			index++
-		}
+		trimmed := strings.TrimLeft(expression[index:], " \t\n\r")
+		index = len(expression) - len(trimmed)
 		previous := previousIdentityXPathByte(expression, start)
 		next := nextIdentityXPathByte(expression, index)
 		if previous != 0 && next != 0 && !identityXPathPunctuation(previous) &&
@@ -28,7 +27,12 @@ func NormalizeIdentityXPath(expression string) string {
 }
 
 func identityXPathSpace(character byte) bool {
-	return character == ' ' || character == '\t' || character == '\n' || character == '\r'
+	switch character {
+	case ' ', '\t', '\n', '\r':
+		return true
+	default:
+		return false
+	}
 }
 
 func identityXPathPunctuation(character byte) bool {

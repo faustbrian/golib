@@ -39,7 +39,7 @@ generate() {
 			mod -json -licenses -type library -noserial -notimestamp -output "$output" .
 	)
 	test -s "$output"
-	rg -F "\"name\": \"${expected}\"" "$output" >/dev/null || {
+	grep -F -- "\"name\": \"${expected}\"" "$output" >/dev/null || {
 		echo "SBOM is missing ${expected}" >&2
 		exit 1
 	}

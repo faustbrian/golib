@@ -20,7 +20,7 @@ func TestGateEvidenceSurvivesOutputConsumerDisconnect(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
 set -eu
 printf 'stable-input\n'

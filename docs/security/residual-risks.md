@@ -34,19 +34,18 @@ checks do not close an operational or release boundary.
   resolution evidence exist for every released module.
 - **Acceptance:** None.
 
-## GL-RISK-003: Specialist Specification Evidence Is Still Converging
+## GL-RISK-003: Kafka Specification Evidence Converged
 
 - **Severity:** Medium
-- **Status:** Open
-- **Owner:** Kafka and OpenSearch specialist scopes
-- **Exposure:** The aggregate specification decision gate currently reports
-  incomplete Kafka adapter metadata and decision registers plus incomplete
-  OpenSearch decision consequences.
-- **Mitigation:** Consume the specialists' current conformance, provenance,
-  interoperability, and decision evidence without restarting unaffected
-  content-identical package campaigns.
-- **Review condition:** Close when the aggregate specification decision gate
-  passes for the final affected content.
+- **Status:** Resolved
+- **Owner:** Kafka specialist scope
+- **Exposure:** The former aggregate specification-decision gaps in Kafka
+  adapter metadata and decision registers are closed.
+- **Mitigation:** The aggregate specification decision gate now consumes the
+  current Kafka conformance, provenance, interoperability, and decision
+  evidence without restarting unaffected content-identical campaigns.
+- **Review condition:** Reopen only when affected Kafka specification inputs or
+  claimed support change and current aggregate evidence no longer passes.
 - **Acceptance:** None.
 
 ## GL-RISK-004: Dependency Findings Need Release Disposition

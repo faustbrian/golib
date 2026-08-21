@@ -101,7 +101,7 @@ func TestGateInputDigestDoesNotInspectLiveDockerForServiceModule(t *testing.T) {
 	writeTestFile(t, filepath.Join(bin, "docker"), "#!/bin/sh\nprintf 'called\\n' >>\"$FAKE_DOCKER_LOG\"\nprintf '29.6.2\\n'\n")
 	writeTestFile(t, filepath.Join(bin, "go"), `#!/bin/sh
 case "$2" in
-    GOVERSION) printf '%s\n' go1.26.5 ;;
+    GOVERSION) printf '%s\n' go1.26.6 ;;
     GOOS) printf '%s\n' linux ;;
     GOARCH) printf '%s\n' amd64 ;;
     CGO_ENABLED) printf '%s\n' 0 ;;
@@ -201,7 +201,7 @@ func TestGateInputDigestDoesNotInspectDockerForServiceFreeModule(t *testing.T) {
 	writeTestFile(t, filepath.Join(bin, "docker"), "#!/bin/sh\nprintf 'called\\n' >>\"$FAKE_DOCKER_LOG\"\nprintf '29.0.0\\n'\n")
 	writeTestFile(t, filepath.Join(bin, "go"), `#!/bin/sh
 case "$2" in
-    GOVERSION) printf '%s\n' go1.26.5 ;;
+    GOVERSION) printf '%s\n' go1.26.6 ;;
     GOOS) printf '%s\n' linux ;;
     GOARCH) printf '%s\n' amd64 ;;
     CGO_ENABLED) printf '%s\n' 0 ;;
@@ -251,7 +251,7 @@ func TestVerificationSnapshotDisablesInheritedFileSystemMonitor(t *testing.T) {
 	if err := os.MkdirAll(repository, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, filepath.Join(repository, "go.mod"), "module example.test/snapshot\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(repository, "go.mod"), "module example.test/snapshot\n\ngo 1.26.6\n")
 	for _, arguments := range [][]string{
 		{"init", "--initial-branch=main"},
 		{"config", "user.email", "golib@example.test"},
@@ -1008,7 +1008,7 @@ func TestIsolatedGoUsesTemporarySumsForOwnedModules(t *testing.T) {
 	module := t.TempDir()
 	writeTestFile(t, filepath.Join(module, "go.mod"), `module example.test/consumer
 
-go 1.26.5
+go 1.26.6
 
 require github.com/faustbrian/golib/pkg/dependency v0.0.0
 `)
@@ -1058,6 +1058,7 @@ fi
 {
 	printf 'environment=%s\n' "$GOFLAGS"
 	printf 'arguments=%s\n' "$*"
+	printf 'isolated-modfile=%s\n' "${GOLIB_ISOLATED_MODFILE:-}"
 } >"$GOLIB_FAKE_GO_OUTPUT"
 `)
 	if err := os.Chmod(fakeGo, 0o700); err != nil {
@@ -1099,6 +1100,10 @@ fi
 		strings.Contains(environmentLine, "-mod=readonly") {
 		t.Fatalf("isolated Go flags leaked into child environment: %s", invocation)
 	}
+	if !strings.Contains(string(invocation), "isolated-modfile=") ||
+		strings.Contains(string(invocation), "isolated-modfile=\n") {
+		t.Fatalf("isolated Go invocation omitted its opt-in modfile: %s", invocation)
+	}
 	versionedTool := exec.Command(script, "run", "example.test/tool@v1.0.0")
 	versionedTool.Dir = module
 	versionedTool.Env = environment
@@ -1128,11 +1133,11 @@ fi
 			t.Fatalf("isolated dependency update lacks %q: %s", required, invocation)
 		}
 	}
-	if strings.Contains(
-		strings.SplitN(string(invocation), "\n", 2)[1],
-		"-modfile=",
-	) {
-		t.Fatalf("isolated dependency update passed modfile as an argument: %s", invocation)
+	for _, line := range strings.Split(string(invocation), "\n") {
+		if strings.HasPrefix(line, "arguments=") &&
+			strings.Contains(line, "-modfile=") {
+			t.Fatalf("isolated dependency update passed modfile as an argument: %s", invocation)
+		}
 	}
 	fakeTool := filepath.Join(t.TempDir(), "fake-tool")
 	writeTestFile(t, fakeTool, `#!/bin/sh
@@ -1506,6 +1511,7 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 	}
 	contract := string(workflow)
 	for _, required := range []string{
+		`actions: read`,
 		`path: ${{ matrix.directory == '.' && '.artifacts' || format('.artifacts/{0}', matrix.directory) }}`,
 		`include-hidden-files: true`,
 		`workspace="${GITHUB_WORKSPACE}/go.work"`,
@@ -1523,19 +1529,170 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 		`target="${output}/package-${package_index}-default"`,
 		`GOWORK="${workspace}" go build -o "${target}" "${package}"`,
 		`matrix.directory == 'pkg/cli'`,
-		`sudo apt-get install --yes --no-install-recommends zsh=5.9-6ubuntu2`,
+		`ZSH_DEB_SHA256: bd5cc8dd3a01a6db38c0a815d75202c356a9c7f378674ba7bed9bc86dcba8af0`,
+		`zsh_5.9-6ubuntu2_amd64.deb`,
+		`printf '%s  %s\n' "${ZSH_DEB_SHA256}" "${archive}" | sha256sum --check -`,
+		`dpkg-deb --extract "${archive}" "${root}"`,
+		`echo "${root}/bin" >> "${GITHUB_PATH}"`,
+		`"${root}/bin/zsh" --version | grep -Eq '^zsh 5\.9 '`,
 		`package-manager-cache: false`,
 		`denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed`,
 		`deno-version: '2.9.4'`,
+		`restore-ci-mutation-evidence.sh '${{ matrix.directory }}'`,
+		`GITHUB_REPOSITORY_ID: ${{ github.repository_id }}`,
 	} {
 		if !strings.Contains(contract, required) {
 			t.Fatalf("CI workflow lacks %q", required)
 		}
 	}
+	if strings.Contains(contract, "apt-get") {
+		t.Fatal("CI workflow installs runner packages instead of verifying available pinned runtimes")
+	}
 	if strings.Contains(contract, "actions/setup-node@") &&
 		strings.Contains(contract, "node-version: '24.4.1'\n          cache: false") {
 		t.Fatal("setup-node receives unsupported cache=false package-manager input")
 	}
+	restore := strings.Index(contract, "Restore content-addressed mutation evidence")
+	strictContract := strings.Index(contract, "Run strict module contract")
+	if restore < 0 || strictContract < 0 || restore > strictContract {
+		t.Fatal("CI does not restore mutation checkpoints before module verification")
+	}
+}
+
+func TestCIRestoresOnlyCatalogedMutationCheckpoints(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repository, "pkg/example"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "packages": [
+      {"directory": ".", "coverage_required": true},
+      {"directory": "nested/package", "coverage_required": true},
+      {"directory": "docs", "coverage_required": false}
+    ]
+  }]
+}
+`)
+	archive := filepath.Join(t.TempDir(), "evidence.zip")
+	writeMutationEvidenceArchive(t, archive, map[string]string{
+		"mutation-checkpoints/root.json":           legacyCheckpointFixture("pkg/example", "."),
+		"mutation-checkpoints/nested-package.json": checkpointFixture("pkg/example", "nested/package"),
+		"mutation-checkpoints/docs.json":           checkpointFixture("pkg/example", "docs"),
+		"evidence/coverage.json":                   "{}\n",
+	})
+
+	command := exec.Command(
+		filepath.Join(root, "scripts", "restore-ci-mutation-evidence.sh"),
+		"pkg/example",
+		archive,
+	)
+	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("restore mutation evidence: %v\n%s", err, output)
+	}
+	for _, name := range []string{"root.json", "nested-package.json"} {
+		path := filepath.Join(repository, ".artifacts/pkg/example/mutation-checkpoints", name)
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("restored checkpoint %s: %v", name, err)
+		}
+	}
+	for _, path := range []string{
+		filepath.Join(repository, ".artifacts/pkg/example/mutation-checkpoints/docs.json"),
+		filepath.Join(repository, ".artifacts/pkg/example/evidence/coverage.json"),
+	} {
+		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("non-cataloged artifact restored at %s: %v", path, err)
+		}
+	}
+}
+
+func TestCIMutationRestoreRejectsCheckpointIdentityMismatch(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repository, "pkg/example"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "packages": [{"directory": ".", "coverage_required": true}]
+  }]
+}
+`)
+	archive := filepath.Join(t.TempDir(), "evidence.zip")
+	writeMutationEvidenceArchive(t, archive, map[string]string{
+		"mutation-checkpoints/root.json": checkpointFixture("pkg/other", "."),
+	})
+
+	command := exec.Command(
+		filepath.Join(root, "scripts", "restore-ci-mutation-evidence.sh"),
+		"pkg/example",
+		archive,
+	)
+	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("reject mismatched mutation evidence: %v\n%s", err, output)
+	}
+	checkpoint := filepath.Join(
+		repository,
+		".artifacts/pkg/example/mutation-checkpoints/root.json",
+	)
+	if _, err := os.Stat(checkpoint); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("mismatched checkpoint restored: %v", err)
+	}
+}
+
+func writeMutationEvidenceArchive(t *testing.T, path string, files map[string]string) {
+	t.Helper()
+
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive := zip.NewWriter(file)
+	for name, contents := range files {
+		entry, createErr := archive.Create(name)
+		if createErr != nil {
+			t.Fatal(createErr)
+		}
+		if _, writeErr := entry.Write([]byte(contents)); writeErr != nil {
+			t.Fatal(writeErr)
+		}
+	}
+	if err := archive.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func checkpointFixture(module, packageDirectory string) string {
+	return fmt.Sprintf(`{
+  "schema_version": 3,
+  "module": %q,
+  "package": %q,
+  "execution_revision": "cccccccccccccccccccccccccccccccccccccccc",
+  "gate_input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "gremlins_version": "v0.6.0",
+  "gremlins_verifier_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "report": {"files": [{"mutations": [{"status": "KILLED"}]}]}
+}
+`, module, packageDirectory)
+}
+
+func legacyCheckpointFixture(module, packageDirectory string) string {
+	return strings.Replace(
+		checkpointFixture(module, packageDirectory),
+		`"gremlins_verifier_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"`,
+		`"gremlins_verifier_sha256": null`,
+		1,
+	)
 }
 
 func TestCanonicalMutationGateCannotDelegateToWeakerModuleTargets(t *testing.T) {
@@ -1637,6 +1794,14 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 		`execution_revision=`,
 		`execution_revisions`,
 		`gate_input_digests`,
+		`mutation-verifier-identity.sh`,
+		`gremlins_verifier_sha256`,
+		`gremlins_verifier_sha256s`,
+		`gremlins_binary_sha256`,
+		`gremlins_binary_sha256s`,
+		`verifier_identity_source`,
+		`approved-semantic-migration`,
+		`select(. != null)`,
 		`mutation-legacy`,
 		`optional-mutation-digest.sh`,
 		`observer-v1`,
@@ -1670,8 +1835,89 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 		strings.Index(contract, `for package_directory in "${packages[@]}"`) {
 		t.Fatal("mutation runner captures execution revision after package execution")
 	}
+	removeAggregate := strings.Index(contract, `rm -f "${report}"`)
+	packageLoop := strings.Index(contract, `for package_directory in "${packages[@]}"`)
+	if removeAggregate < 0 || packageLoop < 0 || removeAggregate > packageLoop {
+		t.Fatal("mutation runner does not invalidate the previous aggregate before execution")
+	}
 	if _, err := os.Stat(filepath.Join(root, "scripts", "gate-input-digest.sh")); err != nil {
 		t.Fatalf("mutation evidence fingerprint tool: %v", err)
+	}
+}
+
+func TestMutationVerifierIdentityTracksBehavioralInputs(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{
+		filepath.Join(repository, ".golib"),
+		filepath.Join(repository, "scripts", "internal"),
+		filepath.Join(repository, "scripts", "patches"),
+	} {
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(repository, ".golib", "versions.env"), `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
+`)
+	for _, file := range []string{
+		"scripts/internal/mutation-command.sh",
+		"scripts/internal/mutation-coverage.sh",
+		"scripts/patches/gremlins-run-all-mutants.patch",
+		"scripts/patches/gremlins-shared-coverage.patch",
+		"scripts/patches/gremlins-module-relative-diff.patch",
+	} {
+		writeFile(t, filepath.Join(repository, file), file+"\n")
+	}
+	unrelated := filepath.Join(repository, "scripts", "internal", "run-mutation.sh")
+	writeFile(t, unrelated, "orchestration one\n")
+
+	digest := func() string {
+		t.Helper()
+		command := exec.Command(filepath.Join(root, "scripts", "mutation-verifier-identity.sh"))
+		command.Dir = repository
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("calculate mutation verifier identity: %v\n%s", err, output)
+		}
+
+		return strings.TrimSpace(string(output))
+	}
+
+	initial := digest()
+	if len(initial) != 64 {
+		t.Fatalf("mutation verifier identity length = %d", len(initial))
+	}
+	writeFile(t, unrelated, "orchestration two\n")
+	if current := digest(); current != initial {
+		t.Fatalf("orchestration changed verifier identity: %s != %s", current, initial)
+	}
+	patch := filepath.Join(repository, "scripts", "patches", "gremlins-run-all-mutants.patch")
+	writeFile(t, patch, "changed mutation semantics\n")
+	if current := digest(); current == initial {
+		t.Fatal("mutation semantics did not change verifier identity")
+	}
+}
+
+func TestGremlinsBuildCacheUsesCompleteVerifierIdentity(t *testing.T) {
+	root := testRepositoryRoot(t)
+	contents, err := os.ReadFile(filepath.Join(root, "scripts", "build-golib-gremlins.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := string(contents)
+	identity := `verifier_identity="$("${root}/scripts/mutation-verifier-identity.sh")"`
+	platform := `platform_identity="$(go env GOOS GOARCH | paste -sd- -)"`
+	artifact := `artifact="${root}/.artifacts/tooling/gremlins-${verifier_identity}-${platform_identity}"`
+	if !strings.Contains(build, identity) ||
+		!strings.Contains(build, platform) ||
+		!strings.Contains(build, artifact) {
+		t.Fatal("Gremlins build cache is not bound to the complete verifier identity")
+	}
+	if strings.Index(build, identity) > strings.Index(build, `if [[ -x "${binary}" ]]`) {
+		t.Fatal("Gremlins verifier identity is resolved after the build-cache early return")
 	}
 }
 
@@ -1758,6 +2004,7 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
   "validated_revision": "old-validation",
   "gate_input_digest": "old-input",
   "gremlins_version": "v0.6.0",
+  "gremlins_binary_sha256": "historical-binary",
   "environment": {"GOOS": "linux"},
   "report": {
     "files": [{
@@ -1775,6 +2022,15 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 	reportDigest := strings.TrimSpace(string(reportDigestOutput))
 	writeFile(t, ledger, fmt.Sprintf(`{
   "schema_version": 3,
+  "verifier_migrations": [{
+    "module": "pkg/example",
+    "package": ".",
+    "execution_revision": "original-execution",
+    "gate_input_digest": "old-input",
+    "gremlins_version": "v0.6.0",
+    "gremlins_verifier_sha256": "tool-identity",
+    "report_sha256": %q
+  }],
   "entries": [{
     "module": "pkg/example",
     "package": ".",
@@ -1784,7 +2040,7 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
     "gremlins_version": "v0.6.0",
     "report_sha256": %q
   }]
-}`, reportDigest))
+}`, reportDigest, reportDigest))
 
 	script := filepath.Join(root, "scripts", "internal", "reuse-approved-mutation-checkpoint.sh")
 	command := exec.Command(
@@ -1795,6 +2051,7 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 		".",
 		"current-input",
 		"v0.6.0",
+		"tool-identity",
 		"current-validation",
 		output,
 	)
@@ -1807,11 +2064,13 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 		t.Fatal(err)
 	}
 	var migrated struct {
-		ExecutionRevision string   `json:"execution_revision"`
-		ValidatedRevision string   `json:"validated_revision"`
-		GateInputDigest   string   `json:"gate_input_digest"`
-		IdentityLineage   []string `json:"identity_lineage"`
-		IdentityMigration struct {
+		ExecutionRevision      string   `json:"execution_revision"`
+		ValidatedRevision      string   `json:"validated_revision"`
+		GateInputDigest        string   `json:"gate_input_digest"`
+		GremlinsVerifierSHA256 string   `json:"gremlins_verifier_sha256"`
+		VerifierIdentitySource string   `json:"verifier_identity_source"`
+		IdentityLineage        []string `json:"identity_lineage"`
+		IdentityMigration      struct {
 			Reason                  string `json:"reason"`
 			PreviousGateInputDigest string `json:"previous_gate_input_digest"`
 		} `json:"identity_migration"`
@@ -1828,12 +2087,93 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 	if migrated.GateInputDigest != "current-input" {
 		t.Fatalf("gate input digest = %q", migrated.GateInputDigest)
 	}
+	if migrated.GremlinsVerifierSHA256 != "tool-identity" {
+		t.Fatalf("Gremlins verifier identity = %q", migrated.GremlinsVerifierSHA256)
+	}
+	if migrated.VerifierIdentitySource != "approved-semantic-migration" {
+		t.Fatalf("verifier identity source = %q", migrated.VerifierIdentitySource)
+	}
 	if !slices.Contains(migrated.IdentityLineage, "old-input") {
 		t.Fatalf("identity lineage = %v", migrated.IdentityLineage)
 	}
 	if migrated.IdentityMigration.Reason != "approved-input-identity-migration" ||
 		migrated.IdentityMigration.PreviousGateInputDigest != "old-input" {
 		t.Fatalf("identity migration = %+v", migrated.IdentityMigration)
+	}
+
+	directCheckpoint := filepath.Join(directory, "direct-checkpoint.json")
+	writeFile(t, directCheckpoint, `{
+  "schema_version": 3,
+  "module": "pkg/example",
+  "package": ".",
+  "execution_revision": "original-execution",
+  "validated_revision": "old-validation",
+  "gate_input_digest": "current-input",
+  "identity_lineage": ["old-input"],
+  "gremlins_version": "v0.6.0",
+  "gremlins_binary_sha256": "historical-binary",
+  "environment": {"GOOS": "linux"},
+  "report": {
+    "files": [{
+      "file_name": "example.go",
+      "mutations": [{"status": "KILLED", "type": "INVERT_LOGICAL"}]
+    }]
+  }
+}`)
+	direct := exec.Command(
+		script,
+		ledger,
+		directCheckpoint,
+		"pkg/example",
+		".",
+		"current-input",
+		"v0.6.0",
+		"tool-identity",
+		"current-validation",
+		output,
+	)
+	if result, err := direct.CombinedOutput(); err != nil {
+		t.Fatalf("bind verifier identity to current checkpoint: %v\n%s", err, result)
+	}
+	decodeJSONFile(t, output, &migrated)
+	if migrated.GremlinsVerifierSHA256 != "tool-identity" ||
+		migrated.GateInputDigest != "current-input" ||
+		migrated.VerifierIdentitySource != "approved-semantic-migration" {
+		t.Fatalf("direct verifier migration = %+v", migrated)
+	}
+
+	forgedCheckpoint := filepath.Join(directory, "forged-checkpoint.json")
+	writeFile(t, forgedCheckpoint, `{
+  "schema_version": 3,
+  "module": "pkg/example",
+  "package": ".",
+  "execution_revision": "original-execution",
+  "validated_revision": "old-validation",
+  "gate_input_digest": "current-input",
+  "gremlins_version": "v0.6.0",
+  "gremlins_binary_sha256": "historical-binary",
+  "environment": {"GOOS": "linux"},
+  "report": {
+    "files": [{
+      "file_name": "forged.go",
+      "mutations": [{"status": "KILLED", "type": "CONDITIONALS_NEGATION"}]
+    }]
+  }
+}`)
+	forged := exec.Command(
+		script,
+		ledger,
+		forgedCheckpoint,
+		"pkg/example",
+		".",
+		"current-input",
+		"v0.6.0",
+		"tool-identity",
+		"current-validation",
+		output,
+	)
+	if err := forged.Run(); err == nil {
+		t.Fatal("migration accepted an unreviewed report from an approved execution revision")
 	}
 
 	rejected := exec.Command(
@@ -1844,11 +2184,84 @@ func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T)
 		".",
 		"different-input",
 		"v0.6.0",
+		"tool-identity",
 		"current-validation",
 		output,
 	)
 	if err := rejected.Run(); err == nil {
 		t.Fatal("migration accepted an unapproved replacement input")
+	}
+
+	rejected = exec.Command(
+		script,
+		ledger,
+		checkpoint,
+		"pkg/example",
+		".",
+		"current-input",
+		"v0.6.0",
+		"different-tool-identity",
+		"current-validation",
+		output,
+	)
+	if err := rejected.Run(); err == nil {
+		t.Fatal("migration accepted evidence from a different mutation binary")
+	}
+}
+
+func TestMutationVerifierMigrationLedgerUsesExactCheckpointIdentities(t *testing.T) {
+	root := testRepositoryRoot(t)
+	var ledger struct {
+		VerifierMigrationReview struct {
+			GremlinsVerifierSHA256 string `json:"gremlins_verifier_sha256"`
+			Reason                 string `json:"reason"`
+			ReviewedAt             string `json:"reviewed_at"`
+		} `json:"verifier_migration_review"`
+		VerifierMigrations []struct {
+			Module                 string `json:"module"`
+			Package                string `json:"package"`
+			ExecutionRevision      string `json:"execution_revision"`
+			GateInputDigest        string `json:"gate_input_digest"`
+			GremlinsVersion        string `json:"gremlins_version"`
+			GremlinsVerifierSHA256 string `json:"gremlins_verifier_sha256"`
+			ReportSHA256           string `json:"report_sha256"`
+		} `json:"verifier_migrations"`
+	}
+	decodeJSONFile(
+		t,
+		filepath.Join(root, ".golib", "mutation-history-migrations.json"),
+		&ledger,
+	)
+	if len(ledger.VerifierMigrations) != 557 {
+		t.Fatalf("exact verifier migrations = %d, want 557", len(ledger.VerifierMigrations))
+	}
+	if ledger.VerifierMigrationReview.Reason == "" ||
+		ledger.VerifierMigrationReview.ReviewedAt == "" {
+		t.Fatal("verifier migration review metadata is incomplete")
+	}
+	seen := make(map[string]struct{}, len(ledger.VerifierMigrations))
+	for _, migration := range ledger.VerifierMigrations {
+		fields := []string{
+			migration.Module,
+			migration.Package,
+			migration.ExecutionRevision,
+			migration.GateInputDigest,
+			migration.GremlinsVersion,
+			migration.GremlinsVerifierSHA256,
+			migration.ReportSHA256,
+		}
+		if slices.Contains(fields, "") {
+			t.Fatalf("incomplete verifier migration: %+v", migration)
+		}
+		if migration.GremlinsVerifierSHA256 !=
+			ledger.VerifierMigrationReview.GremlinsVerifierSHA256 {
+			t.Fatalf("migration verifier identity differs from review: %+v", migration)
+		}
+		key := strings.Join(fields, "\x00")
+		if _, duplicate := seen[key]; duplicate {
+			t.Fatalf("duplicate verifier migration: %+v", migration)
+		}
+		seen[key] = struct{}{}
 	}
 }
 
@@ -1917,8 +2330,8 @@ func TestMutationDigestTracksIntegrationInputsInsteadOfDocumentation(t *testing.
 			t.Fatal(err)
 		}
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/root\n\ngo 1.26.5\n")
-	writeFile(t, filepath.Join(repository, "go.work"), `go 1.26.5
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
+	writeFile(t, filepath.Join(repository, "go.work"), `go 1.26.6
 
 use (
 	./pkg/example
@@ -1927,7 +2340,7 @@ use (
 `)
 	writeFile(t, filepath.Join(repository, "pkg", "unrelated", "go.mod"), `module example.test/unrelated
 
-go 1.26.5
+go 1.26.6
 
 require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
 `)
@@ -1939,26 +2352,39 @@ require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
     "owned_dependencies": [],
     "test_tags": [],
     "required_services": ["postgresql"],
-    "go_version": "1.26.5",
+    "go_version": "1.26.6",
     "gates": {"mutation": true},
     "packages": [
       {"directory": ".", "coverage_required": true},
       {"directory": "consumer", "coverage_required": true},
       {"directory": "sibling", "coverage_required": true}
     ]
+  }, {
+    "directory": "pkg/dependency",
+    "module_path": "example.test/dependency",
+    "owned_dependencies": [],
+    "test_tags": [],
+    "required_services": [],
+    "go_version": "1.26.6",
+    "gates": {"mutation": true},
+    "packages": []
   }]
 }`)
 	writeFile(t, filepath.Join(repository, "packages.json"), `{"packages":[]}`)
 	versionsFile := filepath.Join(repository, ".golib", "versions.env")
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:first
 `)
 	writeFile(t, filepath.Join(repository, ".golib", "mutation-zero-inventory.json"), `{"packages":[]}`)
 	for _, path := range []string{
+		"scripts/build-local-proxy.sh",
 		"scripts/build-golib-gremlins.sh",
 		"scripts/check-mutation.sh",
 		"scripts/internal/run-mutation.sh",
+		"scripts/internal/isolated-go.sh",
 		"scripts/internal/mutation-command.sh",
 		"scripts/internal/mutation-coverage.sh",
 		"scripts/package-source-digest.sh",
@@ -1977,7 +2403,7 @@ KEYCLOAK_IMAGE=keycloak:first
 	if err := os.Chmod(filepath.Join(repository, "scripts", "gate-input-digest.sh"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(repository, "pkg", "dependency", "go.mod"), "module example.test/dependency\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "pkg", "dependency", "go.mod"), "module example.test/dependency\n\ngo 1.26.6\n")
 	dependencySum := filepath.Join(repository, "pkg", "dependency", "go.sum")
 	writeFile(t, dependencySum, "example.test/archive v0.1.0 h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n")
 	dependencySource := filepath.Join(repository, "pkg", "dependency", "dependency.go")
@@ -1986,9 +2412,10 @@ KEYCLOAK_IMAGE=keycloak:first
 	writeFile(t, dependencySource, "package dependency\n\nfunc Value() int { return 1 }\n")
 	writeFile(t, dependencyTest, "package dependency\n\n// Dependency tests are not observers of another module's mutants.\n")
 	writeFile(t, dependencyFixture, "one\n")
-	writeFile(t, filepath.Join(repository, "pkg", "example", "go.mod"), `module example.test/example
+	moduleManifest := filepath.Join(repository, "pkg", "example", "go.mod")
+	writeFile(t, moduleManifest, `module example.test/example
 
-go 1.26.5
+go 1.26.6
 
 require example.test/dependency v0.0.0
 
@@ -2097,7 +2524,28 @@ func TestValue(t *testing.T) {
 
 	initial := digest()
 	legacyInitial := digestWithResolution("legacy-stable")
+	writeFile(t, moduleManifest, `module example.test/example
+
+go 1.26.6
+
+require example.test/dependency v0.0.0-20260728110331-b7c4c77520dd
+
+replace example.test/dependency => ../dependency
+`)
+	if current := digest(); current != initial {
+		t.Fatalf("owned dependency locator changed mutation digest: %s != %s", current, initial)
+	}
+	writeFile(t, moduleManifest, `module example.test/example
+
+go 1.26.6
+
+require example.test/dependency v0.0.0
+
+replace example.test/dependency => ../dependency
+`)
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:second
 `)
@@ -2105,6 +2553,8 @@ KEYCLOAK_IMAGE=keycloak:second
 		t.Fatalf("unrelated tool version changed mutation digest: %s != %s", current, initial)
 	}
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.5-alpine
 KEYCLOAK_IMAGE=keycloak:second
 `)
@@ -2112,6 +2562,8 @@ KEYCLOAK_IMAGE=keycloak:second
 		t.Fatal("required service image did not change mutation digest")
 	}
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.1
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:second
 `)
@@ -2119,6 +2571,8 @@ KEYCLOAK_IMAGE=keycloak:second
 		t.Fatal("mutation tool version did not change mutation digest")
 	}
 	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+GREMLINS_SUM=h1:source
+GREMLINS_GOMOD_SUM=h1:module
 POSTGRES_IMAGE=postgres:18.4-alpine
 KEYCLOAK_IMAGE=keycloak:second
 `)
@@ -2148,6 +2602,11 @@ KEYCLOAK_IMAGE=keycloak:second
 	writeFile(t, mutationRunner, "revised evidence orchestrator\n")
 	if current := digest(); current != initial {
 		t.Fatalf("evidence orchestrator changed mutation digest: %s != %s", current, initial)
+	}
+	isolationRunner := filepath.Join(repository, "scripts", "internal", "isolated-go.sh")
+	writeFile(t, isolationRunner, "revised opt-in environment contract\n")
+	if current := digest(); current != initial {
+		t.Fatalf("module isolation wrapper changed mutation digest: %s != %s", current, initial)
 	}
 	mutationCommand := filepath.Join(repository, "scripts", "internal", "mutation-command.sh")
 	writeFile(t, mutationCommand, "revised mutation command\n")
@@ -2180,7 +2639,7 @@ KEYCLOAK_IMAGE=keycloak:second
 	)
 	writeFile(t, diffPatch, "revised module-relative diff patch\n")
 	if current := digest(); current != initial {
-		t.Fatalf("focused diff patch changed full mutation digest: %s != %s", current, initial)
+		t.Fatalf("separate verifier identity changed package input digest: %s != %s", current, initial)
 	}
 	writeFile(t, diffPatch, "scripts/patches/gremlins-module-relative-diff.patch\n")
 	writeFile(t, moduleSum, "example.test/dependency v0.0.0 h1:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=\n")
@@ -2358,10 +2817,10 @@ func TestGateInputDigestTracksDocumentationOnlyForRelevantGates(t *testing.T) {
 `)
 	writeTestFile(t, filepath.Join(root, "pkg", "example", "go.mod"), `module example.test/example
 
-go 1.26.5
+go 1.26.6
 `)
 	workspace := filepath.Join(root, "go.work")
-	writeTestFile(t, workspace, "go 1.26.5\n")
+	writeTestFile(t, workspace, "go 1.26.6\n")
 	agentPolicy := filepath.Join(root, "AGENTS.md")
 	writeTestFile(t, agentPolicy, "# Agent policy\n")
 	gitleaksConfig := filepath.Join(root, ".gitleaks.toml")
@@ -2506,7 +2965,7 @@ KEYCLOAK_IMAGE=keycloak:first
 		}
 	}
 	writeTestFile(t, agentPolicy, "# Agent policy\n")
-	writeTestFile(t, workspace, "go 1.26.5\n\nuse ./pkg/unrelated\n")
+	writeTestFile(t, workspace, "go 1.26.6\n\nuse ./pkg/unrelated\n")
 	if current := digest("test"); current != testBefore {
 		t.Fatalf(
 			"unrelated workspace change altered isolated test digest: %s != %s",
@@ -2517,7 +2976,7 @@ KEYCLOAK_IMAGE=keycloak:first
 	if current := digest("benchmark"); current == benchmarkBefore {
 		t.Fatal("workspace change did not alter workspace-backed benchmark digest")
 	}
-	writeTestFile(t, workspace, "go 1.26.5\n")
+	writeTestFile(t, workspace, "go 1.26.6\n")
 	writeTestFile(t, mutationInventory, "{\"packages\":[\"unrelated\"]}\n")
 	if current := digest("test"); current != testBefore {
 		t.Fatalf(
@@ -2621,6 +3080,43 @@ KEYCLOAK_IMAGE=keycloak:second
 	writeTestFile(t, checkModuleScript, "revised check module\n")
 	if current := digest("test"); current == testBefore {
 		t.Fatal("shared gate tooling did not change test digest")
+	}
+	writeTestFile(t, checkModuleScript, "lint run --timeout=10m ./...\n")
+	legacyRootDocumentationGate := `        docs)
+            applicable documentation || { skip_not_applicable documentation; return; }
+            enable_local_proxy
+            if target="$(find_make_target docs documentation)"; then
+                make "${target}"
+            else
+                GOWORK=off go test ./... -run '^Example' -count=1
+            fi
+            ;;
+`
+	currentRootDocumentationGate := `        docs)
+            applicable documentation || { skip_not_applicable documentation; return; }
+            enable_local_proxy
+            if [[ "${module}" == "." ]]; then
+                GOWORK=off "${root}/scripts/check-documentation.sh"
+            elif target="$(find_make_target docs documentation)"; then
+                make "${target}"
+            else
+                GOWORK=off go test ./... -run '^Example' -count=1
+            fi
+            ;;
+`
+	writeTestFile(t, checkModuleScript, legacyRootDocumentationGate)
+	nonDocumentationBefore := digest("test")
+	documentationBefore := digest("docs")
+	writeTestFile(t, checkModuleScript, currentRootDocumentationGate)
+	if current := digest("test"); current != nonDocumentationBefore {
+		t.Fatalf(
+			"root documentation tooling changed test digest: %s != %s",
+			current,
+			nonDocumentationBefore,
+		)
+	}
+	if current := digest("docs"); current == documentationBefore {
+		t.Fatal("root documentation tooling did not change docs digest")
 	}
 	writeTestFile(t, checkModuleScript, "lint run --timeout=10m ./...\n")
 	moduleCatalog := filepath.Join(root, "modules.json")
@@ -2827,7 +3323,7 @@ func TestGateInputDigestScopesRootSecretPolicyToSecrets(t *testing.T) {
 }
 `)
 	writeTestFile(t, filepath.Join(root, "packages.json"), `{"packages":[]}`)
-	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
 	writeTestFile(t, filepath.Join(root, ".golib", "versions.env"), "GITLEAKS_VERSION=v1.0.0\n")
 	writeTestFile(t, filepath.Join(root, "scripts", "check-module.sh"), "check module\n")
 	gitleaksConfig := filepath.Join(root, ".gitleaks.toml")
@@ -2896,7 +3392,7 @@ func TestGateInputDigestScopesAPIBaselineToAPIGate(t *testing.T) {
 }
 `)
 	writeTestFile(t, filepath.Join(root, "packages.json"), `{"packages":[]}`)
-	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
 	writeTestFile(t, filepath.Join(root, ".golib", "versions.env"), "APIDIFF_VERSION=v1.0.0\n")
 	writeTestFile(t, filepath.Join(root, "scripts", "check-module.sh"), "check module\n")
 	baseline := filepath.Join(root, "api", "baseline.txt")
@@ -2938,6 +3434,284 @@ func TestGateInputDigestScopesAPIBaselineToAPIGate(t *testing.T) {
 	}
 	if current := digest("api"); current == apiBefore {
 		t.Fatal("API baseline did not change API digest")
+	}
+}
+
+func TestGateInputDigestIgnoresVerificationOrchestrationImplementation(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{".golib", "pkg/example", "scripts"} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "module_path": "example.test/package",
+    "owned_dependencies": [],
+    "required_services": [],
+    "test_tags": [],
+    "interoperability_tools": [],
+    "gates": {},
+    "packages": []
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(repository, "packages.json"), `{"packages":[]}`)
+	writeTestFile(t, filepath.Join(repository, "pkg/example/go.mod"), "module example.test/package\n\ngo 1.26.6\n")
+	writeTestFile(t, filepath.Join(repository, ".golib", "versions.env"), "")
+	for _, script := range []string{
+		"check-module.sh",
+		"create-verification-snapshot.sh",
+		"run-modules.sh",
+		"start-services.sh",
+		"stop-services.sh",
+	} {
+		writeTestFile(t, filepath.Join(repository, "scripts", script), script+" first\n")
+	}
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	add := exec.Command("git", "add", ".")
+	add.Dir = repository
+	if output, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture repository: %v\n%s", err, output)
+	}
+
+	digest := func(gate string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			gate,
+			"pkg/example",
+		)
+		command.Dir = repository
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("digest gate inputs: %v\n%s", err, output)
+		}
+
+		return strings.TrimSpace(string(output))
+	}
+
+	baseline := digest("format-check")
+	assuranceBaseline := digest("operational-assurance")
+	runAssuranceDigestWithEnvironment := func(kernel, cgoEnabled string) ([]byte, error) {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			"operational-assurance",
+			"pkg/example",
+		)
+		command.Dir = repository
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+		for name, value := range map[string]string{
+			"GOLIB_ASSURANCE_GO_VERSION":  "go1.test",
+			"GOLIB_ASSURANCE_GOOS":        "testos",
+			"GOLIB_ASSURANCE_GOARCH":      "testarch",
+			"GOLIB_ASSURANCE_CGO_ENABLED": cgoEnabled,
+			"GOLIB_ASSURANCE_KERNEL":      kernel,
+			"GOLIB_ASSURANCE_NODE":        "missing",
+		} {
+			command.Env = environmentWithValues(command.Env, name, value)
+		}
+		return command.CombinedOutput()
+	}
+	assuranceDigestWithEnvironment := func(kernel string) string {
+		t.Helper()
+		output, err := runAssuranceDigestWithEnvironment(kernel, "0")
+		if err != nil {
+			t.Fatalf("digest gate inputs with captured environment: %v\n%s", err, output)
+		}
+		return strings.TrimSpace(string(output))
+	}
+	if first, second := assuranceDigestWithEnvironment("Kernel A"),
+		assuranceDigestWithEnvironment("Kernel B"); first == second {
+		t.Fatal("captured assurance environment did not alter aggregate inputs")
+	}
+	if output, err := runAssuranceDigestWithEnvironment("Kernel\nA", "0"); err == nil ||
+		!strings.Contains(string(output), "contains control characters") {
+		t.Fatalf("ambiguous assurance environment error = %v, output = %s", err, output)
+	}
+	if output, err := runAssuranceDigestWithEnvironment("Kernel A", "enabled"); err == nil ||
+		!strings.Contains(string(output), "cgo override must be 0 or 1") {
+		t.Fatalf("invalid assurance cgo error = %v, output = %s", err, output)
+	}
+	partial := exec.Command(
+		filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+		"operational-assurance",
+		"pkg/example",
+	)
+	partial.Dir = repository
+	partial.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+	partial.Env = environmentWithValues(
+		partial.Env,
+		"GOLIB_ASSURANCE_GO_VERSION",
+		"go1.test",
+	)
+	if output, err := partial.CombinedOutput(); err == nil ||
+		!strings.Contains(string(output), "environment override is incomplete") {
+		t.Fatalf("partial assurance environment error = %v, output = %s", err, output)
+	}
+	for _, script := range []string{
+		"create-verification-snapshot.sh",
+		"run-modules.sh",
+		"stop-services.sh",
+	} {
+		writeTestFile(t, filepath.Join(repository, "scripts", script), script+" second\n")
+		if current := digest("format-check"); current != baseline {
+			t.Fatalf("orchestration-only %s changed gate inputs: %s != %s", script, current, baseline)
+		}
+	}
+	if current := digest("operational-assurance"); current == assuranceBaseline {
+		t.Fatal("runner changes did not alter aggregate assurance inputs")
+	}
+
+	writeTestFile(t, filepath.Join(repository, "scripts", "start-services.sh"), "changed service contract\n")
+	if current := digest("format-check"); current == baseline {
+		t.Fatal("service setup did not change gate inputs")
+	}
+}
+
+func TestRunnerIsolationEvidenceMigrationPreservesExecutedProof(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{
+		"scripts",
+		".artifacts/pkg/example/evidence",
+	} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(repository, "scripts/check-gates.txt"), "test\n")
+	digestScript := filepath.Join(repository, "scripts/gate-input-digest.sh")
+	writeFile(t, digestScript, `#!/bin/sh
+if [ "${GOLIB_GATE_INPUT_POLICY:-current}" = legacy-runner-isolation ]; then
+    printf 'legacy-digest\n'
+else
+    printf 'current-digest\n'
+fi
+`)
+	if err := os.Chmod(digestScript, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	logContents := "test passed\n"
+	logPath := filepath.Join(repository, ".artifacts/pkg/example/evidence/test.log")
+	writeFile(t, logPath, logContents)
+	logDigest := sha256.Sum256([]byte(logContents))
+	writeFile(
+		t,
+		filepath.Join(repository, ".artifacts/pkg/example/evidence/test.json"),
+		fmt.Sprintf(`{
+  "schema_version": 1,
+  "module": "pkg/example",
+  "gate": "test",
+  "result": "passed",
+  "exit_code": 0,
+  "execution_revision": "executed-proof",
+  "completed_revision": "executed-proof",
+  "input_digest": "legacy-digest",
+  "completed_input_digest": "legacy-digest",
+  "log_sha256": "%x",
+  "started_at": "2026-08-11T00:00:00Z",
+  "completed_at": "2026-08-11T00:01:00Z"
+}`, logDigest),
+	)
+	if output, err := exec.Command("git", "-C", repository, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	commit := exec.Command(
+		"git", "-C", repository,
+		"-c", "user.name=Test", "-c", "user.email=test@example.test",
+		"commit", "--allow-empty", "-m", "test",
+	)
+	if output, err := commit.CombinedOutput(); err != nil {
+		t.Fatalf("create fixture revision: %v\n%s", err, output)
+	}
+
+	command := exec.Command(
+		filepath.Join(root, "scripts/internal/migrate-runner-isolation-evidence.sh"),
+		"pkg/example",
+		"test",
+	)
+	command.Dir = repository
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("migrate evidence: %v\n%s", err, output)
+	}
+
+	migratedPath := filepath.Join(
+		repository,
+		".artifacts/pkg/example/evidence/by-input/test/current-digest.json",
+	)
+	contents, err := os.ReadFile(migratedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var migrated struct {
+		ExecutionRevision string   `json:"execution_revision"`
+		InputDigest       string   `json:"input_digest"`
+		CompletedInput    string   `json:"completed_input_digest"`
+		IdentityLineage   []string `json:"identity_lineage"`
+		IdentityMigration struct {
+			Reason                  string `json:"reason"`
+			PreviousGateInputDigest string `json:"previous_gate_input_digest"`
+		} `json:"identity_migration"`
+	}
+	if err := json.Unmarshal(contents, &migrated); err != nil {
+		t.Fatal(err)
+	}
+	if migrated.ExecutionRevision != "executed-proof" ||
+		migrated.InputDigest != "current-digest" ||
+		migrated.CompletedInput != "current-digest" ||
+		!slices.Contains(migrated.IdentityLineage, "legacy-digest") ||
+		migrated.IdentityMigration.Reason != "non-semantic-runner-isolation-scope-narrowing" ||
+		migrated.IdentityMigration.PreviousGateInputDigest != "legacy-digest" {
+		t.Fatalf("migrated evidence = %+v", migrated)
+	}
+
+	assuranceEvidence := fmt.Sprintf(`{
+  "schema_version": 1,
+  "module": "pkg/example",
+  "gate": "operational-assurance",
+  "result": "passed",
+  "exit_code": 0,
+  "execution_revision": "executed-proof",
+  "completed_revision": "executed-proof",
+  "input_digest": "legacy-digest",
+  "completed_input_digest": "legacy-digest",
+  "log_sha256": "%x"
+}`, logDigest)
+	writeFile(
+		t,
+		filepath.Join(repository, ".artifacts/pkg/example/evidence/operational-assurance.json"),
+		assuranceEvidence,
+	)
+	writeFile(
+		t,
+		filepath.Join(repository, ".artifacts/pkg/example/evidence/operational-assurance.log"),
+		logContents,
+	)
+	command = exec.Command(
+		filepath.Join(root, "scripts/internal/migrate-runner-isolation-evidence.sh"),
+		"pkg/example",
+		"operational-assurance",
+	)
+	command.Dir = repository
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("skip aggregate assurance evidence: %v\n%s", err, output)
+	}
+	assurancePath := filepath.Join(
+		repository,
+		".artifacts/pkg/example/evidence/by-input/operational-assurance/current-digest.json",
+	)
+	if _, err := os.Stat(assurancePath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("aggregate assurance evidence migrated across runner semantics: %v", err)
 	}
 }
 
@@ -3132,6 +3906,12 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
       "implementation_evidence": ["pkg/sample/README.md"],
       "verification_gates": ["test", "mutation"],
       "implementation_status": "implemented-requires-fresh-verification"
+    }, {
+      "file": "pkg/sample/.ai/GOAL_SECURITY.md",
+      "requirements_sha256": "future-goal-digest",
+      "implementation_evidence": [],
+      "verification_gates": [],
+      "implementation_status": "future-not-started"
     }]
   }]
 }`)
@@ -3298,6 +4078,7 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	var report struct {
 		VerificationStatus string `json:"verification_status"`
 		Goals              []struct {
+			File               string `json:"file"`
 			VerificationStatus string `json:"verification_status"`
 		} `json:"goals"`
 		GateEvidence []json.RawMessage `json:"gate_evidence"`
@@ -3308,31 +4089,49 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 		&report,
 	)
 	if report.VerificationStatus != "verified" ||
-		len(report.Goals) != 1 ||
+		len(report.Goals) != 2 ||
 		report.Goals[0].VerificationStatus != "verified" ||
-		len(report.GateEvidence) != 3 {
+		report.Goals[1].VerificationStatus != "deferred" ||
+		len(report.GateEvidence) != 2 {
 		t.Fatalf("goal audit report = %+v", report)
 	}
 }
 
-func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
+func TestRootDocumentationGateRunsEveryCanonicalCheck(t *testing.T) {
 	root := testRepositoryRoot(t)
 	bin := t.TempDir()
 	makeMarker := filepath.Join(t.TempDir(), "make-called")
+	goMarker := filepath.Join(t.TempDir(), "go-called")
+	cspellMarker := filepath.Join(t.TempDir(), "cspell-called")
+	lycheeMarker := filepath.Join(t.TempDir(), "lychee-called")
 	makePath := filepath.Join(bin, "make")
 	writeFile(t, makePath, "#!/bin/sh\nprintf called >\"$MAKE_MARKER\"\nexit 99\n")
 	if err := os.Chmod(makePath, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	goPath := filepath.Join(bin, "go")
-	writeFile(t, goPath, "#!/bin/sh\nexit 0\n")
+	writeFile(t, goPath, "#!/bin/sh\nprintf '%s\\n' \"$*\" >\"$GO_MARKER\"\nexit 0\n")
 	if err := os.Chmod(goPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cspellPath := filepath.Join(bin, "cspell")
+	writeFile(t, cspellPath, "#!/bin/sh\nprintf '%s\\n' \"$*\" >\"$CSPELL_MARKER\"\n")
+	if err := os.Chmod(cspellPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	lycheePath := filepath.Join(bin, "lychee")
+	writeFile(t, lycheePath, "#!/bin/sh\nprintf '%s\\n' \"$*\" >\"$LYCHEE_MARKER\"\n")
+	if err := os.Chmod(lycheePath, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
 	command := exec.Command(filepath.Join(root, "scripts", "check-module.sh"), ".", "docs")
 	command.Dir = root
-	command.Env = environmentWith("MAKE_MARKER", makeMarker)
+	command.Env = environmentWithValues(
+		environmentWith("MAKE_MARKER", makeMarker),
+		"GO_MARKER",
+		goMarker,
+	)
 	command.Env = environmentWithValues(
 		command.Env,
 		"GOLIB_LOCAL_PROXY",
@@ -3343,12 +4142,76 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 		"PATH",
 		bin+":"+os.Getenv("PATH"),
 	)
+	command.Env = environmentWithValues(command.Env, "GOLIB_CSPELL", cspellPath)
+	command.Env = environmentWithValues(command.Env, "GOLIB_LYCHEE", lycheePath)
+	command.Env = environmentWithValues(command.Env, "CSPELL_MARKER", cspellMarker)
+	command.Env = environmentWithValues(command.Env, "LYCHEE_MARKER", lycheeMarker)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("root documentation gate: %v\n%s", err, output)
 	}
 	if _, err := os.Stat(makeMarker); !os.IsNotExist(err) {
 		t.Fatalf("root documentation gate delegated to root Makefile")
+	}
+	invocation, err := os.ReadFile(goMarker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(invocation), "./cmd/golib documentation") {
+		t.Fatalf("root documentation invocation = %q", invocation)
+	}
+	for name, marker := range map[string]string{
+		"cspell": cspellMarker,
+		"lychee": lycheeMarker,
+	} {
+		invocation, err := os.ReadFile(marker)
+		if err != nil {
+			t.Fatalf("read %s invocation: %v", name, err)
+		}
+		if !strings.Contains(string(invocation), "README.md") ||
+			!strings.Contains(string(invocation), "docs/**/*.md") {
+			t.Fatalf("%s invocation = %q", name, invocation)
+		}
+	}
+}
+
+func TestDocumentationGatePropagatesToolFailure(t *testing.T) {
+	root := testRepositoryRoot(t)
+	for _, test := range []struct {
+		name       string
+		cspellExit int
+		lycheeExit int
+	}{
+		{name: "spelling", cspellExit: 16},
+		{name: "links", lycheeExit: 17},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			bin := t.TempDir()
+			goPath := filepath.Join(bin, "go")
+			writeFile(t, goPath, "#!/bin/sh\nexit 0\n")
+			if err := os.Chmod(goPath, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			cspellPath := filepath.Join(bin, "cspell")
+			writeFile(t, cspellPath, fmt.Sprintf("#!/bin/sh\nexit %d\n", test.cspellExit))
+			if err := os.Chmod(cspellPath, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			lycheePath := filepath.Join(bin, "lychee")
+			writeFile(t, lycheePath, fmt.Sprintf("#!/bin/sh\nexit %d\n", test.lycheeExit))
+			if err := os.Chmod(lycheePath, 0o700); err != nil {
+				t.Fatal(err)
+			}
+
+			command := exec.Command(filepath.Join(root, "scripts", "check-documentation.sh"))
+			command.Dir = root
+			command.Env = environmentWithValues(os.Environ(), "PATH", bin+":"+os.Getenv("PATH"))
+			command.Env = environmentWithValues(command.Env, "GOLIB_CSPELL", cspellPath)
+			command.Env = environmentWithValues(command.Env, "GOLIB_LYCHEE", lycheePath)
+			if output, err := command.CombinedOutput(); err == nil {
+				t.Fatalf("documentation gate accepted failed %s check:\n%s", test.name, output)
+			}
+		})
 	}
 }
 
@@ -3588,6 +4451,102 @@ printf '%s\n' pkg/first pkg/second
 	}
 }
 
+func TestReleaseSnapshotDoesNotExpandDependenciesTwice(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	bin := filepath.Join(repository, "bin")
+	state := filepath.Join(repository, "selector-arguments")
+	for _, directory := range []string{bin, filepath.Join(repository, "scripts")} {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		mustReadFile(t, filepath.Join(root, "scripts", "run-modules.sh")),
+	)
+	writeTestFile(t, filepath.Join(repository, "scripts", "filter-releasable-modules.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+cat
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "build-local-proxy.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "$1"
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "start-services.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+: >"$2"
+: >"$3"
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "stop-services.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+`)
+	writeTestFile(t, filepath.Join(repository, "scripts", "run-gate-with-evidence.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+`)
+	writeTestFile(t, filepath.Join(bin, "go"), `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$1" == "run" ]]; then
+    printf '%s\n' "$@" >"${TEST_STATE}"
+    printf '%s\n' pkg/selected
+    exit 0
+fi
+if [[ "$1" == "env" && "$2" == "GOPROXY" ]]; then
+    printf '%s\n' 'https://proxy.golang.org,direct'
+    exit 0
+fi
+if [[ "$1" == "env" && "$2" == "GONOSUMDB" ]]; then
+    exit 0
+fi
+printf 'unexpected go invocation: %s\n' "$*" >&2
+exit 1
+`)
+	for _, executable := range []string{
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		filepath.Join(repository, "scripts", "filter-releasable-modules.sh"),
+		filepath.Join(repository, "scripts", "build-local-proxy.sh"),
+		filepath.Join(repository, "scripts", "start-services.sh"),
+		filepath.Join(repository, "scripts", "stop-services.sh"),
+		filepath.Join(repository, "scripts", "run-gate-with-evidence.sh"),
+		filepath.Join(bin, "go"),
+	} {
+		if err := os.Chmod(executable, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	command := exec.Command(
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		"release-dry-run", "--modules", "pkg/selected",
+	)
+	command.Dir = repository
+	command.Env = environmentWithValues(
+		os.Environ(),
+		"PATH",
+		bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
+	command.Env = environmentWithValues(command.Env, "TEST_STATE", state)
+	command.Env = environmentWithValues(
+		command.Env,
+		"GOLIB_VERIFICATION_SNAPSHOT",
+		"1",
+	)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("run release snapshot: %v\n%s", err, output)
+	}
+	arguments := strings.Fields(mustReadFile(t, state))
+	if slices.Contains(arguments, "--dependencies") {
+		t.Fatalf("release snapshot expanded dependencies again: %v", arguments)
+	}
+}
+
 func TestGateEvidenceIsCheckpointedPerResult(t *testing.T) {
 	t.Parallel()
 
@@ -3678,7 +4637,7 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	runGit("init", "--initial-branch=main")
 	runGit("config", "user.email", "golib@example.test")
 	runGit("config", "user.name", "golib")
-	writeFile(t, filepath.Join(repository, ".gitignore"), "ignored.txt\n.artifacts/\n")
+	writeFile(t, filepath.Join(repository, ".gitignore"), "ignored.txt\nstaged-ignored.txt\n.artifacts/\n")
 	writeFile(t, filepath.Join(repository, "tracked.txt"), "committed\n")
 	writeFile(t, filepath.Join(repository, "removed.txt"), "remove me\n")
 	runGit("add", ".gitignore", "tracked.txt", "removed.txt")
@@ -3690,6 +4649,8 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	}
 	writeFile(t, filepath.Join(repository, "untracked.txt"), "untracked\n")
 	writeFile(t, filepath.Join(repository, "ignored.txt"), "ignored\n")
+	writeFile(t, filepath.Join(repository, "staged-ignored.txt"), "staged and tracked\n")
+	runGit("add", "-f", "staged-ignored.txt")
 
 	snapshot := filepath.Join(t.TempDir(), "snapshot")
 	command := exec.Command(
@@ -3702,8 +4663,9 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	}
 
 	for path, expected := range map[string]string{
-		"tracked.txt":   "working tree\n",
-		"untracked.txt": "untracked\n",
+		"staged-ignored.txt": "staged and tracked\n",
+		"tracked.txt":        "working tree\n",
+		"untracked.txt":      "untracked\n",
 	} {
 		contents, err := os.ReadFile(filepath.Join(snapshot, path))
 		if err != nil {
@@ -3725,6 +4687,9 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	}
 	if strings.Contains(string(indexOutput), "removed.txt") {
 		t.Fatalf("snapshot index retained removed path:\n%s", indexOutput)
+	}
+	if !strings.Contains(string(indexOutput), "staged-ignored.txt") {
+		t.Fatalf("snapshot index omitted staged ignored path:\n%s", indexOutput)
 	}
 
 	writeFile(t, filepath.Join(snapshot, "tracked.txt"), "snapshot only\n")
@@ -3901,7 +4866,7 @@ func TestGateEvidenceSerializesConcurrentSameGate(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
 set -eu
 printf 'stable-input\n'
@@ -3984,7 +4949,7 @@ func TestGateEvidenceRecoversOwnerlessLock(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
 set -eu
 printf 'stable-input\n'
@@ -4039,6 +5004,121 @@ printf 'gate passed\n'
 	}
 }
 
+func TestGateEvidenceVerifierWaitsForAtomicPublication(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	repository := filepath.Join(t.TempDir(), "repository")
+	for _, directory := range []string{
+		"scripts",
+		".artifacts/evidence/.locks",
+		".artifacts/evidence/by-input/test",
+	} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, script := range []string{"verify-gate-evidence.sh"} {
+		contents, err := os.ReadFile(filepath.Join(root, "scripts", script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(repository, "scripts", script)
+		writeFile(t, path, string(contents))
+		if err := os.Chmod(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
+printf 'stable-input\n'
+`)
+	if err := os.Chmod(filepath.Join(repository, "scripts", "gate-input-digest.sh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if output, err := exec.Command("git", "-C", repository, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("initialize evidence repository: %v\n%s", err, output)
+	}
+
+	evidenceDirectory := filepath.Join(
+		repository,
+		".artifacts/evidence/by-input/test",
+	)
+	logPath := filepath.Join(evidenceDirectory, "stable-input.log")
+	evidencePath := filepath.Join(evidenceDirectory, "stable-input.json")
+	writeFile(t, logPath, "publication in progress\n")
+	writeFile(t, evidencePath, "{}\n")
+	validLog := "gate passed\n"
+	validLogDigest := sha256.Sum256([]byte(validLog))
+	validEvidence := fmt.Sprintf(`{
+  "schema_version": 1,
+  "module": ".",
+  "gate": "test",
+  "result": "passed",
+  "exit_code": 0,
+  "input_digest": "stable-input",
+  "completed_input_digest": "stable-input",
+  "log_sha256": "%x"
+}`, validLogDigest)
+	validLogPath := filepath.Join(repository, "valid.log")
+	validEvidencePath := filepath.Join(repository, "valid.json")
+	writeFile(t, validLogPath, validLog)
+	writeFile(t, validEvidencePath, validEvidence)
+	ready := filepath.Join(repository, "writer-ready")
+	lock := filepath.Join(repository, ".artifacts/evidence/.locks/test.lock")
+
+	writer := exec.Command("sh", "-c", `
+set -eu
+ln -s "$$" "$LOCK"
+: >"$READY"
+sleep 0.2
+cp "$VALID_LOG" "$LOG"
+sleep 0.05
+cp "$VALID_EVIDENCE" "$EVIDENCE"
+rm "$LOCK"
+`)
+	writer.Env = append(os.Environ(),
+		"LOCK="+lock,
+		"READY="+ready,
+		"VALID_LOG="+validLogPath,
+		"VALID_EVIDENCE="+validEvidencePath,
+		"LOG="+logPath,
+		"EVIDENCE="+evidencePath,
+	)
+	writer.Dir = repository
+	if err := writer.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if writer.ProcessState == nil {
+			_ = writer.Process.Kill()
+			_ = writer.Wait()
+		}
+	})
+	deadline := time.Now().Add(time.Second)
+	for {
+		if _, err := os.Stat(ready); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("evidence writer did not acquire its lock")
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	verify := exec.Command(
+		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
+		".",
+		"test",
+	)
+	verify.Dir = repository
+	if output, err := verify.CombinedOutput(); err != nil {
+		t.Fatalf("verify during publication: %v\n%s", err, output)
+	}
+	if err := writer.Wait(); err != nil {
+		t.Fatalf("evidence writer: %v", err)
+	}
+}
+
 func TestGateEvidencePreservesEachInputDigestAcrossSharedArtifacts(t *testing.T) {
 	t.Parallel()
 
@@ -4061,7 +5141,7 @@ func TestGateEvidencePreservesEachInputDigestAcrossSharedArtifacts(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(repository, "input-digest"), "input-a\n")
 	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
 set -eu
@@ -4566,6 +5646,7 @@ func TestZeroMutantInventoryIsExactAndCurrent(t *testing.T) {
 		PackageDirectory string `json:"package_directory"`
 		SourceDigest     string `json:"source_digest"`
 		GremlinsVersion  string `json:"gremlins_version"`
+		GremlinsIdentity string `json:"gremlins_verifier_sha256"`
 		Reason           string `json:"reason"`
 	}
 	inventory := struct {
@@ -4596,7 +5677,8 @@ func TestZeroMutantInventoryIsExactAndCurrent(t *testing.T) {
 			t.Fatalf("duplicate zero-mutant inventory entry %s", key)
 		}
 		seen[key] = struct{}{}
-		if entry.Reason == "" || !strings.Contains(string(versions), "GREMLINS_VERSION="+entry.GremlinsVersion+"\n") {
+		if entry.Reason == "" || entry.GremlinsIdentity == "" ||
+			!strings.Contains(string(versions), "GREMLINS_VERSION="+entry.GremlinsVersion+"\n") {
 			t.Fatalf("zero-mutant inventory entry %s has stale tool or empty rationale", key)
 		}
 		matches := 0
@@ -4644,7 +5726,7 @@ func FuzzIdentity(fuzz *testing.F) {
 	writeFile(
 		t,
 		filepath.Join(directory, "nested", "go.mod"),
-		"module example.test/nested\n\ngo 1.26.5\n",
+		"module example.test/nested\n\ngo 1.26.6\n",
 	)
 	writeFile(t, filepath.Join(directory, "nested", "nested_test.go"), `package nested
 
@@ -4660,7 +5742,7 @@ func FuzzNestedModule(f *testing.F) {
 func standaloneModule(t *testing.T, source string) string {
 	t.Helper()
 	directory := t.TempDir()
-	writeFile(t, filepath.Join(directory, "go.mod"), "module example.test/fixture\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(directory, "go.mod"), "module example.test/fixture\n\ngo 1.26.6\n")
 	writeFile(t, filepath.Join(directory, "fixture.go"), source)
 	return directory
 }

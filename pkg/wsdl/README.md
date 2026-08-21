@@ -38,3 +38,8 @@ The API is pre-1.0. Supported behavior is recorded independently in the
 [WSDL 1.1 matrix](specification/requirements/wsdl-1.1.tsv) and
 [WSDL 2.0 matrix](specification/requirements/wsdl-2.0.tsv). Matrix rows marked
 `partial` or `missing` are not conformance claims.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

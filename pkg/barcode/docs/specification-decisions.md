@@ -216,7 +216,7 @@ certification, or conformance to an unreviewed replacement edition.
 | Field | Decision |
 | --- | --- |
 | Status and owner | `resolved`; `barcode` maintainers |
-| Source | Reference decoding scope in the pinned symbology editions and Go's [`image`](https://pkg.go.dev/image@go1.26.5) contracts |
+| Source | Reference decoding scope in the pinned symbology editions and Go's [`image`](https://pkg.go.dev/image@go1.26.6) contracts |
 | Classification | Defensive parser and resource policy |
 | Issue | Encoded image headers, decoded dimensions, rotations, inversions, candidate enumeration, correction attempts, and dependency panics can consume resources before a valid symbol exists. |
 | Credible interpretations | Trust decoder defaults; recover only at the API boundary; decode then inspect limits; use unbounded candidate retries; or enforce caller limits at every expensive boundary. |

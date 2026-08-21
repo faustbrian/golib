@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/math
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/cockroachdb/apd/v3 v3.2.3

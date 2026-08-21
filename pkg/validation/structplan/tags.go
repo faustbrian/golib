@@ -89,18 +89,15 @@ func compileType(current reflect.Type, indexes []int, path []string, depth int,
 				limits, stack, visited, fields); err != nil {
 				return err
 			}
-			continue
+		} else if tag != "" {
+			rules, err := parseTag(tag)
+			if err != nil {
+				return fmt.Errorf("field %s: %w", field.Name, err)
+			}
+			*fields = append(*fields, compiledField{
+				index: fieldIndexes, path: fieldPath, rules: rules,
+			})
 		}
-		if tag == "" {
-			continue
-		}
-		rules, err := parseTag(tag)
-		if err != nil {
-			return fmt.Errorf("field %s: %w", field.Name, err)
-		}
-		*fields = append(*fields, compiledField{
-			index: fieldIndexes, path: fieldPath, rules: rules,
-		})
 	}
 	return nil
 }
@@ -296,8 +293,10 @@ func withinBound(value reflect.Value, parameter int, minimum bool) bool {
 		return err == nil && compareBound(value.Uint(), bound, minimum)
 	case reflect.Float32, reflect.Float64:
 		measured := value.Float()
-		return !math.IsNaN(measured) && compareBound(measured,
-			float64(parameter), minimum)
+		if math.IsNaN(measured) {
+			return false
+		}
+		return compareBound(measured, float64(parameter), minimum)
 	case reflect.Invalid, reflect.Bool, reflect.Uintptr, reflect.Complex64,
 		reflect.Complex128, reflect.Chan, reflect.Func, reflect.Interface,
 		reflect.Pointer, reflect.Struct, reflect.UnsafePointer:

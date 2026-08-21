@@ -78,11 +78,11 @@ func compareInterfaces(before, after *wsdlcompile.Set, report *Report) {
 		path := "/interfaces/" + formatQName(name)
 		if !exists {
 			add(report, path, ChangeRemoved, CompatibilityBreaking, "present", "absent")
-			continue
+		} else {
+			compareQNameSet(path+"/extends", value.Extends, other.Extends, report)
+			compareOperations(path, value.Operations, other.Operations, report)
+			compareQNameSet(path+"/faults", value.Faults, other.Faults, report)
 		}
-		compareQNameSet(path+"/extends", value.Extends, other.Extends, report)
-		compareOperations(path, value.Operations, other.Operations, report)
-		compareQNameSet(path+"/faults", value.Faults, other.Faults, report)
 	}
 	for name := range right {
 		if _, exists := left[name]; !exists {
@@ -121,41 +121,9 @@ func compareOperations(
 		operationPath := path + "/operations/" + operationPathName(value, len(identities[value.Name]) > 1)
 		if !exists {
 			add(report, operationPath, ChangeRemoved, CompatibilityBreaking, "present", "absent")
-			continue
-		}
-		if value.Pattern != other.Pattern {
-			add(report, operationPath+"/pattern", ChangeModified, CompatibilityBreaking, value.Pattern, other.Pattern)
-		}
-		if value.Style != other.Style {
-			add(report, operationPath+"/style", ChangeModified, CompatibilityBreaking, value.Style, other.Style)
-		}
-		if value.Safe != other.Safe {
-			add(
-				report, operationPath+"/safe", ChangeModified,
-				CompatibilityBreaking, strconv.FormatBool(value.Safe),
-				strconv.FormatBool(other.Safe),
-			)
-		}
-		compareStringSet(operationPath+"/styles", value.Styles, other.Styles, report)
-		beforeSignature := rpcSignatureString(value.RPCSignature)
-		afterSignature := rpcSignatureString(other.RPCSignature)
-		if value.RPCSignatureSet != other.RPCSignatureSet || beforeSignature != afterSignature {
-			add(
-				report, operationPath+"/rpc-signature", ChangeModified,
-				CompatibilityBreaking, beforeSignature, afterSignature,
-			)
-		}
-		if len(value.Inputs) <= 1 && len(other.Inputs) <= 1 {
-			compareMessage(operationPath+"/input", value.Input, other.Input, report)
 		} else {
-			compareMessages(operationPath+"/inputs", value.Inputs, other.Inputs, report)
+			compareOperation(operationPath, value, other, report)
 		}
-		if len(value.Outputs) <= 1 && len(other.Outputs) <= 1 {
-			compareMessage(operationPath+"/output", value.Output, other.Output, report)
-		} else {
-			compareMessages(operationPath+"/outputs", value.Outputs, other.Outputs, report)
-		}
-		compareFaults(operationPath+"/faults", value.Faults, other.Faults, report)
 	}
 	for key, value := range right {
 		if _, exists := left[key]; !exists {
@@ -166,6 +134,46 @@ func compareOperations(
 			)
 		}
 	}
+}
+
+func compareOperation(operationPath string, value, other wsdlcompile.Operation, report *Report) {
+	if value.Pattern != other.Pattern {
+		add(report, operationPath+"/pattern", ChangeModified, CompatibilityBreaking, value.Pattern, other.Pattern)
+	}
+	if value.Style != other.Style {
+		add(report, operationPath+"/style", ChangeModified, CompatibilityBreaking, value.Style, other.Style)
+	}
+	if value.Safe != other.Safe {
+		add(
+			report, operationPath+"/safe", ChangeModified,
+			CompatibilityBreaking, strconv.FormatBool(value.Safe),
+			strconv.FormatBool(other.Safe),
+		)
+	}
+	compareStringSet(operationPath+"/styles", value.Styles, other.Styles, report)
+	beforeSignature := rpcSignatureString(value.RPCSignature)
+	afterSignature := rpcSignatureString(other.RPCSignature)
+	if value.RPCSignatureSet != other.RPCSignatureSet || beforeSignature != afterSignature {
+		add(
+			report, operationPath+"/rpc-signature", ChangeModified,
+			CompatibilityBreaking, beforeSignature, afterSignature,
+		)
+	}
+	if len(value.Inputs) <= 1 && len(other.Inputs) <= 1 {
+		compareMessage(operationPath+"/input", value.Input, other.Input, report)
+	} else {
+		compareMessages(operationPath+"/inputs", value.Inputs, other.Inputs, report)
+	}
+	if len(value.Outputs) <= 1 {
+		if len(other.Outputs) <= 1 {
+			compareMessage(operationPath+"/output", value.Output, other.Output, report)
+		} else {
+			compareMessages(operationPath+"/outputs", value.Outputs, other.Outputs, report)
+		}
+	} else {
+		compareMessages(operationPath+"/outputs", value.Outputs, other.Outputs, report)
+	}
+	compareFaults(operationPath+"/faults", value.Faults, other.Faults, report)
 }
 
 func rpcSignatureString(values []wsdl.RPCSignatureParameter20) string {
@@ -214,9 +222,9 @@ func compareMessages(
 		messagePath := path + "/" + key
 		if !exists {
 			add(report, messagePath, ChangeRemoved, CompatibilityBreaking, "present", "absent")
-			continue
+		} else {
+			compareMessage(messagePath, &value, &other, report)
 		}
-		compareMessage(messagePath, &value, &other, report)
 	}
 	for key := range right {
 		if _, exists := left[key]; !exists {
@@ -327,12 +335,12 @@ func compareFaults(
 		faultPath := path + "/" + name
 		if !exists {
 			add(report, faultPath, ChangeRemoved, CompatibilityBreaking, "present", "absent")
-			continue
-		}
-		beforeValue := formatQName(value.Message) + " " + formatQName(value.Element) + " " + string(value.ContentModel)
-		afterValue := formatQName(other.Message) + " " + formatQName(other.Element) + " " + string(other.ContentModel)
-		if beforeValue != afterValue {
-			add(report, faultPath, ChangeModified, CompatibilityBreaking, beforeValue, afterValue)
+		} else {
+			beforeValue := formatQName(value.Message) + " " + formatQName(value.Element) + " " + string(value.ContentModel)
+			afterValue := formatQName(other.Message) + " " + formatQName(other.Element) + " " + string(other.ContentModel)
+			if beforeValue != afterValue {
+				add(report, faultPath, ChangeModified, CompatibilityBreaking, beforeValue, afterValue)
+			}
 		}
 	}
 	for name := range right {
@@ -350,21 +358,21 @@ func compareBindings(before, after *wsdlcompile.Set, report *Report) {
 		path := "/bindings/" + formatQName(name)
 		if !exists {
 			add(report, path, ChangeRemoved, CompatibilityBreaking, "present", "absent")
-			continue
-		}
-		if value.Interface != other.Interface || value.Type != other.Type {
-			add(
-				report, path, ChangeModified, CompatibilityBreaking,
-				formatQName(value.Interface)+" "+value.Type,
-				formatQName(other.Interface)+" "+other.Type,
+		} else {
+			if value.Interface != other.Interface || value.Type != other.Type {
+				add(
+					report, path, ChangeModified, CompatibilityBreaking,
+					formatQName(value.Interface)+" "+value.Type,
+					formatQName(other.Interface)+" "+other.Type,
+				)
+			}
+			compareStringSet(
+				path+"/operations",
+				operationReferenceStrings(value),
+				operationReferenceStrings(other),
+				report,
 			)
 		}
-		compareStringSet(
-			path+"/operations",
-			operationReferenceStrings(value),
-			operationReferenceStrings(other),
-			report,
-		)
 	}
 	for name := range right {
 		if _, exists := left[name]; !exists {
@@ -392,12 +400,12 @@ func compareServices(before, after *wsdlcompile.Set, report *Report) {
 		path := "/services/" + formatQName(name)
 		if !exists {
 			add(report, path, ChangeRemoved, CompatibilityBreaking, "present", "absent")
-			continue
+		} else {
+			if value.Interface != other.Interface {
+				add(report, path+"/interface", ChangeModified, CompatibilityBreaking, formatQName(value.Interface), formatQName(other.Interface))
+			}
+			compareEndpoints(path, value.Endpoints, other.Endpoints, report)
 		}
-		if value.Interface != other.Interface {
-			add(report, path+"/interface", ChangeModified, CompatibilityBreaking, formatQName(value.Interface), formatQName(other.Interface))
-		}
-		compareEndpoints(path, value.Endpoints, other.Endpoints, report)
 	}
 	for name := range right {
 		if _, exists := left[name]; !exists {

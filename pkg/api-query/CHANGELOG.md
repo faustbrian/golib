@@ -5,12 +5,18 @@ versioning once v1 is released.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.
 
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Pin owned dependencies to published source revisions so clean consumers can
   resolve the module before the first tags.
 - Execute API compatibility tooling against the isolated module graph so owned

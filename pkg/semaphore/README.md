@@ -1,6 +1,6 @@
 # semaphore
 
-`semaphore` is a process-local, FIFO weighted counting semaphore for Go 1.26.5
+`semaphore` is a process-local, FIFO weighted counting semaphore for Go 1.26.6
 and newer. It adds bounded waiting, owned exactly-once permits, deterministic
 shutdown, immutable snapshots, and bounded observation events to the basic
 counting-semaphore pattern.
@@ -116,3 +116,8 @@ capacity in a replicated workload.
 - [FAQ](docs/faq.md)
 - [Security policy](SECURITY.md)
 - [Release notes](CHANGELOG.md)
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -138,6 +138,237 @@ func TestRequiredExtensionTraversalCoversNestedFaultAndInputBranches(t *testing.
 	}
 }
 
+func TestRequiredExtensionValidationSkipsOptionalAndUnderstoodBeforeUnknown(t *testing.T) {
+	t.Parallel()
+
+	understoodName := QName{Namespace: "urn:known", Local: "Known"}
+	unknownName := QName{Namespace: "urn:unknown", Local: "Unknown"}
+	document := &Document{version: Version11, definitions11: &Definitions11{
+		Extensions: []Extension{
+			{Name: QName{Namespace: "urn:optional", Local: "Optional"}},
+			{Name: understoodName, Required: true, RequiredSet: true},
+			{Name: unknownName, Required: true, RequiredSet: true},
+		},
+	}}
+	collector := diagnosticCollector{max: 10}
+	validateRequiredExtensions(document, map[QName]struct{}{understoodName: {}}, &collector)
+	if countDiagnostics(collector.diagnostics, "WSDL_EXTENSION_REQUIRED") != 1 ||
+		collector.diagnostics[0].Message != "required extension {urn:unknown}Unknown is not understood" {
+		t.Fatalf("diagnostics = %#v", collector.diagnostics)
+	}
+}
+
+func TestWSDL11ValidationSkipsIrrelevantReferencesBeforeMissingReferences(t *testing.T) {
+	t.Parallel()
+
+	tns := func(local string) QName { return QName{Namespace: "urn:test", Local: local} }
+	document := &Document{version: Version11, definitions11: &Definitions11{
+		TargetNamespace: "urn:test",
+		Bindings:        []Binding11{{Name: "Existing"}},
+		Services: []Service11{{Name: "Service", Ports: []Port11{
+			{Name: "External", Binding: QName{Namespace: "urn:external", Local: "Binding"}},
+			{Name: "Existing", Binding: tns("Existing")},
+			{Name: "Missing", Binding: tns("Missing")},
+		}}},
+	}}
+	diagnostics := Validate(document, ValidationOptions{})
+	if countDiagnostics(diagnostics, "WSDL11_BINDING_REFERENCE") != 1 {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestWSDL11OperationStyleReportsEachIndependentInvalidState(t *testing.T) {
+	t.Parallel()
+
+	input := &OperationMessage11{}
+	output := &OperationMessage11{}
+	for name, operation := range map[string]Operation11{
+		"both unset": {Name: "Call", Style: ""},
+		"unset":      {Name: "Call", Input: input, Style: ""},
+		"unknown":    {Name: "Call", Style: OperationStyleOneWay},
+		"mismatch":   {Name: "Call", Input: input, Output: output, Style: OperationStyleOneWay},
+	} {
+		collector := diagnosticCollector{max: 10}
+		validateOperationStyle11("Port", operation, &collector)
+		if countDiagnostics(collector.diagnostics, "WSDL11_OPERATION_STYLE") != 1 {
+			t.Errorf("%s diagnostics = %#v", name, collector.diagnostics)
+		}
+	}
+}
+
+func TestWSDL11MatchingAndBodyValidationContinueToLaterCandidates(t *testing.T) {
+	t.Parallel()
+
+	operations := []Operation11{
+		{Name: "Call", Style: OperationStyleRequestResponse, Output: &OperationMessage11{Name: "Wrong"}},
+		{Name: "Call", Style: OperationStyleRequestResponse, Output: &OperationMessage11{Name: "Wanted"}},
+	}
+	match := matchingOperation11(BindingOperation11{
+		Name: "Call", Output: &BindingMessage11{Name: "Wanted"},
+	}, operations)
+	if match != &operations[1] {
+		t.Fatalf("matchingOperation11() = %#v", match)
+	}
+	message := QName{Namespace: "urn:test", Local: "Message"}
+	collector := diagnosticCollector{max: 10}
+	validateSOAPBindingMessage11(
+		&BindingMessage11{SOAPBody: &SOAPBody11{Parts: []string{"known", "missing"}}},
+		&OperationMessage11{Message: message},
+		"urn:test",
+		map[QName]map[string]struct{}{message: {"known": {}}},
+		&collector,
+	)
+	if countDiagnostics(collector.diagnostics, "WSDL11_SOAP_BODY_PART") != 1 {
+		t.Fatalf("diagnostics = %#v", collector.diagnostics)
+	}
+}
+
+func TestWSDL20ValidationSkipsIrrelevantReferencesBeforeMissingReferences(t *testing.T) {
+	t.Parallel()
+
+	tns := func(local string) QName { return QName{Namespace: "urn:test", Local: local} }
+	external := func(local string) QName { return QName{Namespace: "urn:external", Local: local} }
+	document := &Document{version: Version20, description20: &Description20{
+		TargetNamespace: "urn:test",
+		Interfaces: []Interface20{{Name: "API", Faults: []InterfaceFault20{{Name: "KnownFault"}}, Operations: []InterfaceOperation20{{
+			Name: "KnownOperation",
+		}}}},
+		Bindings: []Binding20{{Name: "Binding", Interface: tns("API"),
+			Faults:     []BindingFault20{{Ref: external("Fault")}, {Ref: tns("KnownFault")}, {Ref: tns("MissingFault")}},
+			Operations: []BindingOperation20{{Ref: external("Operation")}, {Ref: tns("KnownOperation")}, {Ref: tns("MissingOperation")}},
+		}},
+		Services: []Service20{{Name: "Service", Interface: tns("API"), Endpoints: []Endpoint20{
+			{Name: "External", Binding: external("Binding")},
+			{Name: "Existing", Binding: tns("Binding")},
+			{Name: "Missing", Binding: tns("MissingBinding")},
+		}}},
+	}}
+	diagnostics := Validate(document, ValidationOptions{})
+	for _, code := range []string{
+		"WSDL20_BINDING_FAULT", "WSDL20_OPERATION_REFERENCE", "WSDL20_BINDING_REFERENCE",
+	} {
+		if countDiagnostics(diagnostics, code) != 1 {
+			t.Errorf("%s diagnostics = %#v", code, diagnostics)
+		}
+	}
+}
+
+func TestHTTPValidationDistinguishesUnsetValidAndInvalidProperties(t *testing.T) {
+	t.Parallel()
+
+	collector := diagnosticCollector{max: 30}
+	validateHTTPBinding20(Binding20{
+		HTTP: &HTTPBinding20{MethodDefault: "BAD METHOD", Version: "bad"},
+		Faults: []BindingFault20{
+			{},
+			{HTTP: &HTTPFaultBinding20{Code: "invalid", CodeSet: true}},
+		},
+		Operations: []BindingOperation20{
+			{HTTP: &HTTPOperationBinding20{Method: "BAD METHOD"}},
+			{HTTP: &HTTPOperationBinding20{Method: "BAD METHOD", MethodSet: true}},
+		},
+	}, &collector)
+	validateHTTPBinding20(Binding20{HTTP: &HTTPBinding20{
+		MethodDefault: "GET", MethodDefaultSet: true, Version: "1.1", VersionSet: true,
+	}}, &collector)
+	validateHTTPBinding20(Binding20{HTTP: &HTTPBinding20{
+		MethodDefault: "BAD METHOD", MethodDefaultSet: true,
+		Version: "bad", VersionSet: true,
+	}}, &collector)
+	for code, want := range map[string]int{
+		"WSDL20_HTTP_METHOD":      2,
+		"WSDL20_HTTP_VERSION":     1,
+		"WSDL20_HTTP_STATUS_CODE": 1,
+	} {
+		if got := countDiagnostics(collector.diagnostics, code); got != want {
+			t.Errorf("%s diagnostics = %d, want %d: %#v", code, got, want, collector.diagnostics)
+		}
+	}
+}
+
+func TestHTTPEndpointValidationDistinguishesEveryAuthenticationState(t *testing.T) {
+	t.Parallel()
+
+	collector := diagnosticCollector{max: 20}
+	for _, endpoint := range []Endpoint20{
+		{HTTP: &HTTPEndpoint20{AuthenticationScheme: "invalid"}},
+		{HTTP: &HTTPEndpoint20{AuthenticationScheme: "basic", AuthenticationSchemeSet: true}},
+		{HTTP: &HTTPEndpoint20{AuthenticationScheme: "digest", AuthenticationSchemeSet: true}},
+		{HTTP: &HTTPEndpoint20{AuthenticationScheme: "invalid", AuthenticationSchemeSet: true}},
+		{HTTP: &HTTPEndpoint20{AuthenticationRealm: "realm"}},
+		{HTTP: &HTTPEndpoint20{AuthenticationRealm: "realm", AuthenticationRealmSet: true, AuthenticationScheme: "basic", AuthenticationSchemeSet: true}},
+		{HTTP: &HTTPEndpoint20{AuthenticationRealm: "realm", AuthenticationRealmSet: true}},
+	} {
+		validateHTTPEndpoint20(endpoint, &collector)
+	}
+	if countDiagnostics(collector.diagnostics, "WSDL20_HTTP_AUTHENTICATION_SCHEME") != 1 ||
+		countDiagnostics(collector.diagnostics, "WSDL20_HTTP_AUTHENTICATION_REALM") != 1 {
+		t.Fatalf("diagnostics = %#v", collector.diagnostics)
+	}
+}
+
+func TestSOAPAndBindingReferenceValidationContinuesToLaterInvalidValues(t *testing.T) {
+	t.Parallel()
+
+	collector := diagnosticCollector{max: 30}
+	validateSOAPBinding20(Binding20{Faults: []BindingFault20{
+		{},
+		{SOAP: &SOAPFaultBinding20{Modules: []SOAPModule20{{Ref: "relative"}}}},
+	}}, &collector)
+	validateSOAPHeaders20([]SOAPHeader20{
+		{Element: QName{Namespace: "urn:test", Local: "Known"}}, {},
+	}, &collector)
+	validateBindingMessages20(
+		"Binding", QName{Local: "Call"}, "input",
+		[]BindingMessageReference20{{MessageLabel: "Known"}, {MessageLabel: "Missing"}},
+		&InterfaceMessageReference20{MessageLabel: "Known"}, &collector,
+	)
+	knownFault := QName{Namespace: "urn:test", Local: "Known"}
+	validateBindingFaults20(
+		"Binding", QName{Local: "Call"},
+		[]BindingFaultReference20{{Ref: knownFault}, {Ref: QName{Namespace: "urn:test", Local: "Missing"}}},
+		[]InterfaceFaultReference20{{Ref: knownFault}}, &collector,
+	)
+	for code, want := range map[string]int{
+		"WSDL20_SOAP_MODULE_IRI":           1,
+		"WSDL20_SOAP_HEADER_ELEMENT":       1,
+		"WSDL20_BINDING_MESSAGE_REFERENCE": 1,
+		"WSDL20_BINDING_FAULT_REFERENCE":   1,
+	} {
+		if got := countDiagnostics(collector.diagnostics, code); got != want {
+			t.Errorf("%s diagnostics = %d, want %d: %#v", code, got, want, collector.diagnostics)
+		}
+	}
+}
+
+func TestFaultLookupAndMatchingDistinguishEachIdentityField(t *testing.T) {
+	t.Parallel()
+
+	faults := []OperationMessage11{{Name: "First"}, {Name: "Second"}}
+	if got := operationFault11(faults, "Second"); got != &faults[1] {
+		t.Fatalf("operationFault11(Second) = %#v", got)
+	}
+	if got := operationFault11(faults, "Missing"); got != nil {
+		t.Fatalf("operationFault11(Missing) = %#v", got)
+	}
+	known := QName{Namespace: "urn:test", Local: "Known"}
+	other := QName{Namespace: "urn:test", Local: "Other"}
+	interfaceReferences := []InterfaceFaultReference20{{Ref: known, MessageLabel: "KnownLabel"}}
+	for name, test := range map[string]struct {
+		reference BindingFaultReference20
+		want      bool
+	}{
+		"empty label":      {reference: BindingFaultReference20{Ref: known}, want: true},
+		"matching label":   {reference: BindingFaultReference20{Ref: known, MessageLabel: "KnownLabel"}, want: true},
+		"mismatched label": {reference: BindingFaultReference20{Ref: known, MessageLabel: "OtherLabel"}},
+		"mismatched fault": {reference: BindingFaultReference20{Ref: other, MessageLabel: "KnownLabel"}},
+	} {
+		if got := bindingFaultMatches20(test.reference, interfaceReferences); got != test.want {
+			t.Errorf("%s match = %t, want %t", name, got, test.want)
+		}
+	}
+}
+
 func TestWSDL11FaultAndMIMEValidationUsesEverySemanticBranch(t *testing.T) {
 	t.Parallel()
 

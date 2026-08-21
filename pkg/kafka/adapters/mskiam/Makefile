@@ -2,7 +2,7 @@ GO ?= go
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
 
-.PHONY: benchmark check coverage docs format format-check fuzz interoperability msk-interoperability race test vet
+.PHONY: benchmark check coverage docs format format-check fuzz interoperability msk-interoperability race specification test vet
 
 format:
 	gofmt -w .
@@ -53,10 +53,13 @@ docs:
 	test -s README.md
 	test -s CHANGELOG.md
 	test -s LICENSE
-	rg -q '^## API reference$$' README.md
-	rg -q '^## Adoption and tradeoffs$$' README.md
-	rg -q '^## FAQ$$' README.md
+	grep -q '^## API reference$$' README.md
+	grep -q '^## Adoption and tradeoffs$$' README.md
+	grep -q '^## FAQ$$' README.md
 	$(GO) doc .
 	$(GO) test -run '^Example$$' .
 
-check: format-check vet test race coverage fuzz benchmark docs
+specification:
+	bash scripts/check-specification.sh
+
+check: format-check vet test race coverage fuzz benchmark docs specification

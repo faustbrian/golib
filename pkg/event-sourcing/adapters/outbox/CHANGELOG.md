@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Removed
 
 - Remove the pre-release committed `Store`; callers now retain exclusive
@@ -12,6 +16,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Upgrade `golang.org/x/text` to v0.41.0 so the dependency graph no longer
+  contains GO-2026-5970.
 - Rename the unpublished module from `adapters/gooutbox` to
   `adapters/outbox` and its Go package to `eventoutbox` before v1.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

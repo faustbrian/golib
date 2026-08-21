@@ -1,6 +1,6 @@
 # Operations
 
-Pin Go 1.26.5 and all analysis tools. Run `make check` before release. Run
+Pin Go 1.26.6 and all analysis tools. Run `make check` before release. Run
 `make timezone` after OS, container, Go, or tzdata updates. Review transition
 corpus drift rather than weakening assertions.
 

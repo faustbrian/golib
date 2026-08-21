@@ -4,26 +4,17 @@ package terminal
 
 import "golang.org/x/sys/unix"
 
-func setEcho(descriptor uintptr, enabled bool) error {
-	state, err := unix.IoctlGetTermios(int(descriptor), unix.TCGETS)
-	if err != nil {
-		return err
-	}
-	if enabled {
-		state.Lflag |= unix.ECHO
-	} else {
-		state.Lflag &^= unix.ECHO
-	}
+const (
+	terminalEchoFlag             = unix.ECHO
+	terminalOutputProcessingFlag = unix.OPOST
+)
 
-	return unix.IoctlSetTermios(int(descriptor), unix.TCSETS, state)
+type terminalState = unix.Termios
+
+func readTerminalState(descriptor uintptr) (*terminalState, error) {
+	return unix.IoctlGetTermios(int(descriptor), unix.TCGETS)
 }
 
-func setOutputProcessing(descriptor uintptr) error {
-	state, err := unix.IoctlGetTermios(int(descriptor), unix.TCGETS)
-	if err != nil {
-		return err
-	}
-	state.Oflag |= unix.OPOST
-
+func writeTerminalState(descriptor uintptr, state *terminalState) error {
 	return unix.IoctlSetTermios(int(descriptor), unix.TCSETS, state)
 }

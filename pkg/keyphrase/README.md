@@ -7,7 +7,7 @@ distribution, and randomness is injectable through a context-aware interface.
 
 This module does not hash passwords, implement wallets, derive BIP-32/BIP-44
 keys, store secrets, or distribute credentials. Use
-[`password`](https://github.com/faustbrian/golib/pkg/password) for password hashing
+[`password`](../password) for password hashing
 and a purpose-built secret manager for storage and distribution.
 
 ## Install
@@ -16,7 +16,7 @@ and a purpose-built secret manager for storage and distribution.
 go get github.com/faustbrian/golib/pkg/keyphrase
 ```
 
-The module requires Go 1.26.5 or later.
+The module requires Go 1.26.6 or later.
 
 ## Password quick start
 
@@ -101,3 +101,8 @@ complete erasure impossible. See [secret lifetime](docs/secret-lifetime.md).
 
 Project code and BIP-39 material are MIT licensed. EFF-derived list data is
 used under CC BY 3.0 US. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

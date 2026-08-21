@@ -244,3 +244,8 @@ Kubernetes, ECS, systemd, or another process supervisor owns process lifetime.
 No. Core contracts use explicit values and small interfaces. Applications may
 compose those modules or equivalent implementations. There is no implicit event
 bus, scheduler, service container, or package-initialization registration.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -161,3 +161,8 @@ make check MODULES=pkg/outbox/adapters/otel
 
 The module contract includes tests, race detection, exact statement coverage,
 fuzzing, mutation, security, API, documentation, and benchmark gates.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

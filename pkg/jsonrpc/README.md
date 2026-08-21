@@ -7,12 +7,13 @@ fuzz-tested.
 
 ## Status
 
-The stable v1 API and wire behavior are SemVer-governed. Production package
-code is held to meaningful 100% statement coverage.
+The package is pre-v1 and has no published release. Its current API and wire
+behavior form the candidate contract for the first `v1.0.0` tag. Production
+package code is held to meaningful 100% statement coverage.
 
 ## Requirements
 
-- Go 1.26.5 or later
+- Go 1.26.6 or later
 - no runtime dependencies outside the standard library
 
 ## Installation
@@ -98,3 +99,8 @@ untrusted clients.
 `jsonrpc` is available under the [MIT License](LICENSE). Attribution and
 third-party policy are recorded in [NOTICE](NOTICE) and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -153,7 +153,7 @@ same machine. The regression asserts allocation count rather than timing.
 
 ## Release readiness
 
-**Final verdict: release-ready for the first `v1.0.0` tag.** Every finding is
+**Final verdict: release-candidate ready for the first `v1.0.0` tag.** Every finding is
 fixed or assigned to an explicit trusted extension boundary, every normative
 conformance row has direct passing evidence, and the final gate completed
 without skips on 2026-07-14 using Go 1.26.5 on Darwin/arm64.
@@ -173,8 +173,8 @@ without skips on 2026-07-14 using Go 1.26.5 on Darwin/arm64.
 | `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7` | Passed |
 
 The semantic-version recommendation is `v1.0.0`: the remote has no published
-tags, the stable API and compatibility contract are now documented, and the
-full hardening set is included in the dated `1.0.0` changelog section. Trusted
+tags, the candidate API and compatibility contract are now documented, and the
+full hardening set is included in the planned v1 changelog scope. Trusted
 handlers and custom transports still require application output policy,
 timeouts, cancellation cooperation, authentication, authorization, TLS, and
 rate limiting as documented above; these are deployment boundaries, not open

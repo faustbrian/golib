@@ -44,6 +44,34 @@ func TestObserveAllowsEmptyOperationButNotEmptyCode(t *testing.T) {
 	}
 }
 
+func TestObserveAcceptsOnlyExactOperationLabelCharacterClasses(t *testing.T) {
+	valid := []string{"a", "z", "A", "Z", "0", "9", "_", "-", ".", ":", "Az0_-."}
+	invalid := []string{"`", "{", "@", "[", "/", "!"}
+	for _, operation := range append(valid, invalid...) {
+		t.Run(operation, func(t *testing.T) {
+			ctx, err := validation.NewContext(
+				validation.DefaultLimits(),
+				validation.WithOperation(operation),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			report := validation.NewReport(ctx.Limits()).Add(validation.NewViolation(
+				validation.RootPath(), "code", validation.Error, nil, nil,
+			))
+			recorder := &recorder{}
+			validationobserve.Report(ctx, report, recorder)
+			want := operation
+			if strings.Contains("`{@[/!", operation) {
+				want = "invalid_operation"
+			}
+			if got := recorder.observations[0].Operation; got != want {
+				t.Fatalf("operation = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func (recorder *recorder) Observe(observation validationobserve.Observation) {
 	recorder.observations = append(recorder.observations, observation)
 }

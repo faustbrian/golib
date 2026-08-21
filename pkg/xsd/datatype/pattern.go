@@ -1,6 +1,7 @@
 package datatype
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
 	"sort"
@@ -18,7 +19,7 @@ const (
 // translation retains Go's linear-time regular-expression execution while
 // implementing XML Schema character classes and whole-literal matching.
 func CompilePattern(pattern string) (*regexp.Regexp, error) {
-	if len(pattern) > maxPatternSourceBytes {
+	if !withinByteLimit(len(pattern), maxPatternSourceBytes) {
 		return nil, fmt.Errorf("xsd: pattern exceeds %d bytes", maxPatternSourceBytes)
 	}
 	translator := patternTranslator{source: pattern}
@@ -49,14 +50,14 @@ func (translator *patternTranslator) translate() (string, error) {
 			}
 			translated.WriteString(class.regexp())
 		case '\\':
-			class, literal, err := translator.parseEscape()
+			class, literal, isLiteral, err := translator.parseEscape()
 			if err != nil {
 				return "", err
 			}
-			if class != nil {
-				translated.WriteString(class.regexp())
-			} else {
+			if isLiteral {
 				translated.WriteString(regexp.QuoteMeta(string(literal)))
+			} else {
+				translated.WriteString(class.regexp())
 			}
 		case '.':
 			translated.WriteString(xmlUniverse.subtract(runeSet{{'\n', '\n'}, {'\r', '\r'}}).regexp())
@@ -69,7 +70,7 @@ func (translator *patternTranslator) translate() (string, error) {
 			translated.WriteRune(character)
 			translator.index += size
 		}
-		if translated.Len() > maxTranslatedPatternBytes {
+		if !withinByteLimit(translated.Len(), maxTranslatedPatternBytes) {
 			return "", fmt.Errorf("xsd: translated pattern exceeds %d bytes", maxTranslatedPatternBytes)
 		}
 	}
@@ -92,7 +93,10 @@ func (translator *patternTranslator) parseClass() (runeSet, error) {
 			if err != nil {
 				return nil, err
 			}
-			if translator.index >= len(translator.source) || translator.source[translator.index] != ']' {
+			if translator.index >= len(translator.source) {
+				return nil, fmt.Errorf("xsd: character class subtraction at byte %d is not final", start)
+			}
+			if translator.source[translator.index] != ']' {
 				return nil, fmt.Errorf("xsd: character class subtraction at byte %d is not final", start)
 			}
 			translator.index++
@@ -102,29 +106,35 @@ func (translator *patternTranslator) parseClass() (runeSet, error) {
 			return result.subtract(excluded), nil
 		}
 
-		member, singleton, err := translator.parseClassMember()
+		member, singleton, singletonMember, err := translator.parseClassMember()
 		if err != nil {
 			return nil, err
 		}
 		hasMember = true
 		if translator.index < len(translator.source) && translator.source[translator.index] == '-' &&
 			!strings.HasPrefix(translator.source[translator.index:], "-[") {
-			if singleton < 0 {
+			if !singletonMember {
 				return nil, fmt.Errorf("xsd: character range at byte %d has a class endpoint", translator.index)
 			}
 			translator.index++
-			end, endSingleton, rangeErr := translator.parseClassMember()
+			_, endSingleton, endIsSingleton, rangeErr := translator.parseClassMember()
 			if rangeErr != nil {
 				return nil, rangeErr
 			}
-			if endSingleton < 0 || len(end) != 1 || singleton > endSingleton {
+			if !endIsSingleton {
+				return nil, fmt.Errorf("xsd: invalid character range at byte %d", translator.index)
+			}
+			if singleton > endSingleton {
 				return nil, fmt.Errorf("xsd: invalid character range at byte %d", translator.index)
 			}
 			member = runeSet{{singleton, endSingleton}}
 		}
 		result = result.union(member)
 	}
-	if translator.index >= len(translator.source) || !hasMember {
+	if translator.index >= len(translator.source) {
+		return nil, fmt.Errorf("xsd: unterminated or empty character class at byte %d", start)
+	}
+	if !hasMember {
 		return nil, fmt.Errorf("xsd: unterminated or empty character class at byte %d", start)
 	}
 	translator.index++
@@ -134,88 +144,93 @@ func (translator *patternTranslator) parseClass() (runeSet, error) {
 	return result, nil
 }
 
-func (translator *patternTranslator) parseClassMember() (runeSet, rune, error) {
-	if translator.index >= len(translator.source) || translator.source[translator.index] == ']' {
-		return nil, -1, fmt.Errorf("xsd: missing character class member at byte %d", translator.index)
+func (translator *patternTranslator) parseClassMember() (runeSet, rune, bool, error) {
+	if translator.index == len(translator.source) {
+		return nil, 0, false, fmt.Errorf("xsd: missing character class member at byte %d", translator.index)
+	}
+	if translator.source[translator.index] == ']' {
+		return nil, 0, false, fmt.Errorf("xsd: missing character class member at byte %d", translator.index)
 	}
 	if translator.source[translator.index] == '[' || translator.source[translator.index] == '-' {
-		return nil, -1, fmt.Errorf("xsd: unescaped character at byte %d", translator.index)
+		return nil, 0, false, fmt.Errorf("xsd: unescaped character at byte %d", translator.index)
 	}
 	if translator.source[translator.index] == '\\' {
-		class, literal, err := translator.parseEscape()
+		class, literal, isLiteral, err := translator.parseEscape()
 		if err != nil {
-			return nil, -1, err
+			return nil, 0, false, err
 		}
-		if class != nil {
-			return class, -1, nil
+		if !isLiteral {
+			return class, 0, false, nil
 		}
-		return runeSet{{literal, literal}}, literal, nil
+		return runeSet{{literal, literal}}, literal, true, nil
 	}
 	character, size := utf8.DecodeRuneInString(translator.source[translator.index:])
 	if character == utf8.RuneError && size == 1 {
-		return nil, -1, fmt.Errorf("xsd: pattern is not valid UTF-8 at byte %d", translator.index)
+		return nil, 0, false, fmt.Errorf("xsd: pattern is not valid UTF-8 at byte %d", translator.index)
 	}
 	translator.index += size
-	return runeSet{{character, character}}, character, nil
+	return runeSet{{character, character}}, character, true, nil
 }
 
-func (translator *patternTranslator) parseEscape() (runeSet, rune, error) {
+func (translator *patternTranslator) parseEscape() (runeSet, rune, bool, error) {
 	start := translator.index
 	translator.index++
-	if translator.index >= len(translator.source) {
-		return nil, -1, fmt.Errorf("xsd: incomplete escape at byte %d", start)
+	if translator.index == len(translator.source) {
+		return nil, 0, false, fmt.Errorf("xsd: incomplete escape at byte %d", start)
 	}
 	escape, size := utf8.DecodeRuneInString(translator.source[translator.index:])
 	translator.index += size
 	switch escape {
 	case 'n':
-		return nil, '\n', nil
+		return nil, '\n', true, nil
 	case 'r':
-		return nil, '\r', nil
+		return nil, '\r', true, nil
 	case 't':
-		return nil, '\t', nil
+		return nil, '\t', true, nil
 	case '\\', '|', '.', '-', '^', '?', '*', '+', '(', ')', '{', '}', '[', ']':
-		return nil, escape, nil
+		return nil, escape, true, nil
 	case 's':
-		return runeSet{{'\t', '\n'}, {'\r', '\r'}, {' ', ' '}}, -1, nil
+		return runeSet{{'\t', '\n'}, {'\r', '\r'}, {' ', ' '}}, 0, false, nil
 	case 'S':
-		return xmlUniverse.subtract(runeSet{{'\t', '\n'}, {'\r', '\r'}, {' ', ' '}}), -1, nil
+		return xmlUniverse.subtract(runeSet{{'\t', '\n'}, {'\r', '\r'}, {' ', ' '}}), 0, false, nil
 	case 'i':
-		return xmlNameStartSet, -1, nil
+		return xmlNameStartSet, 0, false, nil
 	case 'I':
-		return xmlUniverse.subtract(xmlNameStartSet), -1, nil
+		return xmlUniverse.subtract(xmlNameStartSet), 0, false, nil
 	case 'c':
-		return xmlNameChar, -1, nil
+		return xmlNameChar, 0, false, nil
 	case 'C':
-		return xmlUniverse.subtract(xmlNameChar), -1, nil
+		return xmlUniverse.subtract(xmlNameChar), 0, false, nil
 	case 'd':
-		return categorySet("Nd"), -1, nil
+		return categorySet("Nd"), 0, false, nil
 	case 'D':
-		return xmlUniverse.subtract(categorySet("Nd")), -1, nil
+		return xmlUniverse.subtract(categorySet("Nd")), 0, false, nil
 	case 'w':
-		return xmlWord, -1, nil
+		return xmlWord, 0, false, nil
 	case 'W':
-		return xmlUniverse.subtract(xmlWord), -1, nil
+		return xmlUniverse.subtract(xmlWord), 0, false, nil
 	case 'p', 'P':
 		property, err := translator.parseProperty(start)
 		if err != nil {
-			return nil, -1, err
+			return nil, 0, false, err
 		}
 		if escape == 'P' {
 			property = xmlUniverse.subtract(property)
 		}
-		return property, -1, nil
+		return property, 0, false, nil
 	default:
-		return nil, -1, fmt.Errorf("xsd: invalid escape \\%c at byte %d", escape, start)
+		return nil, 0, false, fmt.Errorf("xsd: invalid escape \\%c at byte %d", escape, start)
 	}
 }
+
+func withinByteLimit(length int, limit int) bool { return length <= limit }
 
 func (translator *patternTranslator) parseProperty(start int) (runeSet, error) {
 	if !translator.consume('{') {
 		return nil, fmt.Errorf("xsd: property escape at byte %d is missing '{'", start)
 	}
 	end := strings.IndexByte(translator.source[translator.index:], '}')
-	if end < 0 {
+	if end == -1 {
 		return nil, fmt.Errorf("xsd: unterminated property escape at byte %d", start)
 	}
 	name := translator.source[translator.index : translator.index+end]
@@ -288,7 +303,7 @@ func rangeTableSet(table *unicode.RangeTable) runeSet {
 			item.Lo,
 			item.Hi,
 			item.Stride,
-			utf8.MaxRune+1,
+			0x110000,
 		)
 		if !ok {
 			return nil
@@ -321,16 +336,20 @@ func (set runeSet) intersect(other runeSet) runeSet {
 	set = set.normalized()
 	other = other.normalized()
 	result := make(runeSet, 0)
-	for left, right := 0, 0; left < len(set) && right < len(other); {
-		first := max(set[left].first, other[right].first)
-		last := min(set[left].last, other[right].last)
+	for len(set) != 0 && len(other) != 0 {
+		first := max(set[0].first, other[0].first)
+		last := min(set[0].last, other[0].last)
 		if first <= last {
 			result = append(result, runeRange{first, last})
 		}
-		if set[left].last < other[right].last {
-			left++
-		} else {
-			right++
+		switch cmp.Compare(set[0].last, other[0].last) {
+		case -1:
+			set = set[1:]
+		case 1:
+			other = other[1:]
+		default:
+			set = set[1:]
+			other = other[1:]
 		}
 	}
 	return result
@@ -343,20 +362,12 @@ func (set runeSet) subtract(other runeSet) runeSet {
 	for _, candidate := range set {
 		cursor := candidate.first
 		for _, excluded := range other {
-			if excluded.last < cursor {
-				continue
+			if excluded.last >= cursor && excluded.first <= candidate.last {
+				if excluded.first > cursor {
+					result = append(result, runeRange{cursor, excluded.first - 1})
+				}
+				cursor = excluded.last + 1
 			}
-			if excluded.first > candidate.last {
-				break
-			}
-			if excluded.first > cursor {
-				result = append(result, runeRange{cursor, excluded.first - 1})
-			}
-			if excluded.last >= candidate.last {
-				cursor = candidate.last + 1
-				break
-			}
-			cursor = excluded.last + 1
 		}
 		if cursor <= candidate.last {
 			result = append(result, runeRange{cursor, candidate.last})
@@ -371,8 +382,10 @@ func (set runeSet) normalized() runeSet {
 	}
 	result := append(runeSet(nil), set...)
 	sort.Slice(result, func(left, right int) bool {
-		return result[left].first < result[right].first ||
-			(result[left].first == result[right].first && result[left].last < result[right].last)
+		return cmp.Or(
+			cmp.Compare(result[left].first, result[right].first),
+			cmp.Compare(result[left].last, result[right].last),
+		) == -1
 	})
 	merged := result[:0]
 	for _, item := range result {
@@ -380,9 +393,7 @@ func (set runeSet) normalized() runeSet {
 			merged = append(merged, item)
 			continue
 		}
-		if item.last > merged[len(merged)-1].last {
-			merged[len(merged)-1].last = item.last
-		}
+		merged[len(merged)-1].last = max(item.last, merged[len(merged)-1].last)
 	}
 	return merged
 }

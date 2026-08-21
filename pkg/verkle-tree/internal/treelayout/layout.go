@@ -606,7 +606,7 @@ func mergeSortStems(
 			return err
 		}
 		if right == end ||
-			(left < middle && bytes.Compare(stems[left][:], stems[right][:]) <= 0) {
+			(left < middle && bytes.Compare(stems[left][:], stems[right][:]) != 1) {
 			scratch[output] = stems[left]
 			left++
 		} else {

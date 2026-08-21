@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/verkle-tree
 
-go 1.26.5
+go 1.26.6
 
 require github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c
 

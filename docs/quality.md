@@ -55,6 +55,15 @@ fixtures or matrices. Interoperability proves behavior against independent
 implementations. Each successful gate writes its module-attributable output
 atomically before another gate begins.
 
+The root documentation gate runs with `make docs MODULES=.`. It combines the
+owned Markdown structure, anchor, navigation, status, and package-backlink
+validator with CSpell and Lychee. CSpell uses the reviewed technical-term
+allowlist in `cspell.json`; Lychee checks local and external targets with a
+pinned checksum-verified binary. Missing tools, malformed configuration,
+unknown words, broken links, unavailable downloads, and check failures fail
+closed. Tool installations and caches are task-owned and removed after the
+gate.
+
 ## Evidence Checkpoints
 
 `scripts/check-gates.txt` is the canonical ordered contract used by both the

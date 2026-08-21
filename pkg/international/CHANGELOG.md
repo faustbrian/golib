@@ -4,6 +4,16 @@ All notable changes and dataset updates are recorded here.
 
 ## [Unreleased]
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+- Keep the initial `v1.0.0` scope under Unreleased until a tag is published.
+
+### Changed
+
+- Replace obsolete owned-module pseudo-version pins with the monorepo's local
+  `v0.0.0` source-proxy coordinates; release tooling continues to emit exact
+  `v1.0.0` dependency versions.
 - Repair malformed UTF-8 parse-error reasons before returning diagnostics and
   classify oversized dataset review inputs as resource-limit failures.
 - Add opt-in country-aware postal-code syntax validation compatible with the
@@ -33,7 +43,9 @@ All notable changes and dataset updates are recorded here.
 - Keep provenance and documentation gates portable on clean CI runners without
   requiring ripgrep outside the declared Go toolchain.
 
-## [1.0.0] - 2026-07-16
+### Planned v1.0.0 scope
+
+The following initial scope is implemented but remains unreleased.
 
 - Establish typed country, subdivision, language, locale, currency, phone, and
   postal primitives.

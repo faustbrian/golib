@@ -191,12 +191,16 @@ func TestLimitedBufferEnforcesItsLimit(t *testing.T) {
 }
 
 func TestListModulesCoversSuccessAndExecutionFailure(t *testing.T) {
-	t.Parallel()
-
+	originalModfile := os.Getenv(isolatedModfileEnvironment)
 	modules, err := listModules(".")
 	if err != nil || len(modules) == 0 {
 		t.Fatalf("listModules(.) = %#v, %v", modules, err)
 	}
+	t.Setenv(isolatedModfileEnvironment, "invalid module file")
+	if _, err := listModules("."); err == nil {
+		t.Fatal("listModules accepted an invalid isolated module file")
+	}
+	t.Setenv(isolatedModfileEnvironment, originalModfile)
 	if _, err := listModules(filepath.Join(t.TempDir(), "missing")); err == nil {
 		t.Fatal("listModules accepted a missing working directory")
 	}

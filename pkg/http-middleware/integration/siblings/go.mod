@@ -1,6 +1,6 @@
 module github.com/faustbrian/golib/pkg/http-middleware/integration/siblings
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/faustbrian/golib/pkg/authentication v0.0.0
@@ -27,5 +27,5 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )

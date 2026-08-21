@@ -5,6 +5,10 @@ versioning once released.
 
 ## Unreleased
 
+### Documentation
+
+- Link the package README to the repository-wide Golib documentation portal.
+
 ### Fixed
 
 - Amortize system entropy reads through a bounded factory-owned buffer while
@@ -21,6 +25,9 @@ versioning once released.
 
 ### Changed
 
+- Replace the obsolete owned-module pseudo-version pin with the monorepo's
+  local `v0.0.0` source-proxy coordinate; release tooling continues to emit
+  the exact `v1.0.0` dependency version.
 - Pin the owned identifier module to an immutable source revision so
   correlation resolves from a clean external consumer without `go.work`.
 

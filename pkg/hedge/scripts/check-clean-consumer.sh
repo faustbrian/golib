@@ -18,7 +18,7 @@ trap cleanup_workspace EXIT
 
 cd "$workspace"
 GOWORK=off go mod init example.com/hedge-consumer >/dev/null
-GOWORK=off go mod edit -go=1.26.5
+GOWORK=off go mod edit -go=1.26.6
 GOWORK=off go mod edit -replace "${module}=${source_root}"
 GOWORK=off go get "${module}@v0.0.0"
 

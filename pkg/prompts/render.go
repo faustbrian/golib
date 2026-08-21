@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/rivo/uniseg"
 )
@@ -169,7 +170,7 @@ func renderSemantic(
 
 	var output strings.Builder
 	for _, line := range frame.lines {
-		cells := make([]renderCell, 0, len(line.segments) * 2)
+		cells := make([]renderCell, 0, len(line.segments))
 		for _, segment := range line.segments {
 			if marker := theme.Marker(segment.Role); marker != "" {
 				cells = appendCells(
@@ -200,10 +201,10 @@ func renderText(content string, asciiOnly bool) string {
 	}
 	var output strings.Builder
 	for _, char := range content {
-		if char > unicode.MaxASCII {
-			fmt.Fprintf(&output, "\\u{%X}", char)
-		} else {
+		if utf8.RuneLen(char) == 1 {
 			output.WriteRune(char)
+		} else {
+			fmt.Fprintf(&output, "\\u{%X}", char)
 		}
 	}
 
@@ -304,9 +305,7 @@ func Sanitize(content string) string {
 }
 
 func isBidiControl(char rune) bool {
-	return char == '\u061c' ||
-		char == '\u200e' ||
-		char == '\u200f' ||
-		(char >= '\u202a' && char <= '\u202e') ||
-		(char >= '\u2066' && char <= '\u2069')
+	const bidiControls = "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+
+	return strings.ContainsRune(bidiControls, char)
 }

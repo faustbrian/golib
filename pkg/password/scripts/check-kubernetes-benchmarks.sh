@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-image=${KUBERNETES_BENCH_IMAGE:-golang:1.26.5-bookworm}
+image=${KUBERNETES_BENCH_IMAGE:-golang:1.26.6-bookworm}
 
 if ! command -v docker >/dev/null 2>&1; then
 	printf '%s\n' 'docker is required for the Kubernetes benchmark gate' >&2

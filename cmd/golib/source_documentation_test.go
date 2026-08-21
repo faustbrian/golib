@@ -27,7 +27,7 @@ type Generated struct{}
 `)
 
 	current := catalog{
-		GoVersion: "1.26.5",
+		GoVersion: "1.26.6",
 		Modules: []module{{
 			Directory: "pkg/clock",
 			Path:      "example.com/clock",
@@ -52,6 +52,40 @@ type Generated struct{}
 	}
 	if len(module.Issues) != 3 {
 		t.Fatalf("issues = %#v", module.Issues)
+	}
+}
+
+func TestDiscoverSourceDocumentationCatalogIgnoresAmbientDependencies(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "pkg", "clock", "clock.go"), `// Package clock controls time.
+package clock
+
+// Clock reports time.
+type Clock interface {
+	// Now returns the current value.
+	Now() int
+}
+`)
+	mustWriteFile(t, filepath.Join(root, "pkg", "clock", "node_modules", "foreign", "foreign.go"), `package foreign
+
+type UndocumentedDependency struct{}
+`)
+
+	got, err := discoverSourceDocumentationCatalog(root, catalog{
+		GoVersion: "1.26.6",
+		Modules: []module{{
+			Directory: "pkg/clock",
+			Path:      "example.com/clock",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("discoverSourceDocumentationCatalog() error = %v", err)
+	}
+	module := got.Modules[0]
+	if module.Packages != 1 || module.DocumentedPackages != 1 || len(module.Issues) != 0 {
+		t.Fatalf("ambient dependency affected source documentation = %#v", module)
 	}
 }
 

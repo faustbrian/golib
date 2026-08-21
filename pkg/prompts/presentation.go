@@ -93,8 +93,7 @@ func WriteTable(ctx context.Context, table Table, execution Execution) error {
 			)
 		}
 	}
-	lines := make([]SemanticLine, 0, len(table.Rows) + 1)
-	lines = append(lines, tableLine(table.Headers, widths, RoleLabel, asciiOnly))
+	lines := []SemanticLine{tableLine(table.Headers, widths, RoleLabel, asciiOnly)}
 	for _, row := range table.Rows {
 		lines = append(lines, tableLine(row, widths, RoleValue, asciiOnly))
 	}

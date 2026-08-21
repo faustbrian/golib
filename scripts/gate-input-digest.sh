@@ -12,7 +12,7 @@ module="$2"
 package="${3:-}"
 input_policy="${GOLIB_GATE_INPUT_POLICY:-current}"
 case "${input_policy}" in
-    current|legacy-api-baseline) ;;
+    current|legacy-api-baseline|legacy-runner-isolation|legacy-runner-isolation-post) ;;
     *)
         printf 'unsupported gate input policy: %s\n' "${input_policy}" >&2
         exit 2
@@ -34,13 +34,14 @@ existing_files="${manifest}.existing"
 file_hashes="${manifest}.hashes"
 nested_directories="${manifest}.nested"
 bounded_output="${manifest}.bounded-output"
+owned_module_paths="${manifest}.owned-modules"
 digest_modfile=""
 cleanup() {
     rm -f \
         "${manifest}" "${directories}" "${input_files}" "${package_data}" \
         "${relevant_package_data}" \
         "${existing_files}" "${file_hashes}" "${nested_directories}" \
-        "${bounded_output}"
+        "${bounded_output}" "${owned_module_paths}"
     if [[ -n "${digest_modfile}" ]]; then
         rm -f "${digest_modfile}" "${digest_modfile%.mod}.sum"
     fi
@@ -121,6 +122,29 @@ append_file() {
     }
     relative="${file#"${root}/"}"
     digest="$(shasum -a 256 "${file}" | awk '{print $1}')"
+    printf 'file   %s  %s\n' "${digest}" "${relative}" >>"${manifest}"
+}
+
+append_mutation_module_manifest() {
+    local file="$1"
+    local relative digest
+    if [[ ! -f "${owned_module_paths}" ]]; then
+        jq -r '.modules[].module_path' "${root}/modules.json" |
+            LC_ALL=C sort -u >"${owned_module_paths}"
+    fi
+    relative="${file#"${root}/"}"
+    digest="$({
+        GOLIB_OWNED_MODULE_PATHS="${owned_module_paths}" perl -pe '
+            BEGIN {
+                open my $paths, "<", $ENV{GOLIB_OWNED_MODULE_PATHS}
+                    or die "open owned module paths: $!";
+                chomp(@owned = <$paths>);
+            }
+            for my $owned (@owned) {
+                s/(\Q$owned\E)([ \t]+)v[^\s]+/$1$2v0.0.0/g;
+            }
+        ' "${file}"
+    } | shasum -a 256 | awk '{print $1}')"
     printf 'file   %s  %s\n' "${digest}" "${relative}" >>"${manifest}"
 }
 
@@ -252,6 +276,50 @@ append_environment() {
     append_value cgo-enabled "$(go env CGO_ENABLED)"
 }
 
+append_assurance_environment() {
+    if [[ -z "${GOLIB_ASSURANCE_GO_VERSION:-}" &&
+        -z "${GOLIB_ASSURANCE_GOOS:-}" &&
+        -z "${GOLIB_ASSURANCE_GOARCH:-}" &&
+        -z "${GOLIB_ASSURANCE_CGO_ENABLED:-}" &&
+        -z "${GOLIB_ASSURANCE_KERNEL:-}" &&
+        -z "${GOLIB_ASSURANCE_NODE:-}" ]]; then
+        return 1
+    fi
+    if [[ -z "${GOLIB_ASSURANCE_GO_VERSION:-}" ||
+        -z "${GOLIB_ASSURANCE_GOOS:-}" ||
+        -z "${GOLIB_ASSURANCE_GOARCH:-}" ||
+        -z "${GOLIB_ASSURANCE_CGO_ENABLED:-}" ||
+        -z "${GOLIB_ASSURANCE_KERNEL:-}" ||
+        -z "${GOLIB_ASSURANCE_NODE:-}" ]]; then
+        printf 'operational-assurance environment override is incomplete\n' >&2
+        exit 2
+    fi
+    local value
+    for value in \
+        "${GOLIB_ASSURANCE_GO_VERSION}" \
+        "${GOLIB_ASSURANCE_GOOS}" \
+        "${GOLIB_ASSURANCE_GOARCH}" \
+        "${GOLIB_ASSURANCE_CGO_ENABLED}" \
+        "${GOLIB_ASSURANCE_KERNEL}" \
+        "${GOLIB_ASSURANCE_NODE}"; do
+        if [[ "${value}" == *$'\n'* || "${value}" == *$'\r'* ]]; then
+            printf 'operational-assurance environment override contains control characters\n' >&2
+            exit 2
+        fi
+    done
+    if [[ "${GOLIB_ASSURANCE_CGO_ENABLED}" != "0" &&
+        "${GOLIB_ASSURANCE_CGO_ENABLED}" != "1" ]]; then
+        printf 'operational-assurance cgo override must be 0 or 1\n' >&2
+        exit 2
+    fi
+    append_value go-version "${GOLIB_ASSURANCE_GO_VERSION}"
+    append_value goos "${GOLIB_ASSURANCE_GOOS}"
+    append_value goarch "${GOLIB_ASSURANCE_GOARCH}"
+    append_value cgo-enabled "${GOLIB_ASSURANCE_CGO_ENABLED}"
+    append_value kernel "${GOLIB_ASSURANCE_KERNEL}"
+    append_value node "${GOLIB_ASSURANCE_NODE}"
+}
+
 bounded_command_output() {
     local timeout_seconds="$1"
     shift
@@ -309,6 +377,9 @@ append_legacy_docker_environment() {
 }
 
 append_verification_environment() {
+    if [[ "${gate}" == "operational-assurance" ]] && append_assurance_environment; then
+        return
+    fi
     append_environment
     append_value kernel "$(uname -srm)"
     # Pinned service images define the runtime contract. Live daemon
@@ -326,13 +397,38 @@ append_verification_environment() {
 }
 
 append_verification_tool_files() {
-    local check_module_digest
+    local check_module_digest legacy_runner_digest
     local paths=(
-        scripts/create-verification-snapshot.sh
-        scripts/run-modules.sh
         scripts/start-services.sh
-        scripts/stop-services.sh
     )
+    if [[ "${gate}" == "operational-assurance" && "${input_policy}" == "current" ]]; then
+        paths+=(
+            scripts/create-verification-snapshot.sh
+            scripts/run-modules.sh
+            scripts/stop-services.sh
+        )
+    elif [[ "${input_policy}" == "legacy-runner-isolation" ||
+        "${input_policy}" == "legacy-runner-isolation-post" ]]; then
+        paths+=(
+            scripts/create-verification-snapshot.sh
+            scripts/stop-services.sh
+        )
+        # These are the exact Git blob identities immediately before and after
+        # process isolation, matching append_repository_files. They identify
+        # retained evidence without requiring that history to remain available.
+        legacy_runner_digest='cf841512fc1e48c8c7708259c878028f06a8726f'
+        if [[ "${input_policy}" == "legacy-runner-isolation-post" ]]; then
+            legacy_runner_digest='d30bc5a6f7e52b2080a3fe13200dfb2963a1415a'
+        fi
+        printf 'file   %s  %s\n' \
+            "${legacy_runner_digest}" \
+            'scripts/run-modules.sh' >>"${manifest}"
+    else
+        # Snapshot creation, module selection, and post-gate cleanup do not
+        # alter a single gate's command or inputs. Their behavior belongs to
+        # aggregate-run evidence rather than every package checkpoint.
+        append_value verification-orchestration-contract v1
+    fi
     append_gate_tool_versions
     append_required_service_versions
     case "${gate}" in
@@ -377,11 +473,33 @@ append_verification_tool_files() {
     # Keep successful gate evidence bound to the analyzer contract rather than
     # invalidating every package when isolated runners are made parallel-safe.
     if [[ -f "${root}/scripts/check-module.sh" ]]; then
-        check_module_digest="$(
-            sed 's/ --allow-parallel-runners//g' \
-                "${root}/scripts/check-module.sh" |
-                git hash-object --stdin
-        )"
+        if [[ "${gate}" == "docs" ]]; then
+            check_module_digest="$(
+                sed 's/ --allow-parallel-runners//g' \
+                    "${root}/scripts/check-module.sh" |
+                    git hash-object --stdin
+            )"
+        else
+            # Root-only documentation dispatch cannot alter another gate's
+            # executable contract or invalidate its retained evidence.
+            check_module_digest="$(
+                awk '
+                    $0 == "            if [[ \"${module}\" == \".\" ]]; then" {
+                        print "            if target=\"$(find_make_target docs documentation)\"; then"
+                        skip_root_documentation = 1
+                        next
+                    }
+                    skip_root_documentation && $0 == "            elif target=\"$(find_make_target docs documentation)\"; then" {
+                        skip_root_documentation = 0
+                        next
+                    }
+                    skip_root_documentation { next }
+                    { print }
+                ' "${root}/scripts/check-module.sh" |
+                    sed 's/ --allow-parallel-runners//g' |
+                    git hash-object --stdin
+            )"
+        fi
         printf 'file   %s  %s\n' \
             "${check_module_digest}" \
             'scripts/check-module.sh' >>"${manifest}"
@@ -820,13 +938,16 @@ package_digest() {
         | select(startswith($root))
     ' "${relevant_package_data}" >>"${input_files}"
 
-    jq -r --arg root "${root}/" '
+    while IFS= read -r file; do
+        [[ -n "${file}" ]] || continue
+        append_mutation_module_manifest "${file}"
+    done < <(jq -r --arg root "${root}/" '
         select(
             (.Module.GoMod // "") == $root or
             ((.Module.GoMod // "") | startswith($root))
         )
         | .Module.GoMod
-    ' "${relevant_package_data}" | LC_ALL=C sort -u >>"${input_files}"
+    ' "${relevant_package_data}" | LC_ALL=C sort -u)
 
     while IFS= read -r package_directory; do
         [[ -n "${package_directory}" ]] || continue

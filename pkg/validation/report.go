@@ -42,8 +42,7 @@ func (r Report) Add(violation Violation) Report {
 		return r
 	}
 	r.violations = append(append([]Violation(nil), r.violations...), violation)
-	r.keys = cloneSet(r.keys)
-	r.keys[key] = struct{}{}
+	r.keys = cloneSetWith(r.keys, key)
 	return r
 }
 
@@ -133,10 +132,11 @@ func writeIdentityPart(result *strings.Builder, value string) {
 	result.WriteString(value)
 }
 
-func cloneSet(source map[string]struct{}) map[string]struct{} {
-	clone := make(map[string]struct{}, len(source)+1)
+func cloneSetWith(source map[string]struct{}, key string) map[string]struct{} {
+	clone := make(map[string]struct{}, len(source))
 	for key := range source {
 		clone[key] = struct{}{}
 	}
+	clone[key] = struct{}{}
 	return clone
 }

@@ -60,6 +60,23 @@ func TestHTTPExtractionRejectsDuplicateCaseVariants(t *testing.T) {
 	}
 }
 
+func TestHTTPExtractionIgnoresUnrelatedHeaders(t *testing.T) {
+	t.Parallel()
+
+	adapter, _ := tenanthttp.New(tenanthttp.Options{Trust: func(*http.Request) bool { return true }})
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("X-Unrelated-Tenant-Hint", "tenant-b")
+	request.Header.Set(tenanthttp.DefaultHeader, "tenant-a")
+
+	scope, err := adapter.Extract(request)
+	if err != nil {
+		t.Fatalf("Extract() error = %v", err)
+	}
+	if got := scope.TenantID(); !got.Equal(tenancy.MustTenantID("tenant-a")) {
+		t.Fatalf("tenant ID = %q", got)
+	}
+}
+
 func TestHTTPInjectionRequiresTenantScopeAndRefusesOverwrite(t *testing.T) {
 	t.Parallel()
 

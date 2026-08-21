@@ -426,3 +426,8 @@ prefer header credentials. Rendered authentication and transport errors omit
 credential values and query strings. See the maintained
 [production hardening audit](docs/hardening.md) for the threat model, policy
 matrix, findings, evidence, and release verdict.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

@@ -65,7 +65,7 @@ tests, meaningful 100% production coverage, race tests, fuzz smoke tests,
 mutation tests, benchmarks, documentation checks, API compatibility,
 security policy checks, vulnerability scanning, and workflow validation.
 
-The module requires Go 1.26.5 and has no runtime dependencies.
+The module requires Go 1.26.6 and has no runtime dependencies.
 Exact decimal, temporal-period, and measurement adapters live in isolated
 nested modules described in the [extension guide](docs/extensions.md), so core
 consumers do not inherit their dependency graphs.
@@ -73,3 +73,8 @@ consumers do not inherit their dependency graphs.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

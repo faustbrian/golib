@@ -84,6 +84,9 @@ func TestVirtualClockStopAndImmediateEvents(t *testing.T) {
 	default:
 		t.Fatal("immediate timer did not fire")
 	}
+	if immediate.Stop() {
+		t.Fatal("immediate timer reported active")
+	}
 	disabled := clock.NewTicker(0)
 	if err := clock.Advance(time.Second); err != nil {
 		t.Fatalf("Advance() error = %v", err)
@@ -96,5 +99,49 @@ func TestVirtualClockStopAndImmediateEvents(t *testing.T) {
 	disabled.Stop()
 	if err := clock.Advance(-time.Second); !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("negative Advance() error = %v", err)
+	}
+	if err := clock.Advance(0); err != nil {
+		t.Fatalf("zero Advance() error = %v", err)
+	}
+}
+
+func TestVirtualClockPreservesTickerPhaseAfterCoalescing(t *testing.T) {
+	t.Parallel()
+
+	start := time.Unix(100, 0)
+	clock := prompts.NewVirtualClock(start)
+	ticker := clock.NewTicker(3 * time.Second)
+
+	if err := clock.Advance(7 * time.Second); err != nil {
+		t.Fatalf("Advance(7s) error = %v", err)
+	}
+	select {
+	case tick := <-ticker.C():
+		if !tick.Equal(start.Add(3 * time.Second)) {
+			t.Fatalf("coalesced ticker tick = %v", tick)
+		}
+	default:
+		t.Fatal("ticker did not fire")
+	}
+
+	if err := clock.Advance(time.Second); err != nil {
+		t.Fatalf("Advance(1s) error = %v", err)
+	}
+	select {
+	case tick := <-ticker.C():
+		t.Fatalf("ticker fired before phase boundary: %v", tick)
+	default:
+	}
+
+	if err := clock.Advance(time.Second); err != nil {
+		t.Fatalf("Advance(1s) error = %v", err)
+	}
+	select {
+	case tick := <-ticker.C():
+		if !tick.Equal(start.Add(9 * time.Second)) {
+			t.Fatalf("phase-aligned ticker tick = %v", tick)
+		}
+	default:
+		t.Fatal("ticker did not fire at phase boundary")
 	}
 }

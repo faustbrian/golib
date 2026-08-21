@@ -41,6 +41,8 @@ source "${root}/scripts/internal/mutation-command.sh"
 # shellcheck disable=SC1091
 source "${root}/scripts/internal/configure-mutation-workers.sh"
 gremlins_binary="$("${root}/scripts/build-golib-gremlins.sh")"
+gremlins_binary_sha256="$(shasum -a 256 "${gremlins_binary}" | awk '{print $1}')"
+gremlins_verifier_sha256="$("${root}/scripts/mutation-verifier-identity.sh")"
 environment_identity="$(go env -json GOVERSION GOOS GOARCH CGO_ENABLED)"
 legacy_gate_input_digest=""
 # run_directory is initialized by mutation_scratch_initialize.
@@ -102,6 +104,11 @@ printf '%s\n' "${packages[@]}" | jq -R -s \
     'split("\n") | map(select(length > 0))' >"${expected_packages_file}"
 reports=()
 
+if [[ "${discover_only}" -eq 0 ]]; then
+    # A new enforced campaign supersedes any older aggregate immediately.
+    rm -f "${report}"
+fi
+
 ensure_shared_coverage() {
     if [[ -s "${shared_coverage}" && -n "${shared_coverage_elapsed}" ]]; then
         return
@@ -161,6 +168,11 @@ write_aggregate() {
                 | from_entries
             ),
             gremlins_versions: ([.[].gremlins_version] | unique),
+            gremlins_verifier_sha256s: ([.[].gremlins_verifier_sha256] | unique),
+            verifier_identity_sources: ([.[].verifier_identity_source] | unique),
+            gremlins_binary_sha256s: (
+                [.[].gremlins_binary_sha256 | select(. != null)] | unique
+            ),
             environments: ([.[].environment] | unique),
             expected_packages: $expected[0],
             completed_packages: [.[].package],
@@ -169,6 +181,25 @@ write_aggregate() {
         }
     ' "${reports[@]}" >"${aggregate_tmp}"
     mv "${aggregate_tmp}" "${report}"
+}
+
+checkpoint_verifier_source_is_valid() {
+    jq -e '
+        (
+            .verifier_identity_source == "executed" and
+            (.gremlins_binary_sha256 | type == "string") and
+            (.gremlins_binary_sha256 | test("^[0-9a-f]{64}$"))
+        ) or (
+            .verifier_identity_source == "approved-semantic-migration" and
+            (
+                (.gremlins_binary_sha256 // null) == null or
+                (
+                    (.gremlins_binary_sha256 | type == "string") and
+                    (.gremlins_binary_sha256 | test("^[0-9a-f]{64}$"))
+                )
+            )
+        )
+    ' "$1" >/dev/null
 }
 
 for package_directory in "${packages[@]}"; do
@@ -199,12 +230,14 @@ for package_directory in "${packages[@]}"; do
         reviewed="$(jq --arg module "${module}" \
             --arg package "${package_directory}" \
             --arg digest "${source_digest}" \
-            --arg version "${GREMLINS_VERSION}" '
+            --arg version "${GREMLINS_VERSION}" \
+            --arg tool_identity "${gremlins_verifier_sha256}" '
                 [.packages[] | select(
                     .module_directory == $module and
                     .package_directory == $package and
                     .source_digest == $digest and
-                    .gremlins_version == $version
+                    .gremlins_version == $version and
+                    .gremlins_verifier_sha256 == $tool_identity
                 )] | length
             ' "${root}/.golib/mutation-zero-inventory.json")"
         [[ "${reviewed}" -eq 1 ]]
@@ -215,15 +248,18 @@ for package_directory in "${packages[@]}"; do
             --arg module "${module}" \
             --arg package "${package_directory}" \
             --arg digest "${package_input_digest}" \
-            --arg version "${GREMLINS_VERSION}" '
+            --arg version "${GREMLINS_VERSION}" \
+            --arg tool_identity "${gremlins_verifier_sha256}" '
                 .schema_version == 3 and
                 .module == $module and
                 .package == $package and
                 .gate_input_digest == $digest and
                 .gremlins_version == $version and
+                .gremlins_verifier_sha256 == $tool_identity and
                 (.report.files | type == "array") and
                 ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
-            ' "${checkpoint}" >/dev/null; then
+            ' "${checkpoint}" >/dev/null &&
+        checkpoint_verifier_source_is_valid "${checkpoint}"; then
         checkpoint_total="$(
             jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
         )"
@@ -251,7 +287,8 @@ for package_directory in "${packages[@]}"; do
             --arg module "${module}" \
             --arg package "${package_directory}" \
             --arg digest "${observer_v1_package_digest}" \
-            --arg version "${GREMLINS_VERSION}" '
+            --arg version "${GREMLINS_VERSION}" \
+            --arg tool_identity "${gremlins_verifier_sha256}" '
                 .schema_version == 3 and
                 .module == $module and
                 .package == $package and
@@ -261,9 +298,11 @@ for package_directory in "${packages[@]}"; do
                     [(.identity_migration.previous_gate_input_digest // "")]
                 ) | index($digest)) != null and
                 .gremlins_version == $version and
+                .gremlins_verifier_sha256 == $tool_identity and
                 (.report.files | type == "array") and
                 ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
-            ' "${checkpoint}" >/dev/null; then
+            ' "${checkpoint}" >/dev/null &&
+        checkpoint_verifier_source_is_valid "${checkpoint}"; then
         checkpoint_total="$(
             jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
         )"
@@ -303,7 +342,8 @@ for package_directory in "${packages[@]}"; do
             --arg module "${module}" \
             --arg package "${package_directory}" \
             --arg digest "${legacy_stable_package_digest}" \
-            --arg version "${GREMLINS_VERSION}" '
+            --arg version "${GREMLINS_VERSION}" \
+            --arg tool_identity "${gremlins_verifier_sha256}" '
                 .schema_version == 3 and
                 .module == $module and
                 .package == $package and
@@ -313,9 +353,11 @@ for package_directory in "${packages[@]}"; do
                     [(.identity_migration.previous_gate_input_digest // "")]
                 ) | index($digest)) != null and
                 .gremlins_version == $version and
+                .gremlins_verifier_sha256 == $tool_identity and
                 (.report.files | type == "array") and
                 ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
-            ' "${checkpoint}" >/dev/null; then
+            ' "${checkpoint}" >/dev/null &&
+        checkpoint_verifier_source_is_valid "${checkpoint}"; then
         checkpoint_total="$(
             jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
         )"
@@ -355,7 +397,8 @@ for package_directory in "${packages[@]}"; do
             --arg module "${module}" \
             --arg package "${package_directory}" \
             --arg digest "${legacy_package_digest}" \
-            --arg version "${GREMLINS_VERSION}" '
+            --arg version "${GREMLINS_VERSION}" \
+            --arg tool_identity "${gremlins_verifier_sha256}" '
                 .schema_version == 3 and
                 .module == $module and
                 .package == $package and
@@ -365,9 +408,11 @@ for package_directory in "${packages[@]}"; do
                     [(.identity_migration.previous_gate_input_digest // "")]
                 ) | index($digest)) != null and
                 .gremlins_version == $version and
+                .gremlins_verifier_sha256 == $tool_identity and
                 (.report.files | type == "array") and
                 ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
-            ' "${checkpoint}" >/dev/null; then
+            ' "${checkpoint}" >/dev/null &&
+        checkpoint_verifier_source_is_valid "${checkpoint}"; then
         checkpoint_total="$(
             jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
         )"
@@ -401,14 +446,17 @@ for package_directory in "${packages[@]}"; do
         jq -e \
             --arg module "${module}" \
             --arg package "${package_directory}" \
-            --arg version "${GREMLINS_VERSION}" '
+            --arg version "${GREMLINS_VERSION}" \
+            --arg tool_identity "${gremlins_verifier_sha256}" '
                 .schema_version == 2 and
                 .module == $module and
                 .package == $package and
                 .gremlins_version == $version and
+                .gremlins_verifier_sha256 == $tool_identity and
                 (.report.files | type == "array") and
                 ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
-            ' "${checkpoint}" >/dev/null; then
+            ' "${checkpoint}" >/dev/null &&
+        checkpoint_verifier_source_is_valid "${checkpoint}"; then
         if [[ -z "${legacy_gate_input_digest}" ]]; then
             legacy_gate_input_digest="$(
                 "${root}/scripts/gate-input-digest.sh" \
@@ -450,6 +498,7 @@ for package_directory in "${packages[@]}"; do
             "${package_directory}" \
             "${package_input_digest}" \
             "${GREMLINS_VERSION}" \
+            "${gremlins_verifier_sha256}" \
             "$(git -C "${root}" rev-parse HEAD)" \
             "${checkpoint_tmp}"; then
             checkpoint_total="$(
@@ -575,6 +624,8 @@ for package_directory in "${packages[@]}"; do
         --arg validated_revision "$(git -C "${root}" rev-parse HEAD)" \
         --arg gate_input_digest "${package_input_digest}" \
         --arg gremlins_version "${GREMLINS_VERSION}" \
+        --arg gremlins_verifier_sha256 "${gremlins_verifier_sha256}" \
+        --arg gremlins_binary_sha256 "${gremlins_binary_sha256}" \
         --argjson environment "${environment_identity}" '
         {
             schema_version: 3,
@@ -584,6 +635,9 @@ for package_directory in "${packages[@]}"; do
             validated_revision: $validated_revision,
             gate_input_digest: $gate_input_digest,
             gremlins_version: $gremlins_version,
+            gremlins_verifier_sha256: $gremlins_verifier_sha256,
+            verifier_identity_source: "executed",
+            gremlins_binary_sha256: $gremlins_binary_sha256,
             environment: $environment,
             report: .
         }
@@ -608,7 +662,24 @@ if ! jq -e \
     '
         .schema_version == 3 and
         .complete == true and
-        ([.packages[] | select(.schema_version != 3)] | length == 0)
+        (.gremlins_verifier_sha256s | length == 1) and
+        ([.packages[] | select(.schema_version != 3)] | length == 0) and
+        all(.packages[];
+            (
+                .verifier_identity_source == "executed" and
+                (.gremlins_binary_sha256 | type == "string") and
+                (.gremlins_binary_sha256 | test("^[0-9a-f]{64}$"))
+            ) or (
+                .verifier_identity_source == "approved-semantic-migration" and
+                (
+                    (.gremlins_binary_sha256 // null) == null or
+                    (
+                        (.gremlins_binary_sha256 | type == "string") and
+                        (.gremlins_binary_sha256 | test("^[0-9a-f]{64}$"))
+                    )
+                )
+            )
+        )
     ' "${report}" >/dev/null; then
     printf 'aggregate mutation report is incomplete for %s\n' "${module}" >&2
     exit 1

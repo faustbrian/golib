@@ -713,6 +713,7 @@ func TestLifecycleAdapterRebalancesDuringShutdown(t *testing.T) {
 	handlerStarted := make(chan struct{})
 	handlerCanceled := make(chan struct{})
 	shutdownStarted := make(chan struct{})
+	var shutdownStartedOnce sync.Once
 	original, err := kafkaservice.NewConsumer(
 		kafkaservice.ConsumerOptions[*kafka.Consumer]{
 			Name:        "golib-kafkaservice-rebalance-original",
@@ -739,7 +740,7 @@ func TestLifecycleAdapterRebalancesDuringShutdown(t *testing.T) {
 				return resource.Run(ctx, handler)
 			},
 			Shutdown: func(ctx context.Context, resource *kafka.Consumer) error {
-				close(shutdownStarted)
+				shutdownStartedOnce.Do(func() { close(shutdownStarted) })
 
 				return resource.Shutdown(ctx)
 			},
@@ -829,8 +830,22 @@ func TestLifecycleAdapterRebalancesDuringShutdown(t *testing.T) {
 	if runErr := <-originalRun; runErr != nil {
 		t.Fatalf("original rebalance run error = %v", runErr)
 	}
-	if err = <-stopResult; err != nil {
-		t.Fatalf("stop original rebalance adapter: %v", err)
+	stopErr := <-stopResult
+	stopRetry := time.NewTicker(time.Millisecond)
+	defer stopRetry.Stop()
+	for errors.Is(stopErr, kafka.ErrObserverReentry) {
+		select {
+		case <-stopRetry.C:
+			stopErr = plan.Components[0].Stop(ctx)
+		case <-ctx.Done():
+			t.Fatalf(
+				"retry original rebalance adapter stop: %v",
+				context.Cause(ctx),
+			)
+		}
+	}
+	if stopErr != nil {
+		t.Fatalf("stop original rebalance adapter: %v", stopErr)
 	}
 	select {
 	case observation := <-rebalanceWait:

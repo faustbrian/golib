@@ -1,17 +1,13 @@
 # router
 
-[![CI](https://github.com/faustbrian/golib/pkg/router/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/ci.yml)
-[![Fuzz](https://github.com/faustbrian/golib/pkg/router/actions/workflows/fuzz.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/fuzz.yml)
-[![Security](https://github.com/faustbrian/golib/pkg/router/actions/workflows/security.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/security.yml)
-[![Benchmarks](https://github.com/faustbrian/golib/pkg/router/actions/workflows/benchmark.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/benchmark.yml)
-[![Release](https://github.com/faustbrian/golib/pkg/router/actions/workflows/release.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/router/actions/workflows/release.yml)
+[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/actions/workflows/ci.yml)
 
 `router` is an explicit, immutable HTTP router built on Go's `net/http`
 programming model. It adds deterministic composition, groups, names, safe URL
 generation, metadata, introspection, mounts, and route-scoped middleware while
 keeping handlers as ordinary `http.Handler` values.
 
-The minimum supported toolchain is Go 1.26.5. The package has no runtime
+The minimum supported toolchain is Go 1.26.6. The package has no runtime
 dependencies and no global router, reflection discovery, controller resolver,
 container, session, template, or application lifecycle.
 
@@ -69,3 +65,8 @@ advisory NilAway. Each target is independently reproducible.
 ## License
 
 MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

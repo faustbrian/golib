@@ -219,3 +219,8 @@ to the issuer and discovered endpoints and is intended for isolated development.
 
 **Who deletes replayed nonces?** The caller's `NonceValidator`, atomically with
 successful validation.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

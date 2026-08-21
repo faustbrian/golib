@@ -88,6 +88,20 @@ func TestCompareMessageCoversPresencePropertiesAndParts(t *testing.T) {
 	)
 }
 
+func TestComparePartsReportsOnlyRemovalForMissingPart(t *testing.T) {
+	t.Parallel()
+
+	report := Report{}
+	compareParts("/parts", []wsdlcompile.Part{{
+		Name: "Removed", Element: wsdl.QName{Local: "Element"}, Type: wsdl.QName{Local: "Type"},
+	}}, nil, &report)
+
+	if len(report.Changes) != 1 || report.Changes[0].Path != "/parts/Removed" ||
+		report.Changes[0].Kind != ChangeRemoved {
+		t.Fatalf("changes = %#v", report.Changes)
+	}
+}
+
 func TestIndexedMessagesAndBindingReferencesPreserveIdentity(t *testing.T) {
 	t.Parallel()
 
@@ -133,6 +147,19 @@ func TestCompareOperationsUsesSingularOutputAtExactBoundary(t *testing.T) {
 	}}, &report)
 
 	assertChangePaths(t, report, "/interface/operations/Call/output/element")
+}
+
+func TestCompareOperationsUsesRepeatedOutputWhenOnlyAfterIsRepeated(t *testing.T) {
+	t.Parallel()
+
+	report := Report{}
+	compareOperations("/interface", []wsdlcompile.Operation{{
+		Name: "Call", Outputs: []wsdlcompile.Message{{Label: "First"}},
+	}}, []wsdlcompile.Operation{{
+		Name: "Call", Outputs: []wsdlcompile.Message{{Label: "First"}, {Label: "Second"}},
+	}}, &report)
+
+	assertChangePaths(t, report, "/interface/operations/Call/outputs/Second")
 }
 
 func TestCompareOperationsNamesAddedOverloadsUnambiguously(t *testing.T) {

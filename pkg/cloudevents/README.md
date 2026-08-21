@@ -89,3 +89,8 @@ See the canonical [specification decision register](docs/specification-decisions
 and [changelog](CHANGELOG.md). Interoperability evidence covers the official Go
 SDK and the independent JavaScript SDK; importing the package never invokes
 either SDK or a runtime outside Go.
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

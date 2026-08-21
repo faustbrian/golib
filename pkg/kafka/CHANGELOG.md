@@ -186,6 +186,13 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- let Docker allocate secured broker host ports atomically, and use a stable
+  proxy only for the exclusive restart fixture so parallel interoperability
+  runs cannot collide with a process-owned proxy port
+- isolate the three-node rolling credential fixture so constrained CI runners
+  do not starve replica recovery behind another concurrent broker cluster
+- isolate the endpoint-proxy fixture from Docker-published broker ports so
+  Linux runners cannot route a broker client into a process-owned listener
 - align the event-sourcing compatibility contract with the target-oriented
   queue and outbox adapter names so Kafka reverse-dependency clean-consumer
   release checks resolve the committed modules

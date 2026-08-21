@@ -98,3 +98,8 @@ sequentially, chooses fallbacks, or combines retry and hedge presets. See
 
 See the [API reference](docs/api.md), [operations guide](docs/operations.md),
 [FAQ](docs/faq.md), and [changelog](CHANGELOG.md).
+
+## Ecosystem
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose companion packages, supported stacks, recipes, and operations guidance.

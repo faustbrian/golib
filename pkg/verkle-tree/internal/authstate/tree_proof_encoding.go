@@ -458,10 +458,11 @@ func DecodeTreeProof(
 			previousOffset := commitmentsOffset +
 				int(index-1)*pathCommitmentEncodedBytes
 			previousLength := encoded[previousOffset]
+			previousPath := encoded[previousOffset+1:][:int(previousLength)]
+			path := encoded[offset+1:][:int(length)]
 			if bytes.Compare(
-				encoded[previousOffset+1:previousOffset+1+
-					int(previousLength)],
-				encoded[offset+1:offset+1+int(length)],
+				previousPath,
+				path,
 			) >= 0 {
 				return TreeProof{}, fmt.Errorf(
 					"%w: path-commitment order",
