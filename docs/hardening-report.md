@@ -6,15 +6,17 @@ Audit date: 2026-08-22
 
 This report covers the normalization and strict hardening of the complete
 `github.com/faustbrian/golib` multi-module repository. The authoritative
-catalog currently contains 138 modules, of which 107 are independently
-releasable, and 693 Go packages, of which 548 are production packages. Exact
-statement coverage applies to the 546 production packages with executable
+catalog currently contains 142 modules, of which 111 are independently
+releasable, and 697 Go packages, of which 552 are production packages. Exact
+statement coverage applies to the 550 production packages with executable
 statements; declaration-only production packages remain cataloged but have no
 statement denominator.
 
 The repository migration, manifests, canonical module paths, root workspace,
 root command surface, unified CI workflow, governance, and strict gate policy
-are verified for the current normalization content. Public release readiness
+are verified through the 138-module normalization baseline. Four subsequently
+integrated RabbitMQ Streams modules require fresh matrix and clean-consumer
+proof before that claim covers the current catalog. Public release readiness
 remains **not established** because the separate operational-assurance,
 source-documentation, comparative-performance, and release programs remain
 incomplete. This report is normalization evidence, not release approval.
@@ -106,8 +108,8 @@ all 21 canonical gates, including its real-cluster test, race, exact 1908/1908
 statement coverage, fuzz, retained 1377/1377 mutation result, conformance,
 interoperability, and comparative benchmarks.
 
-The current root catalog validates 138 module records, 693 package records,
-and cohesion policy for all 107 releasable modules. OpenSearch specification
+The current root catalog validates 142 module records, 697 package records,
+and cohesion policy for all 111 releasable modules. OpenSearch specification
 governance and its security, compatibility, recovery, and operations evidence
 are complete. All 104 goal-bearing modules now have current goal-traceability
 records; Kafka and Verkle Tree retain their documented bounded support and
@@ -117,7 +119,7 @@ security non-claims.
 
 The authoritative package-matrix run
 [`32569072838`](https://github.com/faustbrian/golib/actions/runs/32569072838)
-passed all 142 jobs for the normalization behavior content at
+passed all 142 jobs for the 138-module normalization behavior content at
 `510670183fb04dcaa02c8be62f3f22920917f9a6`. This consists of 137 attributable
 active-module jobs, module selection, the repository contract, CodeQL, the
 Kafka Linux arm64 job, and the fail-closed `Required` summary. The catalog's
@@ -167,10 +169,11 @@ gate.
 ## Release readiness
 
 Release readiness is currently **not established**. Operational assurance is
-`not ready`: 2 of 11 scenarios pass and five residual risks remain open. All
-107 releasable modules have current dependency-ordered `v1.0.0` dry-run and
-deterministic all-module clean-consumer proof, and the complete normalization
-matrix is green. Release readiness still requires the outstanding operational
-assurance scenarios and risks, completion of the source-documentation and
-comparative-performance programs, public release artifacts and provenance,
-and explicit release authority. No tag or public release was created.
+`not ready`: 2 of 11 scenarios pass and five residual risks remain open. The
+original 107 releasable modules have dependency-ordered `v1.0.0` dry-run and
+deterministic clean-consumer proof. The four newly integrated RabbitMQ Streams
+modules require the same proof and a fresh complete matrix. Release readiness
+also requires the outstanding operational-assurance scenarios and risks,
+completion of the source-documentation and comparative-performance programs,
+public release artifacts and provenance, and explicit release authority. No
+tag or public release was created.

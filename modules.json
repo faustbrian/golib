@@ -420,6 +420,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OPENSEARCH-ALIAS-OBSERVER.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-OWNED-ZERO-VERSION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-PRE-V1-STATUS.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-REFERENCE-DURABILITY-MATRIX.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",

@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- Link the module README to the repository documentation portal.
+
 ### Added
 
 - Add a bounded synchronous adapter from persisted outbox envelopes to

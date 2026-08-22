@@ -993,26 +993,26 @@ assurance scope.
 | Field | Record |
 | --- | --- |
 | Goal | `.ai/GOAL_MONOREPO_REMEDIATION.md` |
-| Scope | The canonical `pkg/` layout, all 138 cataloged modules, 693 packages, 107 releasable modules, 137 active CI modules, repository governance, strict gate enforcement, interoperability, and clean-consumer proof. |
-| Status | `pending-reexecution` to `verified` |
+| Scope | The canonical `pkg/` layout, the verified 138-module baseline, 693 packages, 107 releasable modules, 137 active CI modules, repository governance, strict gate enforcement, interoperability, and clean-consumer proof. |
+| Status | `pending-reexecution` to `verified` for the recorded baseline; the four-module RabbitMQ Streams extension is `implemented-unverified` pending fresh matrix and clean-consumer proof. |
 | Evidence | Main-branch GitHub Actions run `32569072838` at content revision `510670183fb04dcaa02c8be62f3f22920917f9a6`; workflow-dispatch run `32561651547` for the non-push all-module path; attributable module artifacts; `modules.json`, `packages.json`, `docs/goal-traceability.md`, `docs/hardening-report.md`, and `docs/assurance/evidence/OA-RELEASE-CONSUMER-ALL-LOCAL.md`. |
 | Result | All 142 final main-run jobs passed: 137 active module jobs, selection, repository contract, CodeQL, Kafka Linux arm64, and fail-closed Required. Exact coverage and viable-mutation requirements passed through the content-addressed package evidence model; WSDL interoperability passed with Apache Woden; all 107 releasable modules retain exact local `v1.0.0` clean-consumer proof. The sole cataloged module outside CI is the explicit non-production `pkg/analysis/testdata/coverage` fixture with no applicable gates. |
 | Environment | GitHub-hosted Ubuntu 24.04 amd64 runners plus the required Ubuntu 24.04 arm64 Kafka runner, Go 1.26.6, pinned gate tools and service images, and task-owned CI caches. Local focused verification used a disposable `GOCACHE`; Docker-backed verification ran only in isolated CI. |
 | Observed | 2026-08-22T13:15:27Z |
-| Gaps | This verifies the normalization goal only. Operational assurance remains `not ready` at 2/11 scenarios with five residual risks; repository source-documentation and comparative-performance goals remain incomplete; no tag, public release, or release-readiness claim is authorized. |
+| Gaps | The current catalog contains 142 modules, 697 packages, and 111 releasable modules. The four RabbitMQ Streams modules integrated after this observation require current matrix and clean-consumer proof. Operational assurance remains `not ready` at 2/11 scenarios with five residual risks; repository source-documentation and comparative-performance goals remain incomplete; no tag, public release, or release-readiness claim is authorized. |
 
 ### Independent module release dry-run audit
 
 | Field | Record |
 | --- | --- |
 | Goal | `.ai/GOAL_RELEASE.md` and repository normalization Phase 10 clean-consumer proof. |
-| Scope | All 107 releasable modules in the current catalog. |
-| Status | Deterministic local packaging and clean-consumer evidence is complete for the full release set; the repository release goal remains `pending`. |
+| Scope | The 107 releasable modules in the catalog at the recorded observation. |
+| Status | Deterministic local packaging and clean-consumer evidence is complete for the recorded 107-module release set; four subsequently integrated releasable modules remain unverified and the repository release goal remains `pending`. |
 | Evidence | `docs/assurance/evidence/OA-RELEASE-CONSUMER-ALL-LOCAL.md`: two clean-clone local-proxy builds plus one external `GOWORK=off` consumer requiring every module at exact `v1.0.0`. |
 | Result | All 107 modules were packaged twice into byte-identical local proxies. The clean external consumer downloaded and listed one public package from every module at exact `v1.0.0`, with no module replacement. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; gate-managed PostgreSQL, Valkey, Redis, NATS, NSQ, and RabbitMQ services where cataloged. |
 | Observed | 2026-08-13T10:32:58Z |
-| Gaps | This composed proof does not replace each module's release gate. Public proxy and checksum resolution, tags, signatures, attestations, upgrade policy, operational assurance, and explicit release authority remain outstanding; no tag or release was created. |
+| Gaps | The current 111-module release set adds `pkg/rabbitstream`, `pkg/rabbitstream/otel`, `pkg/rabbitstream/rabbitmq`, and `pkg/outbox/adapters/gorabbitstream`, which require equivalent clean-consumer proof. This composed proof does not replace each module's release gate. Public proxy and checksum resolution, tags, signatures, attestations, upgrade policy, operational assurance, and explicit release authority remain outstanding; no tag or release was created. |
 
 ### Operational assurance register
 

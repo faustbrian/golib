@@ -249,7 +249,28 @@
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit/postgres",
+            "pkg/authorization",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/event-sourcing/adapters/outbox",
+            "pkg/event-sourcing/adapters/queue",
+            "pkg/idempotency",
+            "pkg/lease",
+            "pkg/migrations",
+            "pkg/outbox",
+            "pkg/outbox/adapters/gokafka",
+            "pkg/outbox/adapters/otel",
+            "pkg/outbox/adapters/queue",
+            "pkg/postgres",
+            "pkg/queue",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/scheduler",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-REFERENCE-DURABILITY-POSTGRES-MATRIX.md",
@@ -263,9 +284,6 @@
             "pkg/outbox/adapters/queue",
             "pkg/postgres",
             "pkg/queue"
-          ],
-          "input_modules": [
-            "pkg/service/integration/reference-durability"
           ],
           "input_digests": {
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
@@ -288,7 +306,29 @@
             "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/service/integration/reference-durability": "196df1b199dfba931e7ccdd2da6e511695b9060444f1a763d26b1500a42ac51f",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit/postgres",
+            "pkg/authorization",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/event-sourcing/adapters/outbox",
+            "pkg/event-sourcing/adapters/queue",
+            "pkg/idempotency",
+            "pkg/lease",
+            "pkg/migrations",
+            "pkg/outbox",
+            "pkg/outbox/adapters/gokafka",
+            "pkg/outbox/adapters/otel",
+            "pkg/outbox/adapters/queue",
+            "pkg/postgres",
+            "pkg/queue",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/scheduler",
+            "pkg/service/integration/reference-durability",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
@@ -300,7 +340,10 @@
           ],
           "input_digests": {
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/queue/queueservice"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-SCHEDULER-POSTGRES-VALKEY.md",
@@ -312,7 +355,10 @@
           ],
           "input_digests": {
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/scheduler"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-MIGRATIONS-POSTGRES-RECOVERY.md",
@@ -331,7 +377,17 @@
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/authorization",
+            "pkg/idempotency",
+            "pkg/lease",
+            "pkg/migrations",
+            "pkg/queue-control-plane",
+            "pkg/rate-limit",
+            "pkg/scheduler",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
@@ -346,7 +402,12 @@
             "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit",
+            "pkg/audit/postgres",
+            "pkg/cloudevents/adapters/golib"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
@@ -360,7 +421,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         }
       ],
       "accepted_risks": []
@@ -467,7 +532,34 @@
             "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit/postgres",
+            "pkg/authorization",
+            "pkg/cache",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/config",
+            "pkg/config/adapters/awssecretsmanager",
+            "pkg/idempotency",
+            "pkg/international",
+            "pkg/kafka/kafkaservice",
+            "pkg/knapsack/objective/gomoney",
+            "pkg/lease",
+            "pkg/localized",
+            "pkg/migrations",
+            "pkg/money",
+            "pkg/opening-hours",
+            "pkg/postgres",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/rule-engine/adapters/temporal",
+            "pkg/scheduler",
+            "pkg/service",
+            "pkg/telemetry",
+            "pkg/temporal",
+            "pkg/webhook"
+          ]
         }
       ],
       "accepted_risks": []
@@ -486,9 +578,6 @@
           "environment": "Docker Engine 29.6.2 linux/arm64; Go 1.26.5; native linux/arm64 container; 64 MiB memory and 0.25 CPU limits",
           "module_scope": [
             "pkg/service"
-          ],
-          "input_modules": [
-            "pkg/service/integration/reference-platform"
           ],
           "input_digests": {
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
@@ -517,7 +606,35 @@
             "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit/postgres",
+            "pkg/authorization",
+            "pkg/cache",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/config",
+            "pkg/config/adapters/awssecretsmanager",
+            "pkg/idempotency",
+            "pkg/international",
+            "pkg/kafka/kafkaservice",
+            "pkg/knapsack/objective/gomoney",
+            "pkg/lease",
+            "pkg/localized",
+            "pkg/migrations",
+            "pkg/money",
+            "pkg/opening-hours",
+            "pkg/postgres",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/rule-engine/adapters/temporal",
+            "pkg/scheduler",
+            "pkg/service",
+            "pkg/service/integration/reference-platform",
+            "pkg/telemetry",
+            "pkg/temporal",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
@@ -531,7 +648,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         }
       ],
       "accepted_risks": []
@@ -556,9 +677,6 @@
             "pkg/postgres",
             "pkg/queue"
           ],
-          "input_modules": [
-            "pkg/service/integration/reference-durability"
-          ],
           "input_digests": {
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
@@ -580,7 +698,29 @@
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/service/integration/reference-durability": "455bdad5d44463f786da9b5eac9d5e06c02f3afdbde63b03408b4ff6d4ea5b54",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit/postgres",
+            "pkg/authorization",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/event-sourcing/adapters/outbox",
+            "pkg/event-sourcing/adapters/queue",
+            "pkg/idempotency",
+            "pkg/lease",
+            "pkg/migrations",
+            "pkg/outbox",
+            "pkg/outbox/adapters/gokafka",
+            "pkg/outbox/adapters/otel",
+            "pkg/outbox/adapters/queue",
+            "pkg/postgres",
+            "pkg/queue",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/scheduler",
+            "pkg/service/integration/reference-durability",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-FAILURE-RECOVERY-WORKFLOW.md",
@@ -593,7 +733,11 @@
           "input_digests": {
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
             "pkg/workflow": "9167c81877300b7c711ff061ac5e349f5e6d72f8d4ec0dc2586e60718ced4b37"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/cloudevents/adapters/golib",
+            "pkg/workflow"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
@@ -605,7 +749,10 @@
           ],
           "input_digests": {
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/queue/queueservice"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-SCHEDULER-POSTGRES-VALKEY.md",
@@ -617,7 +764,10 @@
           ],
           "input_digests": {
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/scheduler"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-MIGRATIONS-POSTGRES-RECOVERY.md",
@@ -636,7 +786,17 @@
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/authorization",
+            "pkg/idempotency",
+            "pkg/lease",
+            "pkg/migrations",
+            "pkg/queue-control-plane",
+            "pkg/rate-limit",
+            "pkg/scheduler",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
@@ -651,7 +811,12 @@
             "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit",
+            "pkg/audit/postgres",
+            "pkg/cloudevents/adapters/golib"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
@@ -676,7 +841,18 @@
             "pkg/http-signature": "7fc90a79e81483b752cc58d5184024b5c4bb5a3eebd45ff3e46e4a8fe168644d",
             "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
             "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/api-query",
+            "pkg/authentication",
+            "pkg/authentication/authotel",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/capability",
+            "pkg/http-signature",
+            "pkg/localized",
+            "pkg/queue-control-plane"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-TELEMETRY-COLLECTOR-OPERATIONS.md",
@@ -692,7 +868,14 @@
             "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/cloudevents/adapters/golib",
+            "pkg/queue-control-plane",
+            "pkg/scheduler",
+            "pkg/telemetry",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-ROLLING-RECOVERY.md",
@@ -706,7 +889,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
@@ -720,7 +907,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-SECURITY-MATRIX.md",
@@ -734,7 +925,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         }
       ],
       "accepted_risks": []
@@ -759,9 +954,6 @@
             "pkg/postgres",
             "pkg/queue"
           ],
-          "input_modules": [
-            "pkg/service/integration/reference-durability"
-          ],
           "input_digests": {
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
@@ -783,7 +975,29 @@
             "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/service/integration/reference-durability": "196df1b199dfba931e7ccdd2da6e511695b9060444f1a763d26b1500a42ac51f",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit/postgres",
+            "pkg/authorization",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/event-sourcing/adapters/outbox",
+            "pkg/event-sourcing/adapters/queue",
+            "pkg/idempotency",
+            "pkg/lease",
+            "pkg/migrations",
+            "pkg/outbox",
+            "pkg/outbox/adapters/gokafka",
+            "pkg/outbox/adapters/otel",
+            "pkg/outbox/adapters/queue",
+            "pkg/postgres",
+            "pkg/queue",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/scheduler",
+            "pkg/service/integration/reference-durability",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-QUEUE-LIFECYCLE-REDIS-VALKEY.md",
@@ -795,7 +1009,10 @@
           ],
           "input_digests": {
             "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/queue/queueservice"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-MIGRATIONS-POSTGRES-RECOVERY.md",
@@ -814,7 +1031,17 @@
             "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
             "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
             "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/authorization",
+            "pkg/idempotency",
+            "pkg/lease",
+            "pkg/migrations",
+            "pkg/queue-control-plane",
+            "pkg/rate-limit",
+            "pkg/scheduler",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
@@ -829,7 +1056,12 @@
             "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit",
+            "pkg/audit/postgres",
+            "pkg/cloudevents/adapters/golib"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
@@ -854,7 +1086,18 @@
             "pkg/http-signature": "7fc90a79e81483b752cc58d5184024b5c4bb5a3eebd45ff3e46e4a8fe168644d",
             "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
             "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/api-query",
+            "pkg/authentication",
+            "pkg/authentication/authotel",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/capability",
+            "pkg/http-signature",
+            "pkg/localized",
+            "pkg/queue-control-plane"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-ROLLING-RECOVERY.md",
@@ -868,7 +1111,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
@@ -882,7 +1129,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-SECURITY-MATRIX.md",
@@ -896,7 +1147,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         }
       ],
       "accepted_risks": []
@@ -969,7 +1224,48 @@
             "pkg/tenancy": "37605e9638bef041b6b5ee28f437aea5c1b441b6122c073416091e9da26194c8",
             "pkg/validation": "ff2b45c24e440416681ce24729668dfb5cafe06ba7a4bb3ba3eab334ef2d1ccc",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/api-query",
+            "pkg/audit",
+            "pkg/audit/postgres",
+            "pkg/authentication",
+            "pkg/authentication/authotel",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/authorization",
+            "pkg/cache",
+            "pkg/capability",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/config",
+            "pkg/config/adapters/awssecretsmanager",
+            "pkg/correlation",
+            "pkg/http-middleware",
+            "pkg/http-signature",
+            "pkg/idempotency",
+            "pkg/international",
+            "pkg/jsonrpc",
+            "pkg/kafka/kafkaservice",
+            "pkg/knapsack/objective/gomoney",
+            "pkg/lease",
+            "pkg/localized",
+            "pkg/migrations",
+            "pkg/money",
+            "pkg/opening-hours",
+            "pkg/postgres",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/router",
+            "pkg/rule-engine/adapters/temporal",
+            "pkg/scheduler",
+            "pkg/service",
+            "pkg/telemetry",
+            "pkg/temporal",
+            "pkg/tenancy",
+            "pkg/validation",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
@@ -984,7 +1280,12 @@
             "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit",
+            "pkg/audit/postgres",
+            "pkg/cloudevents/adapters/golib"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
@@ -1009,7 +1310,18 @@
             "pkg/http-signature": "7fc90a79e81483b752cc58d5184024b5c4bb5a3eebd45ff3e46e4a8fe168644d",
             "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
             "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/api-query",
+            "pkg/authentication",
+            "pkg/authentication/authotel",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/capability",
+            "pkg/http-signature",
+            "pkg/localized",
+            "pkg/queue-control-plane"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-TELEMETRY-COLLECTOR-OPERATIONS.md",
@@ -1025,7 +1337,14 @@
             "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/cloudevents/adapters/golib",
+            "pkg/queue-control-plane",
+            "pkg/scheduler",
+            "pkg/telemetry",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-SECURITY-MATRIX.md",
@@ -1039,7 +1358,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         }
       ],
       "accepted_risks": []
@@ -1112,7 +1435,48 @@
             "pkg/tenancy": "37605e9638bef041b6b5ee28f437aea5c1b441b6122c073416091e9da26194c8",
             "pkg/validation": "ff2b45c24e440416681ce24729668dfb5cafe06ba7a4bb3ba3eab334ef2d1ccc",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/api-query",
+            "pkg/audit",
+            "pkg/audit/postgres",
+            "pkg/authentication",
+            "pkg/authentication/authotel",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/authorization",
+            "pkg/cache",
+            "pkg/capability",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/config",
+            "pkg/config/adapters/awssecretsmanager",
+            "pkg/correlation",
+            "pkg/http-middleware",
+            "pkg/http-signature",
+            "pkg/idempotency",
+            "pkg/international",
+            "pkg/jsonrpc",
+            "pkg/kafka/kafkaservice",
+            "pkg/knapsack/objective/gomoney",
+            "pkg/lease",
+            "pkg/localized",
+            "pkg/migrations",
+            "pkg/money",
+            "pkg/opening-hours",
+            "pkg/postgres",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/router",
+            "pkg/rule-engine/adapters/temporal",
+            "pkg/scheduler",
+            "pkg/service",
+            "pkg/telemetry",
+            "pkg/temporal",
+            "pkg/tenancy",
+            "pkg/validation",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-AUDIT-POSTGRES-OPERATIONS.md",
@@ -1127,7 +1491,12 @@
             "pkg/audit": "1ce50b39e35685c354f1297128d096fd9ede8a5ffe1ed2309c4b8cc7027b2d7c",
             "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
             "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/audit",
+            "pkg/audit/postgres",
+            "pkg/cloudevents/adapters/golib"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-TELEMETRY-COLLECTOR-OPERATIONS.md",
@@ -1143,7 +1512,14 @@
             "pkg/scheduler": "40c60495dd99982e4c07fc0d4341c80cdc477ea078b2374740cf00a9875699c0",
             "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/cloudevents/adapters/golib",
+            "pkg/queue-control-plane",
+            "pkg/scheduler",
+            "pkg/telemetry",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-OPERATIONS.md",
@@ -1157,7 +1533,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         }
       ],
       "accepted_risks": []
@@ -1197,9 +1577,6 @@
             "pkg/semaphore",
             "pkg/service",
             "pkg/telemetry"
-          ],
-          "input_modules": [
-            "pkg/service/integration/adoption"
           ],
           "input_digests": {
             "pkg/adaptive-throttle": "65595d1fdc9713826e0e6ceebf1239249ce2af8991309e0b292cfc5f6e95e6f5",
@@ -1249,7 +1626,56 @@
             "pkg/telemetry": "ebc1f25eb2fc42bd8f093e33b6294447829a43044e117ca791c4a7f723fd8a60",
             "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
             "pkg/webhook": "023c58b1345692caecc5a47133070754a0ed820799f1a1483b846e02a7aa7d5e"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/adaptive-throttle",
+            "pkg/audit/postgres",
+            "pkg/authorization",
+            "pkg/bulkhead",
+            "pkg/cache",
+            "pkg/circuit-breaker",
+            "pkg/cli",
+            "pkg/cloudevents/adapters/golib",
+            "pkg/concurrency-limit",
+            "pkg/config",
+            "pkg/config/adapters/awssecretsmanager",
+            "pkg/correlation",
+            "pkg/event-sourcing/adapters/gokafka",
+            "pkg/event-sourcing/adapters/gotelemetry",
+            "pkg/event-sourcing/adapters/queue",
+            "pkg/hedge",
+            "pkg/http-client",
+            "pkg/idempotency",
+            "pkg/identifier",
+            "pkg/international",
+            "pkg/kafka",
+            "pkg/kafka/adapters/gotelemetry",
+            "pkg/kafka/adapters/mskiam",
+            "pkg/kafka/kafkaservice",
+            "pkg/knapsack/objective/gomoney",
+            "pkg/lease",
+            "pkg/localized",
+            "pkg/migrations",
+            "pkg/money",
+            "pkg/opening-hours",
+            "pkg/outbox/adapters/gokafka",
+            "pkg/outbox/adapters/queue",
+            "pkg/postgres",
+            "pkg/queue",
+            "pkg/queue-control-plane",
+            "pkg/queue/queueservice",
+            "pkg/rate-limit",
+            "pkg/resilience",
+            "pkg/retry",
+            "pkg/rule-engine/adapters/temporal",
+            "pkg/scheduler",
+            "pkg/semaphore",
+            "pkg/service",
+            "pkg/service/integration/adoption",
+            "pkg/telemetry",
+            "pkg/temporal",
+            "pkg/webhook"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-KEY-LIFECYCLE.md",
@@ -1274,7 +1700,18 @@
             "pkg/http-signature": "7fc90a79e81483b752cc58d5184024b5c4bb5a3eebd45ff3e46e4a8fe168644d",
             "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
             "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/api-query",
+            "pkg/authentication",
+            "pkg/authentication/authotel",
+            "pkg/authentication/jwt",
+            "pkg/authentication/oidc",
+            "pkg/capability",
+            "pkg/http-signature",
+            "pkg/localized",
+            "pkg/queue-control-plane"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-VERSION-MATRIX.md",
@@ -1288,7 +1725,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         },
         {
           "path": "docs/assurance/evidence/OA-OPENSEARCH-SECURITY-MATRIX.md",
@@ -1302,7 +1743,11 @@
           "input_digests": {
             "pkg/search": "f181d2b4f118090d60f0533bdff10fa7f228de0eef6b393cabfaf41c5a3aa34e",
             "pkg/search/adapters/opensearch": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690"
-          }
+          },
+          "exact_input_modules": [
+            "pkg/search",
+            "pkg/search/adapters/opensearch"
+          ]
         }
       ],
       "accepted_risks": []
@@ -3708,6 +4153,390 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
       "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
       "rationale": "Transitive HTTP-client and retry verification inputs changed without changing webhook behavior exercised by the retained external reference scenario."
+    },
+    {
+      "module": "pkg/adaptive-throttle",
+      "from_sha256": "27f157e36a8dd423e1d149501e3e9ed0bc5c8ae90e1d17eaf896011b3553c5b9",
+      "to_sha256": "5bc5dd1d5a489428fee9caa538589e856a47a28e3c9b8e26486a9e206bc7e3cc",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/api-query",
+      "from_sha256": "25f068838b48d46e534888a7d9c0505b25af946ca6341de54c8d8b1aa20dccea",
+      "to_sha256": "74b76c2e3b3a1fb6d531657292a0520fffec1cd832ec5d94df21619090620bd0",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/audit",
+      "from_sha256": "8fb0f0172e3c56aa7df15fc30295c3222407285bebb96179f963a8dfe0d715d6",
+      "to_sha256": "3a6581a13dcfefecbf558987c83002199053ad52c98c30036f9d35848d36b5d0",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/audit/postgres",
+      "from_sha256": "02a4968c0208090ac1cc4c05e77b16ff8d3604ead71cd028370c21c114a68e2d",
+      "to_sha256": "b5c2e89ae3be34cdc2707dc18c3c1afe1ee3f953225251add346b7534b991ebb",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/authentication",
+      "from_sha256": "8eb64b8a8967245b7c605ee26bf5ff2f059fc2e4797cdb3829711d081a4d0d2f",
+      "to_sha256": "45fb6f16190b0e6c385832177a9c7b6b9e181899617637e79281a8b1f28b5834",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/authentication/authotel",
+      "from_sha256": "d44e44d0a427ae5e2d41632defab3bccf5fc8b0f86b41632c491e3a5be814076",
+      "to_sha256": "643c601ff10a7d4665e51bf19f57aa20c7f70c5d337e6a6af5cf522da99e6799",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/authentication/jwt",
+      "from_sha256": "79cfad50c565919eb6bdbd7d77a7d256db96b0a875af08f87ed5b153567651dd",
+      "to_sha256": "4b606119dba64848d369d0e4e358c326b211f3b5d8c45fc0ec37a0fae5dfc8c7",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/authentication/oidc",
+      "from_sha256": "ddc1c49e1ffa4f0775b52c01e1abe6a2f9e08f3d1323ec543a283cccdda4a360",
+      "to_sha256": "cf034a6d4060799d065667cade414b3aac30e196c2cc94d3a176f31f40f4c53d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/authorization",
+      "from_sha256": "09863b3c9ba90ba4170a15204c0b74a439222a9956d0d0fbfcce4b5a877a1908",
+      "to_sha256": "7ad588e59d1e7da4873c73d8c34a455825fc802a22b9d78720557877bb883765",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/bulkhead",
+      "from_sha256": "6b1d4bde8d3c0d394194af394c7c46bf6c110fc8e72f7fbb8b15a32d5744c061",
+      "to_sha256": "dd88bd6f51521658368ed8a0fc846701edd9fb01cf415c9fa30adb0240a44191",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/cache",
+      "from_sha256": "05c7dff6b9b7556e309f4e3e7bbea3acec153d0caca6f813b17d26ffbbe9e3b9",
+      "to_sha256": "cc0cf8634170e9db3346c77a78317e0e790bb50544b8841d29ee093e406d255b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/capability",
+      "from_sha256": "e0e1563d3c14d8198258bc14c51d49137778ccbd3d87d42f12aa079e6b8ce4a5",
+      "to_sha256": "744531d8d2787f4ad5beb78a23f4e08a64fad73d46bef9d37aa28ce287513fde",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/circuit-breaker",
+      "from_sha256": "dd3eac9d4075d99f8a2605fe5a250da586248f376a9791187c73802999d0e238",
+      "to_sha256": "0b40fcf8d7ba772b04ef96c611c9d075ab3fa2014cf910ce31f1294f60177b67",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "c0fe0dbb5b95267e9af4d374101522fcbe80d8f8d75329cac80d8e7e498779e9",
+      "to_sha256": "f42e88c939a801184c2441ba13cfbfa8e19873be826875487db995ad3f4255ca",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/concurrency-limit",
+      "from_sha256": "3f6203ccbaf9466f5a1b91ef2c8808beebf035273fd1dad0c0c415807e6c38e0",
+      "to_sha256": "29e972f5e89aa5ac937ecf1b07b2cdf4044ec6d7b876d0ffa6cf9354c3b6898d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/config",
+      "from_sha256": "7e033fc546b6da34e0032ab344e66beb0fc8ed03bf2429ba8118a2d9813324f3",
+      "to_sha256": "790d88777a916815bde2d167e4a938b61d5d9c9fc1546494f6b2dfea7db825f2",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/config/adapters/awssecretsmanager",
+      "from_sha256": "a2a04e3816532bec18928864a9afc8afe5c19fa7d7382dd5a01b26a3ddca557a",
+      "to_sha256": "c8c5ed192606ee51e97881744e40e79ad035f9247a92616993ef4e0201314f9e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/correlation",
+      "from_sha256": "d5ec462876b51f97f0daee19ce3c1fd0e16bf9adca946607faf7c78327558b37",
+      "to_sha256": "1825d1bd168221dbdb9b5f13d1a5d3168fc6556e54b526d1363d516e170deb1c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/filesystem",
+      "from_sha256": "dda6f289d0d163624d931b3ff0d1591a1890a45ca703d68245418709ba7d25a7",
+      "to_sha256": "52e078d05e835451f61f41c4e550b96b99279a7ecee7000edd66c768457bb02b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/hedge",
+      "from_sha256": "c603802aaa519f01d3b7fcc0939c738bad5ce57ecddf489f40af21358a4905a2",
+      "to_sha256": "350bb37952faf1079d0c5d953aab372a503c05e9a30e17935d816dd4f68ed5e9",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/http-client",
+      "from_sha256": "4fd30885a53d367e76bc0581f43f0f99f9a05b626388d9796a36bbab666851d3",
+      "to_sha256": "0617e46e8416a5f48ab42321dc03fe27fdaabc8e5f561fcc823678bb158172cf",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/http-middleware",
+      "from_sha256": "28ba6aea48363328ba0a46ecf9f7ce65826aca9e87f696abf4a8e680135b3c5b",
+      "to_sha256": "99a3c18aee467d830f3743ab5b7ca9c51a30267fd332c02311656346d7306fb7",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/http-signature",
+      "from_sha256": "35a2237f004991e403adcbd011637715873144e7ba56d250d00ed9a505e827bc",
+      "to_sha256": "c03c7c87996b0353ae47cdc7cb722857eb648440a67de5b4f1c51d3999375794",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/idempotency",
+      "from_sha256": "1fb75e5ec526a60c2828d1c1b1a3e76d1765c5a3778294b996fbb645bd61141c",
+      "to_sha256": "bcddca65e21a5c20164319a573e82a4e791c70f26014eb5dfb0dcf0c25edac6a",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/international",
+      "from_sha256": "978c8d23c301a5e8ac2f2e69f7e5ddb62f4dc68ba4647b1e0e2cb666b0f44f9f",
+      "to_sha256": "dc0b531e334d64007a2961da583320a1362709151517196486352e1ff61d2d04",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/jsonrpc",
+      "from_sha256": "3dfa3f17702df77a5daa5e1818fe0387baa90cfe1d8a2085066b2b7d9c0554e1",
+      "to_sha256": "9b9c50ad2a57fd619eabfa11bba6ced6964f243f6c130fdba3568cd2dc0bea4f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/kafka/kafkaservice",
+      "from_sha256": "3811b09b4ced2fb66263495d183a56db298b9c61abfff4f16ae27d1952a01672",
+      "to_sha256": "4b75da04d4f348f23535588d9b068a1bc264f57414e9256b8b4a48e1429d5e6c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/knapsack/objective/gomoney",
+      "from_sha256": "821617ca0f01f200c49fa9f0d7589e310f0a506fbadc54265b5679f37193823a",
+      "to_sha256": "42e85300717b76251490c8047a45000ba84bc0423beaeff7ba1426b33381c1f4",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/lease",
+      "from_sha256": "6aaf18768fb87e1a316db7a31356f97770f9798a1a2d703e0e009e4aca493b9f",
+      "to_sha256": "54ebec6aa5385112dee436eba35a19bac0cac3f72f1c759d1caf7f0ad2c785ea",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/localized",
+      "from_sha256": "8055919b6ec127a6bf1a379fc98e09928f4e73916129815adbd68da43af823f5",
+      "to_sha256": "56d2953c51ced8407b4835ca03b443797b9e3c1dda394130b2f3fd0dd807ebc8",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/migrations",
+      "from_sha256": "c8eecf5a59ba827049790a6fd854af9fc6e7341cf7106054db58d74669b22d9f",
+      "to_sha256": "614ec88e7696b959ec2e65f86f3d9866cc8260e2d57ed84f51c94f22ae2d5c68",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/money",
+      "from_sha256": "3e4731d08845a4245af2ef9fd66581df437c7fadc0b70eae7be9866e54c15e11",
+      "to_sha256": "7f053f0433182189e029aad5bdcb36bffaa71b3bfd0365177f9b133a96256737",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/opening-hours",
+      "from_sha256": "482f3ad20f110c9d0a98e85242f2737889c5f5a75a8ef70576f91d70fa98e111",
+      "to_sha256": "3651f5e664d11e3676c32efe02d3c8a10a08d0e886bb87e4e40b30a28b535732",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/postgres",
+      "from_sha256": "1aad648551aa0772802ae1bad0688e078cb5e77e9aa1119205b94d86288e1df2",
+      "to_sha256": "a22facb7e9170bc78d995f526ed4ac53cf117ecbce12aa2ad5aaea153deef19c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "c50fd66824a7a8700e566797e72fcd7d46616b157672926705d041e789e953e8",
+      "to_sha256": "d53a2100e31e208117316d25782e77c5b41c8c66d346f6a0a4513f766ffbc075",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/queue/queueservice",
+      "from_sha256": "2baa42223eb6152cf06d85862bf7a9f9f3c43b1bd1e012a2907c14ffe39f3b0f",
+      "to_sha256": "f079e521846e0b53167d29fcf90e0a73097707ce4f77eaa9435f18a1f1d4c74a",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/rate-limit",
+      "from_sha256": "e1d9dd180858239c137ee4c7812e988003a11535afc8117e53aa1b45b40c0c7d",
+      "to_sha256": "db194bf9086c2a31b6a52cf1a4082f6b079f7876bd0d1bc22002b36a4dd1a02f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/retry",
+      "from_sha256": "ac9b793b5eda5dc5590788a61d421dcf09fd2f30b4be550e9022a966788df900",
+      "to_sha256": "a88f6663a6e63b8a5f2a158e74a98b335b6d4371086e767eab92a2882649607a",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/router",
+      "from_sha256": "8f76154bbb8d2633c02b6c1f58463339a96deca87fd7dc1e779ebbd7b6a6a242",
+      "to_sha256": "39978240d432f1ef3e391c0cfcfdfcab1c684e1c38469fca4f85133552c978ed",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/rule-engine/adapters/temporal",
+      "from_sha256": "6d71f4efe81357a9f7b0958b2911b92b591e5f5027472f53397e69377b16fbc3",
+      "to_sha256": "4c08e43e210514fbd712832d7a61223054f609a171f9472489deab3a0e460942",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/scheduler",
+      "from_sha256": "71618a4e61f716b230d38afc9e1f7ce9c540ee8d5470819e3e9010d693437118",
+      "to_sha256": "07c97bc5236c706b760aac68bccd0ca654706038c0998a8e6644aacd230f1aed",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/secret-envelope",
+      "from_sha256": "9da24a10e749977837aa349fdb4bc537f9600daaac19ab3bea9ff87f67b26594",
+      "to_sha256": "9b54688939328b4820ce0c8df75815853ce1b83474ba6d838744a0150f0aab90",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/service",
+      "from_sha256": "77324c994d5f6118bc3c3947e4acabf8b90c25be27d13f20736fcf487062e624",
+      "to_sha256": "8fe06675f07c6117c50e92c927262a04d92beb9ea03a5d52c9a9b382cc95a312",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/telemetry",
+      "from_sha256": "ecbd2dec674a79dc20426cad333f781fabde06ad64c60cd657d629a69f04c6d4",
+      "to_sha256": "1f2de50f7d920318b56ea8bfa3630a27777e3376dcf4c102b3550700b46bc8cc",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/temporal",
+      "from_sha256": "7b3e74373eb667f8c60a88c58015ddb94cb45453a4a9b904972263b5872e65ba",
+      "to_sha256": "1b92b71e6f9a18558652733bc64595819fc68382210cee82402182582690c543",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/tenancy",
+      "from_sha256": "178aecce19f50fba4dda270fb6a2fa89c632c679694c3b3610985b2dccc5221e",
+      "to_sha256": "b7bc35f35eb7f551326359ef57b207ffb34a35e9fdd0212473bfbbf8743ac25b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/validation",
+      "from_sha256": "48bb4752e7c0b1a1da0f440c8ed1b1089b75dc06ac5352863337168b09ccda19",
+      "to_sha256": "a541baee8df5134abbd67157c45afd9ad9c081a5bac6c7dbd0c665a3c2b06100",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/webhook",
+      "from_sha256": "9de763d19b2acb700ec7141fa667559ee11ce499fc773a0c0f9fca89a985831e",
+      "to_sha256": "4170de093e88456afaff6007c4559cce4c194fe2b7bad2d34050c1c460606a7b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
+      "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
+      "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
     }
   ]
 }

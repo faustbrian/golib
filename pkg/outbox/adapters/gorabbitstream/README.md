@@ -116,3 +116,6 @@ application deduplication.
 No. One publisher accepts one exact configured Stream or Super Stream target.
 
 See [CHANGELOG.md](CHANGELOG.md) and [LICENSE](LICENSE).
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose packages, compose services, and review repository-wide guarantees.

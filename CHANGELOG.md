@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Preserve retained operational-assurance evidence across additive RabbitMQ
+  Streams fixture orchestration with reviewed, exact input-digest migrations,
+  while keeping the four new modules outside prior matrix and consumer claims.
 - Replace stale normalization-readiness claims with exact package-attributable
   main and full-event CI proof while preserving separate release blockers.
 - Stage only durable attributable CI evidence so cancellation cannot upload
