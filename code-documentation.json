@@ -10,9 +10,9 @@
       "documented_packages": 0,
       "missing_package_comments": 1,
       "duplicate_package_comments": 0,
-      "exported_declarations": 135,
+      "exported_declarations": 136,
       "documented_declarations": 0,
-      "missing_declaration_comments": 135,
+      "missing_declaration_comments": 136,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -162,125 +162,132 @@
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
           "line": 63,
+          "symbol": "ExactInputModules",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 64,
           "symbol": "InputDigests",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 67,
+          "line": 68,
           "symbol": "GoVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 68,
+          "line": 69,
           "symbol": "GOOS",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 69,
+          "line": 70,
           "symbol": "GOARCH",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 70,
+          "line": 71,
           "symbol": "CGOEnabled",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 71,
+          "line": 72,
           "symbol": "Kernel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 72,
+          "line": 73,
           "symbol": "Node",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 76,
+          "line": 77,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 77,
+          "line": 78,
           "symbol": "AcceptedBy",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 78,
+          "line": 79,
           "symbol": "AcceptedUTC",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 79,
+          "line": 80,
           "symbol": "Rationale",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 80,
+          "line": 81,
           "symbol": "Scenarios",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 84,
+          "line": 85,
           "symbol": "Module",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 85,
+          "line": 86,
           "symbol": "FromSHA256",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 86,
+          "line": 87,
           "symbol": "ToSHA256",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 87,
+          "line": 88,
           "symbol": "EvidencePath",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 88,
+          "line": 89,
           "symbol": "EvidenceSHA256",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 89,
+          "line": 90,
           "symbol": "Rationale",
           "message": "exported declaration has no documentation comment"
         },
@@ -17722,8 +17729,8 @@
       "documented_packages": 1,
       "missing_package_comments": 0,
       "duplicate_package_comments": 0,
-      "exported_declarations": 106,
-      "documented_declarations": 41,
+      "exported_declarations": 128,
+      "documented_declarations": 63,
       "missing_declaration_comments": 65,
       "malformed_comments": 0,
       "generated_files": 0,
@@ -58155,6 +58162,22 @@
       ]
     },
     {
+      "directory": "pkg/outbox/adapters/gorabbitstream",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream",
+      "packages": 1,
+      "documented_packages": 1,
+      "missing_package_comments": 0,
+      "duplicate_package_comments": 0,
+      "exported_declarations": 19,
+      "documented_declarations": 19,
+      "missing_declaration_comments": 0,
+      "malformed_comments": 0,
+      "generated_files": 0,
+      "generated_missing_comments": 0,
+      "markers": 0,
+      "issues": []
+    },
+    {
       "directory": "pkg/outbox/adapters/otel",
       "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
       "packages": 1,
@@ -71392,6 +71415,54 @@
       "duplicate_package_comments": 0,
       "exported_declarations": 101,
       "documented_declarations": 101,
+      "missing_declaration_comments": 0,
+      "malformed_comments": 0,
+      "generated_files": 0,
+      "generated_missing_comments": 0,
+      "markers": 0,
+      "issues": []
+    },
+    {
+      "directory": "pkg/rabbitstream",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream",
+      "packages": 1,
+      "documented_packages": 1,
+      "missing_package_comments": 0,
+      "duplicate_package_comments": 0,
+      "exported_declarations": 330,
+      "documented_declarations": 330,
+      "missing_declaration_comments": 0,
+      "malformed_comments": 0,
+      "generated_files": 0,
+      "generated_missing_comments": 0,
+      "markers": 0,
+      "issues": []
+    },
+    {
+      "directory": "pkg/rabbitstream/otel",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream/otel",
+      "packages": 1,
+      "documented_packages": 1,
+      "missing_package_comments": 0,
+      "duplicate_package_comments": 0,
+      "exported_declarations": 11,
+      "documented_declarations": 11,
+      "missing_declaration_comments": 0,
+      "malformed_comments": 0,
+      "generated_files": 0,
+      "generated_missing_comments": 0,
+      "markers": 0,
+      "issues": []
+    },
+    {
+      "directory": "pkg/rabbitstream/rabbitmq",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq",
+      "packages": 1,
+      "documented_packages": 1,
+      "missing_package_comments": 0,
+      "duplicate_package_comments": 0,
+      "exported_declarations": 57,
+      "documented_declarations": 57,
       "missing_declaration_comments": 0,
       "malformed_comments": 0,
       "generated_files": 0,

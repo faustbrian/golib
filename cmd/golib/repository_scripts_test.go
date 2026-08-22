@@ -76,6 +76,205 @@ printf '%s\n' "$3" >>"$FAKE_DOCKER_LOG"
 	}
 }
 
+func TestRabbitStreamServiceLifecycleExportsFixturesAndCleansOnlyOwnedResources(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	bin := filepath.Join(repository, "bin")
+	fixture := filepath.Join(repository, "pkg", "rabbitstream", "rabbitmq", "integration")
+	for _, directory := range []string{
+		bin,
+		filepath.Join(repository, ".golib"),
+		filepath.Join(repository, "scripts"),
+		fixture,
+		filepath.Join(repository, "pkg", "example"),
+	} {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "required_services": ["rabbitstream"]
+  }, {
+    "directory": "pkg/standalone",
+    "required_services": ["rabbitstream-standalone"]
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(repository, ".golib", "versions.env"), "")
+	for _, script := range []string{"start-services.sh", "stop-services.sh"} {
+		writeTestFile(
+			t,
+			filepath.Join(repository, "scripts", script),
+			mustReadFile(t, filepath.Join(root, "scripts", script)),
+		)
+		if err := os.Chmod(filepath.Join(repository, "scripts", script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, script := range []string{"setup.sh", "standalone-setup.sh", "tls-setup.sh"} {
+		writeTestFile(
+			t,
+			filepath.Join(fixture, script),
+			mustReadFile(t, filepath.Join(root, "pkg", "rabbitstream", "rabbitmq", "integration", script)),
+		)
+		if err := os.Chmod(filepath.Join(fixture, script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dockerLog := filepath.Join(repository, "docker.log")
+	writeTestFile(t, filepath.Join(bin, "docker"), `#!/bin/sh
+set -eu
+case " $* " in
+    *" cp certgen:/certs/"*)
+        for destination do :; done
+        printf '%s\n' fixture >"$destination"
+        printf '%s\n' cp >>"$FAKE_DOCKER_LOG"
+        ;;
+    *" down "*) printf '%s\n' down >>"$FAKE_DOCKER_LOG" ;;
+    *" up "*) printf '%s\n' up >>"$FAKE_DOCKER_LOG" ;;
+    *) printf '%s\n' other >>"$FAKE_DOCKER_LOG" ;;
+esac
+`)
+	writeTestFile(t, filepath.Join(bin, "curl"), "#!/bin/sh\nprintf '%s' 201\n")
+	for _, executable := range []string{"docker", "curl"} {
+		if err := os.Chmod(filepath.Join(bin, executable), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+
+	environmentFile := filepath.Join(repository, "environment")
+	stateFile := filepath.Join(repository, "state")
+	temporaryRoot := filepath.Join(repository, "tmp")
+	if err := os.MkdirAll(temporaryRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	start := exec.Command(
+		filepath.Join(repository, "scripts", "start-services.sh"),
+		"pkg/example", environmentFile, stateFile,
+	)
+	start.Dir = repository
+	start.Env = environmentWithValues(
+		os.Environ(),
+		"PATH",
+		bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
+	start.Env = environmentWithValues(start.Env, "FAKE_DOCKER_LOG", dockerLog)
+	start.Env = environmentWithValues(start.Env, "TMPDIR", temporaryRoot)
+	if output, err := start.CombinedOutput(); err != nil {
+		t.Fatalf("start RabbitStream fixtures: %v\n%s", err, output)
+	}
+	environment := mustReadFile(t, environmentFile)
+	for _, name := range []string{
+		"RABBITSTREAM_TEST_HOST",
+		"RABBITSTREAM_TEST_PORT",
+		"RABBITSTREAM_TEST_USER",
+		"RABBITSTREAM_TEST_PASSWORD",
+		"RABBITSTREAM_TEST_RESTART_CONTAINER",
+		"RABBITSTREAM_TEST_PROXY_API",
+		"RABBITSTREAM_TEST_PROXY_NAME",
+		"RABBITSTREAM_CLUSTER_PORTS",
+		"RABBITSTREAM_CLUSTER_CONTAINERS",
+		"RABBITSTREAM_TLS_HOST",
+		"RABBITSTREAM_TLS_PORT",
+		"RABBITSTREAM_TLS_USER",
+		"RABBITSTREAM_TLS_PASSWORD",
+		"RABBITSTREAM_TLS_RUNTIME",
+		"RABBITSTREAM_RESTRICTED_USER",
+		"RABBITSTREAM_RESTRICTED_PASSWORD",
+	} {
+		if !strings.Contains(environment, name+"=") {
+			t.Errorf("service environment lacks %s", name)
+		}
+	}
+	state := mustReadFile(t, stateFile)
+	if strings.Contains(state, "codex-lb") {
+		t.Fatal("service state includes pre-existing codex-lb")
+	}
+	if strings.Count(state, "compose\t") != 3 || !strings.Contains(state, "directory\t") ||
+		!strings.Contains(state, "lock\t") {
+		t.Fatalf("RabbitStream service state = %q", state)
+	}
+	for _, line := range strings.Split(state, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) == 4 && fields[0] == "compose" &&
+			!strings.HasPrefix(fields[3], "codex-rabbitstream-") {
+			t.Errorf("Compose project is not recognizably task-owned: %q", fields[3])
+		}
+	}
+	logBeforeContender := mustReadFile(t, dockerLog)
+	contenderContext, cancelContender := context.WithTimeout(t.Context(), 250*time.Millisecond)
+	defer cancelContender()
+	contender := exec.CommandContext(
+		contenderContext,
+		filepath.Join(repository, "scripts", "start-services.sh"),
+		"pkg/standalone",
+		filepath.Join(repository, "contender-environment"),
+		filepath.Join(repository, "contender-state"),
+	)
+	contender.Dir = repository
+	contender.Env = start.Env
+	if output, err := contender.CombinedOutput(); err == nil ||
+		!errors.Is(contenderContext.Err(), context.DeadlineExceeded) {
+		t.Fatalf("concurrent RabbitStream fixture start = %v, want lock wait deadline\n%s", err, output)
+	}
+	if logAfterContender := mustReadFile(t, dockerLog); logAfterContender != logBeforeContender {
+		t.Fatalf("concurrent fixture started Docker resources: %q", logAfterContender)
+	}
+
+	stop := exec.Command(filepath.Join(repository, "scripts", "stop-services.sh"), stateFile)
+	stop.Dir = repository
+	stop.Env = environmentWithValues(start.Env, "GOLIB_DOCKER_CLEANUP_TIMEOUT_SECONDS", "2")
+	if output, err := stop.CombinedOutput(); err != nil {
+		t.Fatalf("stop RabbitStream fixtures: %v\n%s", err, output)
+	}
+	log := mustReadFile(t, dockerLog)
+	if strings.Count(log, "up\n") != 3 || strings.Count(log, "down\n") != 3 {
+		t.Fatalf("Docker lifecycle log = %q", log)
+	}
+	for _, line := range strings.Split(state, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) == 2 && (fields[0] == "directory" || fields[0] == "lock") {
+			if _, err := os.Stat(fields[1]); !errors.Is(err, os.ErrNotExist) {
+				t.Errorf("owned %s remains after cleanup: %v", fields[0], err)
+			}
+		}
+	}
+
+	standaloneEnvironmentFile := filepath.Join(repository, "standalone-environment")
+	standaloneStateFile := filepath.Join(repository, "standalone-state")
+	standaloneStart := exec.Command(
+		filepath.Join(repository, "scripts", "start-services.sh"),
+		"pkg/standalone", standaloneEnvironmentFile, standaloneStateFile,
+	)
+	standaloneStart.Dir = repository
+	standaloneStart.Env = start.Env
+	if output, err := standaloneStart.CombinedOutput(); err != nil {
+		t.Fatalf("start standalone RabbitStream fixture: %v\n%s", err, output)
+	}
+	standaloneEnvironment := mustReadFile(t, standaloneEnvironmentFile)
+	if strings.Contains(standaloneEnvironment, "RABBITSTREAM_TLS_HOST=") {
+		t.Fatal("standalone fixture unexpectedly exported TLS state")
+	}
+	if state := mustReadFile(t, standaloneStateFile); strings.Count(state, "compose\t") != 1 {
+		t.Fatalf("standalone RabbitStream service state = %q", state)
+	}
+	standaloneStop := exec.Command(
+		filepath.Join(repository, "scripts", "stop-services.sh"), standaloneStateFile,
+	)
+	standaloneStop.Dir = repository
+	standaloneStop.Env = stop.Env
+	if output, err := standaloneStop.CombinedOutput(); err != nil {
+		t.Fatalf("stop standalone RabbitStream fixture: %v\n%s", err, output)
+	}
+}
+
 func TestGateInputDigestDoesNotInspectLiveDockerForServiceModule(t *testing.T) {
 	repositoryRoot := testRepositoryRoot(t)
 	repository := t.TempDir()

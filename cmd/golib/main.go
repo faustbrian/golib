@@ -1109,6 +1109,12 @@ func tagPrefix(directory string, releasable bool) string {
 }
 
 func requiredServices(directory string) []string {
+	if directory == "pkg/rabbitstream/rabbitmq" {
+		return []string{"rabbitstream"}
+	}
+	if directory == "pkg/outbox/adapters/gorabbitstream" {
+		return []string{"rabbitstream-standalone"}
+	}
 	if directory == "pkg/service/integration/reference-durability" {
 		return []string{"postgresql", "valkey"}
 	}

@@ -5119,6 +5119,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/outbox/adapters/gorabbitstream",
+      "directory": ".",
+      "name": "gorabbitstream",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/outbox/adapters/otel",
       "directory": ".",
       "name": "outboxotel",
@@ -5891,6 +5903,42 @@
       "directory": "valkeystream",
       "name": "valkeystream",
       "import_path": "github.com/faustbrian/golib/pkg/queue/valkeystream",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/rabbitstream",
+      "directory": ".",
+      "name": "rabbitstream",
+      "import_path": "github.com/faustbrian/golib/pkg/rabbitstream",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/rabbitstream/otel",
+      "directory": ".",
+      "name": "rabbitstreamotel",
+      "import_path": "github.com/faustbrian/golib/pkg/rabbitstream/otel",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/rabbitstream/rabbitmq",
+      "directory": ".",
+      "name": "rabbitmq",
+      "import_path": "github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq",
       "kind": "public",
       "production": true,
       "executable": true,

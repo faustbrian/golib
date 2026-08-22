@@ -78,6 +78,28 @@ append_required_service_versions() {
             nats) variable=NATS_IMAGE ;;
             nsq) variable=NSQ_IMAGE ;;
             rabbitmq) variable=RABBITMQ_IMAGE ;;
+            rabbitstream-standalone)
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/enabled_plugins"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/standalone-compose.yaml"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/standalone-setup.sh"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/standalone.conf"
+                continue
+                ;;
+            rabbitstream)
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/compose.yaml"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/enabled_plugins"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/rabbit1.conf"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/rabbit2.conf"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/rabbit3.conf"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/setup.sh"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/standalone-compose.yaml"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/standalone-setup.sh"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/standalone.conf"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/tls-compose.yaml"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/tls-rabbitmq.conf"
+                append_file "${root}/pkg/rabbitstream/rabbitmq/integration/tls-setup.sh"
+                continue
+                ;;
             opensearch)
                 append_file "${root}/pkg/search/adapters/opensearch/scripts/opensearch-images.env"
                 continue

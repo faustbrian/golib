@@ -81,6 +81,10 @@ func TestValidateOperationalAssurance(t *testing.T) {
 					"observed_utc": "2026-08-12T00:00:00Z",
 					"environment":  "historical test",
 					"module_scope": []string{"*"},
+					"exact_input_modules": []string{
+						"pkg/a",
+						"pkg/b",
+					},
 					"input_digests": map[string]string{
 						"pkg/a": strings.Repeat("0", 64),
 						"pkg/b": strings.Repeat("1", 64),
@@ -464,6 +468,37 @@ func TestValidateOperationalAssurance(t *testing.T) {
 			wantSubstr: "unknown evidence input module pkg/unknown",
 		},
 		{
+			name: "unknown exact historical input module",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["exact_input_modules"] = []string{"pkg/unknown"}
+			},
+			wantSubstr: "unknown evidence input module pkg/unknown",
+		},
+		{
+			name: "additive and exact input modules are mutually exclusive",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_modules"] = []string{"pkg/fixture"}
+				evidence[0]["exact_input_modules"] = []string{"pkg/a", "pkg/b"}
+			},
+			wantSubstr: "cannot combine additive and exact input modules",
+		},
+		{
+			name: "current evidence rejects exact historical input snapshot",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["exact_input_modules"] = []string{"pkg/a", "pkg/b"}
+			},
+			wantSubstr: "current evidence cannot use an exact historical input snapshot",
+		},
+		{
 			name: "ready with current evidence",
 			mutate: func(t *testing.T, root string, record map[string]any) {
 				markScenariosPassed(t, root, record)
@@ -542,6 +577,25 @@ func TestOperationalInputEnvironmentReplacesAmbientOverrides(t *testing.T) {
 	}
 	if strings.Join(actual, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("command environment = %v, want %v", actual, want)
+	}
+}
+
+func TestAssuranceInputModulesPreservesExactHistoricalSnapshot(t *testing.T) {
+	t.Parallel()
+
+	current := catalog{Modules: []module{
+		{Directory: "pkg/a", Releasable: true},
+		{Directory: "pkg/b", Releasable: true},
+		{Directory: "pkg/new", Releasable: true},
+	}}
+	got := assuranceInputModules(
+		current,
+		[]string{"*"},
+		nil,
+		[]string{"pkg/b", "pkg/a"},
+	)
+	if strings.Join(got, "\n") != "pkg/a\npkg/b" {
+		t.Fatalf("assuranceInputModules() = %v", got)
 	}
 }
 

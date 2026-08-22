@@ -5283,6 +5283,7 @@
         "github.com/faustbrian/golib/pkg/kafka",
         "github.com/faustbrian/golib/pkg/outbox",
         "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/rabbitstream",
         "github.com/faustbrian/golib/pkg/schema-registry",
         "github.com/faustbrian/golib/pkg/telemetry",
         "github.com/faustbrian/golib/pkg/tenancy",
@@ -15903,6 +15904,7 @@
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
+        "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream",
         "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
         "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
         "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
@@ -16139,6 +16141,71 @@
           "implementation_status": "implemented-requires-fresh-verification"
         }
       ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/outbox/adapters/gorabbitstream",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream",
+      "go_version": "1.26.6",
+      "packages": [
+        {
+          "module_directory": "pkg/outbox/adapters/gorabbitstream",
+          "directory": ".",
+          "name": "gorabbitstream",
+          "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`gorabbitstream` maps one persisted `outbox.Envelope` to one confirmed `rabbitstream.Message`. It owns no producer, topology, relay, retry loop, database transaction, or outbox state transition.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "family": "persistence-and-durability",
+      "family_label": "Persistence And Durability",
+      "family_description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
+      "family_order": 4,
+      "version": "unreleased",
+      "tag_prefix": "pkg/outbox/adapters/gorabbitstream/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/outbox",
+        "github.com/faustbrian/golib/pkg/rabbitstream",
+        "github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/rabbitmq/rabbitmq-stream-go-client"
+      ],
+      "required_services": [
+        "rabbitstream-standalone"
+      ],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -18196,6 +18263,193 @@
           "implementation_status": "implemented-requires-fresh-verification"
         }
       ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/rabbitstream",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream",
+      "go_version": "1.26.6",
+      "packages": [
+        {
+          "module_directory": "pkg/rabbitstream",
+          "directory": ".",
+          "name": "rabbitstream",
+          "import_path": "github.com/faustbrian/golib/pkg/rabbitstream",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`rabbitstream` is the policy layer for durable RabbitMQ Streams and Super Streams workloads. It owns bounded messages, publishing, consumption, replay, inspection, errors, lifecycle, and observations. It does not implement the RabbitMQ Streams protocol.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "family": "integration-and-data-movement",
+      "family_label": "Integration And Data Movement",
+      "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
+      "family_order": 7,
+      "version": "unreleased",
+      "tag_prefix": "pkg/rabbitstream/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
+        "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream",
+        "github.com/faustbrian/golib/pkg/rabbitstream/otel",
+        "github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq"
+      ],
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/rabbitstream/otel",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream/otel",
+      "go_version": "1.26.6",
+      "packages": [
+        {
+          "module_directory": "pkg/rabbitstream/otel",
+          "directory": ".",
+          "name": "rabbitstreamotel",
+          "import_path": "github.com/faustbrian/golib/pkg/rabbitstream/otel",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`rabbitstreamotel` converts the root module's bounded `rabbitstream.Observation` values into caller-owned OpenTelemetry metrics and propagates W3C Trace Context through `rabbitstream.Message` headers. The root module remains telemetry-vendor neutral.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "family": "integration-and-data-movement",
+      "family_label": "Integration And Data Movement",
+      "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
+      "family_order": 7,
+      "version": "unreleased",
+      "tag_prefix": "pkg/rabbitstream/otel/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/rabbitstream"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "go.opentelemetry.io/otel",
+        "go.opentelemetry.io/otel/metric",
+        "go.opentelemetry.io/otel/sdk/metric",
+        "go.opentelemetry.io/otel/trace"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/rabbitstream/rabbitmq",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq",
+      "go_version": "1.26.6",
+      "packages": [
+        {
+          "module_directory": "pkg/rabbitstream/rabbitmq",
+          "directory": ".",
+          "name": "rabbitmq",
+          "import_path": "github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This nested module adapts the pinned RabbitMQ-supported Go Streams client to the stable policy types in the root [`rabbitstream`](..) module. It owns protocol resources while keeping low-level client types out of ordinary public APIs.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "family": "integration-and-data-movement",
+      "family_label": "Integration And Data Movement",
+      "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
+      "family_order": 7,
+      "version": "unreleased",
+      "tag_prefix": "pkg/rabbitstream/rabbitmq/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/rabbitstream"
+      ],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream"
+      ],
+      "external_runtime_dependencies": [
+        "github.com/rabbitmq/rabbitmq-stream-go-client"
+      ],
+      "required_services": [
+        "rabbitstream"
+      ],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,

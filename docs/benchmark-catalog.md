@@ -94,6 +94,7 @@ This inventory reports discoverable benchmark assets. A passing benchmark gate p
 | `pkg/openrpc` | required | present | 1 | 1 | 0 | 0 | - |
 | `pkg/outbox` | required | present | 4 | 0 | 0 | 0 | `postgresql` |
 | `pkg/outbox/adapters/gokafka` | required | present | 1 | 0 | 0 | 0 | `postgresql` |
+| `pkg/outbox/adapters/gorabbitstream` | required | present | 1 | 0 | 0 | 0 | `rabbitstream-standalone` |
 | `pkg/outbox/adapters/otel` | required | present | 1 | 0 | 0 | 0 | `postgresql` |
 | `pkg/outbox/adapters/queue` | required | present | 1 | 0 | 0 | 0 | `redis`<br>`valkey` |
 | `pkg/password` | required | present | 1 | 1 | 0 | 0 | - |
@@ -104,6 +105,9 @@ This inventory reports discoverable benchmark assets. A passing benchmark gate p
 | `pkg/queue` | required | present | 7 | 1 | 0 | 0 | `nats`<br>`nsq`<br>`rabbitmq`<br>`redis`<br>`valkey` |
 | `pkg/queue-control-plane` | required | present | 6 | 1 | 0 | 0 | `postgresql`<br>`redis`<br>`valkey` |
 | `pkg/queue/queueservice` | required | present | 1 | 0 | 0 | 0 | `nats`<br>`nsq`<br>`rabbitmq`<br>`redis`<br>`valkey` |
+| `pkg/rabbitstream` | required | present | 1 | 0 | 0 | 0 | - |
+| `pkg/rabbitstream/otel` | required | present | 1 | 0 | 0 | 0 | - |
+| `pkg/rabbitstream/rabbitmq` | required | present | 3 | 1 | 0 | 0 | `rabbitstream` |
 | `pkg/rate-limit` | required | present | 2 | 1 | 0 | 0 | `postgresql`<br>`valkey` |
 | `pkg/resilience` | required | present | 1 | 2 | 2 | 0 | - |
 | `pkg/retry` | required | present | 1 | 0 | 0 | 0 | - |

@@ -53,14 +53,15 @@ type operationalScenario struct {
 }
 
 type operationalEvidence struct {
-	Path             string                      `json:"path"`
-	SHA256           string                      `json:"sha256"`
-	ObservedUTC      string                      `json:"observed_utc"`
-	Environment      string                      `json:"environment"`
-	InputEnvironment operationalInputEnvironment `json:"input_environment,omitempty"`
-	ModuleScope      []string                    `json:"module_scope"`
-	InputModules     []string                    `json:"input_modules,omitempty"`
-	InputDigests     map[string]string           `json:"input_digests"`
+	Path              string                      `json:"path"`
+	SHA256            string                      `json:"sha256"`
+	ObservedUTC       string                      `json:"observed_utc"`
+	Environment       string                      `json:"environment"`
+	InputEnvironment  operationalInputEnvironment `json:"input_environment,omitempty"`
+	ModuleScope       []string                    `json:"module_scope"`
+	InputModules      []string                    `json:"input_modules,omitempty"`
+	ExactInputModules []string                    `json:"exact_input_modules,omitempty"`
+	InputDigests      map[string]string           `json:"input_digests"`
 }
 
 type operationalInputEnvironment struct {
@@ -355,6 +356,15 @@ func validateOperationalEvidence(
 	if err := validateAssuranceInputModuleScope(current, evidence.InputModules); err != nil {
 		return err
 	}
+	if err := validateAssuranceInputModuleScope(current, evidence.ExactInputModules); err != nil {
+		return err
+	}
+	if len(evidence.InputModules) != 0 && len(evidence.ExactInputModules) != 0 {
+		return errors.New("evidence cannot combine additive and exact input modules")
+	}
+	if requireCurrentInputs && len(evidence.ExactInputModules) != 0 {
+		return errors.New("current evidence cannot use an exact historical input snapshot")
+	}
 	if strings.TrimSpace(evidence.Environment) == "" {
 		return errors.New("evidence environment is empty")
 	}
@@ -380,6 +390,7 @@ func validateOperationalEvidence(
 		current,
 		evidence.ModuleScope,
 		evidence.InputModules,
+		evidence.ExactInputModules,
 		evidence.InputDigests,
 		digestMigrations,
 		currentInputDigests,
@@ -396,13 +407,14 @@ func validateAssuranceInputDigests(
 	current catalog,
 	scope []string,
 	inputModules []string,
+	exactInputModules []string,
 	recorded map[string]string,
 	migrations map[string]inputDigestMigration,
 	cache map[string]string,
 	inputEnvironment operationalInputEnvironment,
 	requireCurrent bool,
 ) error {
-	required := assuranceInputModules(current, scope, inputModules)
+	required := assuranceInputModules(current, scope, inputModules, exactInputModules)
 	if len(recorded) != len(required) {
 		return fmt.Errorf("input digest scope has %d modules, want %d", len(recorded), len(required))
 	}
@@ -632,7 +644,12 @@ func validateRepositoryArtifact(root, path, expected, label string) error {
 	return nil
 }
 
-func assuranceInputModules(current catalog, scope, inputModules []string) []string {
+func assuranceInputModules(current catalog, scope, inputModules, exactInputModules []string) []string {
+	if len(exactInputModules) != 0 {
+		required := slices.Clone(exactInputModules)
+		sort.Strings(required)
+		return required
+	}
 	selected := make(map[string]bool, len(scope)+len(inputModules))
 	explicitInputs := make(map[string]bool, len(inputModules))
 	if slices.Contains(scope, "*") {
