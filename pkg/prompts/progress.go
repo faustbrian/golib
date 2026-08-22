@@ -25,43 +25,55 @@ const (
 // ProgressConfig defines determinate or indeterminate caller-owned progress.
 // A zero total is indeterminate.
 type ProgressConfig struct {
-	ID, Label       string
-	Total           int64
+	ID, Label string
+	Total int64
 	AllowRegression bool
-	Clock           Clock
+	Clock Clock
 }
 
 // ProgressSnapshot is an immutable state copy.
 type ProgressSnapshot struct {
 	ID, Label, Message string
-	Current, Total     int64
-	State              ProgressState
-	Elapsed            time.Duration
-	RatePerSecond      Optional[float64]
+	Current, Total int64
+	State ProgressState
+	Elapsed time.Duration
+	RatePerSecond Optional[float64]
 	EstimatedRemaining Optional[time.Duration]
 }
 
 // Progress stores only the latest update and never creates a goroutine or
 // queue. Update is non-blocking with respect to output; Render is explicit.
 type Progress struct {
-	mu              sync.RWMutex
-	snapshot        ProgressSnapshot
+	mu sync.RWMutex
+	snapshot ProgressSnapshot
 	allowRegression bool
-	clock           Clock
-	measured        bool
-	measuredAt      time.Time
+	clock Clock
+	measured bool
+	measuredAt time.Time
 	measuredCurrent int64
 }
 
 // NewProgress creates a caller-driven progress value.
 func NewProgress(config ProgressConfig) (*Progress, error) {
 	if config.ID == "" || config.Label == "" || config.Total < 0 {
-		return nil, invalidBehaviorDefinition("define progress", config.ID, fmt.Errorf("%w: progress identity, label, and total are invalid", ErrInvalidDefinition))
+		return nil, invalidBehaviorDefinition(
+			"define progress",
+			config.ID,
+			fmt.Errorf(
+				"%w: progress identity, label, and total are invalid",
+				ErrInvalidDefinition,
+			),
+		)
 	}
 	return &Progress{
-		snapshot:        ProgressSnapshot{ID: config.ID, Label: config.Label, Total: config.Total, State: ProgressPending},
+		snapshot: ProgressSnapshot{
+			ID: config.ID,
+			Label: config.Label,
+			Total: config.Total,
+			State: ProgressPending,
+		},
 		allowRegression: config.AllowRegression,
-		clock:           config.Clock,
+		clock: config.Clock,
 	}, nil
 }
 
@@ -69,10 +81,15 @@ func NewProgress(config ProgressConfig) (*Progress, error) {
 func (progress *Progress) Update(current int64, message string) error {
 	progress.mu.Lock()
 	defer progress.mu.Unlock()
-	if terminalProgressState(progress.snapshot.State) || current < 0 ||
+	if terminalProgressState(progress.snapshot.State) ||
+		current < 0 ||
 		(!progress.allowRegression && current < progress.snapshot.Current) ||
 		(progress.snapshot.Total > 0 && current > progress.snapshot.Total) {
-		return invalidBehaviorDefinition("update progress", progress.snapshot.ID, ErrInvalidDefinition)
+		return invalidBehaviorDefinition(
+			"update progress",
+			progress.snapshot.ID,
+			ErrInvalidDefinition,
+		)
 	}
 	progress.snapshot.Current = current
 	progress.snapshot.Message = message
@@ -94,12 +111,22 @@ func (progress *Progress) UpdateContext(ctx context.Context, current int64, mess
 func (progress *Progress) Increment(delta int64, message string) error {
 	progress.mu.Lock()
 	defer progress.mu.Unlock()
-	if terminalProgressState(progress.snapshot.State) || delta < 0 || progress.snapshot.Current > math.MaxInt64-delta {
-		return invalidBehaviorDefinition("increment progress", progress.snapshot.ID, ErrInvalidDefinition)
+	if terminalProgressState(progress.snapshot.State) ||
+		delta < 0 ||
+		progress.snapshot.Current > math.MaxInt64 - delta {
+		return invalidBehaviorDefinition(
+			"increment progress",
+			progress.snapshot.ID,
+			ErrInvalidDefinition,
+		)
 	}
 	next := progress.snapshot.Current + delta
 	if progress.snapshot.Total > 0 && next > progress.snapshot.Total {
-		return invalidBehaviorDefinition("increment progress", progress.snapshot.ID, ErrInvalidDefinition)
+		return invalidBehaviorDefinition(
+			"increment progress",
+			progress.snapshot.ID,
+			ErrInvalidDefinition,
+		)
 	}
 	progress.snapshot.Current = next
 	progress.snapshot.Message = message
@@ -140,7 +167,7 @@ func (progress *Progress) updateTiming(current int64) {
 	if progress.snapshot.Total == 0 {
 		return
 	}
-	etaNanos := float64(progress.snapshot.Total-current) / rate * float64(time.Second)
+	etaNanos := float64(progress.snapshot.Total - current) / rate * float64(time.Second)
 	estimate, ok := progressDuration(etaNanos)
 	if !ok {
 		return
@@ -163,13 +190,19 @@ func (progress *Progress) clearTiming() {
 }
 
 // Complete records a stable successful terminal state.
-func (progress *Progress) Complete(message string) { progress.finish(ProgressSucceeded, message) }
+func (progress *Progress) Complete(message string) {
+	progress.finish(ProgressSucceeded, message)
+}
 
 // Fail records a stable failed terminal state.
-func (progress *Progress) Fail(message string) { progress.finish(ProgressFailed, message) }
+func (progress *Progress) Fail(message string) {
+	progress.finish(ProgressFailed, message)
+}
 
 // Cancel records a stable canceled terminal state.
-func (progress *Progress) Cancel(message string) { progress.finish(ProgressCanceled, message) }
+func (progress *Progress) Cancel(message string) {
+	progress.finish(ProgressCanceled, message)
+}
 
 func (progress *Progress) finish(state ProgressState, message string) {
 	progress.mu.Lock()
@@ -226,7 +259,7 @@ func (progress *Progress) Render(ctx context.Context, execution Execution) error
 // SpinnerConfig defines caller-advanced indeterminate status frames.
 type SpinnerConfig struct {
 	ID, Label string
-	Frames    []string
+	Frames []string
 }
 
 // SpinnerSnapshot is an immutable spinner state copy.
@@ -237,24 +270,32 @@ type SpinnerSnapshot struct {
 
 // Spinner advances only when the caller requests it and creates no timer.
 type Spinner struct {
-	mu       sync.RWMutex
+	mu sync.RWMutex
 	snapshot ProgressSnapshot
-	frames   []string
-	index    int
+	frames []string
+	index int
 }
 
 // NewSpinner creates a caller-driven spinner.
 func NewSpinner(config SpinnerConfig) (*Spinner, error) {
 	if config.ID == "" || config.Label == "" {
-		return nil, invalidBehaviorDefinition("define spinner", config.ID, ErrInvalidDefinition)
+		return nil, invalidBehaviorDefinition(
+			"define spinner",
+			config.ID,
+			ErrInvalidDefinition,
+		)
 	}
 	frames := append([]string(nil), config.Frames...)
 	if len(frames) == 0 {
 		frames = []string{"-", "\\", "|", "/"}
 	}
 	return &Spinner{
-		snapshot: ProgressSnapshot{ID: config.ID, Label: config.Label, State: ProgressPending},
-		frames:   frames,
+		snapshot: ProgressSnapshot{
+			ID: config.ID,
+			Label: config.Label,
+			State: ProgressPending,
+		},
+		frames: frames,
 	}, nil
 }
 
@@ -279,9 +320,17 @@ func (spinner *Spinner) AdvanceContext(ctx context.Context, message string) erro
 	return nil
 }
 
-func (spinner *Spinner) Succeed(message string) { spinner.finish(ProgressSucceeded, message) }
-func (spinner *Spinner) Fail(message string)    { spinner.finish(ProgressFailed, message) }
-func (spinner *Spinner) Cancel(message string)  { spinner.finish(ProgressCanceled, message) }
+func (spinner *Spinner) Succeed(message string) {
+	spinner.finish(ProgressSucceeded, message)
+}
+
+func (spinner *Spinner) Fail(message string) {
+	spinner.finish(ProgressFailed, message)
+}
+
+func (spinner *Spinner) Cancel(message string) {
+	spinner.finish(ProgressCanceled, message)
+}
 
 func (spinner *Spinner) finish(state ProgressState, message string) {
 	spinner.mu.Lock()
@@ -297,7 +346,10 @@ func (spinner *Spinner) finish(state ProgressState, message string) {
 func (spinner *Spinner) Snapshot() SpinnerSnapshot {
 	spinner.mu.RLock()
 	defer spinner.mu.RUnlock()
-	return SpinnerSnapshot{ProgressSnapshot: spinner.snapshot, Frame: spinner.frames[spinner.index]}
+	return SpinnerSnapshot{
+		ProgressSnapshot: spinner.snapshot,
+		Frame: spinner.frames[spinner.index],
+	}
 }
 
 // Render writes a frame only when animation is explicitly supported.
@@ -344,16 +396,20 @@ type StatusEntry struct {
 
 // StatusStream retains only its configured number of latest entries.
 type StatusStream struct {
-	mu       sync.RWMutex
+	mu sync.RWMutex
 	capacity int
-	entries  []StatusEntry
-	dropped  uint64
+	entries []StatusEntry
+	dropped uint64
 }
 
 // NewStatusStream creates a bounded concurrent stream.
 func NewStatusStream(capacity int) (*StatusStream, error) {
 	if capacity < 1 {
-		return nil, invalidBehaviorDefinition("define status stream", "", ErrInvalidDefinition)
+		return nil, invalidBehaviorDefinition(
+			"define status stream",
+			"",
+			ErrInvalidDefinition,
+		)
 	}
 	return &StatusStream{capacity: capacity, entries: make([]StatusEntry, 0, capacity)}, nil
 }
@@ -367,7 +423,7 @@ func (stream *StatusStream) Append(kind StatusKind, text string) error {
 	}
 	if len(stream.entries) == stream.capacity {
 		copy(stream.entries, stream.entries[1:])
-		stream.entries = stream.entries[:len(stream.entries)-1]
+		stream.entries = stream.entries[:len(stream.entries) - 1]
 		stream.dropped++
 	}
 	stream.entries = append(stream.entries, StatusEntry{Kind: kind, Text: text})
@@ -401,7 +457,15 @@ func (stream *StatusStream) Render(ctx context.Context, execution Execution) err
 	entries := stream.Snapshot()
 	lines := make([]SemanticLine, 0, len(entries))
 	if dropped := stream.Dropped(); dropped > 0 {
-		lines = append(lines, Line(Text(RoleHint, fmt.Sprintf("%d earlier status update omitted", dropped))))
+		lines = append(
+			lines,
+			Line(
+				Text(
+					RoleHint,
+					fmt.Sprintf("%d earlier status update omitted", dropped),
+				),
+			),
+		)
 	}
 	for _, entry := range entries {
 		role := RoleValue
@@ -437,11 +501,15 @@ func renderOutput(ctx context.Context, identity string, frame Frame, execution E
 			renderer = ANSIRenderer{Theme: execution.Theme}
 		}
 	}
-	output, err := renderer.Render(frame, RenderOptions{
-		Width: execution.Capabilities.Width, Color: execution.Capabilities.Color,
-		ASCIIOnly:  !execution.Capabilities.Unicode,
-		Hyperlinks: execution.Capabilities.Hyperlinks,
-	})
+	output, err := renderer.Render(
+		frame,
+		RenderOptions{
+			Width: execution.Capabilities.Width,
+			Color: execution.Capabilities.Color,
+			ASCIIOnly: !execution.Capabilities.Unicode,
+			Hyperlinks: execution.Capabilities.Hyperlinks,
+		},
+	)
 	if err != nil {
 		return streamFailure(identity, ErrorRenderer, "render output", err)
 	}
@@ -453,7 +521,11 @@ func renderOutput(ctx context.Context, identity string, frame Frame, execution E
 
 func presentationMutationContext(ctx context.Context, identity string) error {
 	if ctx == nil {
-		return invalidBehaviorDefinition("update presentation", identity, ErrInvalidDefinition)
+		return invalidBehaviorDefinition(
+			"update presentation",
+			identity,
+			ErrInvalidDefinition,
+		)
 	}
 	if err := ctx.Err(); err != nil {
 		return contextFailure(identity, err)

@@ -250,14 +250,53 @@ run_gate() {
     printf '\n[%s] %s\n' "${module}" "${selected}"
     case "${selected}" in
         format)
-            find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -w
+            if target="$(find_make_target format)"; then
+                make GOWORK=off "${target}"
+            else
+                local -a format_files=()
+                while IFS= read -r package_directory; do
+                    while IFS= read -r -d '' source_file; do
+                        format_files+=("${source_file}")
+                    done < <(
+                        find "${package_directory}" -maxdepth 1 -type f \
+                            -name '*.go' -print0
+                    )
+                done < <(
+                    jq -r --arg directory "${module}" \
+                        '.modules[] | select(.directory == $directory) |
+                            .packages[].directory' "${root}/modules.json"
+                )
+                if [[ "${#format_files[@]}" -gt 0 ]]; then
+                    gofmt -w "${format_files[@]}"
+                fi
+            fi
             ;;
         format-check)
-            unformatted="$(find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -l)"
-            [[ -z "${unformatted}" ]] || {
-                printf 'unformatted Go files:\n%s\n' "${unformatted}" >&2
-                exit 1
-            }
+            if target="$(find_make_target format-check)"; then
+                make GOWORK=off "${target}"
+            else
+                local -a format_files=()
+                while IFS= read -r package_directory; do
+                    while IFS= read -r -d '' source_file; do
+                        format_files+=("${source_file}")
+                    done < <(
+                        find "${package_directory}" -maxdepth 1 -type f \
+                            -name '*.go' -print0
+                    )
+                done < <(
+                    jq -r --arg directory "${module}" \
+                        '.modules[] | select(.directory == $directory) |
+                            .packages[].directory' "${root}/modules.json"
+                )
+                unformatted=""
+                if [[ "${#format_files[@]}" -gt 0 ]]; then
+                    unformatted="$(gofmt -l "${format_files[@]}")"
+                fi
+                [[ -z "${unformatted}" ]] || {
+                    printf 'unformatted Go files:\n%s\n' "${unformatted}" >&2
+                    exit 1
+                }
+            fi
             ;;
         tidy-check)
             enable_local_proxy

@@ -17,12 +17,23 @@ const (
 	defaultMaxInputBytes = 4 << 20
 )
 
-func runInteractive[T any](ctx context.Context, prompt Prompt[T], execution Execution) (result T, resultErr error) {
+func runInteractive[T any](
+	ctx context.Context,
+	prompt Prompt[T],
+	execution Execution,
+) (result T, resultErr error) {
 	if execution.Events == nil || execution.Terminal == nil || execution.Output == nil {
 		return result, promptFailure(prompt.ID(), ErrTerminalUnavailable)
 	}
 	if prompt.definition.retry.Unlimited && !execution.Policy.PermitUnlimitedRetries {
-		return result, invalidBehaviorDefinition("execute prompt", prompt.ID(), fmt.Errorf("%w: unlimited retry lacks caller permission", ErrInvalidDefinition))
+		return result, invalidBehaviorDefinition(
+			"execute prompt",
+			prompt.ID(),
+			fmt.Errorf(
+				"%w: unlimited retry lacks caller permission",
+				ErrInvalidDefinition,
+			),
+		)
 	}
 	if err := execution.Terminal.Acquire(ctx); err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -46,8 +57,10 @@ func runInteractive[T any](ctx context.Context, prompt Prompt[T], execution Exec
 				resultErr = cleanupErr
 			} else {
 				resultErr = &Error{
-					Kind: ErrorTerminalControl, Operation: "restore terminal",
-					PromptID: prompt.ID(), Cause: errors.Join(resultErr, cleanupErr),
+					Kind: ErrorTerminalControl,
+					Operation: "restore terminal",
+					PromptID: prompt.ID(),
+					Cause: errors.Join(resultErr, cleanupErr),
 				}
 			}
 		}
@@ -65,11 +78,14 @@ func runInteractive[T any](ctx context.Context, prompt Prompt[T], execution Exec
 	}
 	editor := lineEditor{maxBytes: limits.MaxInputBytes}
 	navigation := formInteractionFrom(ctx)
-	if navigation != nil && navigation.initial != nil && navigation.initial.kind == formReplayText {
+	if navigation != nil &&
+		navigation.initial != nil &&
+		navigation.initial.kind == formReplayText {
 		_ = editor.insert(navigation.initial.text, prompt.definition.kind == KindMultiline)
 	}
 	width := execution.Capabilities.Width
-	if err := writeInteractive(execution, prompt.definition, editor.text(), "", width); err != nil {
+	if err := writeInteractive(execution, prompt.definition, editor.text(), "", width);
+		err != nil {
 		return result, err
 	}
 	attempts := uint(0)
@@ -90,25 +106,65 @@ func runInteractive[T any](ctx context.Context, prompt Prompt[T], execution Exec
 		case EventEOF:
 			return resolveEOF(ctx, prompt, execution.Dependencies)
 		case EventDetached:
-			return result, streamFailure(prompt.ID(), ErrorTerminalDetached, "read terminal event", ErrTerminalDetached)
+			return result, streamFailure(
+				prompt.ID(),
+				ErrorTerminalDetached,
+				"read terminal event",
+				ErrTerminalDetached,
+			)
 		case EventResize:
 			if event.Width < 0 || event.Height < 0 {
-				return result, streamFailure(prompt.ID(), ErrorReader, "read terminal resize", ErrReader)
+				return result, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"read terminal resize",
+					ErrReader,
+				)
 			}
 			width = event.Width
 		case EventCapabilities:
-			if err := applyCapabilityChange(&execution, event.Capabilities, &width, nil); err != nil {
+			if err := applyCapabilityChange(
+				&execution,
+				event.Capabilities,
+				&width,
+				nil,
+			);
+				err != nil {
 				if errors.Is(err, ErrTerminalDetached) {
-					return result, streamFailure(prompt.ID(), ErrorTerminalDetached, "update terminal capabilities", err)
+					return result, streamFailure(
+						prompt.ID(),
+						ErrorTerminalDetached,
+						"update terminal capabilities",
+						err,
+					)
 				}
-				return result, streamFailure(prompt.ID(), ErrorReader, "update terminal capabilities", err)
+				return result, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"update terminal capabilities",
+					err,
+				)
 			}
 		case EventPaste:
 			if len(event.Text) > limits.MaxPasteBytes || !utf8.ValidString(event.Text) {
-				return result, streamFailure(prompt.ID(), ErrorReader, "read terminal paste", ErrReader)
+				return result, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"read terminal paste",
+					ErrReader,
+				)
 			}
-			if err := editor.insert(event.Text, prompt.definition.kind == KindMultiline); err != nil {
-				return result, streamFailure(prompt.ID(), ErrorReader, "read terminal paste", err)
+			if err := editor.insert(
+				event.Text,
+				prompt.definition.kind == KindMultiline,
+			);
+				err != nil {
+				return result, streamFailure(
+					prompt.ID(),
+					ErrorReader,
+					"read terminal paste",
+					err,
+				)
 			}
 		case EventKey:
 			event = execution.Keys.translate(event)
@@ -126,7 +182,12 @@ func runInteractive[T any](ctx context.Context, prompt Prompt[T], execution Exec
 			case KeyNewline:
 				if prompt.definition.kind == KindMultiline {
 					if err := editor.insert("\n", true); err != nil {
-						return result, streamFailure(prompt.ID(), ErrorReader, "edit prompt input", err)
+						return result, streamFailure(
+							prompt.ID(),
+							ErrorReader,
+							"edit prompt input",
+							err,
+						)
 					}
 				}
 			case KeyTab:
@@ -135,18 +196,38 @@ func runInteractive[T any](ctx context.Context, prompt Prompt[T], execution Exec
 				}
 			default:
 				if err := editor.applyKey(event); err != nil {
-					return result, streamFailure(prompt.ID(), ErrorReader, "edit terminal input", err)
+					return result, streamFailure(
+						prompt.ID(),
+						ErrorReader,
+						"edit terminal input",
+						err,
+					)
 				}
 			}
 		default:
-			return result, streamFailure(prompt.ID(), ErrorReader, "read terminal event", ErrReader)
+			return result, streamFailure(
+				prompt.ID(),
+				ErrorReader,
+				"read terminal event",
+				ErrReader,
+			)
 		}
 		if submit {
 			value, parseErr := prompt.definition.parse(editor.text())
 			if parseErr == nil {
-				value, parseErr = applyPipeline(ctx, prompt.definition, value, execution.Dependencies, false)
+				value, parseErr = applyPipeline(
+					ctx,
+					prompt.definition,
+					value,
+					execution.Dependencies,
+					false,
+				)
 			} else {
-				parseErr = validationFailure(prompt.ID(), parseErr, prompt.definition.secret)
+				parseErr = validationFailure(
+					prompt.ID(),
+					parseErr,
+					prompt.definition.secret,
+				)
 			}
 			if parseErr == nil {
 				navigation.captureText(editor.text())
@@ -156,17 +237,24 @@ func runInteractive[T any](ctx context.Context, prompt Prompt[T], execution Exec
 				return result, parseErr
 			}
 			attempts++
-			if !prompt.definition.retry.Unlimited && attempts >= prompt.definition.retry.MaxAttempts {
+			if !prompt.definition.retry.Unlimited &&
+				attempts >= prompt.definition.retry.MaxAttempts {
 				return result, parseErr
 			}
 			if err := writeInteractive(
-				execution, prompt.definition, editor.text(), validationMessage(parseErr), width,
-			); err != nil {
+				execution,
+				prompt.definition,
+				editor.text(),
+				validationMessage(parseErr),
+				width,
+			);
+				err != nil {
 				return result, err
 			}
 			continue
 		}
-		if err := writeInteractive(execution, prompt.definition, editor.text(), "", width); err != nil {
+		if err := writeInteractive(execution, prompt.definition, editor.text(), "", width);
+			err != nil {
 			return result, err
 		}
 	}
@@ -182,7 +270,12 @@ func normalizeInputLimits(limits InputLimits) InputLimits {
 	return limits
 }
 
-func writeInteractive[T any](execution Execution, definition definition[T], value, validation string, width int) error {
+func writeInteractive[T any](
+	execution Execution,
+	definition definition[T],
+	value, validation string,
+	width int,
+) error {
 	renderer := execution.Renderer
 	if renderer == nil {
 		if execution.Capabilities.Color == ColorNone {
@@ -209,11 +302,15 @@ func writeInteractive[T any](execution Execution, definition definition[T], valu
 	if validation != "" {
 		lines = append(lines, Line(Text(RoleError, validation)))
 	}
-	output, err := renderer.Render(NewFrame(lines...), RenderOptions{
-		Width: width, Color: execution.Capabilities.Color,
-		ASCIIOnly:  !execution.Capabilities.Unicode,
-		Hyperlinks: execution.Capabilities.Hyperlinks,
-	})
+	output, err := renderer.Render(
+		NewFrame(lines...),
+		RenderOptions{
+			Width: width,
+			Color: execution.Capabilities.Color,
+			ASCIIOnly: !execution.Capabilities.Unicode,
+			Hyperlinks: execution.Capabilities.Hyperlinks,
+		},
+	)
 	if err != nil {
 		return streamFailure(definition.id, ErrorRenderer, "render prompt", err)
 	}
@@ -262,16 +359,34 @@ func validationMessage(err error) string {
 }
 
 func resolveCancel[T any](ctx context.Context, prompt Prompt[T], dependencies any) (T, error) {
-	return resolveBehavior(ctx, prompt, dependencies, prompt.definition.cancel == CancelUseDefault,
-		prompt.definition.cancel == CancelUseFallback, ErrCanceled)
+	return resolveBehavior(
+		ctx,
+		prompt,
+		dependencies,
+		prompt.definition.cancel == CancelUseDefault,
+		prompt.definition.cancel == CancelUseFallback,
+		ErrCanceled,
+	)
 }
 
 func resolveEOF[T any](ctx context.Context, prompt Prompt[T], dependencies any) (T, error) {
-	return resolveBehavior(ctx, prompt, dependencies, prompt.definition.endOfInput == EOFUseDefault,
-		prompt.definition.endOfInput == EOFUseFallback, ErrEndOfInput)
+	return resolveBehavior(
+		ctx,
+		prompt,
+		dependencies,
+		prompt.definition.endOfInput == EOFUseDefault,
+		prompt.definition.endOfInput == EOFUseFallback,
+		ErrEndOfInput,
+	)
 }
 
-func resolveBehavior[T any](ctx context.Context, prompt Prompt[T], dependencies any, useDefault, useFallback bool, target error) (T, error) {
+func resolveBehavior[T any](
+	ctx context.Context,
+	prompt Prompt[T],
+	dependencies any,
+	useDefault, useFallback bool,
+	target error,
+) (T, error) {
 	if useDefault {
 		if value, ok := prompt.definition.defaultValue.Get(); ok {
 			return applyPipeline(ctx, prompt.definition, value, dependencies, true)
@@ -306,8 +421,14 @@ func eventReadFailure(promptID, operation string, cause error) error {
 	return streamFailure(promptID, ErrorReader, operation, cause)
 }
 
-func applyCapabilityChange(execution *Execution, capabilities Capabilities, width, height *int) error {
-	if capabilities.Width < 0 || capabilities.Height < 0 || capabilities.Color > ColorTrueColor {
+func applyCapabilityChange(
+	execution *Execution,
+	capabilities Capabilities,
+	width, height *int,
+) error {
+	if capabilities.Width < 0 ||
+		capabilities.Height < 0 ||
+		capabilities.Color > ColorTrueColor {
 		return ErrReader
 	}
 	if !capabilities.InputTerminal || !capabilities.OutputTerminal {
@@ -323,32 +444,37 @@ func applyCapabilityChange(execution *Execution, capabilities Capabilities, widt
 }
 
 type lineEditor struct {
-	cells    []string
-	cursor   int
+	cells []string
+	cursor int
 	maxBytes int
 }
 
-func (editor *lineEditor) text() string { return strings.Join(editor.cells, "") }
+func (editor *lineEditor) text() string {
+	return strings.Join(editor.cells, "")
+}
 
 func (editor *lineEditor) insert(value string, multiline bool) error {
 	if !multiline && strings.ContainsAny(value, "\r\n") {
 		return ErrReader
 	}
-	clean := strings.Map(func(char rune) rune {
-		if char == '\n' && multiline {
+	clean := strings.Map(
+		func(char rune) rune {
+			if char == '\n' && multiline {
+				return char
+			}
+			if unicode.IsControl(char) || isBidiControl(char) {
+				return -1
+			}
 			return char
-		}
-		if unicode.IsControl(char) || isBidiControl(char) {
-			return -1
-		}
-		return char
-	}, value)
-	if len(editor.text())+len(clean) > editor.maxBytes {
+		},
+		value,
+	)
+	if len(editor.text()) + len(clean) > editor.maxBytes {
 		return ErrReader
 	}
 	inserted := splitGraphemes(clean)
 	editor.cells = append(editor.cells, make([]string, len(inserted))...)
-	copy(editor.cells[editor.cursor+len(inserted):], editor.cells[editor.cursor:])
+	copy(editor.cells[editor.cursor + len(inserted):], editor.cells[editor.cursor:])
 	copy(editor.cells[editor.cursor:], inserted)
 	editor.cursor += len(inserted)
 	return nil
@@ -363,12 +489,18 @@ func (editor *lineEditor) applyKey(event InputEvent) error {
 		return editor.insert(string(event.Rune), false)
 	case KeyBackspace:
 		if editor.cursor > 0 {
-			editor.cells = append(editor.cells[:editor.cursor-1], editor.cells[editor.cursor:]...)
+			editor.cells = append(
+				editor.cells[:editor.cursor - 1],
+				editor.cells[editor.cursor:]...,
+			)
 			editor.cursor--
 		}
 	case KeyDelete:
 		if editor.cursor < len(editor.cells) {
-			editor.cells = append(editor.cells[:editor.cursor], editor.cells[editor.cursor+1:]...)
+			editor.cells = append(
+				editor.cells[:editor.cursor],
+				editor.cells[editor.cursor + 1:]...,
+			)
 		}
 	case KeyLeft:
 		if editor.cursor > 0 {
@@ -395,19 +527,21 @@ func (editor *lineEditor) applyKey(event InputEvent) error {
 }
 
 func (editor *lineEditor) wordLeft() {
-	for editor.cursor > 0 && strings.TrimSpace(editor.cells[editor.cursor-1]) == "" {
+	for editor.cursor > 0 && strings.TrimSpace(editor.cells[editor.cursor - 1]) == "" {
 		editor.cursor--
 	}
-	for editor.cursor > 0 && strings.TrimSpace(editor.cells[editor.cursor-1]) != "" {
+	for editor.cursor > 0 && strings.TrimSpace(editor.cells[editor.cursor - 1]) != "" {
 		editor.cursor--
 	}
 }
 
 func (editor *lineEditor) wordRight() {
-	for editor.cursor < len(editor.cells) && strings.TrimSpace(editor.cells[editor.cursor]) != "" {
+	for editor.cursor < len(editor.cells) &&
+		strings.TrimSpace(editor.cells[editor.cursor]) != "" {
 		editor.cursor++
 	}
-	for editor.cursor < len(editor.cells) && strings.TrimSpace(editor.cells[editor.cursor]) == "" {
+	for editor.cursor < len(editor.cells) &&
+		strings.TrimSpace(editor.cells[editor.cursor]) == "" {
 		editor.cursor++
 	}
 }

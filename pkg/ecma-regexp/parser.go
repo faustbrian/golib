@@ -979,11 +979,11 @@ func (p *parser) codePointEscape(prefix Token) (Node, error) {
 }
 
 func (p *parser) literal(span Span, char rune) (Node, error) {
-	if char&^0xFFFF != 0 {
+	if char>>16 != 0 {
 		units := utf16.Encode([]rune{char})
 		return p.node(Node{kind: NodeLiteral, span: span, text: string(utf16.Decode(units)), literalUnits: units})
 	}
-	units := []uint16{uint16(char)}
+	units := []uint16{uint16(char & 0xFFFF)}
 	return p.node(Node{kind: NodeLiteral, span: span, text: string(utf16.Decode(units)), literalUnits: units})
 }
 
@@ -1357,8 +1357,8 @@ func (p *parser) regexpIdentifierEscape() ([]uint16, int, error) {
 	if value > utf8.MaxRune {
 		return nil, end, p.syntax(SyntaxInvalidEscape, Span{Start: prefix.span.Start, End: end}, "capture name Unicode escape is out of range")
 	}
-	if value&^0xFFFF == 0 {
-		return []uint16{uint16(value)}, end, nil
+	if value>>16 == 0 {
+		return []uint16{uint16(value & 0xFFFF)}, end, nil
 	}
 	return utf16.Encode([]rune{rune(value)}), end, nil
 }

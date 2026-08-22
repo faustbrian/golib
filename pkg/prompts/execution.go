@@ -28,19 +28,19 @@ type Clock interface {
 
 // Execution contains every ambient resource a prompt is allowed to use.
 type Execution struct {
-	Input        io.Reader
-	Output       io.Writer
-	Error        io.Writer
+	Input io.Reader
+	Output io.Writer
+	Error io.Writer
 	Capabilities Capabilities
-	Policy       InteractionPolicy
-	Clock        Clock
+	Policy InteractionPolicy
+	Clock Clock
 	Dependencies any
-	Events       EventSource
-	Terminal     TerminalController
-	Renderer     Renderer
-	Theme        Theme
-	Limits       InputLimits
-	Keys         KeyMap
+	Events EventSource
+	Terminal TerminalController
+	Renderer Renderer
+	Theme Theme
+	Limits InputLimits
+	Keys KeyMap
 }
 
 // Run executes a typed prompt without consulting process-wide streams or
@@ -49,10 +49,10 @@ func Run[T any](ctx context.Context, prompt Prompt[T], execution Execution) (T, 
 	var zero T
 	if ctx == nil {
 		return zero, &Error{
-			Kind:      ErrorInvalidDefinition,
+			Kind: ErrorInvalidDefinition,
 			Operation: "execute prompt",
-			PromptID:  prompt.definition.id,
-			Cause:     ErrInvalidDefinition,
+			PromptID: prompt.definition.id,
+			Cause: ErrInvalidDefinition,
 		}
 	}
 	if err := ctx.Err(); err != nil {
@@ -62,10 +62,10 @@ func Run[T any](ctx context.Context, prompt Prompt[T], execution Execution) (T, 
 		}
 
 		return zero, &Error{
-			Kind:      kind,
+			Kind: kind,
 			Operation: "execute prompt",
-			PromptID:  prompt.definition.id,
-			Cause:     err,
+			PromptID: prompt.definition.id,
+			Cause: err,
 		}
 	}
 
@@ -83,14 +83,26 @@ func Run[T any](ctx context.Context, prompt Prompt[T], execution Execution) (T, 
 	case HeadlessUseDefault:
 		if execution.Policy.PermitDefaults {
 			if value, ok := prompt.definition.defaultValue.Get(); ok {
-				return applyPipeline(ctx, prompt.definition, value, execution.Dependencies, true)
+				return applyPipeline(
+					ctx,
+					prompt.definition,
+					value,
+					execution.Dependencies,
+					true,
+				)
 			}
 		}
 
 		return zero, promptFailure(prompt.definition.id, ErrInteractionNotPermitted)
 	case HeadlessUseFallback:
 		if value, ok := prompt.definition.fallbackValue.Get(); ok {
-			return applyPipeline(ctx, prompt.definition, value, execution.Dependencies, true)
+			return applyPipeline(
+				ctx,
+				prompt.definition,
+				value,
+				execution.Dependencies,
+				true,
+			)
 		}
 
 		return zero, promptFailure(prompt.definition.id, ErrInteractionNotPermitted)
@@ -99,16 +111,22 @@ func Run[T any](ctx context.Context, prompt Prompt[T], execution Execution) (T, 
 	}
 }
 
-func applyPipeline[T any](ctx context.Context, definition definition[T], value T, dependencies any, clone bool) (result T, resultErr error) {
+func applyPipeline[T any](
+	ctx context.Context,
+	definition definition[T],
+	value T,
+	dependencies any,
+	clone bool,
+) (result T, resultErr error) {
 	defer func() {
 		if recover() != nil {
 			var zero T
 			result = zero
 			resultErr = &Error{
-				Kind:      ErrorAdapter,
+				Kind: ErrorAdapter,
 				Operation: "run prompt callback",
-				PromptID:  definition.id,
-				Cause:     ErrAdapter,
+				PromptID: definition.id,
+				Cause: ErrAdapter,
 			}
 		}
 	}()
@@ -151,14 +169,18 @@ func applyPipeline[T any](ctx context.Context, definition definition[T], value T
 
 func validationFailure(promptID string, cause error, secret SecretClass) error {
 	if secret != SecretNone {
-		cause = NewValidationIssue("secret_validation", "Secret value was rejected", promptID)
+		cause = NewValidationIssue(
+			"secret_validation",
+			"Secret value was rejected",
+			promptID,
+		)
 	}
 
 	return &Error{
-		Kind:      ErrorValidationExhausted,
+		Kind: ErrorValidationExhausted,
 		Operation: "validate prompt",
-		PromptID:  promptID,
-		Cause:     normalizeIssue(cause, promptID),
+		PromptID: promptID,
+		Cause: normalizeIssue(cause, promptID),
 	}
 }
 
@@ -168,12 +190,7 @@ func contextFailure(promptID string, cause error) error {
 		kind = ErrorDeadlineExceeded
 	}
 
-	return &Error{
-		Kind:      kind,
-		Operation: "execute prompt",
-		PromptID:  promptID,
-		Cause:     cause,
-	}
+	return &Error{Kind: kind, Operation: "execute prompt", PromptID: promptID, Cause: cause}
 }
 
 func interactionAllowed(policy InteractionPolicy, capabilities Capabilities) (bool, error) {
@@ -188,7 +205,9 @@ func interactionAllowed(policy InteractionPolicy, capabilities Capabilities) (bo
 
 		return true, nil
 	case InteractivePreferred:
-		return policy.PermitInteraction && capabilities.InputTerminal && capabilities.OutputTerminal, nil
+		return policy.PermitInteraction &&
+			capabilities.InputTerminal &&
+			capabilities.OutputTerminal, nil
 	case NonInteractiveOnly:
 		return false, nil
 	case AutoDetect:
@@ -217,10 +236,5 @@ func promptFailure(promptID string, target error) error {
 		kind = ErrorTerminalUnavailable
 	}
 
-	return &Error{
-		Kind:      kind,
-		Operation: "execute prompt",
-		PromptID:  promptID,
-		Cause:     target,
-	}
+	return &Error{Kind: kind, Operation: "execute prompt", PromptID: promptID, Cause: target}
 }

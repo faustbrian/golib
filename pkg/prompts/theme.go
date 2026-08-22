@@ -17,10 +17,10 @@ const (
 
 // Color is a semantic terminal color value.
 type Color struct {
-	kind       colorKind
-	index      uint8
+	kind colorKind
+	index uint8
 	red, green uint8
-	blue       uint8
+	blue uint8
 }
 
 // ANSI creates an indexed ANSI color.
@@ -36,14 +36,14 @@ func RGB(red, green, blue uint8) Color {
 // Style assigns visual attributes to one semantic role.
 type Style struct {
 	Foreground Color
-	Bold       bool
-	Underline  bool
-	Dim        bool
+	Bold bool
+	Underline bool
+	Dim bool
 }
 
 // Theme is an immutable role-to-style and role-to-text-marker mapping.
 type Theme struct {
-	styles  map[Role]Style
+	styles map[Role]Style
 	markers map[Role]string
 }
 
@@ -51,24 +51,24 @@ type Theme struct {
 func DefaultTheme() Theme {
 	return Theme{
 		styles: map[Role]Style{
-			RoleLabel:    {Bold: true},
-			RoleHint:     {Dim: true},
-			RoleHelp:     {Dim: true},
-			RoleError:    {Foreground: ANSI(1), Bold: true},
-			RoleSuccess:  {Foreground: ANSI(2), Bold: true},
-			RoleWarning:  {Foreground: ANSI(3), Bold: true},
-			RoleFocus:    {Foreground: ANSI(6), Bold: true},
+			RoleLabel: {Bold: true},
+			RoleHint: {Dim: true},
+			RoleHelp: {Dim: true},
+			RoleError: {Foreground: ANSI(1), Bold: true},
+			RoleSuccess: {Foreground: ANSI(2), Bold: true},
+			RoleWarning: {Foreground: ANSI(3), Bold: true},
+			RoleFocus: {Foreground: ANSI(6), Bold: true},
 			RoleSelected: {Foreground: ANSI(2)},
 			RoleDisabled: {Foreground: ANSI(8), Dim: true},
 			RoleProgress: {Foreground: ANSI(4)},
 		},
 		markers: map[Role]string{
-			RoleHint:     "hint: ",
-			RoleHelp:     "help: ",
-			RoleError:    "error: ",
-			RoleSuccess:  "success: ",
-			RoleWarning:  "warning: ",
-			RoleFocus:    "> ",
+			RoleHint: "hint: ",
+			RoleHelp: "help: ",
+			RoleError: "error: ",
+			RoleSuccess: "success: ",
+			RoleWarning: "warning: ",
+			RoleFocus: "> ",
 			RoleSelected: "[x] ",
 			RoleDisabled: "[disabled] ",
 			RoleProgress: "progress: ",
@@ -149,10 +149,10 @@ func ansiColor(color Color, profile ColorProfile) string {
 		if profile == ColorANSI16 {
 			index = color.index & 15
 			if index < 8 {
-				return strconv.FormatUint(uint64(30+index), 10)
+				return strconv.FormatUint(uint64(30 + index), 10)
 			}
 
-			return strconv.FormatUint(uint64(90+index-8), 10)
+			return strconv.FormatUint(uint64(90 + index - 8), 10)
 		}
 
 		return fmt.Sprintf("38;5;%d", index)
@@ -164,7 +164,7 @@ func ansiColor(color Color, profile ColorProfile) string {
 		return fmt.Sprintf("38;5;%d", rgbToANSI256(color.red, color.green, color.blue))
 	}
 
-	return strconv.FormatUint(uint64(30+rgbToANSI16(color.red, color.green, color.blue)), 10)
+	return strconv.FormatUint(uint64(30 + rgbToANSI16(color.red, color.green, color.blue)), 10)
 }
 
 func rgbToANSI256(red, green, blue uint8) uint8 {

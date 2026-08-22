@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Remove a redundant token-bucket timestamp assignment so static analysis
+  reflects the reservation state that is actually committed.
 - Mark the deliberate nil-context boundary assertion explicitly so strict
   static analysis does not reject the defensive contract test.
 - Keep conditional revalidation header filtering deterministic regardless of

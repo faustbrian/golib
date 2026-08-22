@@ -21,8 +21,12 @@ func TestKeyMapRebindsEditingAndSubmission(t *testing.T) {
 	prompt := newTextPrompt(t, prompts.TextConfig{ID: "name", Label: "Name"})
 	terminal := prompts.NewVirtualTerminal(80, 24)
 	terminal.Push(
-		prompts.PasteEvent("ab"), prompts.KeyEvent(prompts.KeyEnd), prompts.RuneEvent('X'),
-		prompts.KeyEvent(prompts.KeyEnter), prompts.RuneEvent('Y'), prompts.KeyEvent(prompts.KeyTab),
+		prompts.PasteEvent("ab"),
+		prompts.KeyEvent(prompts.KeyEnd),
+		prompts.RuneEvent('X'),
+		prompts.KeyEvent(prompts.KeyEnter),
+		prompts.RuneEvent('Y'),
+		prompts.KeyEvent(prompts.KeyTab),
 	)
 	execution := interactiveExecution(terminal)
 	execution.Keys = keys
@@ -44,10 +48,15 @@ func TestKeyMapRebindsCancellationAndSelection(t *testing.T) {
 	}
 	prompt := newTextPrompt(t, prompts.TextConfig{ID: "name", Label: "Name"})
 	terminal := prompts.NewVirtualTerminal(80, 24)
-	terminal.Push(prompts.KeyEvent(prompts.KeyEscape), prompts.PasteEvent("value"), prompts.KeyEvent(prompts.KeyTab))
+	terminal.Push(
+		prompts.KeyEvent(prompts.KeyEscape),
+		prompts.PasteEvent("value"),
+		prompts.KeyEvent(prompts.KeyTab),
+	)
 	execution := interactiveExecution(terminal)
 	execution.Keys = cancelKeys
-	if _, err := prompts.Run(context.Background(), prompt, execution); !errors.Is(err, prompts.ErrCanceled) {
+	if _, err := prompts.Run(context.Background(), prompt, execution);
+		!errors.Is(err, prompts.ErrCanceled) {
 		t.Fatalf("Run() error = %v", err)
 	}
 
@@ -57,9 +66,14 @@ func TestKeyMapRebindsCancellationAndSelection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewKeyMap() error = %v", err)
 	}
-	selection, err := prompts.NewSelect(prompts.SelectConfig[string]{
-		ID: "environment", Label: "Environment", Options: selectionOptions(t), InitialID: "dev",
-	})
+	selection, err := prompts.NewSelect(
+		prompts.SelectConfig[string]{
+			ID: "environment",
+			Label: "Environment",
+			Options: selectionOptions(t),
+			InitialID: "dev",
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewSelect() error = %v", err)
 	}
@@ -80,35 +94,27 @@ func TestKeyMapValidatesBindings(t *testing.T) {
 		t.Fatalf("default NewKeyMap() error = %v", err)
 	}
 	tests := map[string][]prompts.KeyBinding{
-		"rune input": {
-			{Input: prompts.KeyRune, Meaning: prompts.KeyEnter},
-		},
-		"rune meaning": {
-			{Input: prompts.KeyTab, Meaning: prompts.KeyRune},
-		},
-		"unknown input": {
-			{Input: prompts.Key(255), Meaning: prompts.KeyEnter},
-		},
-		"unknown meaning": {
-			{Input: prompts.KeyTab, Meaning: prompts.Key(255)},
-		},
-		"ignored input": {
-			{Input: prompts.KeyIgnored, Meaning: prompts.KeyEnter},
-		},
-		"ignored meaning": {
-			{Input: prompts.KeyTab, Meaning: prompts.KeyIgnored},
-		},
+		"rune input": {{Input: prompts.KeyRune, Meaning: prompts.KeyEnter}},
+		"rune meaning": {{Input: prompts.KeyTab, Meaning: prompts.KeyRune}},
+		"unknown input": {{Input: prompts.Key(255), Meaning: prompts.KeyEnter}},
+		"unknown meaning": {{Input: prompts.KeyTab, Meaning: prompts.Key(255)}},
+		"ignored input": {{Input: prompts.KeyIgnored, Meaning: prompts.KeyEnter}},
+		"ignored meaning": {{Input: prompts.KeyTab, Meaning: prompts.KeyIgnored}},
 		"duplicate input": {
 			{Input: prompts.KeyTab, Meaning: prompts.KeyEnter},
 			{Input: prompts.KeyTab, Meaning: prompts.KeyEscape},
 		},
 	}
 	for name, bindings := range tests {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			if _, err := prompts.NewKeyMap(bindings...); !errors.Is(err, prompts.ErrInvalidDefinition) {
-				t.Fatalf("NewKeyMap() error = %v", err)
-			}
-		})
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
+				if _, err := prompts.NewKeyMap(bindings...);
+					!errors.Is(err, prompts.ErrInvalidDefinition) {
+					t.Fatalf("NewKeyMap() error = %v", err)
+				}
+			},
+		)
 	}
 }

@@ -13,8 +13,8 @@ import (
 
 // SearchPolicy bounds deterministic static option search.
 type SearchPolicy struct {
-	MaxOptions    int
-	MaxResults    int
+	MaxOptions int
+	MaxResults int
 	MaxQueryRunes int
 }
 
@@ -28,7 +28,11 @@ type SearchSelectConfig[T any] struct {
 func NewSearchSelect[T any](config SearchSelectConfig[T]) (Prompt[T], error) {
 	policy, err := normalizeSearchPolicy(config.Search)
 	if err != nil {
-		return Prompt[T]{}, invalidBehaviorDefinition("define search-select prompt", config.Select.ID, err)
+		return Prompt[T]{}, invalidBehaviorDefinition(
+			"define search-select prompt",
+			config.Select.ID,
+			err,
+		)
 	}
 	prompt, err := newSelect(KindSearchSelect, config.Select)
 	if err != nil {
@@ -45,28 +49,44 @@ func NewSearchSelect[T any](config SearchSelectConfig[T]) (Prompt[T], error) {
 func Search[T any](options []Option[T], query string, policy SearchPolicy) ([]Option[T], error) {
 	normalizedPolicy, err := normalizeSearchPolicy(policy)
 	if err != nil {
-		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
+		return nil, &Error{
+			Kind: ErrorUnsupported,
+			Operation: "search options",
+			Cause: ErrUnsupported,
+		}
 	}
 	if len(options) > normalizedPolicy.MaxOptions {
-		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
+		return nil, &Error{
+			Kind: ErrorUnsupported,
+			Operation: "search options",
+			Cause: ErrUnsupported,
+		}
 	}
 	if utf8.RuneCountInString(query) > normalizedPolicy.MaxQueryRunes {
-		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
+		return nil, &Error{
+			Kind: ErrorUnsupported,
+			Operation: "search options",
+			Cause: ErrUnsupported,
+		}
 	}
 	if len(options) == 0 {
 		return []Option[T]{}, nil
 	}
 	owned, _, err := ownOptions(options, normalizedPolicy.MaxOptions)
 	if err != nil {
-		return nil, &Error{Kind: ErrorUnsupported, Operation: "search options", Cause: ErrUnsupported}
+		return nil, &Error{
+			Kind: ErrorUnsupported,
+			Operation: "search options",
+			Cause: ErrUnsupported,
+		}
 	}
 	options = owned
 	normalizedQuery := normalizeSearchText(query)
 	queryTokens := strings.Fields(normalizedQuery)
 	type match struct {
 		option Option[T]
-		rank   int
-		index  int
+		rank int
+		index int
 	}
 	matches := make([]match, 0, min(len(options), normalizedPolicy.MaxResults))
 	for index, option := range options {
@@ -75,9 +95,12 @@ func Search[T any](options []Option[T], query string, policy SearchPolicy) ([]Op
 			matches = append(matches, match{option: option, rank: rank, index: index})
 		}
 	}
-	slices.SortStableFunc(matches, func(left, right match) int {
-		return cmp.Compare(left.rank, right.rank)
-	})
+	slices.SortStableFunc(
+		matches,
+		func(left, right match) int {
+			return cmp.Compare(left.rank, right.rank)
+		},
+	)
 	matches = matches[:min(len(matches), normalizedPolicy.MaxResults)]
 	results := make([]Option[T], len(matches))
 	for index, matched := range matches {
@@ -127,9 +150,12 @@ func searchRank[T any](option Option[T], query string, queryTokens []string) (in
 
 func tokensMatch(queries []string, candidates []string, matches func(string, string) bool) bool {
 	for _, query := range queries {
-		found := slices.ContainsFunc(candidates, func(candidate string) bool {
-			return matches(candidate, query)
-		})
+		found := slices.ContainsFunc(
+			candidates,
+			func(candidate string) bool {
+				return matches(candidate, query)
+			},
+		)
 		if !found {
 			return false
 		}

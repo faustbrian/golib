@@ -9,8 +9,8 @@ import (
 
 // Decimal is a canonical exact base-10 value.
 type Decimal struct {
-	digits   string
-	scale    uint
+	digits string
+	scale uint
 	negative bool
 }
 
@@ -35,13 +35,15 @@ func (decimal Decimal) String() string {
 }
 
 // Scale returns the number of fractional decimal digits.
-func (decimal Decimal) Scale() uint { return decimal.scale }
+func (decimal Decimal) Scale() uint {
+	return decimal.scale
+}
 
 // Date is a calendar date without a time zone or time of day.
 type Date struct {
-	year  int
+	year int
 	month time.Month
-	day   int
+	day int
 }
 
 func (date Date) String() string {
@@ -49,19 +51,25 @@ func (date Date) String() string {
 }
 
 // Year returns the proleptic Gregorian calendar year.
-func (date Date) Year() int { return date.year }
+func (date Date) Year() int {
+	return date.year
+}
 
 // Month returns the Gregorian calendar month.
-func (date Date) Month() time.Month { return date.month }
+func (date Date) Month() time.Month {
+	return date.month
+}
 
 // Day returns the one-based day of the month.
-func (date Date) Day() int { return date.day }
+func (date Date) Day() int {
+	return date.day
+}
 
 // TimeOfDay is a wall-clock time without a date or time zone.
 type TimeOfDay struct {
-	hour       int
-	minute     int
-	second     int
+	hour int
+	minute int
+	second int
 	nanosecond int
 }
 
@@ -77,16 +85,24 @@ func (value TimeOfDay) String() string {
 }
 
 // Hour returns the hour in the range 0 through 23.
-func (value TimeOfDay) Hour() int { return value.hour }
+func (value TimeOfDay) Hour() int {
+	return value.hour
+}
 
 // Minute returns the minute in the range 0 through 59.
-func (value TimeOfDay) Minute() int { return value.minute }
+func (value TimeOfDay) Minute() int {
+	return value.minute
+}
 
 // Second returns the second in the range 0 through 59.
-func (value TimeOfDay) Second() int { return value.second }
+func (value TimeOfDay) Second() int {
+	return value.second
+}
 
 // Nanosecond returns the fractional second in nanoseconds.
-func (value TimeOfDay) Nanosecond() int { return value.nanosecond }
+func (value TimeOfDay) Nanosecond() int {
+	return value.nanosecond
+}
 
 // PathKind is caller intent only; parsing never consults or mutates the file
 // system.
@@ -101,13 +117,17 @@ const (
 // Path is an unverified filesystem path with explicit caller intent.
 type Path struct {
 	value string
-	kind  PathKind
+	kind PathKind
 }
 
-func (path Path) String() string { return path.value }
+func (path Path) String() string {
+	return path.value
+}
 
 // Kind returns caller intent without asserting anything about the filesystem.
-func (path Path) Kind() PathKind { return path.kind }
+func (path Path) Kind() PathKind {
+	return path.kind
+}
 
 func parseDecimal(input string) (Decimal, error) {
 	if input == "" {
@@ -137,7 +157,7 @@ func parseDecimal(input string) (Decimal, error) {
 	if len(parts) == 2 {
 		fraction = strings.TrimRight(parts[1], "0")
 	}
-	digits := strings.TrimLeft(integer+fraction, "0")
+	digits := strings.TrimLeft(integer + fraction, "0")
 	if digits == "" {
 		digits = "0"
 		negative = false
@@ -160,7 +180,12 @@ func parseTimeOfDay(input string) (TimeOfDay, error) {
 	for _, layout := range layouts {
 		parsed, err := time.Parse(layout, input)
 		if err == nil {
-			return TimeOfDay{hour: parsed.Hour(), minute: parsed.Minute(), second: parsed.Second(), nanosecond: parsed.Nanosecond()}, nil
+			return TimeOfDay{
+				hour: parsed.Hour(),
+				minute: parsed.Minute(),
+				second: parsed.Second(),
+				nanosecond: parsed.Nanosecond(),
+			}, nil
 		}
 	}
 
@@ -168,7 +193,7 @@ func parseTimeOfDay(input string) (TimeOfDay, error) {
 }
 
 func parseIssue(kind string) error {
-	return NewValidationIssue("invalid_"+kind, "Invalid "+kind+" value")
+	return NewValidationIssue("invalid_" + kind, "Invalid " + kind + " value")
 }
 
 func parseInteger(input string) (int64, error) {

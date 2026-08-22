@@ -8,21 +8,26 @@ import (
 // VirtualClock is a deterministic parallel-safe clock with no goroutines or
 // real sleeps. Advance is the only way positive-duration events fire.
 type VirtualClock struct {
-	mu     sync.Mutex
-	now    time.Time
+	mu sync.Mutex
+	now time.Time
 	events map[*virtualClockEvent]struct{}
 }
 
 type virtualClockEvent struct {
-	clock    *VirtualClock
-	channel  chan time.Time
-	due      time.Time
+	clock *VirtualClock
+	channel chan time.Time
+	due time.Time
 	interval time.Duration
-	active   bool
+	active bool
 }
 
-type virtualTimer struct{ event *virtualClockEvent }
-type virtualTicker struct{ event *virtualClockEvent }
+type virtualTimer struct {
+	event *virtualClockEvent
+}
+
+type virtualTicker struct {
+	event *virtualClockEvent
+}
 
 // NewVirtualClock creates a fixed starting instant.
 func NewVirtualClock(start time.Time) *VirtualClock {
@@ -42,7 +47,10 @@ func (clock *VirtualClock) NewTimer(duration time.Duration) Timer {
 	clock.mu.Lock()
 	defer clock.mu.Unlock()
 	event := &virtualClockEvent{
-		clock: clock, channel: make(chan time.Time, 1), due: clock.now.Add(duration), active: duration > 0,
+		clock: clock,
+		channel: make(chan time.Time, 1),
+		due: clock.now.Add(duration),
+		active: duration > 0,
 	}
 	if duration <= 0 {
 		event.channel <- clock.now
@@ -59,8 +67,11 @@ func (clock *VirtualClock) NewTicker(interval time.Duration) Ticker {
 	clock.mu.Lock()
 	defer clock.mu.Unlock()
 	event := &virtualClockEvent{
-		clock: clock, channel: make(chan time.Time, 1), due: clock.now.Add(interval),
-		interval: interval, active: interval > 0,
+		clock: clock,
+		channel: make(chan time.Time, 1),
+		due: clock.now.Add(interval),
+		interval: interval,
+		active: interval > 0,
 	}
 	if event.active {
 		clock.events[event] = struct{}{}
@@ -72,7 +83,11 @@ func (clock *VirtualClock) NewTicker(interval time.Duration) Ticker {
 // buffered tick while preserving the first due instant.
 func (clock *VirtualClock) Advance(duration time.Duration) error {
 	if duration < 0 {
-		return invalidBehaviorDefinition("advance virtual clock", "clock", ErrInvalidDefinition)
+		return invalidBehaviorDefinition(
+			"advance virtual clock",
+			"clock",
+			ErrInvalidDefinition,
+		)
 	}
 	clock.mu.Lock()
 	defer clock.mu.Unlock()
@@ -97,13 +112,21 @@ func (clock *VirtualClock) Advance(duration time.Duration) error {
 	return nil
 }
 
-func (timer *virtualTimer) C() <-chan time.Time { return timer.event.channel }
+func (timer *virtualTimer) C() <-chan time.Time {
+	return timer.event.channel
+}
 
-func (timer *virtualTimer) Stop() bool { return stopVirtualEvent(timer.event) }
+func (timer *virtualTimer) Stop() bool {
+	return stopVirtualEvent(timer.event)
+}
 
-func (ticker *virtualTicker) C() <-chan time.Time { return ticker.event.channel }
+func (ticker *virtualTicker) C() <-chan time.Time {
+	return ticker.event.channel
+}
 
-func (ticker *virtualTicker) Stop() { _ = stopVirtualEvent(ticker.event) }
+func (ticker *virtualTicker) Stop() {
+	_ = stopVirtualEvent(ticker.event)
+}
 
 func stopVirtualEvent(event *virtualClockEvent) bool {
 	event.clock.mu.Lock()

@@ -434,357 +434,357 @@
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 44,
+          "line": 40,
           "symbol": "SchemaVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 45,
+          "line": 41,
           "symbol": "Repository",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 46,
+          "line": 42,
           "symbol": "GoVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 47,
+          "line": 43,
           "symbol": "Modules",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 51,
+          "line": 47,
           "symbol": "Directory",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 52,
+          "line": 48,
           "symbol": "Path",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 53,
+          "line": 49,
           "symbol": "GoVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 54,
+          "line": 50,
           "symbol": "Packages",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 55,
+          "line": 51,
           "symbol": "Purpose",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 56,
+          "line": 52,
           "symbol": "Lifecycle",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 57,
+          "line": 53,
           "symbol": "Kind",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 58,
+          "line": 54,
           "symbol": "Releasable",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 59,
+          "line": 55,
           "symbol": "Family",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 60,
+          "line": 56,
           "symbol": "FamilyLabel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 61,
+          "line": 57,
           "symbol": "FamilyDescription",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 62,
+          "line": 58,
           "symbol": "FamilyOrder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 63,
+          "line": 59,
           "symbol": "Version",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 64,
+          "line": 60,
           "symbol": "TagPrefix",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 65,
+          "line": 61,
           "symbol": "OwnedDependencies",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 66,
+          "line": 62,
           "symbol": "ReverseDependencies",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 67,
+          "line": 63,
           "symbol": "ExternalRuntime",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 68,
+          "line": 64,
           "symbol": "RequiredServices",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 69,
+          "line": 65,
           "symbol": "BuildTags",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 70,
+          "line": 66,
           "symbol": "TestTags",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 71,
+          "line": 67,
           "symbol": "InteropTools",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 72,
+          "line": 68,
           "symbol": "Specifications",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 73,
+          "line": 69,
           "symbol": "ConformanceCorpora",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 74,
+          "line": 70,
           "symbol": "Provenance",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 75,
+          "line": 71,
           "symbol": "Goals",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 76,
+          "line": 72,
           "symbol": "GoalStatus",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 77,
+          "line": 73,
           "symbol": "GoalEvidence",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 78,
+          "line": 74,
           "symbol": "Gates",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 82,
+          "line": 78,
           "symbol": "File",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 83,
+          "line": 79,
           "symbol": "RequirementsSHA256",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 84,
+          "line": 80,
           "symbol": "ImplementationEvidence",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 85,
+          "line": 81,
           "symbol": "VerificationGates",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 86,
+          "line": 82,
           "symbol": "ImplementationStatus",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 90,
+          "line": 86,
           "symbol": "ModuleDirectory",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 91,
+          "line": 87,
           "symbol": "Directory",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 92,
+          "line": 88,
           "symbol": "Name",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 93,
+          "line": 89,
           "symbol": "Import",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 94,
+          "line": 90,
           "symbol": "Kind",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 95,
+          "line": 91,
           "symbol": "Production",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 96,
+          "line": 92,
           "symbol": "Executable",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 97,
+          "line": 93,
           "symbol": "CoverageRequired",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 98,
+          "line": 94,
           "symbol": "BuildRequired",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 99,
+          "line": 95,
           "symbol": "BuildTags",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 103,
+          "line": 99,
           "symbol": "Module",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 106,
+          "line": 102,
           "symbol": "Go",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 107,
+          "line": 103,
           "symbol": "Require",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/main.go",
-          "line": 112,
+          "line": 108,
           "symbol": "Replace",
           "message": "exported declaration has no documentation comment"
         },
@@ -35875,56 +35875,56 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 452,
+          "line": 451,
           "symbol": "DeferUntil",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 486,
+          "line": 485,
           "symbol": "Acquire",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 511,
+          "line": 510,
           "symbol": "DeferUntil",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 551,
+          "line": 550,
           "symbol": "Delay",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 574,
+          "line": 573,
           "symbol": "RemainingHeader",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 575,
+          "line": 574,
           "symbol": "ResetHeader",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 576,
+          "line": 575,
           "symbol": "Reset",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/http-client/rate_limit.go",
-          "line": 610,
+          "line": 609,
           "symbol": "Delay",
           "message": "exported declaration has no documentation comment"
         },
@@ -59113,28 +59113,28 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/clock.go",
-          "line": 100,
+          "line": 115,
           "symbol": "C",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/clock.go",
-          "line": 102,
+          "line": 119,
           "symbol": "Stop",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/clock.go",
-          "line": 104,
+          "line": 123,
           "symbol": "C",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/clock.go",
-          "line": 106,
+          "line": 127,
           "symbol": "Stop",
           "message": "exported declaration has no documentation comment"
         },
@@ -59862,28 +59862,28 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/form.go",
-          "line": 69,
+          "line": 89,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/form.go",
-          "line": 70,
+          "line": 90,
           "symbol": "Fields",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/form.go",
-          "line": 71,
+          "line": 91,
           "symbol": "Validate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/form.go",
-          "line": 72,
+          "line": 92,
           "symbol": "Dependencies",
           "message": "exported declaration has no documentation comment"
         },
@@ -60135,70 +60135,70 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/input.go",
-          "line": 96,
+          "line": 102,
           "symbol": "String",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/input.go",
-          "line": 97,
+          "line": 106,
           "symbol": "GoString",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/input.go",
-          "line": 114,
+          "line": 133,
           "symbol": "Next",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/input.go",
-          "line": 119,
+          "line": 138,
           "symbol": "Acquire",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/input.go",
-          "line": 120,
+          "line": 139,
           "symbol": "SetEcho",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/input.go",
-          "line": 121,
+          "line": 140,
           "symbol": "Release",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/input.go",
-          "line": 126,
+          "line": 145,
           "symbol": "MaxPasteBytes",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/input.go",
-          "line": 127,
+          "line": 146,
           "symbol": "MaxInputBytes",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/keymap.go",
-          "line": 16,
+          "line": 31,
           "symbol": "Input",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/keymap.go",
-          "line": 17,
+          "line": 32,
           "symbol": "Meaning",
           "message": "exported declaration has no documentation comment"
         },
@@ -60471,14 +60471,14 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/presentation.go",
-          "line": 110,
+          "line": 120,
           "symbol": "Key",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/presentation.go",
-          "line": 110,
+          "line": 120,
           "symbol": "Value",
           "message": "exported declaration has no documentation comment"
         },
@@ -60618,91 +60618,91 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 228,
+          "line": 261,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 228,
+          "line": 261,
           "symbol": "Label",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 229,
+          "line": 262,
           "symbol": "Frames",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 235,
+          "line": 268,
           "symbol": "Frame",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 282,
+          "line": 323,
           "symbol": "Succeed",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 283,
+          "line": 327,
           "symbol": "Fail",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 284,
+          "line": 331,
           "symbol": "Cancel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 333,
+          "line": 385,
           "symbol": "StatusInfo",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 334,
+          "line": 386,
           "symbol": "StatusWarning",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 335,
+          "line": 387,
           "symbol": "StatusError",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 336,
+          "line": 388,
           "symbol": "StatusSuccess",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 341,
+          "line": 393,
           "symbol": "Kind",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/progress.go",
-          "line": 342,
+          "line": 394,
           "symbol": "Text",
           "message": "exported declaration has no documentation comment"
         },
@@ -60940,63 +60940,63 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 112,
+          "line": 118,
           "symbol": "Width",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 113,
+          "line": 119,
           "symbol": "Color",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 114,
+          "line": 120,
           "symbol": "ASCIIOnly",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 115,
+          "line": 121,
           "symbol": "Hyperlinks",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 120,
+          "line": 126,
           "symbol": "Render",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 125,
+          "line": 131,
           "symbol": "Theme",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 128,
+          "line": 134,
           "symbol": "Render",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 135,
+          "line": 141,
           "symbol": "Theme",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/render.go",
-          "line": 138,
+          "line": 144,
           "symbol": "Render",
           "message": "exported declaration has no documentation comment"
         },
@@ -61045,266 +61045,266 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 27,
+          "line": 29,
           "symbol": "String",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 28,
+          "line": 33,
           "symbol": "GoString",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 52,
-          "symbol": "Description",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 52,
-          "symbol": "Help",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 52,
-          "symbol": "Hint",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 52,
-          "symbol": "ID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 52,
-          "symbol": "Label",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 52,
-          "symbol": "Placeholder",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 53,
-          "symbol": "Default",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 53,
-          "symbol": "Fallback",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 54,
-          "symbol": "Headless",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 55,
-          "symbol": "Accessibility",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 56,
-          "symbol": "PostValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 56,
-          "symbol": "PreValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 57,
-          "symbol": "Transform",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 58,
-          "symbol": "Retry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
           "line": 59,
-          "symbol": "Cancel",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 60,
-          "symbol": "EndOfInput",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 61,
-          "symbol": "Class",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 137,
-          "symbol": "String",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 138,
-          "symbol": "GoString",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/secret.go",
-          "line": 166,
           "symbol": "Description",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 166,
+          "line": 59,
           "symbol": "Help",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 166,
+          "line": 59,
           "symbol": "Hint",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 166,
+          "line": 59,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 166,
+          "line": 59,
           "symbol": "Label",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 166,
+          "line": 59,
           "symbol": "Placeholder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 167,
+          "line": 60,
           "symbol": "Default",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 167,
+          "line": 60,
           "symbol": "Fallback",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 168,
+          "line": 61,
           "symbol": "Headless",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 169,
+          "line": 62,
           "symbol": "Accessibility",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 170,
+          "line": 63,
           "symbol": "PostValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 170,
+          "line": 63,
           "symbol": "PreValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 171,
+          "line": 64,
           "symbol": "Transform",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 172,
+          "line": 65,
           "symbol": "Retry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 173,
+          "line": 66,
           "symbol": "Cancel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 174,
+          "line": 67,
           "symbol": "EndOfInput",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/secret.go",
-          "line": 175,
+          "line": 68,
+          "symbol": "Class",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 167,
+          "symbol": "String",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 171,
+          "symbol": "GoString",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 201,
+          "symbol": "Description",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 201,
+          "symbol": "Help",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 201,
+          "symbol": "Hint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 201,
+          "symbol": "ID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 201,
+          "symbol": "Label",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 201,
+          "symbol": "Placeholder",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 202,
+          "symbol": "Default",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 202,
+          "symbol": "Fallback",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 203,
+          "symbol": "Headless",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 204,
+          "symbol": "Accessibility",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 205,
+          "symbol": "PostValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 205,
+          "symbol": "PreValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 206,
+          "symbol": "Transform",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 207,
+          "symbol": "Retry",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 208,
+          "symbol": "Cancel",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 209,
+          "symbol": "EndOfInput",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/secret.go",
+          "line": 210,
           "symbol": "Class",
           "message": "exported declaration has no documentation comment"
         },
@@ -61353,322 +61353,322 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 41,
-          "symbol": "ID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 42,
-          "symbol": "Label",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 43,
-          "symbol": "Description",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 44,
-          "symbol": "Group",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 45,
-          "symbol": "Value",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 46,
-          "symbol": "Disabled",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 50,
-          "symbol": "Description",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 50,
-          "symbol": "Help",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 50,
-          "symbol": "Hint",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 50,
-          "symbol": "ID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 50,
-          "symbol": "Label",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 50,
-          "symbol": "Placeholder",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 51,
-          "symbol": "DefaultID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 51,
-          "symbol": "FallbackID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
           "line": 52,
-          "symbol": "Headless",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 53,
-          "symbol": "Accessibility",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 54,
-          "symbol": "PostValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 54,
-          "symbol": "PreValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 55,
-          "symbol": "Transform",
+          "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
           "line": 56,
-          "symbol": "Retry",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 57,
-          "symbol": "Cancel",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 58,
-          "symbol": "EndOfInput",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 59,
-          "symbol": "Options",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 60,
-          "symbol": "InitialID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 61,
-          "symbol": "MaxOptions",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 166,
-          "symbol": "Description",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 166,
-          "symbol": "Help",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 166,
-          "symbol": "Hint",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 166,
-          "symbol": "ID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/select.go",
-          "line": 166,
           "symbol": "Label",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 166,
+          "line": 60,
+          "symbol": "Description",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 64,
+          "symbol": "Group",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 68,
+          "symbol": "Value",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 72,
+          "symbol": "Disabled",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 78,
+          "symbol": "Description",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 78,
+          "symbol": "Help",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 78,
+          "symbol": "Hint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 78,
+          "symbol": "ID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 78,
+          "symbol": "Label",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 78,
           "symbol": "Placeholder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 167,
-          "symbol": "DefaultIDs",
+          "line": 79,
+          "symbol": "DefaultID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 167,
-          "symbol": "FallbackIDs",
+          "line": 79,
+          "symbol": "FallbackID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 168,
+          "line": 80,
           "symbol": "Headless",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 169,
+          "line": 81,
           "symbol": "Accessibility",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 170,
+          "line": 82,
           "symbol": "PostValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 170,
+          "line": 82,
           "symbol": "PreValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 171,
+          "line": 83,
           "symbol": "Transform",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 172,
+          "line": 84,
           "symbol": "Retry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 173,
+          "line": 85,
           "symbol": "Cancel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 174,
+          "line": 86,
           "symbol": "EndOfInput",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 175,
+          "line": 87,
           "symbol": "Options",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 176,
+          "line": 88,
+          "symbol": "InitialID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 89,
+          "symbol": "MaxOptions",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 241,
+          "symbol": "Description",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 241,
+          "symbol": "Help",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 241,
+          "symbol": "Hint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 241,
+          "symbol": "ID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 241,
+          "symbol": "Label",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 241,
+          "symbol": "Placeholder",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 242,
+          "symbol": "DefaultIDs",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 242,
+          "symbol": "FallbackIDs",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 243,
+          "symbol": "Headless",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 244,
+          "symbol": "Accessibility",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 245,
+          "symbol": "PostValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 245,
+          "symbol": "PreValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 246,
+          "symbol": "Transform",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 247,
+          "symbol": "Retry",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 248,
+          "symbol": "Cancel",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 249,
+          "symbol": "EndOfInput",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 250,
+          "symbol": "Options",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/select.go",
+          "line": 251,
           "symbol": "InitialIDs",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 177,
+          "line": 252,
           "symbol": "Max",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 177,
+          "line": 252,
           "symbol": "Min",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/select.go",
-          "line": 178,
+          "line": 253,
           "symbol": "MaxOptions",
           "message": "exported declaration has no documentation comment"
         },
@@ -61906,805 +61906,805 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 94,
+          "line": 148,
           "symbol": "Description",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 94,
+          "line": 148,
           "symbol": "Help",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 94,
+          "line": 148,
           "symbol": "Hint",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 94,
+          "line": 148,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 94,
+          "line": 148,
           "symbol": "Label",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 94,
+          "line": 148,
           "symbol": "Placeholder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 95,
+          "line": 149,
           "symbol": "Default",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 95,
+          "line": 149,
           "symbol": "Fallback",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 96,
+          "line": 150,
           "symbol": "Headless",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 97,
+          "line": 151,
           "symbol": "Accessibility",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 98,
+          "line": 152,
           "symbol": "PostValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 98,
+          "line": 152,
           "symbol": "PreValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 99,
+          "line": 153,
           "symbol": "Transform",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 100,
+          "line": 154,
           "symbol": "Retry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 101,
+          "line": 155,
           "symbol": "Cancel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 102,
+          "line": 156,
           "symbol": "EndOfInput",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 116,
+          "line": 187,
           "symbol": "Description",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 116,
+          "line": 187,
           "symbol": "Help",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 116,
+          "line": 187,
           "symbol": "Hint",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 116,
+          "line": 187,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 116,
+          "line": 187,
           "symbol": "Label",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 116,
+          "line": 187,
           "symbol": "Placeholder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 117,
+          "line": 188,
           "symbol": "Default",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 117,
+          "line": 188,
           "symbol": "Fallback",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 118,
+          "line": 189,
           "symbol": "Headless",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 119,
+          "line": 190,
           "symbol": "Accessibility",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 120,
+          "line": 191,
           "symbol": "PostValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 120,
+          "line": 191,
           "symbol": "PreValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 121,
-          "symbol": "Transform",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 122,
-          "symbol": "Retry",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 123,
-          "symbol": "Cancel",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 124,
-          "symbol": "EndOfInput",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 138,
-          "symbol": "Description",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 138,
-          "symbol": "Help",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 138,
-          "symbol": "Hint",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 138,
-          "symbol": "ID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 138,
-          "symbol": "Label",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 138,
-          "symbol": "Placeholder",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 139,
-          "symbol": "Default",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 139,
-          "symbol": "Fallback",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 140,
-          "symbol": "Headless",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 141,
-          "symbol": "Accessibility",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 142,
-          "symbol": "PostValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 142,
-          "symbol": "PreValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 143,
-          "symbol": "Transform",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 144,
-          "symbol": "Retry",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 145,
-          "symbol": "Cancel",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 146,
-          "symbol": "EndOfInput",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 169,
-          "symbol": "Description",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 169,
-          "symbol": "Help",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 169,
-          "symbol": "Hint",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 169,
-          "symbol": "ID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 169,
-          "symbol": "Label",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 169,
-          "symbol": "Placeholder",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 170,
-          "symbol": "Default",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 170,
-          "symbol": "Fallback",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 171,
-          "symbol": "Headless",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 172,
-          "symbol": "Accessibility",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 173,
-          "symbol": "PostValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 173,
-          "symbol": "PreValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 174,
-          "symbol": "Transform",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 175,
-          "symbol": "Retry",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 176,
-          "symbol": "Cancel",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 177,
-          "symbol": "EndOfInput",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 191,
-          "symbol": "Description",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 191,
-          "symbol": "Help",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 191,
-          "symbol": "Hint",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 191,
-          "symbol": "ID",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 191,
-          "symbol": "Label",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 191,
-          "symbol": "Placeholder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
           "line": 192,
-          "symbol": "Default",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 192,
-          "symbol": "Fallback",
+          "symbol": "Transform",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
           "line": 193,
-          "symbol": "Headless",
+          "symbol": "Retry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
           "line": 194,
-          "symbol": "Accessibility",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 195,
-          "symbol": "PostValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 195,
-          "symbol": "PreValidate",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 196,
-          "symbol": "Transform",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 197,
-          "symbol": "Retry",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/prompts/typed_prompts.go",
-          "line": 198,
           "symbol": "Cancel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 199,
+          "line": 195,
           "symbol": "EndOfInput",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 213,
+          "line": 226,
           "symbol": "Description",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 213,
+          "line": 226,
           "symbol": "Help",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 213,
+          "line": 226,
           "symbol": "Hint",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 213,
+          "line": 226,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 213,
+          "line": 226,
           "symbol": "Label",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 213,
+          "line": 226,
           "symbol": "Placeholder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 214,
+          "line": 227,
           "symbol": "Default",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 214,
+          "line": 227,
           "symbol": "Fallback",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 215,
+          "line": 228,
           "symbol": "Headless",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 216,
+          "line": 229,
           "symbol": "Accessibility",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 217,
+          "line": 230,
           "symbol": "PostValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 217,
+          "line": 230,
           "symbol": "PreValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 218,
+          "line": 231,
           "symbol": "Transform",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 219,
+          "line": 232,
           "symbol": "Retry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 220,
+          "line": 233,
           "symbol": "Cancel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 221,
+          "line": 234,
           "symbol": "EndOfInput",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 222,
+          "line": 274,
+          "symbol": "Description",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 274,
+          "symbol": "Help",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 274,
+          "symbol": "Hint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 274,
+          "symbol": "ID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 274,
+          "symbol": "Label",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 274,
+          "symbol": "Placeholder",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 275,
+          "symbol": "Default",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 275,
+          "symbol": "Fallback",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 276,
+          "symbol": "Headless",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 277,
+          "symbol": "Accessibility",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 278,
+          "symbol": "PostValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 278,
+          "symbol": "PreValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 279,
+          "symbol": "Transform",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 280,
+          "symbol": "Retry",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 281,
+          "symbol": "Cancel",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 282,
+          "symbol": "EndOfInput",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 313,
+          "symbol": "Description",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 313,
+          "symbol": "Help",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 313,
+          "symbol": "Hint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 313,
+          "symbol": "ID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 313,
+          "symbol": "Label",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 313,
+          "symbol": "Placeholder",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 314,
+          "symbol": "Default",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 314,
+          "symbol": "Fallback",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 315,
+          "symbol": "Headless",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 316,
+          "symbol": "Accessibility",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 317,
+          "symbol": "PostValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 317,
+          "symbol": "PreValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 318,
+          "symbol": "Transform",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 319,
+          "symbol": "Retry",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 320,
+          "symbol": "Cancel",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 321,
+          "symbol": "EndOfInput",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 352,
+          "symbol": "Description",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 352,
+          "symbol": "Help",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 352,
+          "symbol": "Hint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 352,
+          "symbol": "ID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 352,
+          "symbol": "Label",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 352,
+          "symbol": "Placeholder",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 353,
+          "symbol": "Default",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 353,
+          "symbol": "Fallback",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 354,
+          "symbol": "Headless",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 355,
+          "symbol": "Accessibility",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 356,
+          "symbol": "PostValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 356,
+          "symbol": "PreValidate",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 357,
+          "symbol": "Transform",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 358,
+          "symbol": "Retry",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 359,
+          "symbol": "Cancel",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 360,
+          "symbol": "EndOfInput",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/prompts/typed_prompts.go",
+          "line": 361,
           "symbol": "Kind",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 247,
+          "line": 407,
           "symbol": "Description",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 247,
+          "line": 407,
           "symbol": "Help",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 247,
+          "line": 407,
           "symbol": "Hint",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 247,
+          "line": 407,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 247,
+          "line": 407,
           "symbol": "Label",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 247,
+          "line": 407,
           "symbol": "Placeholder",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 248,
+          "line": 408,
           "symbol": "Default",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 248,
+          "line": 408,
           "symbol": "Fallback",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 249,
+          "line": 409,
           "symbol": "Headless",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 250,
+          "line": 410,
           "symbol": "Accessibility",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 251,
+          "line": 411,
           "symbol": "PostValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 251,
+          "line": 411,
           "symbol": "PreValidate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 252,
+          "line": 412,
           "symbol": "Transform",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 253,
+          "line": 413,
           "symbol": "Retry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 254,
+          "line": 414,
           "symbol": "Cancel",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 255,
+          "line": 415,
           "symbol": "EndOfInput",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 256,
+          "line": 416,
           "symbol": "Accept",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/typed_prompts.go",
-          "line": 256,
+          "line": 416,
           "symbol": "Reject",
           "message": "exported declaration has no documentation comment"
         },
@@ -62732,98 +62732,98 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/value_types.go",
-          "line": 47,
+          "line": 49,
           "symbol": "String",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/value_types.go",
-          "line": 68,
+          "line": 76,
           "symbol": "String",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/value_types.go",
-          "line": 96,
+          "line": 112,
           "symbol": "PathAny",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/value_types.go",
-          "line": 97,
+          "line": 113,
           "symbol": "PathFile",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/value_types.go",
-          "line": 98,
+          "line": 114,
           "symbol": "PathDirectory",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/value_types.go",
-          "line": 107,
+          "line": 123,
           "symbol": "String",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/virtual_terminal.go",
-          "line": 122,
+          "line": 136,
           "symbol": "Width",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/virtual_terminal.go",
-          "line": 128,
+          "line": 142,
           "symbol": "Height",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/virtual_terminal.go",
-          "line": 134,
+          "line": 148,
           "symbol": "Acquired",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/virtual_terminal.go",
-          "line": 140,
+          "line": 154,
           "symbol": "Released",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/virtual_terminal.go",
-          "line": 146,
+          "line": 160,
           "symbol": "EchoEnabled",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/virtual_terminal.go",
-          "line": 152,
+          "line": 166,
           "symbol": "FailAcquire",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/virtual_terminal.go",
-          "line": 158,
+          "line": 172,
           "symbol": "FailEcho",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/prompts/virtual_terminal.go",
-          "line": 164,
+          "line": 178,
           "symbol": "FailRelease",
           "message": "exported declaration has no documentation comment"
         }
@@ -66819,126 +66819,126 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 36,
+          "line": 37,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 37,
+          "line": 38,
           "symbol": "OriginalID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 38,
+          "line": 39,
           "symbol": "Body",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 39,
+          "line": 40,
           "symbol": "Attempts",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 40,
+          "line": 41,
           "symbol": "OccurredAt",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 41,
+          "line": 42,
           "symbol": "EnvelopeVersion",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 42,
+          "line": 43,
           "symbol": "Source",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 43,
+          "line": 44,
           "symbol": "Group",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 44,
+          "line": 45,
           "symbol": "Classification",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 45,
+          "line": 46,
           "symbol": "FailureCode",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 46,
+          "line": 47,
           "symbol": "OriginalDeadLetterID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 47,
+          "line": 48,
           "symbol": "PriorDeadLetterID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 48,
+          "line": 49,
           "symbol": "ReplayGeneration",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 52,
+          "line": 53,
           "symbol": "RecordFailure",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 56,
+          "line": 57,
           "symbol": "AppendDeadLetter",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 60,
+          "line": 61,
           "symbol": "ReadRecords",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 64,
+          "line": 65,
           "symbol": "ReadRecordPage",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue/valkeystream/records.go",
-          "line": 67,
+          "line": 68,
           "symbol": "ReadRecord",
           "message": "exported declaration has no documentation comment"
         }

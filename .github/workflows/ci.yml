@@ -169,12 +169,18 @@ jobs:
       - name: Run strict module contract
         run: ./scripts/run-modules.sh check --modules '${{ matrix.directory }}'
 
+      - name: Stage attributable evidence
+        if: always()
+        run: >-
+          ./scripts/stage-ci-evidence.sh '${{ matrix.directory }}'
+          '${{ format('{0}/golib-evidence-{1}', runner.temp, matrix.artifact) }}'
+
       - name: Upload attributable evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: evidence-${{ matrix.artifact }}
-          path: ${{ matrix.directory == '.' && '.artifacts' || format('.artifacts/{0}', matrix.directory) }}
+          path: ${{ format('{0}/golib-evidence-{1}', runner.temp, matrix.artifact) }}
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 30
@@ -288,12 +294,18 @@ jobs:
       - name: Run Kafka contract tests on Linux arm64
         run: ./scripts/run-modules.sh test --modules 'pkg/kafka'
 
+      - name: Stage attributable evidence
+        if: always()
+        run: >-
+          ./scripts/stage-ci-evidence.sh 'pkg/kafka'
+          '${{ format('{0}/golib-evidence-pkg-kafka-linux-arm64', runner.temp) }}'
+
       - name: Upload attributable evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: evidence-pkg-kafka-linux-arm64
-          path: .artifacts/pkg/kafka
+          path: ${{ format('{0}/golib-evidence-pkg-kafka-linux-arm64', runner.temp) }}
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 30

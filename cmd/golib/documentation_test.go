@@ -177,6 +177,30 @@ func TestValidateRepositoryDocumentation(t *testing.T) {
 			},
 			wantError: "pre-v1 module changelog claims a released version",
 		},
+		{
+			name: "pre-v1 module claims an unbracketed released changelog version",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				appendDocumentation(
+					t,
+					filepath.Join(root, "pkg", "sample", "CHANGELOG.md"),
+					"\n## 1.0.0 - 2026-08-14\n",
+				)
+			},
+			wantError: "pre-v1 module changelog claims a released version",
+		},
+		{
+			name: "pre-v1 module claims a v-prefixed changelog version",
+			mutate: func(t *testing.T, root string) {
+				t.Helper()
+				appendDocumentation(
+					t,
+					filepath.Join(root, "pkg", "sample", "CHANGELOG.md"),
+					"\n## v1.0.0\n",
+				)
+			},
+			wantError: "pre-v1 module changelog claims a released version",
+		},
 	}
 
 	for _, test := range tests {

@@ -23,9 +23,13 @@ func TestSecretValueRedactsFormattingAndSerialization(t *testing.T) {
 		t.Fatal("Reveal() did not return the explicit secret")
 	}
 	representations := make([]string, 0, 8)
-	representations = append(representations,
-		secret.String(), secret.GoString(),
-		fmt.Sprint(secret), fmt.Sprintf("%+v", secret), fmt.Sprintf("%#v", secret),
+	representations = append(
+		representations,
+		secret.String(),
+		secret.GoString(),
+		fmt.Sprint(secret),
+		fmt.Sprintf("%+v", secret),
+		fmt.Sprintf("%#v", secret),
 		secret.LogValue().String(),
 	)
 	text, err := secret.MarshalText()
@@ -39,7 +43,8 @@ func TestSecretValueRedactsFormattingAndSerialization(t *testing.T) {
 	}
 	representations = append(representations, string(encoded))
 	for _, representation := range representations {
-		if strings.Contains(representation, secretCanary) || !strings.Contains(representation, "REDACTED") {
+		if strings.Contains(representation, secretCanary) ||
+			!strings.Contains(representation, "REDACTED") {
 			t.Fatalf("secret representation = %q", representation)
 		}
 	}
@@ -48,35 +53,63 @@ func TestSecretValueRedactsFormattingAndSerialization(t *testing.T) {
 func TestSecretPromptSuppressesValidationAndPanicDisclosure(t *testing.T) {
 	t.Parallel()
 
-	prompt, err := prompts.NewSecret(prompts.SecretConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-		PostValidate: []prompts.Validator[prompts.SecretValue]{func(context.Context, prompts.SecretValue, prompts.ValidationContext) error {
-			return prompts.NewValidationIssue("bad_secret", secretCanary, "token")
-		}},
-	})
+	prompt, err := prompts.NewSecret(
+		prompts.SecretConfig{
+			ID: "token",
+			Label: "Token",
+			Class: prompts.SecretToken,
+			PostValidate: []prompts.Validator[prompts.SecretValue]{
+				func(
+					context.Context,
+					prompts.SecretValue,
+					prompts.ValidationContext,
+				) error {
+					return prompts.NewValidationIssue(
+						"bad_secret",
+						secretCanary,
+						"token",
+					)
+				},
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewSecret() error = %v", err)
 	}
 	_, err = prompts.Parse(context.Background(), prompt, secretCanary, nil)
-	if !errors.Is(err, prompts.ErrValidationExhausted) || strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
+	if !errors.Is(err, prompts.ErrValidationExhausted) ||
+		strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
 		t.Fatalf("secret validation error = %v", err)
 	}
 	var issue *prompts.ValidationIssue
-	if !errors.As(err, &issue) || issue.Code() != "secret_validation" || strings.Contains(issue.Message(), secretCanary) {
+	if !errors.As(err, &issue) ||
+		issue.Code() != "secret_validation" ||
+		strings.Contains(issue.Message(), secretCanary) {
 		t.Fatalf("secret validation issue = %#v", issue)
 	}
 
-	panicPrompt, err := prompts.NewSecret(prompts.SecretConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-		Transform: []prompts.Transformer[prompts.SecretValue]{func(context.Context, prompts.SecretValue, prompts.ValidationContext) (prompts.SecretValue, error) {
-			panic(secretCanary)
-		}},
-	})
+	panicPrompt, err := prompts.NewSecret(
+		prompts.SecretConfig{
+			ID: "token",
+			Label: "Token",
+			Class: prompts.SecretToken,
+			Transform: []prompts.Transformer[prompts.SecretValue]{
+				func(
+					context.Context,
+					prompts.SecretValue,
+					prompts.ValidationContext,
+				) (prompts.SecretValue, error) {
+					panic(secretCanary)
+				},
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewSecret() error = %v", err)
 	}
 	_, err = prompts.Parse(context.Background(), panicPrompt, secretCanary, nil)
-	if !errors.Is(err, prompts.ErrAdapter) || strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
+	if !errors.Is(err, prompts.ErrAdapter) ||
+		strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
 		t.Fatalf("secret panic error = %v", err)
 	}
 }
@@ -84,11 +117,16 @@ func TestSecretPromptSuppressesValidationAndPanicDisclosure(t *testing.T) {
 func TestSecretDefaultsStayOutOfMetadataAndOutput(t *testing.T) {
 	t.Parallel()
 
-	prompt, err := prompts.NewSecret(prompts.SecretConfig{
-		ID: "password", Label: "Password", Description: "Account password",
-		Class: prompts.SecretPassword, Headless: prompts.HeadlessUseFallback,
-		Fallback: prompts.Some(prompts.NewSecretValue(secretCanary)),
-	})
+	prompt, err := prompts.NewSecret(
+		prompts.SecretConfig{
+			ID: "password",
+			Label: "Password",
+			Description: "Account password",
+			Class: prompts.SecretPassword,
+			Headless: prompts.HeadlessUseFallback,
+			Fallback: prompts.Some(prompts.NewSecretValue(secretCanary)),
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewSecret() error = %v", err)
 	}
@@ -99,9 +137,13 @@ func TestSecretDefaultsStayOutOfMetadataAndOutput(t *testing.T) {
 	if strings.Contains(fmt.Sprintf("%#v", descriptor), secretCanary) {
 		t.Fatal("descriptor exposed a secret fallback")
 	}
-	value, err := prompts.Run(context.Background(), prompt, prompts.Execution{
-		Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
-	})
+	value, err := prompts.Run(
+		context.Background(),
+		prompt,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	if err != nil || value.Reveal() != secretCanary {
 		t.Fatalf("Run() = %v, %v", value, err)
 	}
@@ -114,18 +156,29 @@ func TestSecretDefinitionsRequireClassification(t *testing.T) {
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("unclassified secret error = %v", err)
 	}
-	_, err = prompts.NewSecret(prompts.SecretConfig{ID: "secret", Label: "Secret", Class: prompts.SecretClass(200)})
+	_, err = prompts.NewSecret(
+		prompts.SecretConfig{
+			ID: "secret",
+			Label: "Secret",
+			Class: prompts.SecretClass(200),
+		},
+	)
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("invalid secret class error = %v", err)
 	}
-	if _, err := prompts.NewSecret(prompts.SecretConfig{
-		ID: "other", Label: "Other", Class: prompts.SecretOther,
-	}); err != nil {
+	if _, err := prompts.NewSecret(
+		prompts.SecretConfig{ID: "other", Label: "Other", Class: prompts.SecretOther},
+	);
+		err != nil {
 		t.Fatalf("maximum secret class error = %v", err)
 	}
-	bytesPrompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "other-bytes", Label: "Other bytes", Class: prompts.SecretOther,
-	})
+	bytesPrompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{
+			ID: "other-bytes",
+			Label: "Other bytes",
+			Class: prompts.SecretOther,
+		},
+	)
 	if err != nil {
 		t.Fatalf("maximum secret bytes class error = %v", err)
 	}
@@ -158,11 +211,18 @@ func TestSecretBytesCopiesRedactsAndDestroysMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MarshalText() error = %v", err)
 	}
-	for _, representation := range []string{
-		secret.String(), secret.GoString(), fmt.Sprint(secret), fmt.Sprintf("%#v", secret),
-		secret.LogValue().String(), string(text), string(encoded),
-	} {
-		if strings.Contains(representation, secretCanary) || !strings.Contains(representation, "REDACTED") {
+	for _, representation := range
+		[]string{
+			secret.String(),
+			secret.GoString(),
+			fmt.Sprint(secret),
+			fmt.Sprintf("%#v", secret),
+			secret.LogValue().String(),
+			string(text),
+			string(encoded),
+		} {
+		if strings.Contains(representation, secretCanary) ||
+			!strings.Contains(representation, "REDACTED") {
 			t.Fatalf("secret bytes representation = %q", representation)
 		}
 	}
@@ -172,7 +232,11 @@ func TestSecretBytesCopiesRedactsAndDestroysMemory(t *testing.T) {
 
 	var group sync.WaitGroup
 	for range 8 {
-		group.Go(func() { _ = secret.Reveal() })
+		group.Go(
+			func() {
+				_ = secret.Reveal()
+			},
+		)
 	}
 	group.Wait()
 	secret.Destroy()
@@ -199,23 +263,36 @@ func TestSecretBytesPromptReturnsIndependentOwnedResults(t *testing.T) {
 	t.Parallel()
 
 	fallback := prompts.NewSecretBytes([]byte(secretCanary))
-	prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-		Headless: prompts.HeadlessUseFallback, Fallback: prompts.Some(fallback),
-	})
+	prompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{
+			ID: "token",
+			Label: "Token",
+			Class: prompts.SecretToken,
+			Headless: prompts.HeadlessUseFallback,
+			Fallback: prompts.Some(fallback),
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewSecretBytesPrompt() error = %v", err)
 	}
-	first, err := prompts.Run(context.Background(), prompt, prompts.Execution{
-		Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
-	})
+	first, err := prompts.Run(
+		context.Background(),
+		prompt,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 	first.Destroy()
-	second, err := prompts.Run(context.Background(), prompt, prompts.Execution{
-		Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
-	})
+	second, err := prompts.Run(
+		context.Background(),
+		prompt,
+		prompts.Execution{
+			Policy: prompts.InteractionPolicy{Mode: prompts.NonInteractiveOnly},
+		},
+	)
 	if err != nil || string(second.Reveal()) != secretCanary {
 		t.Fatalf("second Run() = %v, %v", second, err)
 	}
@@ -238,9 +315,9 @@ func TestSecretBytesPromptReturnsIndependentOwnedResults(t *testing.T) {
 func TestSecretBytesInteractiveEntryUsesAndClearsByteEvents(t *testing.T) {
 	t.Parallel()
 
-	prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-	})
+	prompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{ID: "token", Label: "Token", Class: prompts.SecretToken},
+	)
 	if err != nil {
 		t.Fatalf("NewSecretBytesPrompt() error = %v", err)
 	}
@@ -248,8 +325,13 @@ func TestSecretBytesInteractiveEntryUsesAndClearsByteEvents(t *testing.T) {
 	event := prompts.PasteBytesEvent(input)
 	input[0] = 'X'
 	terminal := prompts.NewVirtualTerminal(80, 24)
-	terminal.Push(event, prompts.KeyEvent(prompts.KeyLeft), prompts.RuneEvent('!'),
-		prompts.KeyEvent(prompts.KeyEnd), prompts.KeyEvent(prompts.KeyEnter))
+	terminal.Push(
+		event,
+		prompts.KeyEvent(prompts.KeyLeft),
+		prompts.RuneEvent('!'),
+		prompts.KeyEvent(prompts.KeyEnd),
+		prompts.KeyEvent(prompts.KeyEnter),
+	)
 	result, err := prompts.Run(context.Background(), prompt, interactiveExecution(terminal))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
@@ -261,7 +343,8 @@ func TestSecretBytesInteractiveEntryUsesAndClearsByteEvents(t *testing.T) {
 	if !event.Bytes.Destroyed() || event.Bytes.Len() != 0 {
 		t.Fatal("interactive event retained secret data")
 	}
-	if strings.Contains(terminal.Output(), secretCanary) || strings.Contains(terminal.Output(), "secret-!") {
+	if strings.Contains(terminal.Output(), secretCanary) ||
+		strings.Contains(terminal.Output(), "secret-!") {
 		t.Fatalf("terminal output exposed secret: %q", terminal.Output())
 	}
 }
@@ -269,9 +352,9 @@ func TestSecretBytesInteractiveEntryUsesAndClearsByteEvents(t *testing.T) {
 func TestSecretBytesInteractiveCancellationClearsEditorAndEvents(t *testing.T) {
 	t.Parallel()
 
-	prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-	})
+	prompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{ID: "token", Label: "Token", Class: prompts.SecretToken},
+	)
 	if err != nil {
 		t.Fatalf("NewSecretBytesPrompt() error = %v", err)
 	}
@@ -290,13 +373,19 @@ func TestSecretBytesInteractiveCancellationClearsEditorAndEvents(t *testing.T) {
 func TestSecretBytesPromptRejectsInvalidDefinitions(t *testing.T) {
 	t.Parallel()
 
-	_, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{ID: "token", Label: "Token"})
+	_, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{ID: "token", Label: "Token"},
+	)
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("unclassified secret bytes error = %v", err)
 	}
-	_, err = prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretClass(200),
-	})
+	_, err = prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{
+			ID: "token",
+			Label: "Token",
+			Class: prompts.SecretClass(200),
+		},
+	)
 	if !errors.Is(err, prompts.ErrInvalidDefinition) {
 		t.Fatalf("invalid secret bytes class error = %v", err)
 	}
@@ -309,17 +398,28 @@ func TestSecretBytesPromptRejectsInvalidDefinitions(t *testing.T) {
 func TestParseBytesValidatesContextTypeAndSafeErrors(t *testing.T) {
 	t.Parallel()
 
-	prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-		PostValidate: []prompts.Validator[*prompts.SecretBytes]{func(context.Context, *prompts.SecretBytes, prompts.ValidationContext) error {
-			return errors.New(secretCanary)
-		}},
-	})
+	prompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{
+			ID: "token",
+			Label: "Token",
+			Class: prompts.SecretToken,
+			PostValidate: []prompts.Validator[*prompts.SecretBytes]{
+				func(
+					context.Context,
+					*prompts.SecretBytes,
+					prompts.ValidationContext,
+				) error {
+					return errors.New(secretCanary)
+				},
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("NewSecretBytesPrompt() error = %v", err)
 	}
 	_, err = prompts.ParseBytes(context.Background(), prompt, []byte(secretCanary), nil)
-	if !errors.Is(err, prompts.ErrValidationExhausted) || strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
+	if !errors.Is(err, prompts.ErrValidationExhausted) ||
+		strings.Contains(fmt.Sprintf("%+v", err), secretCanary) {
 		t.Fatalf("secret bytes validation error = %v", err)
 	}
 	//lint:ignore SA1012 Nil context behavior is part of the public contract.
@@ -333,7 +433,12 @@ func TestParseBytesValidatesContextTypeAndSafeErrors(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled context error = %v", err)
 	}
-	_, err = prompts.ParseBytes(context.Background(), prompts.Prompt[*prompts.SecretBytes]{}, nil, nil)
+	_, err = prompts.ParseBytes(
+		context.Background(),
+		prompts.Prompt[*prompts.SecretBytes]{},
+		nil,
+		nil,
+	)
 	if !errors.Is(err, prompts.ErrUnsupported) {
 		t.Fatalf("wrong prompt error = %v", err)
 	}

@@ -1711,7 +1711,7 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 	contract := string(workflow)
 	for _, required := range []string{
 		`actions: read`,
-		`path: ${{ matrix.directory == '.' && '.artifacts' || format('.artifacts/{0}', matrix.directory) }}`,
+		`path: ${{ format('{0}/golib-evidence-{1}', runner.temp, matrix.artifact) }}`,
 		`include-hidden-files: true`,
 		`workspace="${GITHUB_WORKSPACE}/go.work"`,
 		`output="${RUNNER_TEMP}/codeql-build/${slug}"`,
@@ -3777,6 +3777,125 @@ func TestGateInputDigestIgnoresVerificationOrchestrationImplementation(t *testin
 	}
 }
 
+func TestGateInputDigestScopesFormatterDispatchToFormatGates(t *testing.T) {
+	t.Parallel()
+
+	repositoryRoot := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{".golib", "pkg/example", "scripts"} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "module_path": "example.test/package",
+    "owned_dependencies": [],
+    "required_services": [],
+    "test_tags": [],
+    "interoperability_tools": [],
+    "gates": {},
+    "packages": []
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(repository, "packages.json"), `{"packages":[]}`)
+	writeTestFile(t, filepath.Join(repository, "pkg/example/go.mod"), "module example.test/package\n\ngo 1.26.6\n")
+	writeTestFile(t, filepath.Join(repository, ".golib/versions.env"), "")
+	for _, script := range []string{
+		"create-verification-snapshot.sh",
+		"run-modules.sh",
+		"start-services.sh",
+		"stop-services.sh",
+	} {
+		writeTestFile(t, filepath.Join(repository, "scripts", script), script+"\n")
+	}
+	checkModule := filepath.Join(repository, "scripts/check-module.sh")
+	writeTestFile(t, checkModule, `
+run_gate() {
+    case "${selected}" in
+        format)
+            find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -w
+            ;;
+        format-check)
+            unformatted="$(find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -l)"
+            [[ -z "${unformatted}" ]] || {
+                printf 'unformatted Go files:\n%s\n' "${unformatted}" >&2
+                exit 1
+            }
+            ;;
+        tidy-check)
+            :
+            ;;
+    esac
+}
+`)
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	add := exec.Command("git", "add", ".")
+	add.Dir = repository
+	if output, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture repository: %v\n%s", err, output)
+	}
+
+	digest := func(gate string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			gate,
+			"pkg/example",
+		)
+		command.Dir = repository
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("digest %s inputs: %v\n%s", gate, err, output)
+		}
+
+		return strings.TrimSpace(string(output))
+	}
+	formatBefore := digest("format-check")
+	assuranceBefore := digest("operational-assurance")
+	writeTestFile(t, checkModule, `
+run_gate() {
+    case "${selected}" in
+        format)
+            if target="$(find_make_target format)"; then
+                make GOWORK=off "${target}"
+            else
+                find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -w
+            fi
+            ;;
+        format-check)
+            if target="$(find_make_target format-check)"; then
+                make GOWORK=off "${target}"
+            else
+                unformatted="$(find . -name '*.go' -not -path './.tools/*' -print0 | xargs -0 gofmt -l)"
+                [[ -z "${unformatted}" ]] || {
+                    printf 'unformatted Go files:\n%s\n' "${unformatted}" >&2
+                    exit 1
+                }
+            fi
+            ;;
+        tidy-check)
+            :
+            ;;
+    esac
+}
+`)
+	if current := digest("operational-assurance"); current != assuranceBefore {
+		t.Fatalf("formatter dispatch changed assurance inputs: %s != %s", current, assuranceBefore)
+	}
+	if current := digest("format-check"); current == formatBefore {
+		t.Fatal("formatter dispatch did not change format-check inputs")
+	}
+}
+
 func TestRunnerIsolationEvidenceMigrationPreservesExecutedProof(t *testing.T) {
 	root := testRepositoryRoot(t)
 	repository := t.TempDir()
@@ -4493,6 +4612,139 @@ func TestPackageAPIGatesUseCanonicalToolVersion(t *testing.T) {
 		if strings.Contains(string(authentication), nested) {
 			t.Errorf("authentication API gate crosses module boundary %q", nested)
 		}
+	}
+}
+
+func TestModuleFormatGatesDelegateToExplicitMakeTargets(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	moduleScript, err := os.ReadFile(filepath.Join(root, "scripts", "check-module.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, gate := range []string{"format", "format-check"} {
+		gate := gate
+		t.Run(gate, func(t *testing.T) {
+			t.Parallel()
+
+			repository := t.TempDir()
+			for _, directory := range []string{".golib", "pkg/sample", "scripts"} {
+				if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeTestFile(t, filepath.Join(repository, "scripts/check-module.sh"), string(moduleScript))
+			if err := os.Chmod(filepath.Join(repository, "scripts/check-module.sh"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			writeTestFile(t, filepath.Join(repository, ".golib/versions.env"), "")
+			writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/sample",
+    "module_path": "example.test/sample"
+  }]
+}
+`)
+			writeTestFile(t, filepath.Join(repository, "pkg/sample/go.mod"), "module example.test/sample\n\ngo 1.26.6\n")
+			writeTestFile(t, filepath.Join(repository, "pkg/sample/sample.go"), "package sample\nfunc Value( ) int { return 1 }\n")
+			writeTestFile(t, filepath.Join(repository, "pkg/sample/Makefile"), `
+format:
+	@printf '%s' format > "$(FORMAT_MARKER)"
+
+format-check:
+	@printf '%s' format-check > "$(FORMAT_MARKER)"
+`)
+			initialize := exec.Command("git", "init", "--quiet")
+			initialize.Dir = repository
+			if output, err := initialize.CombinedOutput(); err != nil {
+				t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+			}
+
+			marker := filepath.Join(t.TempDir(), "format-gate")
+			command := exec.Command(filepath.Join(repository, "scripts/check-module.sh"), "pkg/sample", gate)
+			command.Dir = repository
+			command.Env = environmentWithValues(os.Environ(), "FORMAT_MARKER", marker)
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("run %s gate: %v\n%s", gate, err, output)
+			}
+			invocation, err := os.ReadFile(marker)
+			if err != nil {
+				t.Fatalf("read %s marker: %v", gate, err)
+			}
+			if string(invocation) != gate {
+				t.Fatalf("%s marker = %q", gate, invocation)
+			}
+		})
+	}
+}
+
+func TestRootFormatFallbackExcludesNestedModules(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	moduleScript, err := os.ReadFile(filepath.Join(root, "scripts", "check-module.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, gate := range []string{"format", "format-check"} {
+		gate := gate
+		t.Run(gate, func(t *testing.T) {
+			t.Parallel()
+
+			repository := t.TempDir()
+			for _, directory := range []string{".golib", "cmd/root", "pkg/nested", "scripts"} {
+				if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeTestFile(t, filepath.Join(repository, "scripts/check-module.sh"), string(moduleScript))
+			if err := os.Chmod(filepath.Join(repository, "scripts/check-module.sh"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			writeTestFile(t, filepath.Join(repository, ".golib/versions.env"), "")
+			writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [
+    {
+      "directory": ".",
+      "module_path": "example.test/root",
+      "packages": [{"directory": "cmd/root"}]
+    },
+    {
+      "directory": "pkg/nested",
+      "module_path": "example.test/nested",
+      "packages": [{"directory": "."}]
+    }
+  ]
+}
+`)
+			writeTestFile(t, filepath.Join(repository, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
+			writeTestFile(t, filepath.Join(repository, "cmd/root/main.go"), "package main\n\nfunc main() {}\n")
+			writeTestFile(t, filepath.Join(repository, "pkg/nested/go.mod"), "module example.test/nested\n\ngo 1.26.6\n")
+			nestedSource := filepath.Join(repository, "pkg/nested/nested.go")
+			unformatted := "package nested\nfunc Value( ) int { return 1 }\n"
+			writeTestFile(t, nestedSource, unformatted)
+			initialize := exec.Command("git", "init", "--quiet")
+			initialize.Dir = repository
+			if output, err := initialize.CombinedOutput(); err != nil {
+				t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+			}
+
+			command := exec.Command(filepath.Join(repository, "scripts/check-module.sh"), ".", gate)
+			command.Dir = repository
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("run root %s gate: %v\n%s", gate, err, output)
+			}
+			contents, err := os.ReadFile(nestedSource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(contents) != unformatted {
+				t.Fatalf("root %s gate modified nested-module source", gate)
+			}
+		})
 	}
 }
 

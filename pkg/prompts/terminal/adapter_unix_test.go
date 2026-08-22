@@ -37,13 +37,20 @@ func TestInteractiveTextDoesNotEnableKernelEcho(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewText() error = %v", err)
 	}
-	result, err := prompts.Run(testContext(t), prompt, prompts.Execution{
-		Output: replica, Events: observer, Terminal: adapter,
-		Capabilities: adapter.Capabilities(),
-		Policy: prompts.InteractionPolicy{
-			Mode: prompts.InteractiveRequired, PermitInteraction: true,
+	result, err := prompts.Run(
+		testContext(t),
+		prompt,
+		prompts.Execution{
+			Output: replica,
+			Events: observer,
+			Terminal: adapter,
+			Capabilities: adapter.Capabilities(),
+			Policy: prompts.InteractionPolicy{
+				Mode: prompts.InteractiveRequired,
+				PermitInteraction: true,
+			},
 		},
-	})
+	)
 	if err != nil || result != "ab" {
 		t.Fatalf("Run() = %q, %v", result, err)
 	}
@@ -80,9 +87,9 @@ func TestEchoObserverRetriesInterruptedPoll(t *testing.T) {
 type echoObserver struct {
 	*terminal.Adapter
 	primary *os.File
-	poll    func([]unix.PollFd, int) (int, error)
-	wrote   bool
-	echoed  []byte
+	poll func([]unix.PollFd, int) (int, error)
+	wrote bool
+	echoed []byte
 }
 
 func (observer *echoObserver) Next(ctx context.Context) (prompts.InputEvent, error) {
@@ -134,7 +141,7 @@ func (observer *echoObserver) readAvailable() ([]byte, error) {
 		}
 		break
 	}
-	if ready == 0 || poll[0].Revents&unix.POLLIN == 0 {
+	if ready == 0 || poll[0].Revents & unix.POLLIN == 0 {
 		return nil, nil
 	}
 	buffer := make([]byte, 4096)
@@ -165,7 +172,7 @@ func TestAdapterPreservesTerminalOutputLineEndings(t *testing.T) {
 	if _, err := replica.Write([]byte("label\n")); err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
-	buffer := readExactPTY(t, primary, len("label\r\n"), 2*time.Second)
+	buffer := readExactPTY(t, primary, len("label\r\n"), 2 * time.Second)
 	if got, want := string(buffer), "label\r\n"; got != want {
 		t.Fatalf("terminal output = %q, want %q", got, want)
 	}
@@ -185,15 +192,24 @@ func readExactPTY(t *testing.T, file *os.File, size int, timeout time.Duration) 
 			t.Fatalf("PTY read returned %d of %d bytes", offset, len(buffer))
 		}
 		poll := []unix.PollFd{{Fd: int32(file.Fd()), Events: unix.POLLIN}}
-		ready, err := unix.Poll(poll, int((remaining+time.Millisecond-1)/time.Millisecond))
+		ready, err := unix.Poll(
+			poll,
+			int((remaining + time.Millisecond - 1) / time.Millisecond),
+		)
 		if errors.Is(err, unix.EINTR) {
 			continue
 		}
 		if err != nil {
 			t.Fatalf("Poll() error = %v", err)
 		}
-		if ready != 1 || poll[0].Revents&unix.POLLIN == 0 {
-			t.Fatalf("Poll() = %d, %#v after %d of %d bytes", ready, poll, offset, len(buffer))
+		if ready != 1 || poll[0].Revents & unix.POLLIN == 0 {
+			t.Fatalf(
+				"Poll() = %d, %#v after %d of %d bytes",
+				ready,
+				poll,
+				offset,
+				len(buffer),
+			)
 		}
 		count, err := file.Read(buffer[offset:])
 		if err != nil {
@@ -225,8 +241,10 @@ func TestAdapterAcquiresEchoesAndRestoresPTY(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	capabilities := adapter.Capabilities()
-	if !capabilities.InputTerminal || !capabilities.OutputTerminal ||
-		capabilities.Width != 80 || capabilities.Height != 24 {
+	if !capabilities.InputTerminal ||
+		!capabilities.OutputTerminal ||
+		capabilities.Width != 80 ||
+		capabilities.Height != 24 {
 		t.Fatalf("Capabilities() = %#v", capabilities)
 	}
 	if err := adapter.Acquire(testContext(t)); err != nil {
@@ -262,25 +280,34 @@ func TestAdapterRestoresSecretPTYAfterWriterFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetState() error = %v", err)
 	}
-	adapter, err := terminal.New(replica, replica, terminal.Config{
-		Decoder: prompts.DecoderConfig{ByteInput: true},
-	})
+	adapter, err := terminal.New(
+		replica,
+		replica,
+		terminal.Config{Decoder: prompts.DecoderConfig{ByteInput: true}},
+	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-		ID: "token", Label: "Token", Class: prompts.SecretToken,
-	})
+	prompt, err := prompts.NewSecretBytesPrompt(
+		prompts.SecretBytesConfig{ID: "token", Label: "Token", Class: prompts.SecretToken},
+	)
 	if err != nil {
 		t.Fatalf("NewSecretBytesPrompt() error = %v", err)
 	}
-	_, err = prompts.Run(testContext(t), prompt, prompts.Execution{
-		Output: terminalErrorWriter{}, Events: adapter, Terminal: adapter,
-		Capabilities: adapter.Capabilities(),
-		Policy: prompts.InteractionPolicy{
-			Mode: prompts.InteractiveRequired, PermitInteraction: true,
+	_, err = prompts.Run(
+		testContext(t),
+		prompt,
+		prompts.Execution{
+			Output: terminalErrorWriter{},
+			Events: adapter,
+			Terminal: adapter,
+			Capabilities: adapter.Capabilities(),
+			Policy: prompts.InteractionPolicy{
+				Mode: prompts.InteractiveRequired,
+				PermitInteraction: true,
+			},
 		},
-	})
+	)
 	if !errors.Is(err, prompts.ErrWriter) {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -299,80 +326,109 @@ func (terminalErrorWriter) Write([]byte) (int, error) {
 func TestAdapterRestoresByteSecretPromptPTY(t *testing.T) {
 	t.Parallel()
 
-	for name, input := range map[string][]byte{
-		"submit": []byte("\x1b[200~secret-value\x1b[201~\r"),
-		"cancel": {0x03},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			primary, replica, err := pty.Open()
-			if err != nil {
-				t.Fatalf("Open() error = %v", err)
-			}
-			defer primary.Close()
-			defer replica.Close()
-			before, err := term.GetState(int(replica.Fd()))
-			if err != nil {
-				t.Fatalf("GetState() error = %v", err)
-			}
-			adapter, err := terminal.New(replica, replica, terminal.Config{
-				Decoder: prompts.DecoderConfig{ByteInput: true},
-			})
-			if err != nil {
-				t.Fatalf("New() error = %v", err)
-			}
-			prompt, err := prompts.NewSecretBytesPrompt(prompts.SecretBytesConfig{
-				ID: "token", Label: "Token", Class: prompts.SecretToken,
-			})
-			if err != nil {
-				t.Fatalf("NewSecretBytesPrompt() error = %v", err)
-			}
-			interaction := make(chan error, 1)
-			go func() {
-				buffer := make([]byte, 4096)
-				for {
-					count, readErr := primary.Read(buffer)
-					if bytes.Contains(buffer[:count], []byte("Token")) {
-						_, writeErr := primary.Write(input)
-						interaction <- writeErr
-						return
+	for name, input := range
+		map[string][]byte{
+			"submit": []byte("\x1b[200~secret-value\x1b[201~\r"),
+			"cancel": {0x03},
+		} {
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
+				primary, replica, err := pty.Open()
+				if err != nil {
+					t.Fatalf("Open() error = %v", err)
+				}
+				defer primary.Close()
+				defer replica.Close()
+				before, err := term.GetState(int(replica.Fd()))
+				if err != nil {
+					t.Fatalf("GetState() error = %v", err)
+				}
+				adapter, err := terminal.New(
+					replica,
+					replica,
+					terminal.Config{
+						Decoder: prompts.DecoderConfig{ByteInput: true},
+					},
+				)
+				if err != nil {
+					t.Fatalf("New() error = %v", err)
+				}
+				prompt, err := prompts.NewSecretBytesPrompt(
+					prompts.SecretBytesConfig{
+						ID: "token",
+						Label: "Token",
+						Class: prompts.SecretToken,
+					},
+				)
+				if err != nil {
+					t.Fatalf("NewSecretBytesPrompt() error = %v", err)
+				}
+				interaction := make(chan error, 1)
+				go func() {
+					buffer := make([]byte, 4096)
+					for {
+						count, readErr := primary.Read(buffer)
+						if bytes.Contains(buffer[:count], []byte("Token")) {
+							_, writeErr := primary.Write(input)
+							interaction <- writeErr
+							return
+						}
+						if readErr != nil {
+							interaction <- readErr
+							return
+						}
 					}
-					if readErr != nil {
-						interaction <- readErr
-						return
+				}()
+				runContext, cancelRun := context.WithTimeout(
+					context.Background(),
+					2 * time.Second,
+				)
+				result, runErr := prompts.Run(
+					runContext,
+					prompt,
+					prompts.Execution{
+						Output: replica,
+						Error: replica,
+						Events: adapter,
+						Terminal: adapter,
+						Capabilities: adapter.Capabilities(),
+						Policy: prompts.InteractionPolicy{
+							Mode: prompts.InteractiveRequired,
+							PermitInteraction: true,
+						},
+					},
+				)
+				cancelRun()
+				select {
+				case interactionErr := <-interaction:
+					if interactionErr != nil && runErr == nil {
+						t.Fatalf("interaction error = %v", interactionErr)
 					}
+				case <-time.After(500 * time.Millisecond):
+					t.Fatal("interaction did not stop after prompt completion")
 				}
-			}()
-			runContext, cancelRun := context.WithTimeout(context.Background(), 2*time.Second)
-			result, runErr := prompts.Run(runContext, prompt, prompts.Execution{
-				Output: replica, Error: replica, Events: adapter, Terminal: adapter,
-				Capabilities: adapter.Capabilities(),
-				Policy: prompts.InteractionPolicy{
-					Mode: prompts.InteractiveRequired, PermitInteraction: true,
-				},
-			})
-			cancelRun()
-			select {
-			case interactionErr := <-interaction:
-				if interactionErr != nil && runErr == nil {
-					t.Fatalf("interaction error = %v", interactionErr)
+				if name == "submit" {
+					if runErr != nil ||
+						string(result.Reveal()) != "secret-value" {
+						t.Fatalf("Run() = %v, %v", result, runErr)
+					}
+					result.Destroy()
+				} else if !errors.Is(runErr, prompts.ErrCanceled) {
+					t.Fatalf("cancel Run() error = %v", runErr)
 				}
-			case <-time.After(500 * time.Millisecond):
-				t.Fatal("interaction did not stop after prompt completion")
-			}
-			if name == "submit" {
-				if runErr != nil || string(result.Reveal()) != "secret-value" {
-					t.Fatalf("Run() = %v, %v", result, runErr)
+				after, err := term.GetState(int(replica.Fd()))
+				if err != nil || !reflect.DeepEqual(before, after) {
+					t.Fatalf(
+						"restored state = %#v, %v; want %#v",
+						after,
+						err,
+						before,
+					)
 				}
-				result.Destroy()
-			} else if !errors.Is(runErr, prompts.ErrCanceled) {
-				t.Fatalf("cancel Run() error = %v", runErr)
-			}
-			after, err := term.GetState(int(replica.Fd()))
-			if err != nil || !reflect.DeepEqual(before, after) {
-				t.Fatalf("restored state = %#v, %v; want %#v", after, err, before)
-			}
-		})
+			},
+		)
 	}
 }
 

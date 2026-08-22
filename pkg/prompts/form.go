@@ -24,7 +24,9 @@ type typedFormField[T any] struct {
 }
 
 // AsField retains a prompt's typed execution and cloning behavior in a form.
-func AsField[T any](prompt Prompt[T]) FormField { return typedFormField[T]{prompt: prompt} }
+func AsField[T any](prompt Prompt[T]) FormField {
+	return typedFormField[T]{prompt: prompt}
+}
 
 // When returns a conditional copy of a field. The predicate observes only
 // answers from prior fields in this execution.
@@ -36,70 +38,107 @@ func When(field FormField, predicate func(FormResult) bool) FormField {
 }
 
 type conditionalFormField struct {
-	field     FormField
+	field FormField
 	predicate func(FormResult) bool
 }
 
-func (field typedFormField[T]) formID() string { return field.prompt.ID() }
+func (field typedFormField[T]) formID() string {
+	return field.prompt.ID()
+}
 
-func (field typedFormField[T]) run(ctx context.Context, execution Execution) (storedFormValue, error) {
+func (field typedFormField[T]) run(
+	ctx context.Context,
+	execution Execution,
+) (storedFormValue, error) {
 	value, err := Run(ctx, field.prompt, execution)
 	if err != nil {
 		return storedFormValue{}, err
 	}
-	clone := func() any { return value }
+	clone := func() any {
+		return value
+	}
 	if field.prompt.definition.clone != nil {
-		clone = func() any { return field.prompt.definition.clone(value) }
+		clone = func() any {
+			return field.prompt.definition.clone(value)
+		}
 	}
 	return storedFormValue{value: value, clone: clone}, nil
 }
 
-func (typedFormField[T]) condition(FormResult) bool { return true }
+func (typedFormField[T]) condition(FormResult) bool {
+	return true
+}
 
-func (field conditionalFormField) formID() string { return field.field.formID() }
-func (field conditionalFormField) run(ctx context.Context, execution Execution) (storedFormValue, error) {
+func (field conditionalFormField) formID() string {
+	return field.field.formID()
+}
+
+func (field conditionalFormField) run(
+	ctx context.Context,
+	execution Execution,
+) (storedFormValue, error) {
 	return field.field.run(ctx, execution)
 }
+
 func (field conditionalFormField) condition(result FormResult) bool {
 	return field.predicate != nil && field.predicate(result)
 }
 
 // FormConfig defines an ordered grouped interaction.
 type FormConfig struct {
-	ID           string
-	Fields       []FormField
-	Validate     []FormValidator
+	ID string
+	Fields []FormField
+	Validate []FormValidator
 	Dependencies any
 }
 
 // Form is an immutable grouped prompt definition.
 type Form struct {
-	id           string
-	fields       []FormField
-	validators   []FormValidator
+	id string
+	fields []FormField
+	validators []FormValidator
 	dependencies any
 }
 
 // NewForm creates an ordered, reusable form definition.
 func NewForm(config FormConfig) (Form, error) {
 	if config.ID == "" || len(config.Fields) == 0 {
-		return Form{}, invalidBehaviorDefinition("define form", config.ID, fmt.Errorf("%w: form identity and fields are required", ErrInvalidDefinition))
+		return Form{}, invalidBehaviorDefinition(
+			"define form",
+			config.ID,
+			fmt.Errorf(
+				"%w: form identity and fields are required",
+				ErrInvalidDefinition,
+			),
+		)
 	}
 	fields := append([]FormField(nil), config.Fields...)
 	identities := make(map[string]struct{}, len(fields))
 	for _, field := range fields {
 		if field == nil || field.formID() == "" {
-			return Form{}, invalidBehaviorDefinition("define form", config.ID, fmt.Errorf("%w: invalid form field", ErrInvalidDefinition))
+			return Form{}, invalidBehaviorDefinition(
+				"define form",
+				config.ID,
+				fmt.Errorf("%w: invalid form field", ErrInvalidDefinition),
+			)
 		}
 		if _, duplicate := identities[field.formID()]; duplicate {
-			return Form{}, invalidBehaviorDefinition("define form", config.ID, fmt.Errorf("%w: duplicate form field identity", ErrInvalidDefinition))
+			return Form{}, invalidBehaviorDefinition(
+				"define form",
+				config.ID,
+				fmt.Errorf(
+					"%w: duplicate form field identity",
+					ErrInvalidDefinition,
+				),
+			)
 		}
 		identities[field.formID()] = struct{}{}
 	}
 
 	return Form{
-		id: config.ID, fields: fields,
-		validators:   append([]FormValidator(nil), config.Validate...),
+		id: config.ID,
+		fields: fields,
+		validators: append([]FormValidator(nil), config.Validate...),
 		dependencies: config.Dependencies,
 	}, nil
 }
@@ -112,11 +151,13 @@ type storedFormValue struct {
 // FormResult is an immutable typed answer collection.
 type FormResult struct {
 	values map[string]storedFormValue
-	order  []string
+	order []string
 }
 
 // IDs returns answered field identities in execution order.
-func (result FormResult) IDs() []string { return append([]string(nil), result.order...) }
+func (result FormResult) IDs() []string {
+	return append([]string(nil), result.order...)
+}
 
 // Has reports whether a field ran and produced an answer.
 func (result FormResult) Has(identity string) bool {
@@ -150,9 +191,17 @@ func FormValue[T any](result FormResult, identity string) (T, bool) {
 
 // RunForm executes fields in declaration order without retaining answers in
 // the reusable definition.
-func RunForm(ctx context.Context, form Form, execution Execution) (result FormResult, resultErr error) {
+func RunForm(
+	ctx context.Context,
+	form Form,
+	execution Execution,
+) (result FormResult, resultErr error) {
 	if ctx == nil {
-		return FormResult{}, invalidBehaviorDefinition("execute form", form.id, ErrInvalidDefinition)
+		return FormResult{}, invalidBehaviorDefinition(
+			"execute form",
+			form.id,
+			ErrInvalidDefinition,
+		)
 	}
 	if err := ctx.Err(); err != nil {
 		return FormResult{}, contextFailure(form.id, err)
@@ -164,8 +213,10 @@ func RunForm(ctx context.Context, form Form, execution Execution) (result FormRe
 		}
 		if recover() != nil {
 			resultErr = &Error{
-				Kind: ErrorAdapter, Operation: "run form callback",
-				PromptID: form.id, Cause: ErrAdapter,
+				Kind: ErrorAdapter,
+				Operation: "run form callback",
+				PromptID: form.id,
+				Cause: ErrAdapter,
 			}
 		}
 		if resultErr != nil {
@@ -192,7 +243,7 @@ func RunForm(ctx context.Context, form Form, execution Execution) (result FormRe
 			interaction.captured = nil
 		}
 		if errors.Is(err, errFormBack) {
-			target := max(0, index-1)
+			target := max(0, index - 1)
 			for target != 0 && !form.fields[target].condition(result) {
 				target--
 			}
@@ -253,8 +304,10 @@ func formValidationFailure(formID string, result FormResult, cause error) error 
 		cause = NewValidationIssue("form_validation", "Form validation failed", fields...)
 	}
 	return &Error{
-		Kind: ErrorValidationExhausted, Operation: "validate form",
-		PromptID: formID, Cause: normalizeIssue(cause, formID),
+		Kind: ErrorValidationExhausted,
+		Operation: "validate form",
+		PromptID: formID,
+		Cause: normalizeIssue(cause, formID),
 	}
 }
 

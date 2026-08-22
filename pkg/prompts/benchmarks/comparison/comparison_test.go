@@ -24,26 +24,40 @@ import (
 const benchmarkAnswer = "Ada"
 
 func BenchmarkInteractiveTextPTY(benchmark *testing.B) {
-	engines := map[string]func() (string, error){
-		"GoPrompts": func() (string, error) { return runWithPTY(runGoPrompts) },
-		"Huh":       func() (string, error) { return runWithPTY(runHuh) },
-		"Survey":    runSurveyWithConsole,
-		"PromptUI":  func() (string, error) { return runWithPTY(runPromptUI) },
-		"Bubbles":   func() (string, error) { return runWithPTY(runBubbles) },
+	engines := map[string]func() (
+		string,
+		error,
+	){
+		"GoPrompts": func() (string, error) {
+			return runWithPTY(runGoPrompts)
+		},
+		"Huh": func() (string, error) {
+			return runWithPTY(runHuh)
+		},
+		"Survey": runSurveyWithConsole,
+		"PromptUI": func() (string, error) {
+			return runWithPTY(runPromptUI)
+		},
+		"Bubbles": func() (string, error) {
+			return runWithPTY(runBubbles)
+		},
 	}
 	for name, run := range engines {
-		benchmark.Run(name, func(benchmark *testing.B) {
-			benchmark.ReportAllocs()
-			for benchmark.Loop() {
-				answer, err := run()
-				if err != nil {
-					benchmark.Fatal(err)
+		benchmark.Run(
+			name,
+			func(benchmark *testing.B) {
+				benchmark.ReportAllocs()
+				for benchmark.Loop() {
+					answer, err := run()
+					if err != nil {
+						benchmark.Fatal(err)
+					}
+					if answer != benchmarkAnswer {
+						benchmark.Fatalf("answer = %q", answer)
+					}
 				}
-				if answer != benchmarkAnswer {
-					benchmark.Fatalf("answer = %q", answer)
-				}
-			}
-		})
+			},
+		)
 	}
 }
 
@@ -52,7 +66,7 @@ func runWithPTY(run func(*os.File) (string, error)) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	done := startTerminalReactor(primary, benchmarkAnswer+"\r")
+	done := startTerminalReactor(primary, benchmarkAnswer + "\r")
 	defer func() {
 		_ = replica.Close()
 		_ = primary.Close()
@@ -76,7 +90,7 @@ func startTerminalReactor(primary *os.File, input string) <-chan struct{} {
 		for {
 			count, err := primary.Read(buffer)
 			if count > 0 {
-				chunk := make([]byte, 0, len(tail)+count)
+				chunk := make([]byte, 0, len(tail) + count)
 				chunk = append(chunk, tail...)
 				chunk = append(chunk, buffer[:count]...)
 				if bytes.Contains(chunk, []byte("\x1b[6n")) {
@@ -87,7 +101,10 @@ func startTerminalReactor(primary *os.File, input string) <-chan struct{} {
 					answered = true
 				}
 				if len(chunk) >= len(prompt) {
-					tail = append(tail[:0], chunk[len(chunk)-len(prompt)+1:]...)
+					tail = append(
+						tail[:0],
+						chunk[len(chunk) - len(prompt) + 1:]...,
+					)
 				} else {
 					tail = append(tail[:0], chunk...)
 				}
@@ -111,19 +128,30 @@ func runGoPrompts(file *os.File) (string, error) {
 		return "", err
 	}
 
-	return prompts.Run(context.Background(), prompt, prompts.Execution{
-		Output: file, Error: file, Events: adapter, Terminal: adapter,
-		Capabilities: adapter.Capabilities(),
-		Policy: prompts.InteractionPolicy{
-			Mode: prompts.InteractiveRequired, PermitInteraction: true,
+	return prompts.Run(
+		context.Background(),
+		prompt,
+		prompts.Execution{
+			Output: file,
+			Error: file,
+			Events: adapter,
+			Terminal: adapter,
+			Capabilities: adapter.Capabilities(),
+			Policy: prompts.InteractionPolicy{
+				Mode: prompts.InteractiveRequired,
+				PermitInteraction: true,
+			},
 		},
-	})
+	)
 }
 
 func runHuh(file *os.File) (string, error) {
 	var answer string
-	form := huh.NewForm(huh.NewGroup(huh.NewInput().Title("Name").Value(&answer))).
-		WithInput(file).WithOutput(file).WithWidth(80)
+	form := huh.
+		NewForm(huh.NewGroup(huh.NewInput().Title("Name").Value(&answer))).
+		WithInput(file).
+		WithOutput(file).
+		WithWidth(80)
 	if err := form.Run(); err != nil {
 		return "", err
 	}
@@ -149,7 +177,8 @@ func runSurveyWithConsole() (answer string, resultErr error) {
 	}
 	emulator := vt10x.New(vt10x.WithWriter(replica))
 	console, err := expect.NewConsole(
-		expect.WithStdin(primary), expect.WithStdout(emulator),
+		expect.WithStdin(primary),
+		expect.WithStdout(emulator),
 		expect.WithCloser(primary, replica),
 	)
 	if err != nil {
@@ -222,8 +251,11 @@ func (model bubblesTextModel) View() tea.View {
 
 func runBubbles(file *os.File) (string, error) {
 	program := tea.NewProgram(
-		newBubblesTextModel(), tea.WithInput(file), tea.WithOutput(file),
-		tea.WithWindowSize(80, 24), tea.WithoutSignals(),
+		newBubblesTextModel(),
+		tea.WithInput(file),
+		tea.WithOutput(file),
+		tea.WithWindowSize(80, 24),
+		tea.WithoutSignals(),
 	)
 	model, err := program.Run()
 	if err != nil {

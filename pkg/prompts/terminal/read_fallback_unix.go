@@ -37,7 +37,7 @@ func readWithoutDeadlineUsing(
 	if err != nil {
 		return 0, err
 	}
-	if info.Mode()&(os.ModeCharDevice|os.ModeNamedPipe|os.ModeSocket) == 0 {
+	if info.Mode() & (os.ModeCharDevice | os.ModeNamedPipe | os.ModeSocket) == 0 {
 		return 0, os.ErrNoDeadline
 	}
 	// #nosec G115 -- validPollDescriptor bounds descriptor to MaxInt32 above.
@@ -74,7 +74,7 @@ func validPollDescriptor(descriptor uintptr) bool {
 }
 
 func pollMilliseconds(wait time.Duration) int {
-	return max(1, int((wait+time.Millisecond-1)/time.Millisecond))
+	return max(1, int((wait + time.Millisecond - 1) / time.Millisecond))
 }
 
 func boundedPollWait(ctx context.Context, pollInterval time.Duration, now time.Time) time.Duration {
@@ -86,9 +86,9 @@ func boundedPollWait(ctx context.Context, pollInterval time.Duration, now time.T
 }
 
 func invalidPollEvents(events int16) bool {
-	return events&unix.POLLNVAL != 0
+	return events & unix.POLLNVAL != 0
 }
 
 func readablePollEvents(events int16) bool {
-	return events&(unix.POLLIN|unix.POLLHUP|unix.POLLERR) != 0
+	return events & (unix.POLLIN | unix.POLLHUP | unix.POLLERR) != 0
 }

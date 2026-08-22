@@ -1252,7 +1252,8 @@ versioning and Keep a Changelog structure.
   readiness failures, clean up partial containers, and retain connection errors
   for diagnosis.
 - Retry NATS and Redis integration container startup after bounded host-port
-  allocation races and clean up partially created containers between attempts.
+  allocation races, clean up partially created containers between attempts,
+  and keep Redis restart verification tolerant of loaded race-test hosts.
 - Regenerated the complete documentation bundle from the current package
   documentation and release notes.
 - Run the Redis Pub/Sub shutdown lifecycle benchmark once instead of allowing
@@ -1476,6 +1477,8 @@ versioning and Keep a Changelog structure.
 
 ### Fixed
 
+- Keep Valkey management pagination architecture-independent and validate
+  delivery-attempt bounds before narrowing persisted values.
 - Apply the configured Redis Streams command timeout to direct enqueue so a
   stalled append remains bounded consistently with source settlement and the
   Valkey Streams producer.

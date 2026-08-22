@@ -31,6 +31,8 @@ import (
 	official "github.com/opensearch-project/opensearch-go/v4"
 )
 
+const realOpenSearchHealthConvergenceTimeout = 3 * time.Minute
+
 func TestRealOpenSearchConformanceSharedSemantics(t *testing.T) {
 	endpoint := os.Getenv("OPENSEARCH_URL")
 	expectedVersion := os.Getenv("OPENSEARCH_EXPECTED_VERSION")
@@ -2263,7 +2265,7 @@ func TestRealOpenSearchConformance(t *testing.T) {
 	if err != nil || resolved != physical {
 		t.Fatalf("ResolveAlias() after rollback = %q/%v", resolved, err)
 	}
-	healthDeadline := time.Now().Add(30 * time.Second)
+	healthDeadline := time.Now().Add(realOpenSearchHealthConvergenceTimeout)
 	var health adapter.HealthReport
 	for {
 		health, err = client.Health(t.Context())
@@ -2271,7 +2273,11 @@ func TestRealOpenSearchConformance(t *testing.T) {
 			break
 		}
 		if time.Now().After(healthDeadline) {
-			t.Fatalf("Health() did not become ready within 30s: %#v", health)
+			t.Fatalf(
+				"Health() did not become ready within %s: %#v",
+				realOpenSearchHealthConvergenceTimeout,
+				health,
+			)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

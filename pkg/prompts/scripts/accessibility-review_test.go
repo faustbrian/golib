@@ -38,7 +38,8 @@ func TestReviewMultiSelectAllowsRepeatedCorrection(t *testing.T) {
 	}
 	_, err = prompts.Parse(context.Background(), prompt, "", nil)
 	var issue *prompts.ValidationIssue
-	if !errors.As(err, &issue) || issue.Message() != "Select exactly two choices with Space before pressing Enter" {
+	if !errors.As(err, &issue) ||
+		issue.Message() != "Select exactly two choices with Space before pressing Enter" {
 		t.Fatalf("empty selection error = %v", err)
 	}
 }

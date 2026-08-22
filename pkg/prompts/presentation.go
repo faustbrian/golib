@@ -20,7 +20,7 @@ const (
 
 // Message is a caller-localized note or status message.
 type Message struct {
-	Kind        MessageKind
+	Kind MessageKind
 	Title, Body string
 }
 
@@ -51,8 +51,8 @@ func WriteMessage(ctx context.Context, message Message, execution Execution) err
 
 // Table is a bounded rectangular display model.
 type Table struct {
-	Headers             []string
-	Rows                [][]string
+	Headers []string
+	Rows [][]string
 	MaxRows, MaxColumns int
 }
 
@@ -66,8 +66,11 @@ func WriteTable(ctx context.Context, table Table, execution Execution) error {
 	if maximumColumns == 0 {
 		maximumColumns = 50
 	}
-	if len(table.Headers) == 0 || maximumRows < 1 || maximumColumns < 1 ||
-		len(table.Headers) > maximumColumns || len(table.Rows) > maximumRows {
+	if len(table.Headers) == 0 ||
+		maximumRows < 1 ||
+		maximumColumns < 1 ||
+		len(table.Headers) > maximumColumns ||
+		len(table.Rows) > maximumRows {
 		return invalidBehaviorDefinition("write table", "table", ErrInvalidDefinition)
 	}
 	columns := len(table.Headers)
@@ -77,10 +80,17 @@ func WriteTable(ctx context.Context, table Table, execution Execution) error {
 	}
 	for _, row := range table.Rows {
 		if len(row) != columns {
-			return invalidBehaviorDefinition("write table", "table", ErrInvalidDefinition)
+			return invalidBehaviorDefinition(
+				"write table",
+				"table",
+				ErrInvalidDefinition,
+			)
 		}
 		for index, value := range row {
-			widths[index] = max(widths[index], uniseg.StringWidth(renderText(value, asciiOnly)))
+			widths[index] = max(
+				widths[index],
+				uniseg.StringWidth(renderText(value, asciiOnly)),
+			)
 		}
 	}
 	lines := []SemanticLine{tableLine(table.Headers, widths, RoleLabel, asciiOnly)}
@@ -96,9 +106,9 @@ func tableLine(values []string, widths []int, role Role, asciiOnly bool) Semanti
 	for index, value := range values {
 		value = renderText(value, asciiOnly)
 		output.WriteString(value)
-		output.WriteString(strings.Repeat(" ", widths[index]-uniseg.StringWidth(value)))
+		output.WriteString(strings.Repeat(" ", widths[index] - uniseg.StringWidth(value)))
 		output.WriteString(" |")
-		if index+1 < len(values) {
+		if index + 1 < len(values) {
 			output.WriteByte(' ')
 		}
 	}
@@ -118,9 +128,16 @@ func WriteSummary(ctx context.Context, values []KeyValue, execution Execution) e
 	lines := make([]SemanticLine, 0, len(values))
 	for _, value := range values {
 		if value.Key == "" {
-			return invalidBehaviorDefinition("write summary", "summary", fmt.Errorf("%w: summary key is required", ErrInvalidDefinition))
+			return invalidBehaviorDefinition(
+				"write summary",
+				"summary",
+				fmt.Errorf("%w: summary key is required", ErrInvalidDefinition),
+			)
 		}
-		lines = append(lines, Line(Text(RoleLabel, value.Key+": "), Text(RoleValue, value.Value)))
+		lines = append(
+			lines,
+			Line(Text(RoleLabel, value.Key + ": "), Text(RoleValue, value.Value)),
+		)
 	}
 	return renderOutput(ctx, "summary", NewFrame(lines...), execution)
 }

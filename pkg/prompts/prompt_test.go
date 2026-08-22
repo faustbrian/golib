@@ -24,12 +24,15 @@ func TestTextDefinitionRequiresStableIdentityAndLabel(t *testing.T) {
 func TestTextDefinitionHasStableIdentityAndExplicitOptionalValues(t *testing.T) {
 	t.Parallel()
 
-	prompt := newTextPrompt(t, prompts.TextConfig{
-		ID:       "name",
-		Label:    "Name",
-		Default:  prompts.Some(""),
-		Fallback: prompts.Some("batch-name"),
-	})
+	prompt := newTextPrompt(
+		t,
+		prompts.TextConfig{
+			ID: "name",
+			Label: "Name",
+			Default: prompts.Some(""),
+			Fallback: prompts.Some("batch-name"),
+		},
+	)
 	if prompt.ID() != "name" {
 		t.Fatalf("ID() = %q", prompt.ID())
 	}

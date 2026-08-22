@@ -19,14 +19,14 @@ const (
 
 type selectionReplay struct {
 	selected []string
-	focusID  string
-	query    string
+	focusID string
+	query string
 }
 
 type formReplay struct {
-	kind      formReplayKind
-	text      string
-	bytes     *SecretBytes
+	kind formReplayKind
+	text string
+	bytes *SecretBytes
 	selection selectionReplay
 }
 
@@ -41,7 +41,7 @@ func (replay *formReplay) destroy() {
 }
 
 type formInteraction struct {
-	initial  *formReplay
+	initial *formReplay
 	captured *formReplay
 }
 

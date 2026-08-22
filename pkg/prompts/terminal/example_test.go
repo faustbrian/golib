@@ -16,9 +16,11 @@ func ExampleNew() {
 }
 
 func ExampleNew_secretBytes() {
-	adapter, err := terminal.New(os.Stdin, os.Stdout, terminal.Config{
-		Decoder: prompts.DecoderConfig{ByteInput: true},
-	})
+	adapter, err := terminal.New(
+		os.Stdin,
+		os.Stdout,
+		terminal.Config{Decoder: prompts.DecoderConfig{ByteInput: true}},
+	)
 	if err != nil {
 		return
 	}

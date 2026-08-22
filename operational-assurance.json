@@ -1782,6 +1782,14 @@
   "risk_acceptances": [],
   "input_digest_migrations": [
     {
+      "module": "pkg/lease",
+      "from_sha256": "a232026e5b95c995db26fbd6fa7c576a190474c08efd2f2551cc957e1ca14741",
+      "to_sha256": "6aaf18768fb87e1a316db7a31356f97770f9798a1a2d703e0e009e4aca493b9f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-LEASE-PRE-V1-METADATA.md",
+      "evidence_sha256": "3ab9b7cb14e8d7dc3f50efdb3fa419b88a6cc4015bb3106197e1ef5d45cacab8",
+      "rationale": "Lease owned-version and pre-v1 changelog normalization changes only module metadata and release documentation; runtime source and the retained reference-service behavior are unchanged."
+    },
+    {
       "module": "pkg/search/adapters/opensearch",
       "from_sha256": "ba38d91565359079d8b16264d386002e0a18f9b4abfb2cdf9b70600926db5690",
       "to_sha256": "410c977b9a7bca12f86af19a0a3c0a1b2c52b43554b55d63f90cfcd65ee7b967",
@@ -3628,6 +3636,78 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TENANCY-HEADER-FILTER.md",
       "evidence_sha256": "b7c5e5450d8e0b320e651dec115452e53e8ce9e4b55948a45c1efa2f734dc5dd",
       "rationale": "The HTTP test suite now proves that unrelated headers cannot influence tenant extraction and kills the remaining loop-control mutant; production behavior and the retained HTTP reference scenario are unchanged."
+    },
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "ee1d0884ecc7f783e99af0c2a09dcf12499d361b995610423ee38edb350b19c3",
+      "to_sha256": "c0fe0dbb5b95267e9af4d374101522fcbe80d8f8d75329cac80d8e7e498779e9",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Queue analyzer remediation changed this adapter's transitive verification fingerprint without changing behavior exercised by the retained HTTP reference scenario."
+    },
+    {
+      "module": "pkg/http-client",
+      "from_sha256": "8511ce4ea8f40627e708ac597c58c24a6226c034afac327869305619cb5ce472",
+      "to_sha256": "4fd30885a53d367e76bc0581f43f0f99f9a05b626388d9796a36bbab666851d3",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Removing a redundant token-bucket assignment preserved reservation behavior exercised by the retained external reference scenario."
+    },
+    {
+      "module": "pkg/lease",
+      "from_sha256": "b6d31a29b62f079c80363f1533ef6d24c5c59c5d4da389079e75cf19fa4ac8bb",
+      "to_sha256": "a232026e5b95c995db26fbd6fa7c576a190474c08efd2f2551cc957e1ca14741",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Transitive retry and queue verification inputs changed without changing lease behavior exercised by the retained HTTP reference scenario."
+    },
+    {
+      "module": "pkg/localized",
+      "from_sha256": "bedff297b382b2ba91a23040706c8f8bfa6206b0c65fed2a50774a3f085162bf",
+      "to_sha256": "8055919b6ec127a6bf1a379fc98e09928f4e73916129815adbd68da43af823f5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Transitive retry verification inputs changed without changing localized behavior exercised by the retained HTTP reference scenario."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "7b6dccf1b89cbdf3f8023dcf9f81183847f698904a1f2cf36d4bfa46d1ecd554",
+      "to_sha256": "c50fd66824a7a8700e566797e72fcd7d46616b157672926705d041e789e953e8",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Queue analyzer remediation changed transitive verification inputs without changing control-plane behavior exercised by the retained HTTP reference scenario."
+    },
+    {
+      "module": "pkg/queue/queueservice",
+      "from_sha256": "86bc5f4886e9fbc8b029e2a38d3d8cb1ec15406b7b0a30a7cbdac1f0f66804e1",
+      "to_sha256": "2baa42223eb6152cf06d85862bf7a9f9f3c43b1bd1e012a2907c14ffe39f3b0f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Queue analyzer remediation changed transitive verification inputs without changing queue-service behavior exercised by the retained HTTP reference scenario."
+    },
+    {
+      "module": "pkg/retry",
+      "from_sha256": "c3e5756cef8873f14c0840c916c5b4326553af122ccd89fd7438c209e72ea687",
+      "to_sha256": "ac9b793b5eda5dc5590788a61d421dcf09fd2f30b4be550e9022a966788df900",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Signed-domain Retry-After parsing preserves saturation and delay outcomes exercised by the retained external reference scenario."
+    },
+    {
+      "module": "pkg/scheduler",
+      "from_sha256": "aa7a96ea2d5ca54bc07b100b8b5f07c5c357db57f86e47d9303b84d0158e0505",
+      "to_sha256": "71618a4e61f716b230d38afc9e1f7ce9c540ee8d5470819e3e9010d693437118",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Transitive queue verification inputs changed without changing scheduler behavior exercised by the retained HTTP reference scenario."
+    },
+    {
+      "module": "pkg/webhook",
+      "from_sha256": "e698e7c55f90cf50f339e0d0e86e9a5f5106bab4054772e6fb50c8b099195690",
+      "to_sha256": "9de763d19b2acb700ec7141fa667559ee11ce499fc773a0c0f9fca89a985831e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ANALYZER-BOUNDARIES.md",
+      "evidence_sha256": "5274c80d486646b66f14174aeff0dfa3a06d39fa8be82b56f40fd4112f9e7a39",
+      "rationale": "Transitive HTTP-client and retry verification inputs changed without changing webhook behavior exercised by the retained external reference scenario."
     }
   ]
 }

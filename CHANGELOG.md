@@ -7,6 +7,15 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Stage only durable attributable CI evidence so cancellation cannot upload
+  disposable mutation workspaces, Go build caches, locks, or partial files.
+- Replace analyzer-opaque integer narrowing and redundant assignments across
+  HTTP, retry, queue, regular-expression, and sequencer boundaries.
+- Scope fallback formatting to the packages owned by the selected module so
+  root checks cannot override a nested module's explicit formatter policy.
+- Honor explicit module `format` and `format-check` targets in the canonical
+  repository runner, while retaining gofmt as the fallback for modules without
+  formatter ownership.
 - Restore trusted content-addressed mutation checkpoints before CI module
   verification so unchanged packages retain their exact proof while changed,
   missing, malformed, or stale evidence executes normally.
@@ -46,10 +55,11 @@ documented in each module's changelog.
   on another platform without changing the evidence identity.
 - Prevent parallel release snapshots from expanding dependency closures a
   second time, so each selected module runs in exactly one isolated lane.
-- Normalize remaining non-specialist owned-module requirements to the local
-  `v0.0.0` source proxy and make mutation fingerprints ignore only owned
-  version locators, preserving content-identical evidence without hiding
-  source, test, fixture, tool, service, or external dependency changes.
+- Normalize all owned-module requirements to the unpublished local `v0.0.0`
+  source proxy, reject owned pseudo-versions in repository validation, and
+  make mutation fingerprints ignore only owned version locators, preserving
+  content-identical evidence without hiding source, test, fixture, tool,
+  service, or external dependency changes.
 - Ignore ambient `node_modules` trees when generating source-documentation
   manifests so local dependency installations cannot make fresh-clone
   validation stale.
