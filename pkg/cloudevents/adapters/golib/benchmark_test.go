@@ -8,6 +8,7 @@ import (
 	golib "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib"
 	"github.com/faustbrian/golib/pkg/kafka"
 	"github.com/faustbrian/golib/pkg/queue/job"
+	"github.com/faustbrian/golib/pkg/rabbitstream"
 )
 
 func BenchmarkKafkaBinaryRoundTrip(b *testing.B) {
@@ -21,6 +22,22 @@ func BenchmarkKafkaBinaryRoundTrip(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		if _, _, err := golib.DecodeKafka(record, cloudevents.DefaultLimits()); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkRabbitStreamStructuredRoundTrip(b *testing.B) {
+	event := benchmarkEvent(b)
+	message, err := golib.EncodeRabbitStream(event, golib.RabbitStreamTransport{Stream: "events"})
+	if err != nil {
+		b.Fatal(err)
+	}
+	message.Properties = []rabbitstream.MetadataEntry{{Key: "transport-attempt", Value: []byte("1")}}
+	b.SetBytes(int64(len(message.Payload)))
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, _, err := golib.DecodeRabbitStream(message, cloudevents.DefaultLimits()); err != nil {
 			b.Fatal(err)
 		}
 	}

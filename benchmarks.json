@@ -1534,6 +1534,22 @@
       ]
     },
     {
+      "directory": "pkg/outbox/adapters/gorabbitstream",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/outbox/adapters/gorabbitstream/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "rabbitstream-standalone"
+      ]
+    },
+    {
       "directory": "pkg/outbox/adapters/otel",
       "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
       "kind": "adapter",
@@ -1719,6 +1735,54 @@
         "rabbitmq",
         "redis",
         "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/rabbitstream",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/rabbitstream/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/rabbitstream/otel",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream/otel",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/rabbitstream/otel/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/rabbitstream/rabbitmq",
+      "module_path": "github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/rabbitstream/rabbitmq/benchmark_test.go",
+        "pkg/rabbitstream/rabbitmq/integration_benchmark_test.go",
+        "pkg/rabbitstream/rabbitmq/integration_resources_test.go"
+      ],
+      "documentation": [
+        "pkg/rabbitstream/rabbitmq/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "rabbitstream"
       ]
     },
     {

@@ -18,6 +18,9 @@ All notable changes to this module are documented here.
 - Document collision, trust, ownership, loss, migration, and security policy.
 - Enforce Kafka record limits before copying consumed key, value, or header
   metadata.
+- Add a structured JSON RabbitMQ Streams mapping that bounds copied transport
+  metadata and keeps broker state and properties outside the CloudEvents
+  context.
 - Require tenant metadata during trusted tenant extraction and validate audit,
   queue, and event-sourcing tenant identifiers before emission or replay
   acceptance; tenant remains optional for audit records that do not declare it.

@@ -6,7 +6,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 
 | Module | Packages | Package gaps | Exported declarations | Missing comments | Malformed comments | Generated gaps | Markers |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `.` | 1 | 1 | 135 | 135 | 0 | 0 | 0 |
+| `.` | 1 | 1 | 136 | 136 | 0 | 0 | 0 |
 | `pkg/adaptive-throttle` | 1 | 0 | 106 | 66 | 0 | 0 | 0 |
 | `pkg/analysis` | 28 | 1 | 442 | 283 | 0 | 0 | 0 |
 | `pkg/analysis/testdata/coverage` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -32,7 +32,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/cli/benchmarks` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/clock` | 3 | 0 | 153 | 58 | 0 | 0 | 0 |
 | `pkg/cloudevents` | 1 | 0 | 138 | 60 | 0 | 0 | 0 |
-| `pkg/cloudevents/adapters/golib` | 1 | 0 | 106 | 65 | 0 | 0 | 0 |
+| `pkg/cloudevents/adapters/golib` | 1 | 0 | 128 | 65 | 0 | 0 | 0 |
 | `pkg/concurrency-limit` | 1 | 0 | 185 | 134 | 0 | 0 | 0 |
 | `pkg/concurrency-limit/benchmarks/comparison` | 2 | 1 | 4 | 0 | 0 | 0 | 0 |
 | `pkg/concurrency-limit/integration/resilience` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -94,6 +94,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/openrpc` | 16 | 2 | 823 | 320 | 0 | 0 | 0 |
 | `pkg/outbox` | 3 | 0 | 272 | 198 | 0 | 0 | 0 |
 | `pkg/outbox/adapters/gokafka` | 1 | 0 | 26 | 16 | 0 | 0 | 0 |
+| `pkg/outbox/adapters/gorabbitstream` | 1 | 0 | 19 | 0 | 0 | 0 | 0 |
 | `pkg/outbox/adapters/otel` | 1 | 0 | 18 | 6 | 0 | 0 | 0 |
 | `pkg/outbox/adapters/queue` | 1 | 0 | 49 | 23 | 0 | 0 | 0 |
 | `pkg/password` | 7 | 1 | 156 | 0 | 0 | 0 | 0 |
@@ -104,6 +105,9 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/queue` | 21 | 14 | 1158 | 561 | 3 | 0 | 0 |
 | `pkg/queue-control-plane` | 17 | 3 | 984 | 632 | 0 | 0 | 0 |
 | `pkg/queue/queueservice` | 1 | 0 | 101 | 0 | 0 | 0 | 0 |
+| `pkg/rabbitstream` | 1 | 0 | 330 | 0 | 0 | 0 | 0 |
+| `pkg/rabbitstream/otel` | 1 | 0 | 11 | 0 | 0 | 0 | 0 |
+| `pkg/rabbitstream/rabbitmq` | 1 | 0 | 57 | 0 | 0 | 0 | 0 |
 | `pkg/rate-limit` | 11 | 0 | 307 | 19 | 0 | 0 | 0 |
 | `pkg/resilience` | 1 | 0 | 173 | 67 | 0 | 0 | 0 |
 | `pkg/retry` | 6 | 0 | 155 | 61 | 0 | 0 | 0 |

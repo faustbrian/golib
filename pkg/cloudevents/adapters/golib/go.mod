@@ -11,6 +11,7 @@ require (
 	github.com/faustbrian/golib/pkg/kafka v0.0.0
 	github.com/faustbrian/golib/pkg/outbox v0.0.0
 	github.com/faustbrian/golib/pkg/queue v0.0.0
+	github.com/faustbrian/golib/pkg/rabbitstream v0.0.0
 	github.com/faustbrian/golib/pkg/schema-registry v0.0.0
 	github.com/faustbrian/golib/pkg/telemetry v0.0.0
 	github.com/faustbrian/golib/pkg/tenancy v0.0.0

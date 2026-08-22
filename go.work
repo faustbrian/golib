@@ -88,6 +88,7 @@ use (
 	./pkg/openrpc
 	./pkg/outbox
 	./pkg/outbox/adapters/gokafka
+	./pkg/outbox/adapters/gorabbitstream
 	./pkg/outbox/adapters/queue
 	./pkg/outbox/adapters/otel
 	./pkg/password
@@ -98,6 +99,9 @@ use (
 	./pkg/queue
 	./pkg/queue-control-plane
 	./pkg/queue/queueservice
+	./pkg/rabbitstream
+	./pkg/rabbitstream/otel
+	./pkg/rabbitstream/rabbitmq
 	./pkg/rate-limit
 	./pkg/resilience
 	./pkg/retry
@@ -286,6 +290,8 @@ replace github.com/faustbrian/golib/pkg/outbox/adapters/queue v0.0.0 => ./pkg/ou
 
 replace github.com/faustbrian/golib/pkg/outbox/adapters/gokafka v0.0.0 => ./pkg/outbox/adapters/gokafka
 
+replace github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream v0.0.0 => ./pkg/outbox/adapters/gorabbitstream
+
 replace github.com/faustbrian/golib/pkg/outbox/adapters/otel v0.0.0 => ./pkg/outbox/adapters/otel
 
 replace github.com/faustbrian/golib/pkg/outbox v0.0.0 => ./pkg/outbox
@@ -303,6 +309,12 @@ replace github.com/faustbrian/golib/pkg/prompts v0.0.0 => ./pkg/prompts
 replace github.com/faustbrian/golib/pkg/queue-control-plane v0.0.0 => ./pkg/queue-control-plane
 
 replace github.com/faustbrian/golib/pkg/queue v0.0.0 => ./pkg/queue
+
+replace github.com/faustbrian/golib/pkg/rabbitstream v0.0.0 => ./pkg/rabbitstream
+
+replace github.com/faustbrian/golib/pkg/rabbitstream/otel v0.0.0 => ./pkg/rabbitstream/otel
+
+replace github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq v0.0.0 => ./pkg/rabbitstream/rabbitmq
 
 replace github.com/faustbrian/golib/pkg/rate-limit v0.0.0 => ./pkg/rate-limit
 
