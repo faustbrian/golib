@@ -1045,11 +1045,6 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct rebalance consumer child: %v", err)
 	}
-	defer func() {
-		if closeErr := consumer.Close(); closeErr != nil {
-			t.Errorf("close rebalance consumer child: %v", closeErr)
-		}
-	}()
 
 	assignmentCtx, cancelAssignment := context.WithTimeout(
 		context.Background(),
@@ -1149,9 +1144,45 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 		result != (kafka.PollResult{Polled: 2, Processed: 2, Committed: 2}) {
 		t.Fatalf("drain rebalance child result = (%#v, %v)", result, runErr)
 	}
+	shutdownApacheKafkaRebalanceConsumer(t, consumer)
 	if err := report(apacheKafkaConsumerResult + ":" + scenario); err != nil {
 		t.Fatalf("report rebalance consumer child result: %v", err)
 	}
+}
+
+func shutdownApacheKafkaRebalanceConsumer(
+	t *testing.T,
+	consumer *kafka.Consumer,
+) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		apacheKafkaRebalanceShutdownTimeout,
+	)
+	defer cancel()
+
+	const maximumAttempts = 3
+	var shutdownErr error
+	for attempt := range maximumAttempts {
+		shutdownErr = consumer.Shutdown(ctx)
+		if shutdownErr == nil {
+			return
+		}
+		if !errors.Is(shutdownErr, kafka.ErrConsumerShutdownIncomplete) ||
+			ctx.Err() != nil || attempt == maximumAttempts-1 {
+			break
+		}
+
+		retryDelay := time.NewTimer(100 * time.Millisecond)
+		select {
+		case <-retryDelay.C:
+		case <-ctx.Done():
+			retryDelay.Stop()
+		}
+	}
+
+	t.Fatalf("shutdown rebalance consumer child: %v", shutdownErr)
 }
 
 func waitForApacheKafkaBufferedConsumerRecords(
