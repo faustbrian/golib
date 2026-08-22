@@ -7,6 +7,11 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Strengthen queue control-plane boundary tests for desired-state targets,
+  command metadata defaults, and nonterminal dispatch outcomes, with an exact
+  operational-assurance input-digest migration for the test-only transition.
+- Remove scheduler-order assumptions from concurrent RabbitMQ Streams consumer
+  reconnect verification while retaining causal lifecycle assertions.
 - Make the CloudEvents RabbitMQ Streams decoder source stable across Go 1.26.6
   and Go 1.27 formatting while preserving its decoded output.
 - Preserve retained operational-assurance evidence across additive RabbitMQ

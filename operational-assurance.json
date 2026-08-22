@@ -4545,6 +4545,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CLOUDEVENTS-GOFMT.md",
       "evidence_sha256": "5585100f47755eaf48891bbc554cda846f21424b16ae5a1b8db7d9068c0539b0",
       "rationale": "The RabbitMQ Streams decoder now constructs identical return values through formatter-stable local variables; its public API, validation, errors, and values exercised by retained evidence are unchanged."
+    },
+    {
+      "module": "pkg/queue-control-plane",
+      "from_sha256": "d53a2100e31e208117316d25782e77c5b41c8c66d346f6a0a4513f766ffbc075",
+      "to_sha256": "c97ab01c9f0baa7e435b966b9b94306324f7ae1ada6eb98f05918c61a2adf3f5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-QUEUE-CONTROL-TESTS.md",
+      "evidence_sha256": "840281e5d27e80f24ee59d57bb0f8a8fdc1fcf6a6019a46ef322394eb4cab24b",
+      "rationale": "Queue control-plane tests now exercise previously unasserted boundary alternatives without changing production source, public APIs, dependencies, configuration, fixtures, or operational behavior."
     }
   ]
 }

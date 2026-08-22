@@ -46,6 +46,14 @@ func TestNextDesiredStateBuildsMonotonicAttributedTransitions(t *testing.T) {
 	if draining.State != DesiredDraining {
 		t.Fatalf("draining state = %q, want %q", draining.State, DesiredDraining)
 	}
+	workerDrain := desiredCommand(controlplane.ActionDrain, controlplane.TargetWorker, requestedAt)
+	workerDraining, err := NextDesiredState(nil, workerDrain)
+	if err != nil {
+		t.Fatalf("NextDesiredState(worker drain) error = %v", err)
+	}
+	if workerDraining.State != DesiredDraining {
+		t.Fatalf("worker draining state = %q, want %q", workerDraining.State, DesiredDraining)
+	}
 
 	terminate := desiredCommand(controlplane.ActionTerminate, controlplane.TargetWorkerGroup, requestedAt.Add(time.Second))
 	terminating, err := NextDesiredState(&draining, terminate)

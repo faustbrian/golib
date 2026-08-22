@@ -35,6 +35,7 @@ Reviewed evidence-identity migrations are retained as part of the audit trail:
 - [Knapsack checksum and evidence migration](evidence/OA-INPUT-DIGEST-MIGRATION-KNAPSACK-CHECKSUM-EVIDENCE.md)
 - [RabbitMQ Streams fixture migration](evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md)
 - [CloudEvents formatter migration](evidence/OA-INPUT-DIGEST-MIGRATION-CLOUDEVENTS-GOFMT.md)
+- [Queue control test migration](evidence/OA-INPUT-DIGEST-MIGRATION-QUEUE-CONTROL-TESTS.md)
 
 ## Reference Services
 
