@@ -43,6 +43,7 @@ func TestApacheKafkaTieredStorageReplayCompatibility(t *testing.T) {
 	cluster := &apacheKafkaCluster{nodes: []apacheKafkaNode{node}}
 	cluster.assertRuntimeVersion(t, ctx, "4.3.1")
 	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
 
 	createIntegrationTopicWithReplication(
 		t,
