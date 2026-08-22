@@ -3,7 +3,7 @@ module github.com/faustbrian/golib/pkg/bulkhead
 go 1.26.6
 
 require (
-	github.com/failsafe-go/failsafe-go v0.9.6
+	github.com/failsafe-go/failsafe-go v0.9.7
 	go.uber.org/goleak v1.3.0
 	golang.org/x/sync v0.22.0
 )
