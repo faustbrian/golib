@@ -1,6 +1,6 @@
 # Repository hardening report
 
-Audit date: 2026-08-13
+Audit date: 2026-08-22
 
 ## Scope and status
 
@@ -14,10 +14,10 @@ statement denominator.
 
 The repository migration, manifests, canonical module paths, root workspace,
 root command surface, unified CI workflow, governance, and strict gate policy
-are implemented. Final release readiness remains **in progress** until every
-module has current evidence, the aggregate repository check passes from the
-final tree, and the authoritative GitHub Actions run is green. This report must
-not be used as a release approval while that status remains in progress.
+are verified for the current normalization content. Public release readiness
+remains **not established** because the separate operational-assurance,
+source-documentation, comparative-performance, and release programs remain
+incomplete. This report is normalization evidence, not release approval.
 
 ## Repository contract
 
@@ -101,11 +101,10 @@ remains future work and therefore no security-audit, production-suitability,
 stable-v1, or Ethereum-compatibility claim is made for that module.
 
 Current local goal audits verify all 104 goal-bearing modules. The final owned
-module, `pkg/search/adapters/opensearch`, now has current input-bound evidence
-for all 21 canonical gates, including its real-cluster test, race, exact
-1908/1908 statement coverage, fuzz, retained 1377/1377 mutation result,
-conformance, interoperability, and comparative benchmarks. This intermediate
-report is not a substitute for the final package matrix.
+module, `pkg/search/adapters/opensearch`, has current input-bound evidence for
+all 21 canonical gates, including its real-cluster test, race, exact 1908/1908
+statement coverage, fuzz, retained 1377/1377 mutation result, conformance,
+interoperability, and comparative benchmarks.
 
 The current root catalog validates 138 module records, 693 package records,
 and cohesion policy for all 107 releasable modules. OpenSearch specification
@@ -113,6 +112,27 @@ governance and its security, compatibility, recovery, and operations evidence
 are complete. All 104 goal-bearing modules now have current goal-traceability
 records; Kafka and Verkle Tree retain their documented bounded support and
 security non-claims.
+
+## Authoritative CI proof
+
+The authoritative package-matrix run
+[`32569072838`](https://github.com/faustbrian/golib/actions/runs/32569072838)
+passed all 142 jobs for the normalization behavior content at
+`510670183fb04dcaa02c8be62f3f22920917f9a6`. This consists of 137 attributable
+active-module jobs, module selection, the repository contract, CodeQL, the
+Kafka Linux arm64 job, and the fail-closed `Required` summary. The catalog's
+138th module, `pkg/analysis/testdata/coverage`, is an explicitly non-production
+fixture with no applicable gates and is intentionally excluded from CI
+selection. Every selected module uploaded its own durable evidence artifact.
+
+The all-module non-push path used by scheduled and release events was also
+exercised by workflow-dispatch run
+[`32561651547`](https://github.com/faustbrian/golib/actions/runs/32561651547).
+Its first attempt exposed an intermittent Kafka rebalance-child shutdown; the
+test now completes the documented retriable shutdown lifecycle before reporting
+success. Attempt 2 passed, and the subsequent main run passed the repaired
+Kafka contract and Linux arm64 job without rerunning unaffected mutation
+campaigns.
 
 ## Specification and interoperability evidence
 
@@ -147,10 +167,10 @@ gate.
 ## Release readiness
 
 Release readiness is currently **not established**. Operational assurance is
-currently `not ready`: 2 of 11 scenarios pass and five residual risks remain
-open. All 107 releasable modules now have current dependency-ordered `v1.0.0`
-dry-run and deterministic all-module clean-consumer proof. Release readiness
-still requires all root and package gates to pass from the final tree, a clean
-worktree, public release artifacts and provenance, and the final GitHub Actions
-matrix plus required summary and CodeQL jobs to succeed. The report will record
-the exact final revision and CI run only after those conditions are true.
+`not ready`: 2 of 11 scenarios pass and five residual risks remain open. All
+107 releasable modules have current dependency-ordered `v1.0.0` dry-run and
+deterministic all-module clean-consumer proof, and the complete normalization
+matrix is green. Release readiness still requires the outstanding operational
+assurance scenarios and risks, completion of the source-documentation and
+comparative-performance programs, public release artifacts and provenance,
+and explicit release authority. No tag or public release was created.

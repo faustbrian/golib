@@ -9,7 +9,7 @@ public version of each ready module is `v1.0.0`.
 | Area | Status | Authoritative evidence |
 | --- | --- | --- |
 | Module and package inventory | Implemented, continuously validated | [Package catalog](package-catalog.md) and [engineering inventory](engineering-inventory.md) |
-| Repository quality gates | Implemented, final aggregate release proof pending | [Quality](quality.md), [CI](ci.md), and [hardening report](hardening-report.md) |
+| Repository quality gates | Normalization matrix verified; release assurance pending | [Quality](quality.md), [CI](ci.md), and [hardening report](hardening-report.md) |
 | Specification governance | Implemented with unresolved package findings | [Specification governance](specification-governance.md) |
 | Benchmark execution | Required modules have gate evidence; comparative program incomplete | [Benchmark catalog](benchmark-catalog.md) and [performance](performance.md) |
 | Source documentation | Inventory implemented; package and API comment pass incomplete | [Source documentation audit](source-documentation-audit.md) |

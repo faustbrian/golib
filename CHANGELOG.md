@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Replace stale normalization-readiness claims with exact package-attributable
+  main and full-event CI proof while preserving separate release blockers.
 - Stage only durable attributable CI evidence so cancellation cannot upload
   disposable mutation workspaces, Go build caches, locks, or partial files.
 - Replace analyzer-opaque integer narrowing and redundant assignments across

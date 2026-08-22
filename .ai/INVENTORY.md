@@ -77,7 +77,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 57 | Repository audit | `implemented-unverified` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-56 |
 | 58 | Repository audit | `implemented-unverified` | `.ai/GOAL_DOCUMENTATION.md` | 50, 57 |
 | 59 | Repository audit | `implemented-unverified` | `.ai/GOAL_POLISH.md` | 3-58 |
-| 60 | Repository audit | `pending-reexecution` | `.ai/GOAL_MONOREPO_REMEDIATION.md` | 3-59 |
 | 61 | Repository audit | `pending-reexecution` | `.ai/GOAL_HARDEN.md` | 3-60 |
 | 62 | Repository audit | `pending-reexecution` | `.ai/GOAL.md` | 3-61 |
 | 63 | Operational assurance | `pending` | `.ai/GOAL_OPERATIONAL_ASSURANCE.md` | 3-62 |
@@ -97,6 +96,7 @@ assurance scope.
 
 | Goal | Status | Treatment |
 | --- | --- | --- |
+| `.ai/GOAL_MONOREPO_REMEDIATION.md` | `verified` | The canonical layout, module graph, strict package gates, full-event CI path, clean consumers, and package-attributable evidence are current. Requeue only affected requirements or content; Git-history changes alone do not invalidate this proof. |
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
 | `pkg/resilience/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 3. Current scoped evidence verifies the composition contracts, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/semaphore/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 4. Current scoped evidence verifies semaphore behavior, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
@@ -987,6 +987,19 @@ assurance scope.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after bounded manifest and validation runs. |
 | Observed | 2026-08-11T21:17:39Z |
 | Gaps | Final documentation verification still requires complete runnable recipe modules, structured Laravel and standalone migration guides, Kubernetes and local operations guides, fair comparison pages, a central limitations register, package README consistency and root backlinks for all releasable modules, compiled snippets, deterministic external-link and orphan-page checks, terminology and stale-claim enforcement, adoption walkthroughs for every target audience, and final rendered-document review. |
+
+### Monorepo normalization and strict hardening
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_MONOREPO_REMEDIATION.md` |
+| Scope | The canonical `pkg/` layout, all 138 cataloged modules, 693 packages, 107 releasable modules, 137 active CI modules, repository governance, strict gate enforcement, interoperability, and clean-consumer proof. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Main-branch GitHub Actions run `32569072838` at content revision `510670183fb04dcaa02c8be62f3f22920917f9a6`; workflow-dispatch run `32561651547` for the non-push all-module path; attributable module artifacts; `modules.json`, `packages.json`, `docs/goal-traceability.md`, `docs/hardening-report.md`, and `docs/assurance/evidence/OA-RELEASE-CONSUMER-ALL-LOCAL.md`. |
+| Result | All 142 final main-run jobs passed: 137 active module jobs, selection, repository contract, CodeQL, Kafka Linux arm64, and fail-closed Required. Exact coverage and viable-mutation requirements passed through the content-addressed package evidence model; WSDL interoperability passed with Apache Woden; all 107 releasable modules retain exact local `v1.0.0` clean-consumer proof. The sole cataloged module outside CI is the explicit non-production `pkg/analysis/testdata/coverage` fixture with no applicable gates. |
+| Environment | GitHub-hosted Ubuntu 24.04 amd64 runners plus the required Ubuntu 24.04 arm64 Kafka runner, Go 1.26.6, pinned gate tools and service images, and task-owned CI caches. Local focused verification used a disposable `GOCACHE`; Docker-backed verification ran only in isolated CI. |
+| Observed | 2026-08-22T13:15:27Z |
+| Gaps | This verifies the normalization goal only. Operational assurance remains `not ready` at 2/11 scenarios with five residual risks; repository source-documentation and comparative-performance goals remain incomplete; no tag, public release, or release-readiness claim is authorized. |
 
 ### Independent module release dry-run audit
 
