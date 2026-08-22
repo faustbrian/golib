@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Make the CloudEvents RabbitMQ Streams decoder source stable across Go 1.26.6
+  and Go 1.27 formatting while preserving its decoded output.
 - Preserve retained operational-assurance evidence across additive RabbitMQ
   Streams fixture orchestration with reviewed, exact input-digest migrations,
   while keeping the four new modules outside prior matrix and consumer claims.

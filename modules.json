@@ -407,6 +407,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CAPABILITY-POSTGRES-PRECISION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CHANGELOG-CHECKSUM-PROPAGATION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CI-PORTABILITY.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CLOUDEVENTS-GOFMT.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-FILESYSTEM-FAULT-PROXY.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-MIDDLEWARE-ADMISSION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-COMPATIBILITY-FILTER.md",

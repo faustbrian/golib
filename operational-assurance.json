@@ -4537,6 +4537,14 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RABBITSTREAM-FIXTURES.md",
       "evidence_sha256": "bc8c506d1c8f314d10fe9dbf017f1cc588ceb0e6449f97fa03492fbebcfe5c81",
       "rationale": "RabbitMQ Streams adds isolated service-fixture branches and catalog surfaces that are not exercised by the retained reference campaigns; pre-existing campaign behavior and claim boundaries are unchanged."
+    },
+    {
+      "module": "pkg/cloudevents/adapters/golib",
+      "from_sha256": "f42e88c939a801184c2441ba13cfbfa8e19873be826875487db995ad3f4255ca",
+      "to_sha256": "eec632d335fcd0fafc8c94e08f3eb12302e9a0dd45b155ca080abf3537d42553",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-CLOUDEVENTS-GOFMT.md",
+      "evidence_sha256": "5585100f47755eaf48891bbc554cda846f21424b16ae5a1b8db7d9068c0539b0",
+      "rationale": "The RabbitMQ Streams decoder now constructs identical return values through formatter-stable local variables; its public API, validation, errors, and values exercised by retained evidence are unchanged."
     }
   ]
 }

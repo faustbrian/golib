@@ -58,6 +58,8 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- Keep RabbitMQ Streams decoding source formatted identically by the supported
+  Go 1.26.6 toolchain and Go 1.27 without changing decoded values or state.
 - Return the CloudEvents context-required category from both schema validators
   when either is called directly with a nil context, avoiding a registry panic.
 - Preserve the tenant-specific error classification when malformed queue
