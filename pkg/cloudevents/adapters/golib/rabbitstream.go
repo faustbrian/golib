@@ -121,14 +121,16 @@ func DecodeRabbitStream(
 		message.RoutingKey != "" && !bytes.Equal(partitionKey, []byte(message.RoutingKey)) {
 		return RabbitStreamMessage{}, RabbitStreamState{}, fmt.Errorf("%w: RabbitStream routing key", ErrMetadataCollision)
 	}
-	return RabbitStreamMessage{
+	decoded := RabbitStreamMessage{
 		Event: event, TransportProperties: cloneRabbitStreamMetadata(message.Properties),
-	}, RabbitStreamState{
+	}
+	state := RabbitStreamState{
 		Stream: message.Stream, SuperStream: message.SuperStream, Partition: message.Partition,
 		RoutingKey: message.RoutingKey, CorrelationID: message.CorrelationID,
 		PublishingID: message.PublishingID, HasPublishingID: message.HasPublishingID,
 		Offset: message.Offset, HasOffset: message.HasOffset, Timestamp: message.Timestamp,
-	}, nil
+	}
+	return decoded, state, nil
 }
 
 func validateRabbitStreamMessage(message rabbitstream.Message) error {

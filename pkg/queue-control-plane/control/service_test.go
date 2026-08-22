@@ -217,6 +217,51 @@ func TestServiceExecuteFailsBeforeAuthorizationWhenCommandIDIsUnavailable(t *tes
 	}
 }
 
+func TestServiceExecuteDefaultsOnlyMissingCommandMetadata(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		command            controlplane.Command
+		wantAuthentication string
+		wantCapability     string
+	}{
+		"missing": {
+			command:            validCommand(),
+			wantAuthentication: "internal",
+			wantCapability:     string(controlplane.ActionDrain),
+		},
+		"supplied": {
+			command: validCommand(func(command *controlplane.Command) {
+				command.AuthenticationMethod = "bearer"
+				command.Capability = "worker_drain"
+			}),
+			wantAuthentication: "bearer",
+			wantCapability:     "worker_drain",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			journal := &journalStub{created: true}
+			service := NewService(&authorizerStub{}, journal, &dispatcherStub{}, time.Now)
+			if _, err := service.Execute(context.Background(), tt.command); err != nil {
+				t.Fatalf("Execute() error = %v", err)
+			}
+			if journal.command.AuthenticationMethod != tt.wantAuthentication ||
+				journal.command.Capability != tt.wantCapability {
+				t.Fatalf(
+					"command metadata = %q/%q, want %q/%q",
+					journal.command.AuthenticationMethod,
+					journal.command.Capability,
+					tt.wantAuthentication,
+					tt.wantCapability,
+				)
+			}
+		})
+	}
+}
+
 func TestServiceExecuteFailsClosedWithoutLifecycleJournal(t *testing.T) {
 	t.Parallel()
 
@@ -645,6 +690,27 @@ func TestDispatchTelemetryRejectsNonterminalLifecycleStates(t *testing.T) {
 	} {
 		if got := dispatchTelemetryOutcome(status); got != "invalid" {
 			t.Fatalf("dispatchTelemetryOutcome(%q) = %q, want invalid", status, got)
+		}
+	}
+}
+
+func TestValidDispatchOutcomeRejectsEveryNonterminalLifecycleState(t *testing.T) {
+	t.Parallel()
+
+	command := validCommand()
+	for _, status := range []controlplane.CommandStatus{
+		controlplane.CommandPending,
+		controlplane.CommandAccepted,
+		controlplane.CommandDispatched,
+		controlplane.CommandAcknowledged,
+		controlplane.CommandCanceled,
+	} {
+		outcome := DispatchOutcome{
+			Status:      status,
+			CompletedAt: command.RequestedAt.Add(time.Second),
+		}
+		if validDispatchOutcome(command, outcome) {
+			t.Fatalf("validDispatchOutcome(%q) = true, want false", status)
 		}
 	}
 }

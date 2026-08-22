@@ -6,6 +6,12 @@ Versioning.
 
 ## Unreleased
 
+### Fixed
+
+- Strengthen command-orchestration verification around desired-state target
+  alternatives, caller-supplied metadata, and every nonterminal dispatch
+  outcome.
+
 ### Documentation
 
 - Replace obsolete standalone-repository links and workflow claims with

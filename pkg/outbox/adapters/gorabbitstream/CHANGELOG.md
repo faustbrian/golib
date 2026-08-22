@@ -4,10 +4,9 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
-### Changed
+### Fixed
 
-- Pin owned outbox and RabbitMQ Streams dependencies to published
-  pseudo-versions so the adapter resolves outside the repository workspace.
+- Link the module README to the repository documentation portal.
 
 ### Added
 
