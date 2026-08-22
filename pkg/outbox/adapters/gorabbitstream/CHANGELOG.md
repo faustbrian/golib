@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Pin owned outbox and RabbitMQ Streams dependencies to published
+  pseudo-versions so the adapter resolves outside the repository workspace.
+
 ### Added
 
 - Add a bounded synchronous adapter from persisted outbox envelopes to

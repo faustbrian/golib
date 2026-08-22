@@ -3,9 +3,9 @@ module github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream
 go 1.26.6
 
 require (
-	github.com/faustbrian/golib/pkg/outbox v0.0.0
-	github.com/faustbrian/golib/pkg/rabbitstream v0.0.0
-	github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq v0.0.0
+	github.com/faustbrian/golib/pkg/outbox v0.0.0-20260728101015-892ced8a73c9
+	github.com/faustbrian/golib/pkg/rabbitstream v0.0.0-20260822133134-872b231b9270
+	github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq v0.0.0-20260822134113-3c6a56ef06d0
 	github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3
 )
 
