@@ -2132,6 +2132,8 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 	bodies, mediaTypes, err := bodyConverter.requestBodyMap(conversionValue(t, `{
 		"Form":{"content":{"multipart/form-data":{"schema":{"type":"object","properties":{}}}}},
 		"Empty":{"content":{}},
+		"EmptyReference":{"$ref":""},
+		"MalformedReference":{"$ref":true},
 		"Payload":{"content":{"application/json":{"schema":{"type":"string"}}}}
 	}`), "/requestBodies")
 	if err != nil {
@@ -2142,6 +2144,12 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 	}
 	if _, exists := bodies.Lookup("Empty"); exists {
 		t.Fatal("empty reusable body was retained")
+	}
+	if _, exists := bodies.Lookup("EmptyReference"); exists {
+		t.Fatal("empty reusable body reference was retained")
+	}
+	if _, exists := bodies.Lookup("MalformedReference"); exists {
+		t.Fatal("malformed reusable body reference was retained")
 	}
 	if _, exists := bodies.Lookup("Payload"); !exists || len(mediaTypes) != 1 ||
 		textValue(t, mediaTypes[0]) != "application/json" {
@@ -2296,6 +2304,48 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 		)
 	}
 
+	emptyRootReferenceConverter := newConverter(100)
+	emptyRootReferenceBody, emptyRootReferenceMediaTypes, err := emptyRootReferenceConverter.requestBody(
+		conversionValue(t, `{"$ref":""}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emptyRootReferenceBody.Kind() != jsonvalue.InvalidKind || len(emptyRootReferenceMediaTypes) != 0 ||
+		len(emptyRootReferenceConverter.diagnostics) != 1 ||
+		emptyRootReferenceConverter.diagnostics[0].Code !=
+			"openapi.convert.request-body-reference-removed" ||
+		emptyRootReferenceConverter.diagnostics[0].Pointer != "/body/$ref" {
+		t.Fatalf(
+			"empty root request reference conversion = %#v, %#v, %#v",
+			emptyRootReferenceBody,
+			emptyRootReferenceMediaTypes,
+			emptyRootReferenceConverter.diagnostics,
+		)
+	}
+
+	unknownLocalReferenceConverter := newConverter(100)
+	unknownLocalReferenceBody, unknownLocalReferenceMediaTypes, err :=
+		unknownLocalReferenceConverter.requestBody(
+			conversionValue(t, `{"$ref":"#/components"}`), "/body",
+		)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unknownLocalReferenceBody.Kind() != jsonvalue.InvalidKind ||
+		len(unknownLocalReferenceMediaTypes) != 0 ||
+		len(unknownLocalReferenceConverter.diagnostics) != 1 ||
+		unknownLocalReferenceConverter.diagnostics[0].Code !=
+			"openapi.convert.request-body-reference-removed" ||
+		unknownLocalReferenceConverter.diagnostics[0].Pointer != "/body/$ref" {
+		t.Fatalf(
+			"unknown local request reference conversion = %#v, %#v, %#v",
+			unknownLocalReferenceBody,
+			unknownLocalReferenceMediaTypes,
+			unknownLocalReferenceConverter.diagnostics,
+		)
+	}
+
 	aliasReference := "#/components/requestBodies/Alias"
 	aliasReferenceConverter := newConverter(100)
 	aliasReferenceConverter.requestBodies[emptyReference] = conversionValue(t, `{"content":{}}`)
@@ -2314,6 +2364,26 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 			aliasReferenceBody,
 			aliasReferenceMediaTypes,
 			aliasReferenceConverter.diagnostics,
+		)
+	}
+
+	emptyAliasReference := "#/components/requestBodies/EmptyAlias"
+	emptyAliasConverter := newConverter(100)
+	emptyAliasConverter.requestBodies[emptyAliasReference] = conversionValue(t, `{"$ref":""}`)
+	emptyAliasBody, emptyAliasMediaTypes, err := emptyAliasConverter.requestBody(
+		conversionValue(t, `{"$ref":"`+emptyAliasReference+`"}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emptyAliasBody.Kind() != jsonvalue.InvalidKind || len(emptyAliasMediaTypes) != 0 ||
+		len(emptyAliasConverter.diagnostics) != 1 ||
+		emptyAliasConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" {
+		t.Fatalf(
+			"empty alias request reference conversion = %#v, %#v, %#v",
+			emptyAliasBody,
+			emptyAliasMediaTypes,
+			emptyAliasConverter.diagnostics,
 		)
 	}
 
@@ -2350,13 +2420,34 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 		t.Fatal(err)
 	}
 	if externalAliasBody.Kind() != jsonvalue.ObjectKind || len(externalAliasMediaTypes) != 0 ||
-		len(externalAliasConverter.diagnostics) != 0 {
+		len(externalAliasConverter.diagnostics) != 1 ||
+		externalAliasConverter.diagnostics[0].Code != "openapi.convert.external-reference" ||
+		textValue(t, memberAt(t, externalAliasBody, "$ref")) !=
+			"https://example.test/request-bodies.json#/Payload" {
 		t.Fatalf(
 			"external request reference conversion = %#v, %#v, %#v",
 			externalAliasBody,
 			externalAliasMediaTypes,
 			externalAliasConverter.diagnostics,
 		)
+	}
+
+	aliasMapConverter := newConverter(100)
+	aliasMapConverter.requestBodies[contentReference] = contentReferenceConverter.requestBodies[contentReference]
+	aliasMapConverter.requestBodies[aliasReference] = conversionValue(t, `{"$ref":"`+contentReference+`"}`)
+	aliasMapConverter.requestBodies[externalAliasReference] = externalAliasConverter.requestBodies[externalAliasReference]
+	aliasMap, _, err := aliasMapConverter.requestBodyMap(conversionValue(t, `{
+		"Alias":{"$ref":"`+contentReference+`"},
+		"ExternalAlias":{"$ref":"https://example.test/request-bodies.json#/Payload"}
+	}`), "/requestBodies")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := aliasMap.Lookup("Alias"); !exists {
+		t.Fatal("resolvable local request body alias was not flattened")
+	}
+	if _, exists := aliasMap.Lookup("ExternalAlias"); exists {
+		t.Fatal("external request body alias was retained as an invalid reusable parameter")
 	}
 
 	malformedAliasReference := "#/components/requestBodies/MalformedAlias"
@@ -2388,6 +2479,42 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	missingDescriptionConverter := newConverter(100)
+	missingDescriptionResponse, _, err := missingDescriptionConverter.response(
+		conversionValue(t, `{"x-source":"retained"}`), "/response",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if textValue(t, memberAt(t, missingDescriptionResponse, "description")) != "Response" ||
+		textValue(t, memberAt(t, missingDescriptionResponse, "x-source")) != "retained" ||
+		len(missingDescriptionConverter.diagnostics) != 1 ||
+		missingDescriptionConverter.diagnostics[0].Code != "openapi.convert.response-description-added" {
+		t.Fatalf("response without description conversion = %#v", missingDescriptionResponse)
+	}
+
+	unknownResponseFieldConverter := newConverter(100)
+	unknownResponseField, unknownResponseMediaTypes, err := unknownResponseFieldConverter.response(
+		conversionValue(t, `{
+			"description":"response",
+			"unknown":{"application/json":{"schema":{"type":"string"}}}
+		}`),
+		"/response",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(unknownResponseMediaTypes) != 0 ||
+		len(unknownResponseFieldConverter.diagnostics) != 1 ||
+		unknownResponseFieldConverter.diagnostics[0].Code != "openapi.convert.response-field-removed" {
+		t.Fatalf(
+			"unknown response field conversion = %#v, %#v, %#v",
+			unknownResponseField,
+			unknownResponseMediaTypes,
+			unknownResponseFieldConverter.diagnostics,
+		)
+	}
 	if cycleBody.Kind() != jsonvalue.InvalidKind || len(cycleMediaTypes) != 0 ||
 		len(cycleReferenceConverter.diagnostics) != 1 ||
 		cycleReferenceConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" {
@@ -2413,7 +2540,7 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 
 	invalidMediaResponseConverter := newConverter(100)
 	invalidMediaResponse, invalidResponseMediaTypes, err := invalidMediaResponseConverter.response(
-		conversionValue(t, `{"content":{"0":{},"application/json":{}}}`), "/response",
+		conversionValue(t, `{"description":"response","content":{"0":{},"application/json":{}}}`), "/response",
 	)
 	if err != nil {
 		t.Fatal(err)

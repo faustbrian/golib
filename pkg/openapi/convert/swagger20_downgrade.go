@@ -521,12 +521,24 @@ func (converter *oas30SwaggerConverter) requestBodyMap(
 			})
 			continue
 		}
+		bodyValue := member.Value
+		if nested, exists := bodyValue.Lookup("$ref"); exists {
+			raw, valid := nested.Text()
+			if !valid {
+				continue
+			}
+			terminal, localContent, _ := converter.requestBodyReferenceTarget(raw)
+			if !localContent {
+				continue
+			}
+			bodyValue = converter.requestBodies[terminal]
+		}
 		targetName := converter.requestBodyNames[reference]
 		if targetName == "" {
 			targetName = member.Name
 		}
 		converted, bodyMediaTypes, err := converter.requestBody(
-			member.Value,
+			bodyValue,
 			pointer+"/"+escapePointer(member.Name),
 		)
 		if err != nil {
@@ -1241,14 +1253,28 @@ func (converter *oas30SwaggerConverter) requestBody(
 	if _, exists := value.Lookup("$ref"); exists {
 		reference, _ := value.Lookup("$ref")
 		if raw, valid := reference.Text(); valid {
-			if _, local := converter.requestBodies[raw]; local &&
-				!converter.requestBodyReferenceHasContent(raw) {
+			_, local := converter.requestBodies[raw]
+			if (raw == "" || strings.HasPrefix(raw, "#")) && !local {
 				converter.loss(
 					pointer+"/$ref",
-					"openapi.convert.request-body-removed",
-					"Swagger 2.0 cannot represent a request body without media content",
+					"openapi.convert.request-body-reference-removed",
+					"the local request body reference is unavailable in Swagger 2.0",
 				)
 				return jsonvalue.Value{}, nil, nil
+			}
+			if local {
+				terminal, localContent, available := converter.requestBodyReferenceTarget(raw)
+				if !available {
+					converter.loss(
+						pointer+"/$ref",
+						"openapi.convert.request-body-removed",
+						"Swagger 2.0 cannot represent a request body without media content",
+					)
+					return jsonvalue.Value{}, nil, nil
+				}
+				if !localContent {
+					reference, _ = jsonvalue.String(terminal)
+				}
 			}
 		}
 		converted := converter.reference(reference, pointer+"/$ref")
@@ -1277,9 +1303,9 @@ func (converter *oas30SwaggerConverter) requestBody(
 			result = append(result, member)
 		}
 	}
-	content, exists := value.Lookup("content")
-	contentMembers, ok := content.Members()
-	if !exists || !ok || len(contentMembers) == 0 {
+	content, _ := value.Lookup("content")
+	contentMembers, _ := content.Members()
+	if len(contentMembers) == 0 {
 		converter.loss(
 			pointer+"/content",
 			"openapi.convert.request-body-removed",
@@ -1354,28 +1380,31 @@ func validSwaggerMediaType(value string) bool {
 	return len(parts) == 2 && parts[1] != ""
 }
 
-func (converter *oas30SwaggerConverter) requestBodyReferenceHasContent(reference string) bool {
+func (converter *oas30SwaggerConverter) requestBodyReferenceTarget(
+	reference string,
+) (string, bool, bool) {
 	seen := make(map[string]struct{})
 	for {
 		if _, duplicate := seen[reference]; duplicate {
-			return false
+			return "", false, false
 		}
 		seen[reference] = struct{}{}
 		target, local := converter.requestBodies[reference]
 		if !local {
-			return true
+			available := reference != "" && !strings.HasPrefix(reference, "#")
+			return reference, false, available
 		}
 		if nested, exists := target.Lookup("$ref"); exists {
 			next, valid := nested.Text()
 			if !valid {
-				return false
+				return "", false, false
 			}
 			reference = next
 			continue
 		}
-		content, exists := target.Lookup("content")
-		members, object := content.Members()
-		return exists && object && len(members) != 0
+		content, _ := target.Lookup("content")
+		members, _ := content.Members()
+		return reference, true, len(members) != 0
 	}
 }
 
@@ -1420,6 +1449,16 @@ func (converter *oas30SwaggerConverter) response(
 	}
 	members, _ := value.Members()
 	result := make([]jsonvalue.Member, 0, len(members))
+	if _, exists := value.Lookup("description"); !exists {
+		description, _ := jsonvalue.String("Response")
+		result = append(result, jsonvalue.Member{Name: "description", Value: description})
+		converter.diagnostics = append(converter.diagnostics, Diagnostic{
+			Code:    "openapi.convert.response-description-added",
+			Kind:    ManualAction,
+			Pointer: pointer + "/description",
+			Message: "review the description required by Swagger 2.0",
+		})
+	}
 	var mediaTypes []jsonvalue.Value
 	var examples []jsonvalue.Member
 	for _, member := range members {
@@ -1442,8 +1481,19 @@ func (converter *oas30SwaggerConverter) response(
 			)
 			continue
 		case "content":
-		default:
+		case "description":
 			result = append(result, member)
+			continue
+		default:
+			if strings.HasPrefix(strings.ToLower(member.Name), "x-") {
+				result = append(result, member)
+				continue
+			}
+			converter.loss(
+				pointer+"/"+escapePointer(member.Name),
+				"openapi.convert.response-field-removed",
+				"Swagger 2.0 cannot represent this response field",
+			)
 			continue
 		}
 		contentMembers, ok := member.Value.Members()
