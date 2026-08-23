@@ -417,24 +417,24 @@ func TestValidateOperationalAssurance(t *testing.T) {
 			},
 		},
 		{
-			name: "named module evidence includes reverse dependant input",
-			mutate: func(t *testing.T, root string, record map[string]any) {
-				markScenariosPassed(t, root, record)
-				narrowAssuranceScope(record)
-				record["verdict"] = "ready"
-				record["residual_risks"] = []string{}
-			},
-		},
-		{
-			name: "named module evidence omits reverse dependant input",
+			name: "named module evidence excludes reverse dependant input",
 			mutate: func(t *testing.T, root string, record map[string]any) {
 				markScenariosPassed(t, root, record)
 				narrowAssuranceScope(record)
 				scenarios := record["scenarios"].([]map[string]any)
 				evidence := scenarios[0]["evidence"].([]map[string]any)
 				delete(evidence[0]["input_digests"].(map[string]string), "pkg/b")
+				record["verdict"] = "ready"
+				record["residual_risks"] = []string{}
 			},
-			wantSubstr: "input digest scope has 1 modules, want 2",
+		},
+		{
+			name: "named module evidence rejects reverse dependant input",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				narrowAssuranceScope(record)
+			},
+			wantSubstr: "input digest scope has 2 modules, want 1",
 		},
 		{
 			name: "evidence binds non-releasable input module",
@@ -596,6 +596,24 @@ func TestAssuranceInputModulesPreservesExactHistoricalSnapshot(t *testing.T) {
 	)
 	if strings.Join(got, "\n") != "pkg/a\npkg/b" {
 		t.Fatalf("assuranceInputModules() = %v", got)
+	}
+}
+
+func TestAssuranceInputModulesExcludesReverseDependants(t *testing.T) {
+	t.Parallel()
+
+	current := catalog{Modules: []module{
+		{
+			Directory:           "pkg/a",
+			Path:                "example.test/a",
+			Releasable:          true,
+			ReverseDependencies: []string{"example.test/b"},
+		},
+		{Directory: "pkg/b", Path: "example.test/b", Releasable: true},
+	}}
+	got := assuranceInputModules(current, []string{"pkg/a"}, nil, nil)
+	if strings.Join(got, "\n") != "pkg/a" {
+		t.Fatalf("assuranceInputModules() = %v, want [pkg/a]", got)
 	}
 }
 

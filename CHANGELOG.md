@@ -7,6 +7,11 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Bind operational-assurance evidence only to the modules that can affect the
+  observed scenario, excluding unrelated reverse dependants.
+- Stabilize Kafka log-recovery evidence at a deterministic segment boundary,
+  remove redundant queue control-plane outcome predicates, and retain the
+  RabbitMQ Streams adapter's explicit nil-context boundary under strict lint.
 - Strengthen queue control-plane boundary tests for desired-state targets,
   command metadata defaults, and nonterminal dispatch outcomes, with an exact
   operational-assurance input-digest migration for the test-only transition.

@@ -694,7 +694,7 @@ func TestDispatchTelemetryRejectsNonterminalLifecycleStates(t *testing.T) {
 	}
 }
 
-func TestValidDispatchOutcomeRejectsEveryNonterminalLifecycleState(t *testing.T) {
+func TestValidDispatchOutcomeRejectsStatusesThatAreNotDispatchOutcomes(t *testing.T) {
 	t.Parallel()
 
 	command := validCommand()
@@ -728,6 +728,21 @@ func TestServiceExecutePersistsStructuredDataPlaneOutcomes(t *testing.T) {
 		"rejected": {
 			Status:      controlplane.CommandFailed,
 			Failure:     "unsupported",
+			CompletedAt: completedAt,
+		},
+		"unsupported": {
+			Status:      controlplane.CommandUnsupported,
+			Failure:     "unsupported",
+			CompletedAt: completedAt,
+		},
+		"timed-out": {
+			Status:      controlplane.CommandTimedOut,
+			Failure:     controlplane.FailureDeadlineExceeded,
+			CompletedAt: completedAt,
+		},
+		"partial": {
+			Status:      controlplane.CommandPartial,
+			Failure:     "partial",
 			CompletedAt: completedAt,
 		},
 		"unknown": {

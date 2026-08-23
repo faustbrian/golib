@@ -667,7 +667,6 @@ func assuranceInputModules(current catalog, scope, inputModules, exactInputModul
 		selected[directory] = true
 		explicitInputs[directory] = true
 	}
-	expandReverseDependencies(current, selected)
 	required := make([]string, 0, len(selected))
 	for _, item := range current.Modules {
 		if selected[item.Directory] && (item.Releasable || explicitInputs[item.Directory]) {

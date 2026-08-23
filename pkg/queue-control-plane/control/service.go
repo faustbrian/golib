@@ -306,12 +306,17 @@ func (s *Service) Execute(
 }
 
 func validDispatchOutcome(command controlplane.Command, outcome DispatchOutcome) bool {
-	if outcome.Status == controlplane.CommandPending ||
-		outcome.Status == controlplane.CommandAccepted ||
-		outcome.Status == controlplane.CommandDispatched ||
-		outcome.Status == controlplane.CommandAcknowledged ||
-		outcome.Status == controlplane.CommandCanceled ||
-		outcome.CompletedAt.Before(command.RequestedAt) {
+	switch outcome.Status {
+	case controlplane.CommandSucceeded,
+		controlplane.CommandFailed,
+		controlplane.CommandUnsupported,
+		controlplane.CommandTimedOut,
+		controlplane.CommandPartial,
+		controlplane.CommandUnknown:
+	default:
+		return false
+	}
+	if outcome.CompletedAt.Before(command.RequestedAt) {
 		return false
 	}
 

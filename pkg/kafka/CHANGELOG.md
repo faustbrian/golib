@@ -186,6 +186,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- make broker-recovery replay evidence remove the acknowledged tail at a
+  deterministic Kafka segment boundary so the test proves reduced log-end
+  handling without depending on ambiguous partial-record recovery
 - complete rebalance-child shutdown before reporting success and retry bounded
   incomplete group leaves through the consumer's documented shutdown path
 - allow the eager-rebalance interoperability consumers enough graceful
