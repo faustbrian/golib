@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Stabilize Kafka race verification around franz-go's valid empty-transaction
+  abort outcomes while still requiring that an abort never reports a commit.
 - Strengthen the RabbitMQ Streams stored-offset contract at the exact zero
   boundary so mutation evidence rejects treating the initial offset as invalid.
 - Add an attributable manual release-rehearsal mode to the single CI workflow

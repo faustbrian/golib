@@ -186,6 +186,8 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- make the franz-go backend lifecycle test assert the deterministic abort
+  invariant instead of requiring an error from a timing-dependent empty abort
 - make broker-recovery replay evidence remove the acknowledged tail at a
   deterministic valid 1 MiB Kafka segment boundary so the test proves reduced
   log-end handling without depending on ambiguous partial-record recovery
