@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Add an attributable manual release-rehearsal mode to the single CI workflow
+  so every releasable module can execute its service-backed `v1.0.0` dry-run
+  without duplicating the strict source-verification matrix.
 - Bind operational-assurance evidence only to the modules that can affect the
   observed scenario, excluding unrelated reverse dependants.
 - Stabilize Kafka log-recovery evidence at a deterministic valid 1 MiB segment

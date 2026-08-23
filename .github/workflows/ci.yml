@@ -7,6 +7,12 @@ on:
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
+    inputs:
+      release_dry_run:
+        description: Run the v1.0.0 dry-run for every releasable module
+        required: false
+        default: false
+        type: boolean
   release:
     types: [published]
 
@@ -45,6 +51,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BASE_SHA: ${{ github.event.before }}
+          RELEASE_DRY_RUN: ${{ inputs.release_dry_run }}
         run: |
           set -euo pipefail
           if [[ "${EVENT_NAME}" == "pull_request" ]]; then
@@ -59,6 +66,25 @@ jobs:
                 git cat-file -e "${PUSH_BASE_SHA}^{commit}" 2>/dev/null; then
               changed_matrix="$(go run ./cmd/golib select --changed "${PUSH_BASE_SHA}" --format matrix)"
             fi
+          fi
+          if [[ "${EVENT_NAME}" == workflow_dispatch &&
+                "${RELEASE_DRY_RUN}" == true ]]; then
+            matrix="$(
+              jq -cn \
+                --argjson selected "${matrix}" \
+                --slurpfile catalog modules.json '
+                  $selected
+                  | map(
+                      . as $candidate
+                      | select(any(
+                          $catalog[0].modules[];
+                          .directory == $candidate.directory and
+                          .releasable == true
+                        ))
+                    )
+                '
+            )"
+            changed_matrix="${matrix}"
           fi
           count="$(jq 'length' <<<"${matrix}")"
           [[ "${count}" -gt 0 ]] || {
@@ -161,13 +187,26 @@ jobs:
           "${root}/bin/zsh" --version | grep -Eq '^zsh 5\.9 '
 
       - name: Restore content-addressed mutation evidence
+        if: inputs.release_dry_run != true
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
         run: ./scripts/restore-ci-mutation-evidence.sh '${{ matrix.directory }}'
 
       - name: Run strict module contract
+        if: inputs.release_dry_run != true
         run: ./scripts/run-modules.sh check --modules '${{ matrix.directory }}'
+
+      - name: Run release dry-run
+        if: inputs.release_dry_run == true
+        env:
+          GOLIB_VERIFICATION_SNAPSHOT: '1'
+        run: |
+          set -euo pipefail
+          output='.artifacts/${{ matrix.directory }}/release-dry-run.log'
+          mkdir -p "$(dirname "${output}")"
+          ./scripts/run-modules.sh release-dry-run \
+            --modules '${{ matrix.directory }}' 2>&1 | tee "${output}"
 
       - name: Stage attributable evidence
         if: always()
@@ -188,6 +227,7 @@ jobs:
   codeql:
     name: CodeQL
     needs: prepare
+    if: inputs.release_dry_run != true
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     permissions:
@@ -276,7 +316,9 @@ jobs:
   kafka-arm64:
     name: Kafka / Linux arm64
     needs: prepare
-    if: needs.prepare.outputs.kafka_arm64 == 'true'
+    if: >-
+      needs.prepare.outputs.kafka_arm64 == 'true' &&
+      inputs.release_dry_run != true
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     steps:
@@ -326,16 +368,22 @@ jobs:
           KAFKA_ARM64_REQUIRED: ${{ needs.prepare.outputs.kafka_arm64 }}
           KAFKA_ARM64_RESULT: ${{ needs.kafka-arm64.result }}
           MODULE_COUNT: ${{ needs.prepare.outputs.count }}
+          RELEASE_DRY_RUN: ${{ inputs.release_dry_run }}
         run: |
           set -euo pipefail
           [[ "${PREPARE_RESULT}" == success ]]
           [[ "${REPOSITORY_CONTRACT_RESULT}" == success ]]
           [[ "${QUALITY_RESULT}" == success ]]
-          [[ "${CODEQL_RESULT}" == success ]]
-          if [[ "${KAFKA_ARM64_REQUIRED}" == true ]]; then
-            [[ "${KAFKA_ARM64_RESULT}" == success ]]
-          else
+          if [[ "${RELEASE_DRY_RUN}" == true ]]; then
+            [[ "${CODEQL_RESULT}" == skipped ]]
             [[ "${KAFKA_ARM64_RESULT}" == skipped ]]
+          else
+            [[ "${CODEQL_RESULT}" == success ]]
+            if [[ "${KAFKA_ARM64_REQUIRED}" == true ]]; then
+              [[ "${KAFKA_ARM64_RESULT}" == success ]]
+            else
+              [[ "${KAFKA_ARM64_RESULT}" == skipped ]]
+            fi
           fi
           [[ "${MODULE_COUNT}" =~ ^[1-9][0-9]*$ ]]
           printf 'all %s selected modules and repository gates passed\n' "${MODULE_COUNT}"

@@ -1739,6 +1739,14 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 		`deno-version: '2.9.4'`,
 		`restore-ci-mutation-evidence.sh '${{ matrix.directory }}'`,
 		`GITHUB_REPOSITORY_ID: ${{ github.repository_id }}`,
+		`release_dry_run:`,
+		`RELEASE_DRY_RUN: ${{ inputs.release_dry_run }}`,
+		`.releasable == true`,
+		`Run release dry-run`,
+		`GOLIB_VERIFICATION_SNAPSHOT: '1'`,
+		`./scripts/run-modules.sh release-dry-run`,
+		`--modules '${{ matrix.directory }}'`,
+		`release-dry-run.log`,
 	} {
 		if !strings.Contains(contract, required) {
 			t.Fatalf("CI workflow lacks %q", required)
