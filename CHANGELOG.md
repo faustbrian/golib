@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Strengthen the RabbitMQ Streams stored-offset contract at the exact zero
+  boundary so mutation evidence rejects treating the initial offset as invalid.
 - Add an attributable manual release-rehearsal mode to the single CI workflow
   so every releasable module can execute its service-backed `v1.0.0` dry-run
   without duplicating the strict source-verification matrix.
