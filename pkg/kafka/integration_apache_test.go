@@ -616,11 +616,12 @@ func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
 	})
 	leader := state.Partitions[0].Leader
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
-		Brokers:       brokers,
-		ClientID:      "golib-apache-replay-log-recovery-producer",
-		AllowedTopics: []string{topic},
-		KeyPolicy:     kafka.KeyRequired,
-		Security:      kafka.DevelopmentPlaintextSecurity(),
+		Brokers:                brokers,
+		ClientID:               "golib-apache-replay-log-recovery-producer",
+		AllowedTopics:          []string{topic},
+		KeyPolicy:              kafka.KeyRequired,
+		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionNone},
+		Security:               kafka.DevelopmentPlaintextSecurity(),
 	})
 	if err != nil {
 		t.Fatalf("construct log-recovery replay producer: %v", err)
