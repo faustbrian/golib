@@ -593,7 +593,7 @@ func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
 		1,
 		map[string]*string{
 			"min.insync.replicas":            kadm.StringPtr("1"),
-			"segment.bytes":                  kadm.StringPtr("5120"),
+			"segment.bytes":                  kadm.StringPtr("1048576"),
 			"unclean.leader.election.enable": kadm.StringPtr("false"),
 		},
 	)
@@ -629,7 +629,7 @@ func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
 		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
 			Topic: topic,
 			Key:   []byte(fmt.Sprintf("log-recovery-key-%d", index)),
-			Value: bytes.Repeat([]byte{byte(index + 1)}, 4<<10),
+			Value: bytes.Repeat([]byte{byte(index + 1)}, 600<<10),
 		})
 		if result.Err != nil ||
 			result.Partition != 0 ||
