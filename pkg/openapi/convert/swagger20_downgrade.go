@@ -1483,7 +1483,6 @@ func (converter *oas30SwaggerConverter) response(
 		case "content":
 		case "description":
 			result = append(result, member)
-			continue
 		default:
 			if strings.HasPrefix(strings.ToLower(member.Name), "x-") {
 				result = append(result, member)
