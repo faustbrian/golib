@@ -7,6 +7,12 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Close queue control-plane fleet boundary gaps around exact capacities,
+  cumulative runtime, rejection totals, ordering, and metric saturation.
+- Make OpenSearch bounded-load readiness verification tolerate only a bounded
+  transient shard-initialization period after concurrent writes.
+- Retry checksum-pinned CI tool downloads after transient transport failures
+  instead of failing unrelated module jobs before verification starts.
 - Stabilize Kafka race verification around franz-go's valid empty-transaction
   abort outcomes while still requiring that an abort never reports a commit.
 - Strengthen the RabbitMQ Streams stored-offset contract at the exact zero

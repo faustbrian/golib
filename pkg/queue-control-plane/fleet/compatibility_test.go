@@ -56,6 +56,24 @@ func TestNegotiateEnablesOnlySharedCapabilities(t *testing.T) {
 	assertCapabilities(t, "ControlPlaneOnly", got.ControlPlaneOnly, []Capability{CapabilityRetry})
 }
 
+func TestNegotiateSortsEveryCapabilityClassDeterministically(t *testing.T) {
+	t.Parallel()
+
+	got := Negotiate(
+		ProtocolRange{
+			Minimum: ProtocolVersion{Major: 1},
+			Maximum: ProtocolVersion{Major: 1, Minor: 2},
+		},
+		ProtocolVersion{Major: 1, Minor: 1},
+		[]Capability{"worker-z", "shared-z", "worker-a", "shared-a"},
+		[]Capability{"control-z", "shared-z", "control-a", "shared-a"},
+	)
+
+	assertCapabilities(t, "Enabled", got.Enabled, []Capability{"shared-a", "shared-z"})
+	assertCapabilities(t, "WorkerOnly", got.WorkerOnly, []Capability{"worker-a", "worker-z"})
+	assertCapabilities(t, "ControlPlaneOnly", got.ControlPlaneOnly, []Capability{"control-a", "control-z"})
+}
+
 func TestNegotiateDisablesCapabilitiesForIncompatibleVersions(t *testing.T) {
 	t.Parallel()
 

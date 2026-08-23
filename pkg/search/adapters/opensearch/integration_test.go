@@ -1996,13 +1996,40 @@ func TestRealOpenSearchBoundedLoad(t *testing.T) {
 	if err != nil || info.Version != expectedVersion {
 		t.Fatalf("bounded load Info() = %#v/%v", info, err)
 	}
-	health, err := client.Health(t.Context())
-	if err != nil || !health.Ready {
-		t.Fatalf("bounded load Health() = %#v/%v", health, err)
-	}
+	waitForIntegrationHealth(t, client)
 	capacity, err := client.Capacity(t.Context())
 	if err != nil || capacity.Documents < seedDocuments || capacity.HeapMaxBytes == 0 || capacity.DiskAvailableBytes == 0 {
 		t.Fatalf("bounded load Capacity() = %#v/%v", capacity, err)
+	}
+}
+
+func waitForIntegrationHealth(t *testing.T, client *adapter.Client) {
+	t.Helper()
+
+	deadline := time.Now().Add(realOpenSearchHealthConvergenceTimeout)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		health, err := client.Health(t.Context())
+		if err != nil {
+			t.Fatalf("bounded load Health() = %#v/%v", health, err)
+		}
+		if health.Ready {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf(
+				"bounded load health did not become ready within %s: %#v",
+				realOpenSearchHealthConvergenceTimeout,
+				health,
+			)
+		}
+		select {
+		case <-ticker.C:
+		case <-t.Context().Done():
+			t.Fatal(t.Context().Err())
+		}
 	}
 }
 

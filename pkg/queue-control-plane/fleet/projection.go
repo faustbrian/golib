@@ -1,7 +1,8 @@
 package fleet
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"sync"
 	"time"
 
@@ -50,9 +51,7 @@ type queueKey struct {
 // queue identities. Non-positive limits retain no identities and aggregate all
 // events into the overflow bucket.
 func NewProjection(maxQueues int) *Projection {
-	if maxQueues < 0 {
-		maxQueues = 0
-	}
+	maxQueues = max(maxQueues, 0)
 
 	return &Projection{
 		maxQueues: maxQueues,
@@ -93,12 +92,11 @@ func (p *Projection) Snapshot() ProjectionSnapshot {
 			Metrics: metrics,
 		})
 	}
-	sort.Slice(snapshot.Queues, func(i, j int) bool {
-		if snapshot.Queues[i].Backend == snapshot.Queues[j].Backend {
-			return snapshot.Queues[i].Queue < snapshot.Queues[j].Queue
-		}
-
-		return snapshot.Queues[i].Backend < snapshot.Queues[j].Backend
+	slices.SortFunc(snapshot.Queues, func(left, right QueueSnapshot) int {
+		return cmp.Or(
+			cmp.Compare(left.Backend, right.Backend),
+			cmp.Compare(left.Queue, right.Queue),
+		)
 	})
 
 	return snapshot

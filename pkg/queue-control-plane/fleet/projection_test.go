@@ -90,6 +90,25 @@ func TestProjectionSnapshotsQueuesDeterministically(t *testing.T) {
 	}
 }
 
+func TestProjectionAccumulatesSuccessfulAndFailedRuntime(t *testing.T) {
+	t.Parallel()
+
+	projection := NewProjection(1)
+	for _, event := range []queue.Event{
+		{Kind: queue.EventHandlerSucceeded, Backend: "redis", Queue: "critical", Duration: 5 * time.Millisecond},
+		{Kind: queue.EventHandlerFailed, Backend: "redis", Queue: "critical", Duration: 7 * time.Millisecond},
+		{Kind: queue.EventHandlerSucceeded, Backend: "redis", Queue: "critical", Duration: 11 * time.Millisecond},
+		{Kind: queue.EventHandlerFailed, Backend: "redis", Queue: "critical", Duration: 13 * time.Millisecond},
+	} {
+		projection.Observe(event)
+	}
+
+	metrics := projection.Snapshot().Queues[0].Metrics
+	if metrics.Succeeded != 2 || metrics.Failed != 2 || metrics.Runtime != 36*time.Millisecond {
+		t.Fatalf("Snapshot().Queues[0].Metrics = %+v, want two successes, two failures, and 36ms", metrics)
+	}
+}
+
 func TestProjectionAggregatesAllEventsWhenCapacityIsNegative(t *testing.T) {
 	t.Parallel()
 

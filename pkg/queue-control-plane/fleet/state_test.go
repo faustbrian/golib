@@ -54,6 +54,26 @@ func TestHeartbeatValidateRejectsMalformedWorkerStatus(t *testing.T) {
 	}
 }
 
+func TestHeartbeatValidateAcceptsExactCollectionAndConcurrencyLimits(t *testing.T) {
+	t.Parallel()
+
+	heartbeat := validHeartbeat("tenant-1", "worker-1", time.Unix(2, 0))
+	heartbeat.Queues = make([]string, MaxQueuesPerWorker)
+	for index := range heartbeat.Queues {
+		heartbeat.Queues[index] = "queue"
+	}
+	heartbeat.Concurrency = MaxWorkerConcurrency
+	heartbeat.CurrentJobs = MaxWorkerConcurrency
+	heartbeat.Capabilities = make([]Capability, MaxCapabilitiesPerWorker)
+	for index := range heartbeat.Capabilities {
+		heartbeat.Capabilities[index] = CapabilityDrain
+	}
+
+	if err := heartbeat.Validate(); err != nil {
+		t.Fatalf("Validate() at exact limits error = %v", err)
+	}
+}
+
 func validHeartbeat(tenant string, worker string, observedAt time.Time) Heartbeat {
 	return Heartbeat{
 		TenantID: tenant, WorkerID: worker, Version: "1.0.0",

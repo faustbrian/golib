@@ -1,8 +1,9 @@
 package fleet
 
 import (
+	"cmp"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -53,9 +54,7 @@ type workerRecord struct {
 
 // NewRegistry creates a registry that retains at most maxWorkers identities.
 func NewRegistry(maxWorkers int) *Registry {
-	if maxWorkers < 0 {
-		maxWorkers = 0
-	}
+	maxWorkers = max(maxWorkers, 0)
 
 	return &Registry{
 		maxWorkers: maxWorkers,
@@ -154,11 +153,11 @@ func (r *Registry) snapshotLocked(tenant string, now time.Time, staleAfter time.
 			State:     state,
 		})
 	}
-	sort.Slice(snapshot.Workers, func(i, j int) bool {
-		if snapshot.Workers[i].TenantID != snapshot.Workers[j].TenantID {
-			return snapshot.Workers[i].TenantID < snapshot.Workers[j].TenantID
-		}
-		return snapshot.Workers[i].WorkerID < snapshot.Workers[j].WorkerID
+	slices.SortFunc(snapshot.Workers, func(left, right WorkerSnapshot) int {
+		return cmp.Or(
+			cmp.Compare(left.TenantID, right.TenantID),
+			cmp.Compare(left.WorkerID, right.WorkerID),
+		)
 	})
 
 	return snapshot
