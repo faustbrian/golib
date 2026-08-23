@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Preserve valid Swagger 2.0 output when OpenAPI request or response content
+  uses an incompatible media-type key or omits a request-body schema.
 - Close queue control-plane fleet boundary gaps around exact capacities,
   cumulative runtime, rejection totals, ordering, and metric saturation.
 - Make OpenSearch bounded-load readiness verification tolerate only a bounded

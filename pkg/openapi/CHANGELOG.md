@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Keep OpenAPI 3 request bodies valid when downgrading to Swagger 2.0 by
+  removing bodies without media content, adding an unconstrained schema when
+  content omits one, and reporting media types Swagger cannot represent.
 - Make dependency-audit subprocesses consume the repository's task-owned
   isolated module file without exposing environment-derived command arguments.
 - Validate Linkset anchor and relation schemas independently so randomized map
