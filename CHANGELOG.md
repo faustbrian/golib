@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Replace the stale 138-module and 107-release-module readiness baseline with
+  exact current 142-module CI and 111-module `v1.0.0` rehearsal evidence while
+  preserving the separate operational-assurance and public-release boundary.
 - Preserve valid Swagger 2.0 output when OpenAPI request bodies use empty,
   malformed, aliased, or unavailable references, request or response content
   uses an incompatible media-type key, a request-body schema is omitted, or a

@@ -33,14 +33,15 @@ proves the same PostgreSQL/Valkey composition on every supported PostgreSQL
 major from 14 through 18. It remains pending for the other required durability
 systems and production recovery cases.
 
-`OA-RELEASE-CONSUMER` now retains a deterministic local `v1.0.0` source-proxy
-and clean-consumer proof for all 107 releasable modules. Every module resolved
-at exact `v1.0.0` with `GOWORK=off`, no replacements, and one listed public
-package. A separate clean-clone campaign also passed the dependency-ordered
-release dry-run for every module, including isolated tidy, test, API, local
-packaging, tag-shape, and per-module consumer checks. It remains pending for
-public proxy and checksum resolution, signatures, attestations, upgrade policy,
-and release authorization.
+`OA-RELEASE-CONSUMER` retains the earlier 107-module local campaigns as
+historical evidence for their exact inputs. The complete current catalog also
+passed a CI `v1.0.0` source-proxy and clean-consumer rehearsal for all 111
+releasable modules at `fe2fe4f309bf4d88303ba53c71382cb062498482`, as
+recorded in the [hardening report](hardening-report.md). Every independently
+attributable module job validated dependency order, isolated tidy, tests, API,
+local packaging, tag shape, and clean `GOWORK=off` consumer resolution without
+replacements. The scenario remains pending for public proxy and checksum
+resolution, signatures, attestations, upgrade policy, and release authorization.
 
 `OA-RESOURCE-PERFORMANCE` now retains a passing constrained native-Linux
 service campaign with explicit throughput, latency, heap, goroutine,

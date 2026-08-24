@@ -1,6 +1,6 @@
 # Repository hardening report
 
-Audit date: 2026-08-22
+Audit date: 2026-08-24
 
 ## Scope and status
 
@@ -14,12 +14,12 @@ statement denominator.
 
 The repository migration, manifests, canonical module paths, root workspace,
 root command surface, unified CI workflow, governance, and strict gate policy
-are verified through the 138-module normalization baseline. Four subsequently
-integrated RabbitMQ Streams modules require fresh matrix and clean-consumer
-proof before that claim covers the current catalog. Public release readiness
-remains **not established** because the separate operational-assurance,
-source-documentation, comparative-performance, and release programs remain
-incomplete. This report is normalization evidence, not release approval.
+are verified for the current 142-module catalog. All 111 independently
+releasable modules also have current `v1.0.0` rehearsal and clean-consumer
+proof. Public release readiness remains **not established** because the
+separate operational-assurance, source-documentation, comparative-performance,
+and public-release programs remain incomplete. This report is normalization
+and local release-rehearsal evidence, not release approval.
 
 ## Repository contract
 
@@ -118,23 +118,40 @@ security non-claims.
 ## Authoritative CI proof
 
 The authoritative package-matrix run
-[`32569072838`](https://github.com/faustbrian/golib/actions/runs/32569072838)
-passed all 142 jobs for the 138-module normalization behavior content at
-`510670183fb04dcaa02c8be62f3f22920917f9a6`. This consists of 137 attributable
-active-module jobs, module selection, the repository contract, CodeQL, the
-Kafka Linux arm64 job, and the fail-closed `Required` summary. The catalog's
-138th module, `pkg/analysis/testdata/coverage`, is an explicitly non-production
-fixture with no applicable gates and is intentionally excluded from CI
-selection. Every selected module uploaded its own durable evidence artifact.
+[`32685146823`](https://github.com/faustbrian/golib/actions/runs/32685146823)
+passed at `fe2fe4f309bf4d88303ba53c71382cb062498482`. It contains 141
+attributable active-module jobs plus module selection, the repository contract,
+CodeQL, and the fail-closed `Required` summary, for 145 successful jobs. The
+catalog's 142nd module, `pkg/analysis/testdata/coverage`, is an explicitly
+non-production fixture with no applicable gates and is intentionally excluded
+from CI selection. Every selected module uploaded its own durable evidence
+artifact.
 
-The all-module non-push path used by scheduled and release events was also
-exercised by workflow-dispatch run
-[`32561651547`](https://github.com/faustbrian/golib/actions/runs/32561651547).
-Its first attempt exposed an intermittent Kafka rebalance-child shutdown; the
-test now completes the documented retriable shutdown lifecycle before reporting
-success. Attempt 2 passed, and the subsequent main run passed the repaired
-Kafka contract and Linux arm64 job without rerunning unaffected mutation
-campaigns.
+The Kafka Linux arm64 job was intentionally skipped because the final push
+changed only sequencer test synchronization. Its exact current Kafka inputs
+were already proved by the successful arm64 job in run
+[`32679570470`](https://github.com/faustbrian/golib/actions/runs/32679570470/job/97293804483)
+at `c20ef0a95bb25199133031d444664f318e61981c`; the final commit does not
+change that module or its gate inputs. Content-addressed mutation checkpoints
+were likewise reused only when their complete gate-input fingerprints matched.
+
+## Release rehearsal proof
+
+Workflow-dispatch run
+[`32697157280`](https://github.com/faustbrian/golib/actions/runs/32697157280)
+passed on the same final source revision. All 111 releasable modules passed in
+independently attributable jobs, alongside module selection, the repository
+contract, and the fail-closed `Required` summary, for 114 successful jobs and
+111 uploaded release artifacts. CodeQL and Kafka arm64 were intentionally
+skipped because the rehearsal consumes the normal matrix rather than
+duplicating it.
+
+Each module planned its required initial directory-prefixed `v1.0.0` tag,
+validated dependency-first owned-module ordering, passed isolated tidy, test,
+and API checks, built a deterministic task-owned local source proxy, and
+resolved its public package from a clean external consumer with `GOWORK=off`
+and no module replacement. The rehearsal created no tag and published no
+artifact.
 
 ## Specification and interoperability evidence
 
@@ -169,11 +186,10 @@ gate.
 ## Release readiness
 
 Release readiness is currently **not established**. Operational assurance is
-`not ready`: 2 of 11 scenarios pass and five residual risks remain open. The
-original 107 releasable modules have dependency-ordered `v1.0.0` dry-run and
-deterministic clean-consumer proof. The four newly integrated RabbitMQ Streams
-modules require the same proof and a fresh complete matrix. Release readiness
-also requires the outstanding operational-assurance scenarios and risks,
-completion of the source-documentation and comparative-performance programs,
-public release artifacts and provenance, and explicit release authority. No
-tag or public release was created.
+`not ready`: 2 of 11 scenarios pass and five residual risks remain open. All
+111 releasable modules now have dependency-ordered local `v1.0.0` rehearsal
+and deterministic clean-consumer proof. Release readiness still requires the
+outstanding operational-assurance scenarios and risks, completion of the
+source-documentation and comparative-performance programs, public proxy and
+checksum resolution, signed tags and provenance, and explicit release
+authority. No tag or public release was created.
