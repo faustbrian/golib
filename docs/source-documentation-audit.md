@@ -69,7 +69,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/json-schema` | 3 | 2 | 152 | 66 | 0 | 0 | 0 |
 | `pkg/json-schema/benchmarks/comparison` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/jsonapi` | 1 | 0 | 398 | 183 | 0 | 0 | 0 |
-| `pkg/jsonrpc` | 6 | 5 | 137 | 4 | 0 | 0 | 0 |
+| `pkg/jsonrpc` | 6 | 5 | 138 | 4 | 0 | 0 | 0 |
 | `pkg/kafka` | 3 | 0 | 1085 | 560 | 0 | 0 | 0 |
 | `pkg/kafka/adapters/gotelemetry` | 1 | 0 | 32 | 10 | 0 | 0 | 0 |
 | `pkg/kafka/adapters/mskiam` | 1 | 0 | 32 | 6 | 0 | 0 | 0 |

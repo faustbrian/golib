@@ -4527,6 +4527,22 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-QUEUE-CONTROL-TESTS.md",
       "evidence_sha256": "840281e5d27e80f24ee59d57bb0f8a8fdc1fcf6a6019a46ef322394eb4cab24b",
       "rationale": "Queue control-plane tests now exercise previously unasserted boundary alternatives without changing production source, public APIs, dependencies, configuration, fixtures, or operational behavior."
+    },
+    {
+      "module": "pkg/authorization",
+      "from_sha256": "7ad588e59d1e7da4873c73d8c34a455825fc802a22b9d78720557877bb883765",
+      "to_sha256": "7509c4782dda8291e10c9ec91b8547d58804029d7a25575371368241b0239c4e",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-TYPED-DISPATCH.md",
+      "evidence_sha256": "5365ac053692a61e7d94aab231d4e45e8f7a7866f465fc8f850b613e6ad30bf8",
+      "rationale": "The additive JSON-RPC typed-dispatch entry point is not called by the retained HTTP reference composition or authorization adapter; their observed behavior is unchanged."
+    },
+    {
+      "module": "pkg/jsonrpc",
+      "from_sha256": "9b9c50ad2a57fd619eabfa11bba6ced6964f243f6c130fdba3568cd2dc0bea4f",
+      "to_sha256": "3e1e9d5d868353d91b386b1fb4478114229c5a145af5cef8493de81299ee7b1d",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-TYPED-DISPATCH.md",
+      "evidence_sha256": "5365ac053692a61e7d94aab231d4e45e8f7a7866f465fc8f850b613e6ad30bf8",
+      "rationale": "Dispatcher.Dispatch preserves its existing validation, hooks, notification handling, errors, and encoding while the new typed entry point is additive and outside the retained observation."
     }
   ]
 }

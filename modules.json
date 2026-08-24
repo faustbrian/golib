@@ -414,6 +414,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-ESCAPED-QUOTE.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-HTTP-SIGNATURE-FINALIZATION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-ISOLATED-MODFILE.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-TYPED-DISPATCH.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-URL-CONTRACT.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-KAFKA-SERVICE-OBSERVER-REENTRY.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-KNAPSACK-CHECKSUM-EVIDENCE.md",

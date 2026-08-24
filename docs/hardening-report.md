@@ -115,11 +115,12 @@ are complete. All 104 goal-bearing modules now have current goal-traceability
 records; Kafka and Verkle Tree retain their documented bounded support and
 security non-claims.
 
-## Authoritative CI proof
+## Prior CI proof and current verification
 
-The authoritative package-matrix run
+The latest complete package-matrix run
 [`32704788074`](https://github.com/faustbrian/golib/actions/runs/32704788074)
-passed at `5464cb0f14a4beae3eba1a155571e35bb22be631`. It contains 141
+passed at prior revision `5464cb0f14a4beae3eba1a155571e35bb22be631`. It
+contains 141
 attributable active-module jobs plus module selection, the repository contract,
 CodeQL, Kafka Linux arm64, and the fail-closed `Required` summary, for 146
 successful jobs. The catalog's 142nd module,
@@ -133,22 +134,26 @@ identity migration applied. Release-rehearsal artifacts use a separate
 namespace, and restoration scans trusted prior verification artifacts from
 newest to oldest so a partial or stale run cannot shadow reusable proof. The
 formerly timing-sensitive `pkg/concurrency-limit` campaign restored and reused
-its exact checkpoint in the authoritative run rather than executing again.
+its exact checkpoint in that run rather than executing again. The subsequent
+additive JSON-RPC typed-dispatch change requires a replacement complete matrix;
+the first run for that change failed closed because its source-documentation
+manifest was stale. The manifest and exact operational-assurance digest
+migrations are corrected in the current tree, but no replacement CI result is
+claimed here yet.
 
 ## Release rehearsal proof
 
-Workflow-dispatch run
+The prior workflow-dispatch run
 [`32697157280`](https://github.com/faustbrian/golib/actions/runs/32697157280)
 passed at `fe2fe4f309bf4d88303ba53c71382cb062498482`. All 111 releasable
 modules passed in independently attributable jobs, alongside module selection,
 the repository contract, and the fail-closed `Required` summary, for 114
-successful jobs and 111 uploaded release artifacts. The subsequent commits
-changed repository documentation, root CI evidence orchestration, and its
-tests; they did not change a releasable module, owned dependency, release
-script, release policy, or pinned release toolchain. The rehearsal therefore
-remains current for its content-addressed release inputs. CodeQL and Kafka
-arm64 were intentionally skipped because the rehearsal consumes the normal
-matrix rather than duplicating it.
+successful jobs and 111 uploaded release artifacts. It is now superseded for
+release-readiness purposes because `pkg/jsonrpc` production source changed
+after that revision. A replacement 111-module rehearsal is required after the
+current complete matrix passes. CodeQL and Kafka arm64 were intentionally
+skipped because the rehearsal consumes the normal matrix rather than
+duplicating it.
 
 Each module planned its required initial directory-prefixed `v1.0.0` tag,
 validated dependency-first owned-module ordering, passed isolated tidy, test,
