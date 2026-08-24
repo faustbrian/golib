@@ -28,6 +28,15 @@ func BenchmarkDispatchSingle(b *testing.B) {
 	}
 }
 
+func BenchmarkDispatchSingleTyped(b *testing.B) {
+	dispatcher := benchmarkDispatcher()
+	payload := []byte(`{"jsonrpc":"2.0","method":"sum","params":[1,2],"id":1}`)
+	b.ReportAllocs()
+	for b.Loop() {
+		dispatcher.DispatchSingle(context.Background(), payload)
+	}
+}
+
 func BenchmarkDispatchBatch(b *testing.B) {
 	dispatcher := benchmarkDispatcher()
 	payload := []byte(`[

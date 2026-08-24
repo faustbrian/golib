@@ -34,6 +34,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- `Dispatcher.DispatchSingle` for adapters that need a validated typed response
+  before applying their own wire-compatible response encoding.
 - Add an auditable specification-decision register for JSON-RPC ambiguities,
   defensive JSON policy, and the package's HTTP binding choices.
 - A configurable dispatcher JSON nesting-depth limit that rejects excessive

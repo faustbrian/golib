@@ -158,6 +158,93 @@ func TestDispatcherSingleRequests(t *testing.T) {
 	}
 }
 
+func TestDispatcherDispatchSingleReturnsTypedResponseWithoutEncoding(t *testing.T) {
+	t.Parallel()
+
+	registry := NewRegistry()
+	if err := registry.Register("fixture.echo", func(
+		_ context.Context,
+		_ json.RawMessage,
+	) (any, error) {
+		return map[string]string{"status": "ok"}, nil
+	}); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	dispatcher := NewDispatcher(registry)
+
+	response, reply := dispatcher.DispatchSingle(
+		context.Background(),
+		[]byte(`{"jsonrpc":"2.0","id":1,"method":"fixture.echo"}`),
+	)
+	if !reply || response.JSONRPC != Version || response.Error != nil ||
+		string(response.Result) != `{"status":"ok"}` {
+		t.Fatalf("DispatchSingle() = %#v, %t", response, reply)
+	}
+}
+
+func TestDispatcherDispatchSinglePreservesProtocolBoundaries(t *testing.T) {
+	t.Parallel()
+
+	dispatcher := NewDispatcher(
+		NewRegistry(),
+		WithMaxDispatchBytes(64),
+		WithMaxNestingDepth(2),
+	)
+	tests := map[string]struct {
+		payload []byte
+		code    int
+		reply   bool
+	}{
+		"empty": {
+			payload: []byte(" \n\t"),
+			code:    CodeParseError,
+			reply:   true,
+		},
+		"oversized": {
+			payload: make([]byte, 65),
+			code:    CodeRequestLimitExceeded,
+			reply:   true,
+		},
+		"malformed": {
+			payload: []byte(`{"jsonrpc":`),
+			code:    CodeParseError,
+			reply:   true,
+		},
+		"excessive nesting": {
+			payload: []byte(`{"jsonrpc":"2.0","method":"missing","params":{"nested":{}}}`),
+			code:    CodeRequestLimitExceeded,
+			reply:   true,
+		},
+		"batch": {
+			payload: []byte(`[]`),
+			code:    CodeInvalidRequest,
+			reply:   true,
+		},
+		"notification": {
+			payload: []byte(`{"jsonrpc":"2.0","method":"missing"}`),
+			code:    CodeMethodNotFound,
+			reply:   false,
+		},
+	}
+	for name, testCase := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			response, reply := dispatcher.DispatchSingle(
+				context.Background(),
+				testCase.payload,
+			)
+			if reply != testCase.reply {
+				t.Fatalf("reply = %t, want %t", reply, testCase.reply)
+			}
+			if reply && (response.Error == nil ||
+				response.Error.Code != testCase.code) {
+				t.Fatalf("response = %#v, want code %d", response, testCase.code)
+			}
+		})
+	}
+}
+
 func TestDispatcherProtocolErrors(t *testing.T) {
 	t.Parallel()
 
