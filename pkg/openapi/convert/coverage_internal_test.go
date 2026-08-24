@@ -1618,7 +1618,7 @@ func TestSwaggerDowngradeExactDecisionBoundaries(t *testing.T) {
 	emptyParameters, mediaTypes, err := operationConverter.operationRequestBody(
 		conversionValue(t, `{"content":{}}`), "/body",
 	)
-	if err != nil || len(mediaTypes) != 0 || len(emptyParameters) != 1 {
+	if err != nil || len(mediaTypes) != 0 || len(emptyParameters) != 0 {
 		t.Fatalf("empty request body content = %#v, %#v, %v", emptyParameters, mediaTypes, err)
 	}
 	formBody := conversionValue(t, `{
@@ -2131,6 +2131,9 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 	bodyConverter := newConverter(100)
 	bodies, mediaTypes, err := bodyConverter.requestBodyMap(conversionValue(t, `{
 		"Form":{"content":{"multipart/form-data":{"schema":{"type":"object","properties":{}}}}},
+		"Empty":{"content":{}},
+		"EmptyReference":{"$ref":""},
+		"MalformedReference":{"$ref":true},
 		"Payload":{"content":{"application/json":{"schema":{"type":"string"}}}}
 	}`), "/requestBodies")
 	if err != nil {
@@ -2138,6 +2141,15 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 	}
 	if _, exists := bodies.Lookup("Form"); exists {
 		t.Fatal("reusable form body was retained")
+	}
+	if _, exists := bodies.Lookup("Empty"); exists {
+		t.Fatal("empty reusable body was retained")
+	}
+	if _, exists := bodies.Lookup("EmptyReference"); exists {
+		t.Fatal("empty reusable body reference was retained")
+	}
+	if _, exists := bodies.Lookup("MalformedReference"); exists {
+		t.Fatal("malformed reusable body reference was retained")
 	}
 	if _, exists := bodies.Lookup("Payload"); !exists || len(mediaTypes) != 1 ||
 		textValue(t, mediaTypes[0]) != "application/json" {
@@ -2204,6 +2216,316 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 		t.Fatalf("request schema after schemaless media = %#v, %#v", request, requestMediaTypes)
 	}
 
+	for name, raw := range map[string]string{
+		"missing content":   `{}`,
+		"malformed content": `{"content":true}`,
+		"empty content":     `{"content":{}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			emptyRequestConverter := newConverter(100)
+			emptyRequest, emptyMediaTypes, requestErr := emptyRequestConverter.requestBody(
+				conversionValue(t, raw), "/body",
+			)
+			if requestErr != nil {
+				t.Fatal(requestErr)
+			}
+			if emptyRequest.Kind() != jsonvalue.InvalidKind || len(emptyMediaTypes) != 0 ||
+				len(emptyRequestConverter.diagnostics) != 1 ||
+				emptyRequestConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" ||
+				emptyRequestConverter.diagnostics[0].Pointer != "/body/content" {
+				t.Fatalf(
+					"empty request conversion = %#v, %#v, %#v",
+					emptyRequest,
+					emptyMediaTypes,
+					emptyRequestConverter.diagnostics,
+				)
+			}
+		})
+	}
+
+	invalidMediaRequestConverter := newConverter(100)
+	invalidMediaRequest, invalidRequestMediaTypes, err := invalidMediaRequestConverter.requestBody(
+		conversionValue(t, `{"content":{"0":{}}}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if memberAt(t, invalidMediaRequest, "schema").Kind() != jsonvalue.ObjectKind ||
+		len(invalidRequestMediaTypes) != 0 ||
+		len(invalidMediaRequestConverter.diagnostics) != 1 ||
+		invalidMediaRequestConverter.diagnostics[0].Code != "openapi.convert.media-type-removed" ||
+		invalidMediaRequestConverter.diagnostics[0].Pointer != "/body/content/0" {
+		t.Fatalf(
+			"invalid request media conversion = %#v, %#v, %#v",
+			invalidMediaRequest,
+			invalidRequestMediaTypes,
+			invalidMediaRequestConverter.diagnostics,
+		)
+	}
+
+	malformedMediaRequestConverter := newConverter(100)
+	malformedMediaRequest, malformedRequestMediaTypes, err := malformedMediaRequestConverter.requestBody(
+		conversionValue(t, `{"content":{"bad media":{}}}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if memberAt(t, malformedMediaRequest, "schema").Kind() != jsonvalue.ObjectKind ||
+		len(malformedRequestMediaTypes) != 0 ||
+		len(malformedMediaRequestConverter.diagnostics) != 1 ||
+		malformedMediaRequestConverter.diagnostics[0].Code != "openapi.convert.media-type-removed" ||
+		malformedMediaRequestConverter.diagnostics[0].Pointer != "/body/content/bad media" {
+		t.Fatalf(
+			"malformed request media conversion = %#v, %#v, %#v",
+			malformedMediaRequest,
+			malformedRequestMediaTypes,
+			malformedMediaRequestConverter.diagnostics,
+		)
+	}
+
+	emptyReference := "#/components/requestBodies/Empty"
+	emptyReferenceConverter := newConverter(100)
+	emptyReferenceConverter.requestBodies[emptyReference] = conversionValue(t, `{"content":{}}`)
+	emptyReferenceBody, emptyReferenceMediaTypes, err := emptyReferenceConverter.requestBody(
+		conversionValue(t, `{"$ref":"`+emptyReference+`"}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emptyReferenceBody.Kind() != jsonvalue.InvalidKind || len(emptyReferenceMediaTypes) != 0 ||
+		len(emptyReferenceConverter.diagnostics) != 1 ||
+		emptyReferenceConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" ||
+		emptyReferenceConverter.diagnostics[0].Pointer != "/body/$ref" {
+		t.Fatalf(
+			"empty request reference conversion = %#v, %#v, %#v",
+			emptyReferenceBody,
+			emptyReferenceMediaTypes,
+			emptyReferenceConverter.diagnostics,
+		)
+	}
+
+	emptyRootReferenceConverter := newConverter(100)
+	emptyRootReferenceBody, emptyRootReferenceMediaTypes, err := emptyRootReferenceConverter.requestBody(
+		conversionValue(t, `{"$ref":""}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emptyRootReferenceBody.Kind() != jsonvalue.InvalidKind || len(emptyRootReferenceMediaTypes) != 0 ||
+		len(emptyRootReferenceConverter.diagnostics) != 1 ||
+		emptyRootReferenceConverter.diagnostics[0].Code !=
+			"openapi.convert.request-body-reference-removed" ||
+		emptyRootReferenceConverter.diagnostics[0].Pointer != "/body/$ref" {
+		t.Fatalf(
+			"empty root request reference conversion = %#v, %#v, %#v",
+			emptyRootReferenceBody,
+			emptyRootReferenceMediaTypes,
+			emptyRootReferenceConverter.diagnostics,
+		)
+	}
+
+	unknownLocalReferenceConverter := newConverter(100)
+	unknownLocalReferenceBody, unknownLocalReferenceMediaTypes, err :=
+		unknownLocalReferenceConverter.requestBody(
+			conversionValue(t, `{"$ref":"#/components"}`), "/body",
+		)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unknownLocalReferenceBody.Kind() != jsonvalue.InvalidKind ||
+		len(unknownLocalReferenceMediaTypes) != 0 ||
+		len(unknownLocalReferenceConverter.diagnostics) != 1 ||
+		unknownLocalReferenceConverter.diagnostics[0].Code !=
+			"openapi.convert.request-body-reference-removed" ||
+		unknownLocalReferenceConverter.diagnostics[0].Pointer != "/body/$ref" {
+		t.Fatalf(
+			"unknown local request reference conversion = %#v, %#v, %#v",
+			unknownLocalReferenceBody,
+			unknownLocalReferenceMediaTypes,
+			unknownLocalReferenceConverter.diagnostics,
+		)
+	}
+
+	aliasReference := "#/components/requestBodies/Alias"
+	aliasReferenceConverter := newConverter(100)
+	aliasReferenceConverter.requestBodies[emptyReference] = conversionValue(t, `{"content":{}}`)
+	aliasReferenceConverter.requestBodies[aliasReference] = conversionValue(t, `{"$ref":"`+emptyReference+`"}`)
+	aliasReferenceBody, aliasReferenceMediaTypes, err := aliasReferenceConverter.requestBody(
+		conversionValue(t, `{"$ref":"`+aliasReference+`"}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if aliasReferenceBody.Kind() != jsonvalue.InvalidKind || len(aliasReferenceMediaTypes) != 0 ||
+		len(aliasReferenceConverter.diagnostics) != 1 ||
+		aliasReferenceConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" {
+		t.Fatalf(
+			"aliased request reference conversion = %#v, %#v, %#v",
+			aliasReferenceBody,
+			aliasReferenceMediaTypes,
+			aliasReferenceConverter.diagnostics,
+		)
+	}
+
+	emptyAliasReference := "#/components/requestBodies/EmptyAlias"
+	emptyAliasConverter := newConverter(100)
+	emptyAliasConverter.requestBodies[emptyAliasReference] = conversionValue(t, `{"$ref":""}`)
+	emptyAliasBody, emptyAliasMediaTypes, err := emptyAliasConverter.requestBody(
+		conversionValue(t, `{"$ref":"`+emptyAliasReference+`"}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emptyAliasBody.Kind() != jsonvalue.InvalidKind || len(emptyAliasMediaTypes) != 0 ||
+		len(emptyAliasConverter.diagnostics) != 1 ||
+		emptyAliasConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" {
+		t.Fatalf(
+			"empty alias request reference conversion = %#v, %#v, %#v",
+			emptyAliasBody,
+			emptyAliasMediaTypes,
+			emptyAliasConverter.diagnostics,
+		)
+	}
+
+	contentReference := "#/components/requestBodies/Content"
+	contentReferenceConverter := newConverter(100)
+	contentReferenceConverter.requestBodies[contentReference] = conversionValue(t, `{
+		"content":{"application/json":{"schema":{"type":"string"}}}
+	}`)
+	contentReferenceBody, contentReferenceMediaTypes, err := contentReferenceConverter.requestBody(
+		conversionValue(t, `{"$ref":"`+contentReference+`"}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contentReferenceBody.Kind() != jsonvalue.ObjectKind || len(contentReferenceMediaTypes) != 0 ||
+		len(contentReferenceConverter.diagnostics) != 0 {
+		t.Fatalf(
+			"content request reference conversion = %#v, %#v, %#v",
+			contentReferenceBody,
+			contentReferenceMediaTypes,
+			contentReferenceConverter.diagnostics,
+		)
+	}
+
+	externalAliasReference := "#/components/requestBodies/ExternalAlias"
+	externalAliasConverter := newConverter(100)
+	externalAliasConverter.requestBodies[externalAliasReference] = conversionValue(t, `{
+		"$ref":"https://example.test/request-bodies.json#/Payload"
+	}`)
+	externalAliasBody, externalAliasMediaTypes, err := externalAliasConverter.requestBody(
+		conversionValue(t, `{"$ref":"`+externalAliasReference+`"}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if externalAliasBody.Kind() != jsonvalue.ObjectKind || len(externalAliasMediaTypes) != 0 ||
+		len(externalAliasConverter.diagnostics) != 1 ||
+		externalAliasConverter.diagnostics[0].Code != "openapi.convert.external-reference" ||
+		textValue(t, memberAt(t, externalAliasBody, "$ref")) !=
+			"https://example.test/request-bodies.json#/Payload" {
+		t.Fatalf(
+			"external request reference conversion = %#v, %#v, %#v",
+			externalAliasBody,
+			externalAliasMediaTypes,
+			externalAliasConverter.diagnostics,
+		)
+	}
+
+	aliasMapConverter := newConverter(100)
+	aliasMapConverter.requestBodies[contentReference] = contentReferenceConverter.requestBodies[contentReference]
+	aliasMapConverter.requestBodies[aliasReference] = conversionValue(t, `{"$ref":"`+contentReference+`"}`)
+	aliasMapConverter.requestBodies[externalAliasReference] = externalAliasConverter.requestBodies[externalAliasReference]
+	aliasMap, _, err := aliasMapConverter.requestBodyMap(conversionValue(t, `{
+		"Alias":{"$ref":"`+contentReference+`"},
+		"ExternalAlias":{"$ref":"https://example.test/request-bodies.json#/Payload"}
+	}`), "/requestBodies")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := aliasMap.Lookup("Alias"); !exists {
+		t.Fatal("resolvable local request body alias was not flattened")
+	}
+	if _, exists := aliasMap.Lookup("ExternalAlias"); exists {
+		t.Fatal("external request body alias was retained as an invalid reusable parameter")
+	}
+
+	malformedAliasReference := "#/components/requestBodies/MalformedAlias"
+	malformedAliasConverter := newConverter(100)
+	malformedAliasConverter.requestBodies[malformedAliasReference] = conversionValue(t, `{"$ref":true}`)
+	malformedAliasBody, malformedAliasMediaTypes, err := malformedAliasConverter.requestBody(
+		conversionValue(t, `{"$ref":"`+malformedAliasReference+`"}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if malformedAliasBody.Kind() != jsonvalue.InvalidKind || len(malformedAliasMediaTypes) != 0 ||
+		len(malformedAliasConverter.diagnostics) != 1 ||
+		malformedAliasConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" {
+		t.Fatalf(
+			"malformed request reference conversion = %#v, %#v, %#v",
+			malformedAliasBody,
+			malformedAliasMediaTypes,
+			malformedAliasConverter.diagnostics,
+		)
+	}
+
+	cycleReference := "#/components/requestBodies/Cycle"
+	cycleReferenceConverter := newConverter(100)
+	cycleReferenceConverter.requestBodies[cycleReference] = conversionValue(t, `{"$ref":"`+cycleReference+`"}`)
+	cycleBody, cycleMediaTypes, err := cycleReferenceConverter.requestBody(
+		conversionValue(t, `{"$ref":"`+cycleReference+`"}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	missingDescriptionConverter := newConverter(100)
+	missingDescriptionResponse, _, err := missingDescriptionConverter.response(
+		conversionValue(t, `{"x-source":"retained"}`), "/response",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if textValue(t, memberAt(t, missingDescriptionResponse, "description")) != "Response" ||
+		textValue(t, memberAt(t, missingDescriptionResponse, "x-source")) != "retained" ||
+		len(missingDescriptionConverter.diagnostics) != 1 ||
+		missingDescriptionConverter.diagnostics[0].Code != "openapi.convert.response-description-added" {
+		t.Fatalf("response without description conversion = %#v", missingDescriptionResponse)
+	}
+
+	unknownResponseFieldConverter := newConverter(100)
+	unknownResponseField, unknownResponseMediaTypes, err := unknownResponseFieldConverter.response(
+		conversionValue(t, `{
+			"description":"response",
+			"unknown":{"application/json":{"schema":{"type":"string"}}}
+		}`),
+		"/response",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(unknownResponseMediaTypes) != 0 ||
+		len(unknownResponseFieldConverter.diagnostics) != 1 ||
+		unknownResponseFieldConverter.diagnostics[0].Code != "openapi.convert.response-field-removed" {
+		t.Fatalf(
+			"unknown response field conversion = %#v, %#v, %#v",
+			unknownResponseField,
+			unknownResponseMediaTypes,
+			unknownResponseFieldConverter.diagnostics,
+		)
+	}
+	if cycleBody.Kind() != jsonvalue.InvalidKind || len(cycleMediaTypes) != 0 ||
+		len(cycleReferenceConverter.diagnostics) != 1 ||
+		cycleReferenceConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" {
+		t.Fatalf(
+			"cyclic request reference conversion = %#v, %#v, %#v",
+			cycleBody,
+			cycleMediaTypes,
+			cycleReferenceConverter.diagnostics,
+		)
+	}
+
 	responseConverter := newConverter(100)
 	response, responseMediaTypes, err := responseConverter.response(conversionValue(t, `{
 		"content":{"text/plain":{},"application/json":{"schema":{"type":"string"}}}
@@ -2214,6 +2536,26 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 	if textValue(t, memberAt(t, response, "schema", "type")) != "string" ||
 		len(responseMediaTypes) != 2 {
 		t.Fatalf("response schema after schemaless media = %#v, %#v", response, responseMediaTypes)
+	}
+
+	invalidMediaResponseConverter := newConverter(100)
+	invalidMediaResponse, invalidResponseMediaTypes, err := invalidMediaResponseConverter.response(
+		conversionValue(t, `{"description":"response","content":{"0":{},"application/json":{}}}`), "/response",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(invalidResponseMediaTypes) != 1 ||
+		textValue(t, invalidResponseMediaTypes[0]) != "application/json" ||
+		len(invalidMediaResponseConverter.diagnostics) != 1 ||
+		invalidMediaResponseConverter.diagnostics[0].Code != "openapi.convert.media-type-removed" ||
+		invalidMediaResponseConverter.diagnostics[0].Pointer != "/response/content/0" {
+		t.Fatalf(
+			"invalid response media conversion = %#v, %#v, %#v",
+			invalidMediaResponse,
+			invalidResponseMediaTypes,
+			invalidMediaResponseConverter.diagnostics,
+		)
 	}
 
 	securityConverter := newConverter(100)
@@ -2651,10 +2993,19 @@ func TestSwaggerDowngradeDefensiveGuardsPreserveLosses(t *testing.T) {
 	); err != nil || len(parameters) != 0 || len(mediaTypes) != 1 {
 		t.Fatalf("missing form schema = %#v, %#v, %v", parameters, mediaTypes, err)
 	}
-	if body, mediaTypes, err := converter.requestBody(
+	malformedRequestConverter := newConverter()
+	if body, mediaTypes, err := malformedRequestConverter.requestBody(
 		conversionValue(t, `{"content":true}`), "/body",
-	); err != nil || body.Kind() != jsonvalue.ObjectKind || len(mediaTypes) != 0 {
-		t.Fatalf("malformed request content = %#v, %#v, %v", body, mediaTypes, err)
+	); err != nil || body.Kind() != jsonvalue.InvalidKind || len(mediaTypes) != 0 ||
+		len(malformedRequestConverter.diagnostics) != 1 ||
+		malformedRequestConverter.diagnostics[0].Code != "openapi.convert.request-body-removed" {
+		t.Fatalf(
+			"malformed request content = %#v, %#v, %#v, %v",
+			body,
+			mediaTypes,
+			malformedRequestConverter.diagnostics,
+			err,
+		)
 	}
 	if _, ok, err := converter.oauth2SecurityScheme(
 		conversionValue(t, `{"flows":{}}`), "/security",

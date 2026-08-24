@@ -5,6 +5,14 @@ changed modules from the merge base and expand through reverse owned
 dependencies. Pushes to `main`, schedules, releases, and manual runs select all
 active modules.
 
+Manual runs expose a `release_dry_run` mode. That mode selects only releasable
+modules and gives each module an attributable job that starts its cataloged
+pinned services and executes the exact initial `v1.0.0` release dry-run. It
+does not repeat the strict module matrix, CodeQL, or the Kafka arm64 contract;
+it is a release rehearsal to run only after the same source revision has a
+successful complete CI run. The repository contract and stable `Required` job
+remain mandatory, and every module uploads its release log.
+
 The visible matrix has one job per selected module. Each job runs
 `scripts/run-modules.sh check --modules <directory>`, starts cataloged pinned
 services, and uploads attributable coverage, mutation, SBOM, conformance, and

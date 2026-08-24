@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"openapi\":\"3.0.0\",\"info\":{\"title\":\"000\",\"version\":\"0\"},\"paths\":{\"/00000\":{\"post\":{\"requestBody\":{\"content\":{}},\"responses\":{\"100\":{\"description\":\"\"}}}}}}")

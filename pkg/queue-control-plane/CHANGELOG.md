@@ -8,6 +8,12 @@ Versioning.
 
 ### Fixed
 
+- Enforce exact fleet capacity, runtime accumulation, rejection aggregation,
+  deterministic ordering, and telemetry saturation boundaries under mutation
+  verification.
+- Validate structured data-plane results through an explicit terminal-outcome
+  whitelist, preserving fail-closed cancellation and lifecycle-state handling
+  without redundant status conditions.
 - Strengthen command-orchestration verification around desired-state target
   alternatives, caller-supplied metadata, and every nonterminal dispatch
   outcome.

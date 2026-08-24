@@ -593,6 +593,7 @@ func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
 		1,
 		map[string]*string{
 			"min.insync.replicas":            kadm.StringPtr("1"),
+			"segment.bytes":                  kadm.StringPtr("1048576"),
 			"unclean.leader.election.enable": kadm.StringPtr("false"),
 		},
 	)
@@ -615,11 +616,12 @@ func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
 	})
 	leader := state.Partitions[0].Leader
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
-		Brokers:       brokers,
-		ClientID:      "golib-apache-replay-log-recovery-producer",
-		AllowedTopics: []string{topic},
-		KeyPolicy:     kafka.KeyRequired,
-		Security:      kafka.DevelopmentPlaintextSecurity(),
+		Brokers:                brokers,
+		ClientID:               "golib-apache-replay-log-recovery-producer",
+		AllowedTopics:          []string{topic},
+		KeyPolicy:              kafka.KeyRequired,
+		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionNone},
+		Security:               kafka.DevelopmentPlaintextSecurity(),
 	})
 	if err != nil {
 		t.Fatalf("construct log-recovery replay producer: %v", err)
@@ -628,7 +630,7 @@ func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
 		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
 			Topic: topic,
 			Key:   []byte(fmt.Sprintf("log-recovery-key-%d", index)),
-			Value: bytes.Repeat([]byte{byte(index + 1)}, 4<<10),
+			Value: bytes.Repeat([]byte{byte(index + 1)}, 600<<10),
 		})
 		if result.Err != nil ||
 			result.Partition != 0 ||
@@ -656,9 +658,9 @@ func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
 	}
 
 	cluster.stopNode(t, ctx, leader)
-	removedBytes := cluster.truncateTopicTail(t, ctx, leader, topic, 16)
-	if removedBytes != 16 {
-		t.Fatalf("log-recovery truncated bytes = %d, want 16", removedBytes)
+	removedBytes := cluster.removeLastTopicSegment(t, ctx, leader, topic)
+	if removedBytes <= 0 {
+		t.Fatalf("log-recovery removed bytes = %d, want a positive size", removedBytes)
 	}
 	cluster.startNode(t, ctx, leader)
 	waitForApacheBrokerEndpoints(t, ctx, brokers)
@@ -5646,42 +5648,41 @@ func (cluster *apacheKafkaCluster) stopNode(
 	}
 }
 
-func (cluster *apacheKafkaCluster) truncateTopicTail(
+func (cluster *apacheKafkaCluster) removeLastTopicSegment(
 	t *testing.T,
 	ctx context.Context,
 	nodeID int32,
 	topic string,
-	bytesToRemove int64,
 ) int64 {
 	t.Helper()
 
 	node := cluster.node(t, nodeID)
 	script := `set -eu
 topic_dir="/tmp/kraft-combined-logs/$1-0"
-segment="$(find "$topic_dir" -maxdepth 1 -type f -name '*.log' | LC_ALL=C sort | tail -n 1)"
+segments="$(find "$topic_dir" -maxdepth 1 -type f -name '*.log' | LC_ALL=C sort)"
+segment_count="$(printf '%s\n' "$segments" | grep -c .)"
+test "$segment_count" -ge 2
+segment="$(printf '%s\n' "$segments" | tail -n 1)"
 test -n "$segment"
 old_size="$(wc -c < "$segment")"
-test "$old_size" -gt "$2"
-new_size="$((old_size - $2))"
-truncate -s "$new_size" "$segment"
+test "$old_size" -gt 0
 base="${segment%.log}"
-rm -f "$base.index" "$base.timeindex" "$base.txnindex"
+rm -f "$base".*
 rm -f /tmp/kraft-combined-logs/.kafka_cleanshutdown
-printf '%s %s\n' "$old_size" "$new_size"`
+printf '%s\n' "$old_size"`
 	exitCode, output, err := node.container.Exec(
 		ctx,
 		[]string{
 			"sh",
 			"-c",
 			script,
-			"truncate-kafka-topic-tail",
+			"remove-kafka-topic-tail-segment",
 			topic,
-			strconv.FormatInt(bytesToRemove, 10),
 		},
 		tcexec.Multiplexed(),
 	)
 	if err != nil {
-		t.Fatalf("truncate Apache Kafka topic tail on node %d: %v", nodeID, err)
+		t.Fatalf("remove Apache Kafka topic tail segment on node %d: %v", nodeID, err)
 	}
 	data, readErr := io.ReadAll(io.LimitReader(output, 256))
 	if readErr != nil {
@@ -5689,30 +5690,25 @@ printf '%s %s\n' "$old_size" "$new_size"`
 	}
 	if exitCode != 0 {
 		t.Fatalf(
-			"truncate Apache Kafka topic tail on node %d: exit %d",
+			"remove Apache Kafka topic tail segment on node %d: exit %d",
 			nodeID,
 			exitCode,
 		)
 	}
 	fields := strings.Fields(string(data))
-	if len(fields) != 2 {
-		t.Fatalf("Apache Kafka truncation result = %q", data)
+	if len(fields) != 1 {
+		t.Fatalf("Apache Kafka tail-segment removal result = %q", data)
 	}
-	oldSize, oldErr := strconv.ParseInt(fields[0], 10, 64)
-	newSize, newErr := strconv.ParseInt(fields[1], 10, 64)
-	if oldErr != nil ||
-		newErr != nil ||
-		oldSize <= newSize ||
-		oldSize-newSize != bytesToRemove {
+	removedBytes, parseErr := strconv.ParseInt(fields[0], 10, 64)
+	if parseErr != nil || removedBytes <= 0 {
 		t.Fatalf(
-			"Apache Kafka truncation sizes = %q (%v, %v)",
+			"Apache Kafka tail-segment removal size = %q (%v)",
 			data,
-			oldErr,
-			newErr,
+			parseErr,
 		)
 	}
 
-	return oldSize - newSize
+	return removedBytes
 }
 
 func (cluster *apacheKafkaCluster) startNode(

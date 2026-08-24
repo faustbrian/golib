@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Require bounded-load readiness to converge within a strict window instead
+  of failing on a transient shard-initialization sample.
+
 ### Documentation
 
 - Link the package README to the repository-wide Golib documentation portal.

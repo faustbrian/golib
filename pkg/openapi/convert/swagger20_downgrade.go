@@ -3,6 +3,7 @@ package convert
 import (
 	"bytes"
 	"context"
+	"mime"
 	"net/url"
 	"strconv"
 	"strings"
@@ -520,16 +521,31 @@ func (converter *oas30SwaggerConverter) requestBodyMap(
 			})
 			continue
 		}
+		bodyValue := member.Value
+		if nested, exists := bodyValue.Lookup("$ref"); exists {
+			raw, valid := nested.Text()
+			if !valid {
+				continue
+			}
+			terminal, localContent, _ := converter.requestBodyReferenceTarget(raw)
+			if !localContent {
+				continue
+			}
+			bodyValue = converter.requestBodies[terminal]
+		}
 		targetName := converter.requestBodyNames[reference]
 		if targetName == "" {
 			targetName = member.Name
 		}
 		converted, bodyMediaTypes, err := converter.requestBody(
-			member.Value,
+			bodyValue,
 			pointer+"/"+escapePointer(member.Name),
 		)
 		if err != nil {
 			return jsonvalue.Value{}, nil, err
+		}
+		if converted.Kind() == jsonvalue.InvalidKind {
+			continue
 		}
 		converted = replaceObjectString(converted, "name", targetName)
 		member.Name = targetName
@@ -1236,6 +1252,31 @@ func (converter *oas30SwaggerConverter) requestBody(
 	}
 	if _, exists := value.Lookup("$ref"); exists {
 		reference, _ := value.Lookup("$ref")
+		if raw, valid := reference.Text(); valid {
+			_, local := converter.requestBodies[raw]
+			if (raw == "" || strings.HasPrefix(raw, "#")) && !local {
+				converter.loss(
+					pointer+"/$ref",
+					"openapi.convert.request-body-reference-removed",
+					"the local request body reference is unavailable in Swagger 2.0",
+				)
+				return jsonvalue.Value{}, nil, nil
+			}
+			if local {
+				terminal, localContent, available := converter.requestBodyReferenceTarget(raw)
+				if !available {
+					converter.loss(
+						pointer+"/$ref",
+						"openapi.convert.request-body-removed",
+						"Swagger 2.0 cannot represent a request body without media content",
+					)
+					return jsonvalue.Value{}, nil, nil
+				}
+				if !localContent {
+					reference, _ = jsonvalue.String(terminal)
+				}
+			}
+		}
 		converted := converter.reference(reference, pointer+"/$ref")
 		body, err := jsonvalue.Object([]jsonvalue.Member{{
 			Name: "$ref", Value: converted,
@@ -1262,31 +1303,40 @@ func (converter *oas30SwaggerConverter) requestBody(
 			result = append(result, member)
 		}
 	}
-	content, exists := value.Lookup("content")
-	contentMembers, ok := content.Members()
-	if !exists {
-		body, err := jsonvalue.Object(result)
-		return body, nil, err
-	}
-	if !ok {
-		body, err := jsonvalue.Object(result)
-		return body, nil, err
+	content, _ := value.Lookup("content")
+	contentMembers, _ := content.Members()
+	if len(contentMembers) == 0 {
+		converter.loss(
+			pointer+"/content",
+			"openapi.convert.request-body-removed",
+			"Swagger 2.0 cannot represent a request body without media content",
+		)
+		return jsonvalue.Value{}, nil, nil
 	}
 	mediaTypes := make([]jsonvalue.Value, 0, len(contentMembers))
 	var selectedSchema jsonvalue.Value
 	for _, mediaType := range contentMembers {
-		mediaTypeValue, _ := jsonvalue.String(mediaType.Name)
-		mediaTypes = append(mediaTypes, mediaTypeValue)
+		mediaTypePointer := pointer + "/content/" + escapePointer(mediaType.Name)
+		if validSwaggerMediaType(mediaType.Name) {
+			mediaTypeValue, _ := jsonvalue.String(mediaType.Name)
+			mediaTypes = append(mediaTypes, mediaTypeValue)
+		} else {
+			converter.loss(
+				mediaTypePointer,
+				"openapi.convert.media-type-removed",
+				"Swagger 2.0 requires a concrete type/subtype media type",
+			)
+		}
 		if isSwaggerFormMediaType(mediaType.Name) {
 			converter.loss(
-				pointer+"/content/"+escapePointer(mediaType.Name),
+				mediaTypePointer,
 				"openapi.convert.form-media-type-removed",
 				"Swagger 2.0 form semantics require formData parameters",
 			)
 		}
 		converter.mediaTypeLosses(
 			mediaType.Value,
-			pointer+"/content/"+escapePointer(mediaType.Name),
+			mediaTypePointer,
 			false,
 		)
 		schema, exists := mediaType.Value.Lookup("schema")
@@ -1295,7 +1345,7 @@ func (converter *oas30SwaggerConverter) requestBody(
 		}
 		converted, err := converter.schema(
 			schema,
-			pointer+"/content/"+escapePointer(mediaType.Name)+"/schema",
+			mediaTypePointer+"/schema",
 		)
 		if err != nil {
 			return jsonvalue.Value{}, nil, err
@@ -1307,14 +1357,55 @@ func (converter *oas30SwaggerConverter) requestBody(
 		}
 		if !sameJSONValue(selectedSchema, converted) {
 			converter.loss(
-				pointer+"/content/"+escapePointer(mediaType.Name)+"/schema",
+				mediaTypePointer+"/schema",
 				"openapi.convert.request-media-schema-removed",
 				"Swagger 2.0 supports only one body schema across media types",
 			)
 		}
 	}
+	if selectedSchema.Kind() == jsonvalue.InvalidKind {
+		selectedSchema, _ = jsonvalue.Object(nil)
+		result = append(result, jsonvalue.Member{Name: "schema", Value: selectedSchema})
+	}
 	body, err := jsonvalue.Object(result)
 	return body, mediaTypes, err
+}
+
+func validSwaggerMediaType(value string) bool {
+	mediaType, _, err := mime.ParseMediaType(value)
+	if err != nil {
+		return false
+	}
+	parts := strings.Split(mediaType, "/")
+	return len(parts) == 2 && parts[1] != ""
+}
+
+func (converter *oas30SwaggerConverter) requestBodyReferenceTarget(
+	reference string,
+) (string, bool, bool) {
+	seen := make(map[string]struct{})
+	for {
+		if _, duplicate := seen[reference]; duplicate {
+			return "", false, false
+		}
+		seen[reference] = struct{}{}
+		target, local := converter.requestBodies[reference]
+		if !local {
+			available := reference != "" && !strings.HasPrefix(reference, "#")
+			return reference, false, available
+		}
+		if nested, exists := target.Lookup("$ref"); exists {
+			next, valid := nested.Text()
+			if !valid {
+				return "", false, false
+			}
+			reference = next
+			continue
+		}
+		content, _ := target.Lookup("content")
+		members, _ := content.Members()
+		return reference, true, len(members) != 0
+	}
 }
 
 func (converter *oas30SwaggerConverter) responseMap(
@@ -1358,6 +1449,16 @@ func (converter *oas30SwaggerConverter) response(
 	}
 	members, _ := value.Members()
 	result := make([]jsonvalue.Member, 0, len(members))
+	if _, exists := value.Lookup("description"); !exists {
+		description, _ := jsonvalue.String("Response")
+		result = append(result, jsonvalue.Member{Name: "description", Value: description})
+		converter.diagnostics = append(converter.diagnostics, Diagnostic{
+			Code:    "openapi.convert.response-description-added",
+			Kind:    ManualAction,
+			Pointer: pointer + "/description",
+			Message: "review the description required by Swagger 2.0",
+		})
+	}
 	var mediaTypes []jsonvalue.Value
 	var examples []jsonvalue.Member
 	for _, member := range members {
@@ -1380,8 +1481,18 @@ func (converter *oas30SwaggerConverter) response(
 			)
 			continue
 		case "content":
-		default:
+		case "description":
 			result = append(result, member)
+		default:
+			if strings.HasPrefix(strings.ToLower(member.Name), "x-") {
+				result = append(result, member)
+				continue
+			}
+			converter.loss(
+				pointer+"/"+escapePointer(member.Name),
+				"openapi.convert.response-field-removed",
+				"Swagger 2.0 cannot represent this response field",
+			)
 			continue
 		}
 		contentMembers, ok := member.Value.Members()
@@ -1390,8 +1501,17 @@ func (converter *oas30SwaggerConverter) response(
 		}
 		var selectedSchema jsonvalue.Value
 		for _, mediaType := range contentMembers {
-			text, _ := jsonvalue.String(mediaType.Name)
-			mediaTypes = append(mediaTypes, text)
+			mediaTypePointer := pointer + "/content/" + escapePointer(mediaType.Name)
+			if validSwaggerMediaType(mediaType.Name) {
+				text, _ := jsonvalue.String(mediaType.Name)
+				mediaTypes = append(mediaTypes, text)
+			} else {
+				converter.loss(
+					mediaTypePointer,
+					"openapi.convert.media-type-removed",
+					"Swagger 2.0 requires a concrete type/subtype media type",
+				)
+			}
 			if example, exists := mediaType.Value.Lookup("example"); exists {
 				examples = append(examples, jsonvalue.Member{
 					Name: mediaType.Name, Value: example,
@@ -1399,7 +1519,7 @@ func (converter *oas30SwaggerConverter) response(
 			}
 			converter.mediaTypeLosses(
 				mediaType.Value,
-				pointer+"/content/"+escapePointer(mediaType.Name),
+				mediaTypePointer,
 				true,
 			)
 			schema, exists := mediaType.Value.Lookup("schema")
@@ -1408,7 +1528,7 @@ func (converter *oas30SwaggerConverter) response(
 			}
 			converted, err := converter.schema(
 				schema,
-				pointer+"/content/"+escapePointer(mediaType.Name)+"/schema",
+				mediaTypePointer+"/schema",
 			)
 			if err != nil {
 				return jsonvalue.Value{}, nil, err
@@ -1420,7 +1540,7 @@ func (converter *oas30SwaggerConverter) response(
 			}
 			if !sameJSONValue(selectedSchema, converted) {
 				converter.loss(
-					pointer+"/content/"+escapePointer(mediaType.Name)+"/schema",
+					mediaTypePointer+"/schema",
 					"openapi.convert.response-media-schema-removed",
 					"Swagger 2.0 supports only one response schema across media types",
 				)

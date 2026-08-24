@@ -7,6 +7,36 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Separate release-rehearsal artifacts from strict verification evidence and
+  restore the newest exact content-matching mutation checkpoint across prior
+  trusted runs, so release artifacts and stale partial runs cannot trigger
+  redundant mutation campaigns or shadow reusable proof.
+- Replace the stale 138-module and 107-release-module readiness baseline with
+  exact current 142-module CI and 111-module `v1.0.0` rehearsal evidence while
+  preserving the separate operational-assurance and public-release boundary.
+- Preserve valid Swagger 2.0 output when OpenAPI request bodies use empty,
+  malformed, aliased, or unavailable references, request or response content
+  uses an incompatible media-type key, a request-body schema is omitted, or a
+  response requires normalization.
+- Close queue control-plane fleet boundary gaps around exact capacities,
+  cumulative runtime, rejection totals, ordering, and metric saturation.
+- Make OpenSearch bounded-load readiness verification tolerate only a bounded
+  transient shard-initialization period after concurrent writes.
+- Retry checksum-pinned CI tool downloads after transient transport failures
+  instead of failing unrelated module jobs before verification starts.
+- Stabilize Kafka race verification around franz-go's valid empty-transaction
+  abort outcomes while still requiring that an abort never reports a commit.
+- Strengthen the RabbitMQ Streams stored-offset contract at the exact zero
+  boundary so mutation evidence rejects treating the initial offset as invalid.
+- Add an attributable manual release-rehearsal mode to the single CI workflow
+  so every releasable module can execute its service-backed `v1.0.0` dry-run
+  without duplicating the strict source-verification matrix.
+- Bind operational-assurance evidence only to the modules that can affect the
+  observed scenario, excluding unrelated reverse dependants.
+- Stabilize Kafka log-recovery evidence at a deterministic valid 1 MiB segment
+  boundary, remove redundant queue control-plane outcome predicates, and
+  retain the RabbitMQ Streams adapter's explicit nil-context boundary under
+  strict lint.
 - Strengthen queue control-plane boundary tests for desired-state targets,
   command metadata defaults, and nonterminal dispatch outcomes, with an exact
   operational-assurance input-digest migration for the test-only transition.

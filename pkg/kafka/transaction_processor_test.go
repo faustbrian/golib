@@ -1589,8 +1589,8 @@ func TestFranzTransactionProcessorBackendLifecycle(t *testing.T) {
 	if len(results) != 1 || results[0].Err == nil {
 		t.Fatalf("ProduceSync() results = %#v", results)
 	}
-	if _, err := backend.End(ctx, kgo.TryAbort); err == nil {
-		t.Fatal("End() unexpectedly succeeded")
+	if committed, endErr := backend.End(ctx, kgo.TryAbort); committed {
+		t.Fatalf("End(TryAbort) committed with error %v", endErr)
 	}
 	if err := backend.LeaveGroupContext(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("LeaveGroupContext() error = %v", err)

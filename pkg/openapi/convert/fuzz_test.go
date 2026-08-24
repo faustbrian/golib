@@ -94,6 +94,12 @@ func FuzzConvertOpenAPI30ToSwagger20(f *testing.F) {
 			`"paths":{"/items":{"post":{"requestBody":{"content":{` +
 			`"application/json":{"schema":{"type":"object"}}}},` +
 			`"responses":{"204":{"description":"OK"}}}}}}`,
+		`{"openapi":"3.0.4","info":{"title":"API","version":"1"},` +
+			`"paths":{"/items":{"post":{"requestBody":{` +
+			`"$ref":"#/components/requestBodies/Alias"},` +
+			`"responses":{"204":{"description":"OK"}}}}},` +
+			`"components":{"requestBodies":{"Empty":{"content":{}},` +
+			`"Alias":{"$ref":"#/components/requestBodies/Empty"}}}}`,
 	} {
 		f.Add([]byte(seed))
 	}

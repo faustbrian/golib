@@ -70434,126 +70434,126 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 15,
+          "line": 16,
           "symbol": "Enqueued",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 16,
+          "line": 17,
           "symbol": "Succeeded",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 17,
+          "line": 18,
           "symbol": "Failed",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 18,
+          "line": 19,
           "symbol": "Runtime",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 23,
+          "line": 24,
           "symbol": "Backend",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 24,
+          "line": 25,
           "symbol": "Queue",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 25,
+          "line": 26,
           "symbol": "Metrics",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 30,
+          "line": 31,
           "symbol": "Queues",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/projection.go",
-          "line": 31,
+          "line": 32,
           "symbol": "Overflow",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 15,
+          "line": 16,
           "symbol": "HeartbeatAccepted",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 16,
+          "line": 17,
           "symbol": "HeartbeatDuplicate",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 17,
+          "line": 18,
           "symbol": "HeartbeatReordered",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 18,
+          "line": 19,
           "symbol": "HeartbeatConflict",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 19,
+          "line": 20,
           "symbol": "HeartbeatInvalid",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 20,
+          "line": 21,
           "symbol": "HeartbeatCapacityExceeded",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 27,
+          "line": 28,
           "symbol": "State",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 32,
+          "line": 33,
           "symbol": "Workers",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/queue-control-plane/fleet/registry.go",
-          "line": 33,
+          "line": 34,
           "symbol": "Rejected",
           "message": "exported declaration has no documentation comment"
         },
@@ -71461,8 +71461,8 @@
       "documented_packages": 1,
       "missing_package_comments": 0,
       "duplicate_package_comments": 0,
-      "exported_declarations": 57,
-      "documented_declarations": 57,
+      "exported_declarations": 58,
+      "documented_declarations": 58,
       "missing_declaration_comments": 0,
       "malformed_comments": 0,
       "generated_files": 0,

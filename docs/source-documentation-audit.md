@@ -107,7 +107,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/queue/queueservice` | 1 | 0 | 101 | 0 | 0 | 0 | 0 |
 | `pkg/rabbitstream` | 1 | 0 | 330 | 0 | 0 | 0 | 0 |
 | `pkg/rabbitstream/otel` | 1 | 0 | 11 | 0 | 0 | 0 | 0 |
-| `pkg/rabbitstream/rabbitmq` | 1 | 0 | 57 | 0 | 0 | 0 | 0 |
+| `pkg/rabbitstream/rabbitmq` | 1 | 0 | 58 | 0 | 0 | 0 | 0 |
 | `pkg/rate-limit` | 11 | 0 | 307 | 19 | 0 | 0 | 0 |
 | `pkg/resilience` | 1 | 0 | 173 | 67 | 0 | 0 | 0 |
 | `pkg/retry` | 6 | 0 | 155 | 61 | 0 | 0 | 0 |

@@ -28,6 +28,13 @@ dependency-complete selection at each exact proposed version through the public
 proxy rather than resolving a moving `main` branch. Fixture, example,
 benchmark, interoperability, and internal-tool modules are not releasable.
 
+The single CI workflow also provides a manual `release_dry_run` rehearsal.
+After a complete CI run passes for the same revision, this mode executes the
+dry-run for every releasable module in its own job with cataloged services and
+an attributable log. It deliberately does not rerun the strict matrix in the
+same rehearsal; the two runs prove different contracts without duplicating
+coverage, mutation, race, static-analysis, and interoperability campaigns.
+
 Release automation must consume the same quality contract as CI. It may not
 create a tag from a commit whose complete required matrix is absent or stale.
 The machine-readable [operational-assurance register](../operational-assurance.json)

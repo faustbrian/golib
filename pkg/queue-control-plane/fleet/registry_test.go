@@ -74,6 +74,29 @@ func TestRegistryBoundsWorkersAndReportsRejectedHeartbeats(t *testing.T) {
 	}
 }
 
+func TestRegistryAggregatesRejectedHeartbeatsAcrossTenants(t *testing.T) {
+	t.Parallel()
+
+	registry := NewRegistry(0)
+	for _, heartbeat := range []Heartbeat{
+		validHeartbeat("tenant-a", "worker-1", time.Unix(1, 0)),
+		validHeartbeat("tenant-a", "worker-2", time.Unix(1, 0)),
+		validHeartbeat("tenant-b", "worker-1", time.Unix(1, 0)),
+	} {
+		if got := registry.Upsert(heartbeat); got != HeartbeatCapacityExceeded {
+			t.Fatalf("Upsert(%q/%q) = %q, want %q", heartbeat.TenantID, heartbeat.WorkerID, got, HeartbeatCapacityExceeded)
+		}
+	}
+
+	snapshot := registry.Snapshot(time.Unix(2, 0), time.Minute)
+	if snapshot.Rejected != 3 {
+		t.Fatalf("Snapshot().Rejected = %d, want 3", snapshot.Rejected)
+	}
+	if got := registry.SnapshotTenant("tenant-a", time.Unix(2, 0), time.Minute).Rejected; got != 2 {
+		t.Fatalf("SnapshotTenant(tenant-a).Rejected = %d, want 2", got)
+	}
+}
+
 func TestRegistrySnapshotsWorkersDeterministicallyWithoutAliasing(t *testing.T) {
 	t.Parallel()
 
@@ -97,6 +120,35 @@ func TestRegistrySnapshotsWorkersDeterministicallyWithoutAliasing(t *testing.T) 
 	again := registry.Snapshot(time.Unix(2, 0), time.Minute)
 	if again.Workers[1].Queues[0] != "standard" {
 		t.Fatalf("second Snapshot().Workers[1].Queues = %v, want defensive copy", again.Workers[1].Queues)
+	}
+}
+
+func TestRegistrySortsWorkersByTenantThenIdentity(t *testing.T) {
+	t.Parallel()
+
+	registry := NewRegistry(4)
+	for _, identity := range [][2]string{
+		{"tenant-z", "worker-a"},
+		{"tenant-a", "worker-z"},
+		{"tenant-a", "worker-a"},
+		{"tenant-m", "worker-m"},
+	} {
+		if got := registry.Upsert(validHeartbeat(identity[0], identity[1], time.Unix(1, 0))); got != HeartbeatAccepted {
+			t.Fatalf("Upsert(%q/%q) = %q, want %q", identity[0], identity[1], got, HeartbeatAccepted)
+		}
+	}
+
+	workers := registry.Snapshot(time.Unix(2, 0), time.Minute).Workers
+	want := [][2]string{
+		{"tenant-a", "worker-a"},
+		{"tenant-a", "worker-z"},
+		{"tenant-m", "worker-m"},
+		{"tenant-z", "worker-a"},
+	}
+	for index, identity := range want {
+		if workers[index].TenantID != identity[0] || workers[index].WorkerID != identity[1] {
+			t.Fatalf("Snapshot().Workers[%d] = %q/%q, want %q/%q", index, workers[index].TenantID, workers[index].WorkerID, identity[0], identity[1])
+		}
 	}
 }
 

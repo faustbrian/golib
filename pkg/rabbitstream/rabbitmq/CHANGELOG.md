@@ -2,13 +2,16 @@
 
 ## Unreleased
 
-### Changed
-
-- pin the core RabbitMQ Streams module to a published pseudo-version so this
-  adapter resolves outside the repository workspace
-
 ### Fixed
 
+- Accept both immediate connection rejection and deadline expiry from the
+  upstream client when invalid TLS identities are correctly rejected.
+- Make broker-restart recovery tests use their full bounded deadline instead
+  of failing after three otherwise retryable ambiguous confirmations.
+- Assert that broker-stored offset zero remains a valid initial consumer
+  position under strict mutation testing.
+- Preserve explicit nil-context rejection coverage while keeping the strict
+  static-analysis contract green through a line-local test exception.
 - Make the concurrent consumer reconnect test enforce emitted signal presence,
   uniqueness, and causal reconnect-before-ready ordering without assuming that
   concurrent loss and reconnect goroutines are scheduled in one fixed order.
