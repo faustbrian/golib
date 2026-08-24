@@ -220,7 +220,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: evidence-${{ matrix.artifact }}
+          name: ${{ inputs.release_dry_run == true && 'release-evidence' || 'evidence' }}-${{ matrix.artifact }}
           path: ${{ format('{0}/golib-evidence-{1}', runner.temp, matrix.artifact) }}
           if-no-files-found: error
           include-hidden-files: true

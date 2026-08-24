@@ -1738,6 +1738,7 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 		`denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed`,
 		`deno-version: '2.9.4'`,
 		`restore-ci-mutation-evidence.sh '${{ matrix.directory }}'`,
+		`name: ${{ inputs.release_dry_run == true && 'release-evidence' || 'evidence' }}-${{ matrix.artifact }}`,
 		`GITHUB_REPOSITORY_ID: ${{ github.repository_id }}`,
 		`release_dry_run:`,
 		`RELEASE_DRY_RUN: ${{ inputs.release_dry_run }}`,
@@ -1854,6 +1855,264 @@ func TestCIMutationRestoreRejectsCheckpointIdentityMismatch(t *testing.T) {
 	}
 }
 
+func TestCIMutationRestoreCombinesNewestValidCheckpointsAcrossPriorArtifacts(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{".golib", "pkg/example"} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "packages": [
+      {"directory": ".", "coverage_required": true},
+      {"directory": "nested/package", "coverage_required": true}
+    ]
+  }]
+}
+`)
+	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "gate-input-digest.sh"),
+		"#!/bin/sh\nset -eu\nprintf '%s\\n' '"+strings.Repeat("a", 64)+"'\n",
+	)
+	writeTestFile(t, filepath.Join(repository, ".golib/versions.env"), "GREMLINS_VERSION=v0.6.0\n")
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "mutation-verifier-identity.sh"),
+		"#!/bin/sh\nset -eu\nprintf '%s\\n' '"+strings.Repeat("b", 64)+"'\n",
+	)
+	for _, executable := range []string{
+		"scripts/gate-input-digest.sh",
+		"scripts/mutation-verifier-identity.sh",
+	} {
+		if err := os.Chmod(filepath.Join(repository, executable), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	newest := filepath.Join(t.TempDir(), "release-evidence.zip")
+	writeMutationEvidenceArchive(t, newest, map[string]string{
+		"release-dry-run.log": "release rehearsal\n",
+	})
+	partial := filepath.Join(t.TempDir(), "partial-evidence.zip")
+	writeMutationEvidenceArchive(t, partial, map[string]string{
+		"mutation-checkpoints/nested-package.json": strings.Replace(
+			checkpointFixture("pkg/example", "nested/package"),
+			strings.Repeat("a", 64),
+			strings.Repeat("d", 64),
+			1,
+		),
+	})
+	older := filepath.Join(t.TempDir(), "verification-evidence.zip")
+	writeMutationEvidenceArchive(t, older, map[string]string{
+		"mutation-checkpoints/root.json":           checkpointFixture("pkg/example", "."),
+		"mutation-checkpoints/nested-package.json": checkpointFixture("pkg/example", "nested/package"),
+	})
+
+	bin := t.TempDir()
+	gh := filepath.Join(bin, "gh")
+	writeTestFile(t, gh, `#!/bin/sh
+set -eu
+case "$*" in
+  *"actions/artifacts -f name=evidence-pkg-example"*)
+    cat <<'JSON'
+{"artifacts":[
+  {"id":33,"expired":false,"created_at":"2026-08-24T08:00:00Z","workflow_run":{"id":333,"head_repository_id":123,"head_branch":"main"}},
+  {"id":22,"expired":false,"created_at":"2026-08-24T07:00:00Z","workflow_run":{"id":222,"head_repository_id":123,"head_branch":"main"}},
+  {"id":11,"expired":false,"created_at":"2026-08-24T06:00:00Z","workflow_run":{"id":111,"head_repository_id":123,"head_branch":"main"}}
+]}
+JSON
+    ;;
+  *"actions/artifacts/33/zip"*) cat "$FAKE_NEWEST_ARCHIVE" ;;
+  *"actions/artifacts/22/zip"*) cat "$FAKE_PARTIAL_ARCHIVE" ;;
+  *"actions/artifacts/11/zip"*) cat "$FAKE_OLDER_ARCHIVE" ;;
+  *) printf 'unexpected gh arguments: %s\n' "$*" >&2; exit 2 ;;
+esac
+`)
+	if err := os.Chmod(gh, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	command := exec.Command(
+		filepath.Join(root, "scripts", "restore-ci-mutation-evidence.sh"),
+		"pkg/example",
+	)
+	command.Env = os.Environ()
+	for name, value := range map[string]string{
+		"GOLIB_ROOT":           repository,
+		"GH_TOKEN":             "test-token",
+		"GITHUB_REPOSITORY":    "faustbrian/golib",
+		"GITHUB_REPOSITORY_ID": "123",
+		"GITHUB_RUN_ID":        "999",
+		"GITHUB_SHA":           strings.Repeat("c", 40),
+		"FAKE_NEWEST_ARCHIVE":  newest,
+		"FAKE_PARTIAL_ARCHIVE": partial,
+		"FAKE_OLDER_ARCHIVE":   older,
+		"PATH":                 bin + string(os.PathListSeparator) + os.Getenv("PATH"),
+	} {
+		command.Env = environmentWithValues(command.Env, name, value)
+	}
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("restore prior mutation evidence: %v\n%s", err, output)
+	}
+	for _, name := range []string{"root.json", "nested-package.json"} {
+		checkpoint := filepath.Join(
+			repository,
+			".artifacts/pkg/example/mutation-checkpoints",
+			name,
+		)
+		if _, err := os.Stat(checkpoint); err != nil {
+			t.Fatalf("restore valid checkpoint %s: %v\n%s", name, err, output)
+		}
+	}
+	if !strings.Contains(string(output), "restored 2 prior content-addressed mutation checkpoints") {
+		t.Fatalf("restore output = %q", output)
+	}
+}
+
+func TestCIMutationRestoreUsesOlderApprovedIdentityMigration(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	for _, directory := range []string{
+		".golib",
+		"pkg/example",
+		"scripts/internal",
+	} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "packages": [{"directory": ".", "coverage_required": true}]
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(repository, ".golib/versions.env"), "GREMLINS_VERSION=v0.6.0\n")
+	writeTestFile(t, filepath.Join(repository, ".golib/mutation-history-migrations.json"), "{}\n")
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "gate-input-digest.sh"),
+		"#!/bin/sh\nset -eu\nprintf '%s\\n' '"+strings.Repeat("a", 64)+"'\n",
+	)
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "mutation-verifier-identity.sh"),
+		"#!/bin/sh\nset -eu\nprintf '%s\\n' '"+strings.Repeat("b", 64)+"'\n",
+	)
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "internal", "reuse-approved-mutation-checkpoint.sh"),
+		`#!/bin/sh
+set -eu
+checkpoint="$2"
+current_input="$5"
+validated_revision="$8"
+output="$9"
+approved_input="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+[ "$(jq -r '.gate_input_digest' "$checkpoint")" = "$approved_input" ] || exit 1
+jq --arg input "$current_input" --arg revision "$validated_revision" '
+  .gate_input_digest = $input
+  | .validated_revision = $revision
+  | .verifier_identity_source = "approved-semantic-migration"
+' "$checkpoint" >"$output"
+`,
+	)
+	for _, executable := range []string{
+		"scripts/gate-input-digest.sh",
+		"scripts/mutation-verifier-identity.sh",
+		"scripts/internal/reuse-approved-mutation-checkpoint.sh",
+	} {
+		if err := os.Chmod(filepath.Join(repository, executable), 0o700); err != nil {
+			t.Fatalf("make %s executable: %v", executable, err)
+		}
+	}
+
+	newest := filepath.Join(t.TempDir(), "unapproved-evidence.zip")
+	writeMutationEvidenceArchive(t, newest, map[string]string{
+		"mutation-checkpoints/root.json": strings.Replace(
+			checkpointFixture("pkg/example", "."),
+			strings.Repeat("a", 64),
+			strings.Repeat("e", 64),
+			1,
+		),
+	})
+	older := filepath.Join(t.TempDir(), "approved-evidence.zip")
+	writeMutationEvidenceArchive(t, older, map[string]string{
+		"mutation-checkpoints/root.json": strings.Replace(
+			checkpointFixture("pkg/example", "."),
+			strings.Repeat("a", 64),
+			strings.Repeat("d", 64),
+			1,
+		),
+	})
+
+	bin := t.TempDir()
+	gh := filepath.Join(bin, "gh")
+	writeTestFile(t, gh, `#!/bin/sh
+set -eu
+case "$*" in
+  *"actions/artifacts -f name=evidence-pkg-example"*)
+    cat <<'JSON'
+{"artifacts":[
+  {"id":22,"expired":false,"created_at":"2026-08-24T08:00:00Z","workflow_run":{"id":222,"head_repository_id":123,"head_branch":"main"}},
+  {"id":11,"expired":false,"created_at":"2026-08-24T07:00:00Z","workflow_run":{"id":111,"head_repository_id":123,"head_branch":"main"}}
+]}
+JSON
+    ;;
+  *"actions/artifacts/22/zip"*) cat "$FAKE_NEWEST_ARCHIVE" ;;
+  *"actions/artifacts/11/zip"*) cat "$FAKE_OLDER_ARCHIVE" ;;
+  *) printf 'unexpected gh arguments: %s\n' "$*" >&2; exit 2 ;;
+esac
+`)
+	if err := os.Chmod(gh, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	command := exec.Command(
+		filepath.Join(root, "scripts", "restore-ci-mutation-evidence.sh"),
+		"pkg/example",
+	)
+	command.Env = os.Environ()
+	for name, value := range map[string]string{
+		"GOLIB_ROOT":           repository,
+		"GH_TOKEN":             "test-token",
+		"GITHUB_REPOSITORY":    "faustbrian/golib",
+		"GITHUB_REPOSITORY_ID": "123",
+		"GITHUB_RUN_ID":        "999",
+		"GITHUB_SHA":           strings.Repeat("c", 40),
+		"FAKE_NEWEST_ARCHIVE":  newest,
+		"FAKE_OLDER_ARCHIVE":   older,
+		"PATH":                 bin + string(os.PathListSeparator) + os.Getenv("PATH"),
+	} {
+		command.Env = environmentWithValues(command.Env, name, value)
+	}
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("restore approved mutation evidence: %v\n%s", err, output)
+	}
+	checkpoint := filepath.Join(
+		repository,
+		".artifacts/pkg/example/mutation-checkpoints/root.json",
+	)
+	contents, err := os.ReadFile(checkpoint)
+	if err != nil {
+		t.Fatalf("read restored checkpoint: %v\n%s", err, output)
+	}
+	if !strings.Contains(string(contents), strings.Repeat("a", 64)) ||
+		!strings.Contains(string(contents), `"verifier_identity_source": "approved-semantic-migration"`) {
+		t.Fatalf("restored checkpoint = %s", contents)
+	}
+}
+
 func writeMutationEvidenceArchive(t *testing.T, path string, files map[string]string) {
 	t.Helper()
 
@@ -1888,6 +2147,8 @@ func checkpointFixture(module, packageDirectory string) string {
   "gate_input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "gremlins_version": "v0.6.0",
   "gremlins_verifier_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "gremlins_binary_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "verifier_identity_source": "executed",
   "report": {"files": [{"mutations": [{"status": "KILLED"}]}]}
 }
 `, module, packageDirectory)

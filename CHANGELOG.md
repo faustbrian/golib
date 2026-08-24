@@ -7,6 +7,10 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Separate release-rehearsal artifacts from strict verification evidence and
+  restore the newest exact content-matching mutation checkpoint across prior
+  trusted runs, so release artifacts and stale partial runs cannot trigger
+  redundant mutation campaigns or shadow reusable proof.
 - Replace the stale 138-module and 107-release-module readiness baseline with
   exact current 142-module CI and 111-module `v1.0.0` rehearsal evidence while
   preserving the separate operational-assurance and public-release boundary.
