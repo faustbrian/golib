@@ -34,6 +34,10 @@ var mutationThresholdPattern = regexp.MustCompile(
 	`--threshold-(efficacy|mcover)(?:[[:space:]]+|=)[[:space:]]*([^[:space:]\\]+)`,
 )
 
+var pseudoVersionPattern = regexp.MustCompile(
+	`^v[0-9]+\.[0-9]+\.[0-9]+-(?:[0-9A-Za-z.-]+\.)?[0-9]{14}-[0-9a-f]+(?:\+incompatible)?$`,
+)
+
 var catalogMarkdownLinkPattern = regexp.MustCompile(`\[([^]]+)]\(([^)]+)\)`)
 
 type catalog struct {
@@ -2018,6 +2022,9 @@ func validatePaths(root string) {
 	if err := validateDependencyUpdateTopology(root); err != nil {
 		fatal("validate dependency update topology: %v", err)
 	}
+	if err := validateWorkspaceSums(root); err != nil {
+		fatal("validate workspace sums: %v", err)
+	}
 	fixtureWorkflowRoot := "pkg/json-schema/testdata/official/JSON-Schema-Test-Suite/.github/workflows/"
 	rootWorkflows := 0
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -2057,6 +2064,35 @@ func validatePaths(root string) {
 	if output, err := command.Output(); err == nil && len(output) != 0 {
 		fatal("obsolete owned module paths remain:\n%s", output)
 	}
+}
+
+func validateWorkspaceSums(root string) error {
+	path := filepath.Join(root, "go.work.sum")
+	file, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("open go.work.sum: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for line := 1; scanner.Scan(); line++ {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 2 || !strings.HasPrefix(fields[0], canonicalRoot+"/") {
+			continue
+		}
+		version := strings.TrimSuffix(fields[1], "/go.mod")
+		if pseudoVersionPattern.MatchString(version) {
+			return fmt.Errorf("go.work.sum:%d contains obsolete owned pseudo-version %s %s", line, fields[0], version)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("read go.work.sum: %w", err)
+	}
+
+	return nil
 }
 
 const canonicalDependabotConfiguration = `version: 2

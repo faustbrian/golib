@@ -953,6 +953,31 @@ func TestValidateWorkspaceContentRequiresLocalZeroVersionReplacements(t *testing
 	}
 }
 
+func TestValidateWorkspaceSumsRejectsOwnedPseudoVersions(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	if err := validateWorkspaceSums(root); err != nil {
+		t.Fatalf("validateWorkspaceSums(absent) error = %v", err)
+	}
+
+	mustWriteFile(t, filepath.Join(root, "go.work.sum"), strings.Join([]string{
+		"example.com/dependency v0.0.0-20260728110331-b7c4c77520dd/go.mod h1:external",
+		canonicalRoot + "/pkg/cache v1.0.0/go.mod h1:released",
+	}, "\n")+"\n")
+	if err := validateWorkspaceSums(root); err != nil {
+		t.Fatalf("validateWorkspaceSums(valid) error = %v", err)
+	}
+
+	mustWriteFile(t, filepath.Join(root, "go.work.sum"), strings.Join([]string{
+		canonicalRoot + "/pkg/cache v0.0.0-20260728110331-b7c4c77520dd/go.mod h1:stale",
+		canonicalRoot + "/pkg/legacy v2.0.1-0.20260728110331-b7c4c77520dd+incompatible h1:stale",
+	}, "\n")+"\n")
+	if err := validateWorkspaceSums(root); err == nil {
+		t.Fatal("validateWorkspaceSums(owned pseudo-version) error = nil")
+	}
+}
+
 func TestValidateMutationThresholdsRequiresLiteralOneHundred(t *testing.T) {
 	t.Parallel()
 
