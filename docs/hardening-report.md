@@ -118,33 +118,37 @@ security non-claims.
 ## Authoritative CI proof
 
 The authoritative package-matrix run
-[`32685146823`](https://github.com/faustbrian/golib/actions/runs/32685146823)
-passed at `fe2fe4f309bf4d88303ba53c71382cb062498482`. It contains 141
+[`32704788074`](https://github.com/faustbrian/golib/actions/runs/32704788074)
+passed at `5464cb0f14a4beae3eba1a155571e35bb22be631`. It contains 141
 attributable active-module jobs plus module selection, the repository contract,
-CodeQL, and the fail-closed `Required` summary, for 145 successful jobs. The
-catalog's 142nd module, `pkg/analysis/testdata/coverage`, is an explicitly
-non-production fixture with no applicable gates and is intentionally excluded
-from CI selection. Every selected module uploaded its own durable evidence
-artifact.
+CodeQL, Kafka Linux arm64, and the fail-closed `Required` summary, for 146
+successful jobs. The catalog's 142nd module,
+`pkg/analysis/testdata/coverage`, is an explicitly non-production fixture with
+no applicable gates and is intentionally excluded from CI selection. Every
+selected module uploaded its own durable evidence artifact.
 
-The Kafka Linux arm64 job was intentionally skipped because the final push
-changed only sequencer test synchronization. Its exact current Kafka inputs
-were already proved by the successful arm64 job in run
-[`32679570470`](https://github.com/faustbrian/golib/actions/runs/32679570470/job/97293804483)
-at `c20ef0a95bb25199133031d444664f318e61981c`; the final commit does not
-change that module or its gate inputs. Content-addressed mutation checkpoints
-were likewise reused only when their complete gate-input fingerprints matched.
+Content-addressed mutation checkpoints were reused only when their complete
+gate-input fingerprints and verifier identities matched or an exact reviewed
+identity migration applied. Release-rehearsal artifacts use a separate
+namespace, and restoration scans trusted prior verification artifacts from
+newest to oldest so a partial or stale run cannot shadow reusable proof. The
+formerly timing-sensitive `pkg/concurrency-limit` campaign restored and reused
+its exact checkpoint in the authoritative run rather than executing again.
 
 ## Release rehearsal proof
 
 Workflow-dispatch run
 [`32697157280`](https://github.com/faustbrian/golib/actions/runs/32697157280)
-passed on the same final source revision. All 111 releasable modules passed in
-independently attributable jobs, alongside module selection, the repository
-contract, and the fail-closed `Required` summary, for 114 successful jobs and
-111 uploaded release artifacts. CodeQL and Kafka arm64 were intentionally
-skipped because the rehearsal consumes the normal matrix rather than
-duplicating it.
+passed at `fe2fe4f309bf4d88303ba53c71382cb062498482`. All 111 releasable
+modules passed in independently attributable jobs, alongside module selection,
+the repository contract, and the fail-closed `Required` summary, for 114
+successful jobs and 111 uploaded release artifacts. The subsequent commits
+changed repository documentation, root CI evidence orchestration, and its
+tests; they did not change a releasable module, owned dependency, release
+script, release policy, or pinned release toolchain. The rehearsal therefore
+remains current for its content-addressed release inputs. CodeQL and Kafka
+arm64 were intentionally skipped because the rehearsal consumes the normal
+matrix rather than duplicating it.
 
 Each module planned its required initial directory-prefixed `v1.0.0` tag,
 validated dependency-first owned-module ordering, passed isolated tidy, test,

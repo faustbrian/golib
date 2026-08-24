@@ -995,10 +995,10 @@ assurance scope.
 | Goal | `.ai/GOAL_MONOREPO_REMEDIATION.md` |
 | Scope | The canonical `pkg/` layout, 142 modules, 697 packages, 111 releasable modules, 141 active CI modules, repository governance, strict gate enforcement, interoperability, and clean-consumer proof. |
 | Status | `verified` for the complete current catalog and local release-rehearsal boundary. |
-| Evidence | Main-branch GitHub Actions run `32685146823` at implementation revision `fe2fe4f309bf4d88303ba53c71382cb062498482`; current Kafka Linux arm64 job `97293804483`; workflow-dispatch release-rehearsal run `32697157280`; attributable module artifacts; `modules.json`, `packages.json`, `docs/goal-traceability.md`, and `docs/hardening-report.md`. |
-| Result | All 141 active modules passed the strict matrix with exact attributable evidence; selection, repository contract, CodeQL, and fail-closed Required also passed. The content-identical Kafka arm64 proof remains current. All 111 releasable modules passed independently attributable `v1.0.0` local-proxy and clean-consumer rehearsal jobs. The sole cataloged module outside CI is the explicit non-production `pkg/analysis/testdata/coverage` fixture with no applicable gates. |
+| Evidence | Main-branch GitHub Actions run `32704788074` at final implementation revision `5464cb0f14a4beae3eba1a155571e35bb22be631`; workflow-dispatch release-rehearsal run `32697157280`; attributable module artifacts; `modules.json`, `packages.json`, `docs/goal-traceability.md`, and `docs/hardening-report.md`. |
+| Result | All 141 active modules passed the strict matrix with exact attributable evidence; selection, repository contract, CodeQL, Kafka Linux arm64, and fail-closed Required also passed, for 146 successful jobs with no skipped or failed job. All 111 releasable modules passed independently attributable `v1.0.0` local-proxy and clean-consumer rehearsal jobs. The sole cataloged module outside CI is the explicit non-production `pkg/analysis/testdata/coverage` fixture with no applicable gates. |
 | Environment | GitHub-hosted Ubuntu 24.04 amd64 runners plus the required Ubuntu 24.04 arm64 Kafka runner, Go 1.26.6, pinned gate tools and service images, and task-owned CI caches. Local focused verification used a disposable `GOCACHE`; Docker-backed verification ran only in isolated CI. |
-| Observed | 2026-08-24T06:46:38Z |
+| Observed | 2026-08-24T10:28:34Z |
 | Gaps | Operational assurance remains `not ready` at 2/11 scenarios with five residual risks; repository source-documentation and comparative-performance goals remain incomplete; no tag, public release, or release-readiness claim is authorized. |
 
 ### Independent module release dry-run audit

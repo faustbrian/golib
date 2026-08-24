@@ -23,12 +23,17 @@ contract, every module, and CodeQL succeed.
 
 Cancellation is limited to superseded pull-request runs. Actions are pinned to
 immutable revisions. Forks receive no secrets. Before module verification, CI
-may restore mutation checkpoints from the newest same-repository `main`
-artifact. The mutation gate revalidates every checkpoint against its complete
-current input fingerprint and verifier identity; missing, malformed, stale, or
-untrusted checkpoints execute normally. Coverage, generated, conformance, and
-benchmark evidence is never restored, and mutation results are never accepted
-from a permissive cache key or another repository. The stock runner's `gh` and
+scans trusted same-repository `main` verification artifacts from newest to
+oldest and restores the newest mutation checkpoint that either matches each
+package's complete current input fingerprint and verifier identity or has an
+exact reviewed identity migration to them. Release-rehearsal artifacts use a
+separate name and cannot shadow verification evidence. A partial or stale
+newer artifact therefore cannot force execution when an older
+content-identical checkpoint is available. The mutation gate independently
+revalidates every restored checkpoint; missing, malformed, stale, or untrusted
+checkpoints execute normally. Coverage, generated, conformance, and benchmark
+evidence is never restored, and mutation results are never accepted from a
+permissive cache key or another repository. The stock runner's `gh` and
 `unzip` tools are mandatory for this restore path; their absence fails rather
 than silently reverting every package to a fresh mutation campaign.
 
