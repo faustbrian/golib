@@ -115,18 +115,22 @@ are complete. All 104 goal-bearing modules now have current goal-traceability
 records; Kafka and Verkle Tree retain their documented bounded support and
 security non-claims.
 
-## Prior CI proof and current verification
+## Current CI proof
 
-The latest complete package-matrix run
-[`32704788074`](https://github.com/faustbrian/golib/actions/runs/32704788074)
-passed at prior revision `5464cb0f14a4beae3eba1a155571e35bb22be631`. It
-contains 141
-attributable active-module jobs plus module selection, the repository contract,
-CodeQL, Kafka Linux arm64, and the fail-closed `Required` summary, for 146
-successful jobs. The catalog's 142nd module,
+The complete package-matrix run
+[`32723593808`](https://github.com/faustbrian/golib/actions/runs/32723593808)
+passed at `4bc425644a7878e5a85a3813b1f68138e33b513c`. Its latest
+attempt contains 141 attributable active-module jobs plus module selection,
+the repository contract, CodeQL, Kafka Linux arm64, and the fail-closed
+`Required` summary, for 146 successful jobs. The catalog's 142nd module,
 `pkg/analysis/testdata/coverage`, is an explicitly non-production fixture with
 no applicable gates and is intentionally excluded from CI selection. Every
-selected module uploaded its own durable evidence artifact.
+selected module uploaded its own durable evidence artifact. The run retains
+142 unique attributable artifacts: one for every active module and one for the
+Kafka Linux arm64 gate. Its first attempt failed closed on two transient Go
+proxy and checksum-service HTTP/2 errors and six jobs that exceeded GitHub's
+queue window; rerunning only those unsuccessful jobs produced the final
+146/146 result without restarting successful package verification.
 
 Content-addressed mutation checkpoints were reused only when their complete
 gate-input fingerprints and verifier identities matched or an exact reviewed
@@ -134,26 +138,21 @@ identity migration applied. Release-rehearsal artifacts use a separate
 namespace, and restoration scans trusted prior verification artifacts from
 newest to oldest so a partial or stale run cannot shadow reusable proof. The
 formerly timing-sensitive `pkg/concurrency-limit` campaign restored and reused
-its exact checkpoint in that run rather than executing again. The subsequent
-additive JSON-RPC typed-dispatch change requires a replacement complete matrix;
-the first run for that change failed closed because its source-documentation
-manifest was stale. The manifest and exact operational-assurance digest
-migrations are corrected in the current tree, but no replacement CI result is
-claimed here yet.
+its exact checkpoint in that run rather than executing again. The additive
+JSON-RPC typed-dispatch change, refreshed source-documentation manifest, exact
+operational-assurance digest migrations, and stale-workspace-checksum
+validation are all included in the current successful matrix.
 
 ## Release rehearsal proof
 
-The prior workflow-dispatch run
-[`32697157280`](https://github.com/faustbrian/golib/actions/runs/32697157280)
-passed at `fe2fe4f309bf4d88303ba53c71382cb062498482`. All 111 releasable
+The workflow-dispatch run
+[`32740599548`](https://github.com/faustbrian/golib/actions/runs/32740599548)
+passed at `4bc425644a7878e5a85a3813b1f68138e33b513c`. All 111 releasable
 modules passed in independently attributable jobs, alongside module selection,
 the repository contract, and the fail-closed `Required` summary, for 114
-successful jobs and 111 uploaded release artifacts. It is now superseded for
-release-readiness purposes because `pkg/jsonrpc` production source changed
-after that revision. A replacement 111-module rehearsal is required after the
-current complete matrix passes. CodeQL and Kafka arm64 were intentionally
-skipped because the rehearsal consumes the normal matrix rather than
-duplicating it.
+successful jobs and 111 uploaded release artifacts. CodeQL and Kafka arm64
+were intentionally skipped because the rehearsal consumes the successful
+normal matrix rather than duplicating it.
 
 Each module planned its required initial directory-prefixed `v1.0.0` tag,
 validated dependency-first owned-module ordering, passed isolated tidy, test,

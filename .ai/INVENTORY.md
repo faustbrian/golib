@@ -994,11 +994,11 @@ assurance scope.
 | --- | --- |
 | Goal | `.ai/GOAL_MONOREPO_REMEDIATION.md` |
 | Scope | The canonical `pkg/` layout, 142 modules, 697 packages, 111 releasable modules, 141 active CI modules, repository governance, strict gate enforcement, interoperability, and clean-consumer proof. |
-| Status | `verification pending` for the current JSON-RPC source revision and its release-rehearsal boundary. |
-| Evidence | Main-branch GitHub Actions run `32704788074` at prior implementation revision `5464cb0f14a4beae3eba1a155571e35bb22be631`; superseded workflow-dispatch release-rehearsal run `32697157280`; attributable module artifacts; `modules.json`, `packages.json`, `docs/goal-traceability.md`, and `docs/hardening-report.md`. |
-| Result | The prior revision passed all 141 active module jobs plus selection, repository contract, CodeQL, Kafka Linux arm64, and fail-closed Required. The subsequent additive JSON-RPC typed-dispatch change invalidated its module and release evidence; replacement complete-matrix and 111-module `v1.0.0` rehearsal results are pending. The sole cataloged module outside CI remains the explicit non-production `pkg/analysis/testdata/coverage` fixture with no applicable gates. |
+| Status | `verified` for the current repository content and `v1.0.0` release-rehearsal boundary. |
+| Evidence | Main-branch GitHub Actions run `32723593808` and workflow-dispatch release-rehearsal run `32740599548`, both at `4bc425644a7878e5a85a3813b1f68138e33b513c`; attributable module artifacts; `modules.json`, `packages.json`, `docs/goal-traceability.md`, and `docs/hardening-report.md`. |
+| Result | The current revision passed all 141 active module jobs plus selection, repository contract, CodeQL, Kafka Linux arm64, and fail-closed Required, for 146/146 successful jobs. Its release rehearsal passed all 111 releasable modules plus selection, repository contract, and Required, for 114 successful jobs and 111 release artifacts; CodeQL and Kafka arm64 were intentionally skipped in release mode. The sole cataloged module outside CI remains the explicit non-production `pkg/analysis/testdata/coverage` fixture with no applicable gates. |
 | Environment | GitHub-hosted Ubuntu 24.04 amd64 runners plus the required Ubuntu 24.04 arm64 Kafka runner, Go 1.26.6, pinned gate tools and service images, and task-owned CI caches. Local focused verification used a disposable `GOCACHE`; Docker-backed verification ran only in isolated CI. |
-| Observed | 2026-08-24T10:56:34Z |
+| Observed | 2026-08-24T15:05:03Z |
 | Gaps | Operational assurance remains `not ready` at 2/11 scenarios with five residual risks; repository source-documentation and comparative-performance goals remain incomplete; no tag, public release, or release-readiness claim is authorized. |
 
 ### Independent module release dry-run audit
@@ -1007,11 +1007,11 @@ assurance scope.
 | --- | --- |
 | Goal | `.ai/GOAL_RELEASE.md` and repository normalization Phase 10 clean-consumer proof. |
 | Scope | All 111 independently releasable modules in the current catalog. |
-| Status | The complete local `v1.0.0` release rehearsal and clean-consumer boundary is verified; the public release goal remains `pending`. |
-| Evidence | Workflow-dispatch run `32697157280` at `fe2fe4f309bf4d88303ba53c71382cb062498482` with 111 independently attributable module artifacts, plus the earlier deterministic 107-module all-consumer evidence retained for its exact historical inputs. |
+| Status | The complete current `v1.0.0` release rehearsal and clean-consumer boundary is verified; the public release goal remains `pending`. |
+| Evidence | Workflow-dispatch run `32740599548` at `4bc425644a7878e5a85a3813b1f68138e33b513c` with 111 independently attributable module artifacts, plus the earlier deterministic 107-module all-consumer evidence retained for its exact historical inputs. |
 | Result | Every releasable module planned its directory-prefixed `v1.0.0` tag, validated dependency-first ordering, passed isolated tidy, test, and API checks, built a task-owned local source proxy, and resolved its public package from an external `GOWORK=off` consumer without replacements. |
 | Environment | GitHub-hosted Ubuntu 24.04 amd64 runners with Go 1.26.6, pinned service images, and task-owned disposable release proxies, consumers, build caches, and module caches. |
-| Observed | 2026-08-24T06:46:38Z |
+| Observed | 2026-08-24T15:05:03Z |
 | Gaps | Public proxy and checksum resolution, immutable tags, signatures, attestations, upgrade policy, operational assurance, and explicit release authority remain outstanding; no tag or release was created. |
 
 ### Operational assurance register
