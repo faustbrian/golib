@@ -2068,28 +2068,23 @@ func validatePaths(root string) {
 
 func validateWorkspaceSums(root string) error {
 	path := filepath.Join(root, "go.work.sum")
-	file, err := os.Open(path)
+	contents, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("open go.work.sum: %w", err)
+		return fmt.Errorf("read go.work.sum: %w", err)
 	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	for line := 1; scanner.Scan(); line++ {
-		fields := strings.Fields(scanner.Text())
+	for index, record := range strings.Split(string(contents), "\n") {
+		fields := strings.Fields(record)
 		if len(fields) < 2 || !strings.HasPrefix(fields[0], canonicalRoot+"/") {
 			continue
 		}
 		version := strings.TrimSuffix(fields[1], "/go.mod")
 		if pseudoVersionPattern.MatchString(version) {
-			return fmt.Errorf("go.work.sum:%d contains obsolete owned pseudo-version %s %s", line, fields[0], version)
+			return fmt.Errorf("go.work.sum:%d contains obsolete owned pseudo-version %s %s", index+1, fields[0], version)
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("read go.work.sum: %w", err)
 	}
 
 	return nil
