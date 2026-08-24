@@ -229,11 +229,44 @@ func (d *Dispatcher) Dispatch(ctx context.Context, payload []byte) ([]byte, bool
 	if trimmed[0] != '{' {
 		return d.failure(ctx, InvalidRequest())
 	}
-	response, ok := d.dispatchItem(ctx, trimmed)
+	response, ok := d.dispatchSingleValidated(ctx, trimmed)
 	if !ok {
 		return nil, false
 	}
 	return marshalResponse(response), true
+}
+
+// DispatchSingle processes one non-batch JSON-RPC message and returns its
+// typed response before wire encoding. The boolean is false for notifications.
+func (d *Dispatcher) DispatchSingle(
+	ctx context.Context,
+	payload []byte,
+) (Response, bool) {
+	if int64(len(payload)) > d.maxDispatchBytes {
+		return d.failureResponse(ctx, RequestLimitExceeded())
+	}
+	trimmed := bytes.TrimSpace(payload)
+	if len(trimmed) == 0 || !utf8.Valid(trimmed) {
+		return d.failureResponse(ctx, ParseError())
+	}
+	if exceedsNestingDepth(trimmed, d.maxNestingDepth) {
+		return d.failureResponse(ctx, RequestLimitExceeded())
+	}
+	if !json.Valid(trimmed) {
+		return d.failureResponse(ctx, ParseError())
+	}
+	if trimmed[0] != '{' {
+		return d.failureResponse(ctx, InvalidRequest())
+	}
+
+	return d.dispatchSingleValidated(ctx, trimmed)
+}
+
+func (d *Dispatcher) dispatchSingleValidated(
+	ctx context.Context,
+	payload []byte,
+) (Response, bool) {
+	return d.dispatchItem(ctx, payload)
 }
 
 func exceedsNestingDepth(payload []byte, limit int) bool {
@@ -376,10 +409,20 @@ func (d *Dispatcher) execute(ctx context.Context, request Request) (response Res
 }
 
 func (d *Dispatcher) failure(ctx context.Context, rpcErr *Error) ([]byte, bool) {
+	response, reply := d.failureResponse(ctx, rpcErr)
+
+	return marshalResponse(response), reply
+}
+
+func (d *Dispatcher) failureResponse(
+	ctx context.Context,
+	rpcErr *Error,
+) (Response, bool) {
 	response := errorResponse(NullID(), rpcErr)
 	ctx = d.begin(ctx, nil)
 	d.finish(ctx, nil, &response)
-	return marshalResponse(response), true
+
+	return response, true
 }
 
 func (d *Dispatcher) begin(ctx context.Context, request *Request) (observed context.Context) {

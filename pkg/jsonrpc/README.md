@@ -62,6 +62,8 @@ notification, and batch examples.
   batch members
 - dispatcher and client parsing are independently resource-bounded
 - protocol dispatch remains transport-neutral
+- adapters can use `Dispatcher.DispatchSingle` to apply a compatible custom
+  response envelope without decoding an already encoded dispatcher response
 
 ## Documentation
 

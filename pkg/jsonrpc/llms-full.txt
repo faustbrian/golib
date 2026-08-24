@@ -66,6 +66,8 @@ notification, and batch examples.
   batch members
 - dispatcher and client parsing are independently resource-bounded
 - protocol dispatch remains transport-neutral
+- adapters can use `Dispatcher.DispatchSingle` to apply a compatible custom
+  response envelope without decoding an already encoded dispatcher response
 
 ## Documentation
 
@@ -392,7 +394,9 @@ exported as `CodeRequestLimitExceeded`, `CodeParseError`, `CodeInvalidRequest`,
   requires only a string; the `rpc.` prefix is reserved from applications.
 - `Dispatcher` is created with `NewDispatcher`. `Dispatch` processes a single
   request or batch and returns bytes plus a boolean indicating whether a reply
-  exists. Direct payloads default to four MiB and batches to 1,024 members;
+  exists. `DispatchSingle` processes one non-batch message and returns the
+  typed `Response` before wire encoding for compatible adapter-owned response
+  envelopes. Direct payloads default to four MiB and batches to 1,024 members;
   `WithMaxDispatchBytes`, `WithMaxBatchItems`, and `WithMaxNestingDepth` can
   raise or lower the byte, batch-member, and JSON nesting bounds.
 - `Middleware` wraps a `Handler`. `WithMiddleware` installs middleware in the
@@ -1456,6 +1460,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- `Dispatcher.DispatchSingle` for adapters that need a validated typed response
+  before applying their own wire-compatible response encoding.
 - Add an auditable specification-decision register for JSON-RPC ambiguities,
   defensive JSON policy, and the package's HTTP binding choices.
 - A configurable dispatcher JSON nesting-depth limit that rejects excessive
