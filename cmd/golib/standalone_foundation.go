@@ -775,6 +775,9 @@ func copyStandaloneFoundationFileAs(
 		destinationRelative,
 		standaloneModulePrefix+repository.Name,
 	)
+	if sourceRelative == ".gitignore" {
+		contents = rewriteStandaloneGitignore(contents)
+	}
 	if sourceRelative == "AGENTS.md" {
 		contents = rewriteStandaloneAgentPolicy(contents)
 	}
@@ -800,6 +803,22 @@ func copyStandaloneFoundationFileAs(
 	return nil
 }
 
+func rewriteStandaloneGitignore(contents []byte) []byte {
+	lines := strings.Split(strings.TrimRight(string(contents), "\n"), "\n")
+	found := false
+	for index, line := range lines {
+		if line != "package-lock.json" && line != "!package-lock.json" {
+			continue
+		}
+		lines[index] = "!package-lock.json"
+		found = true
+	}
+	if !found {
+		lines = append(lines, "!package-lock.json")
+	}
+	return []byte(strings.Join(lines, "\n") + "\n")
+}
+
 func rewriteStandaloneTooling(contents []byte, relative string, modulePath string) []byte {
 	toolingRelative := strings.TrimPrefix(relative, ".golib/")
 	if !strings.HasPrefix(toolingRelative, "scripts/") {
@@ -808,6 +827,15 @@ func rewriteStandaloneTooling(contents []byte, relative string, modulePath strin
 	type replacement struct{ previous, next string }
 	replacements := make([]replacement, 0, 7)
 	releaseVersion := standaloneReleaseVersionForPath(modulePath)
+	if toolingRelative == "scripts/repository-check.sh" &&
+		!strings.Contains(string(contents), "ls-files --error-unmatch package-lock.json") {
+		contents = bytes.Replace(
+			contents,
+			[]byte("\ngit diff --check"),
+			[]byte("\ngit -C \"${root}\" ls-files --error-unmatch package-lock.json >/dev/null\n\ngit diff --check"),
+			1,
+		)
+	}
 	if toolingRelative == "scripts/check-module.sh" {
 		replacements = append(replacements,
 			replacement{
@@ -1110,6 +1138,11 @@ func rewriteStandaloneChangelog(contents []byte) []byte {
 			wrapped: "- Reconcile standalone dependency checksums against deterministic current\n" +
 				"  module archives so CI, local verification, and release consumers resolve\n" +
 				"  identical content.",
+		},
+		{
+			flat: "- Track the pinned documentation-tool lockfile so clean CI checkouts install the exact validated cspell dependency.",
+			wrapped: "- Track the pinned documentation-tool lockfile so clean CI checkouts install\n" +
+				"  the exact validated cspell dependency.",
 		},
 	}
 	text := string(contents)
@@ -1519,6 +1552,8 @@ if grep -REnI \
     printf 'monorepo or sibling-checkout reference remains\n' >&2
     exit 1
 fi
+
+git -C "${root}" ls-files --error-unmatch package-lock.json >/dev/null
 
 git diff --check
 printf 'standalone repository contract passed\n'

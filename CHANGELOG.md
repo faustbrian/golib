@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Track the pinned documentation-tool lockfile in standalone repositories so
+  clean CI checkouts can install the exact validated cspell dependency.
 - Reconcile every standalone dependency checksum against deterministic current
   module archives before publishing the shared CI bootstrap proxy.
 - Run repository-wide and package-owned documentation gates together in

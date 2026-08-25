@@ -74,6 +74,9 @@ func migrateStandaloneToolingReferences(root string, arguments []string) error {
 				continue
 			}
 			rewritten := contents
+			if relative == ".gitignore" {
+				rewritten = rewriteStandaloneGitignore(rewritten)
+			}
 			if relative == "CONTRIBUTING.md" {
 				rewritten = rewriteStandaloneContributing(rewritten)
 			}
@@ -91,7 +94,8 @@ func migrateStandaloneToolingReferences(root string, arguments []string) error {
 			}
 			if relative == ".golib/scripts/package-source-digest.sh" ||
 				relative == ".golib/scripts/check-module.sh" ||
-				relative == ".golib/scripts/check-documentation.sh" {
+				relative == ".golib/scripts/check-documentation.sh" ||
+				relative == ".golib/scripts/repository-check.sh" {
 				rewritten = rewriteStandaloneTooling(rewritten, relative, modulePath)
 			}
 			rewritten = rewriteStandaloneSharedToolingReferences(

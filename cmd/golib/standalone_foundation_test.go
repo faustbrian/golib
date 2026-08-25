@@ -53,6 +53,68 @@ func TestInstallStandaloneLintConfiguration(t *testing.T) {
 	}
 }
 
+func TestCopyStandaloneFoundationTracksDocumentationLockfile(t *testing.T) {
+	t.Parallel()
+
+	source := t.TempDir()
+	destination := t.TempDir()
+	if err := os.WriteFile(
+		filepath.Join(source, ".gitignore"),
+		[]byte(".artifacts/\npackage-lock.json\n"),
+		0o644,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyStandaloneFoundationFile(
+		source,
+		destination,
+		".gitignore",
+		standaloneRepository{Family: "fixture", Name: "go-fixture"},
+		nil,
+	); err != nil {
+		t.Fatal(err)
+	}
+	contents, err := os.ReadFile(filepath.Join(destination, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contents), "!package-lock.json\n") {
+		t.Fatalf("standalone ignore rules do not track package-lock.json:\n%s", contents)
+	}
+}
+
+func TestRewriteStandaloneRepositoryCheckRequiresTrackedDocumentationLockfile(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+repository="github.com/faustbrian/go-fixture"
+
+git diff --check
+`)
+	got := rewriteStandaloneTooling(
+		input,
+		".golib/scripts/repository-check.sh",
+		"github.com/faustbrian/go-fixture",
+	)
+	if !strings.Contains(
+		string(got),
+		`git -C "${root}" ls-files --error-unmatch package-lock.json`,
+	) {
+		t.Fatalf("standalone repository check permits an untracked lockfile:\n%s", got)
+	}
+	second := rewriteStandaloneTooling(
+		got,
+		".golib/scripts/repository-check.sh",
+		"github.com/faustbrian/go-fixture",
+	)
+	if string(second) != string(got) {
+		t.Fatalf("standalone repository-check rewrite is not idempotent:\n%s", second)
+	}
+}
+
 func TestRewriteStandaloneContributingUsesStandaloneContracts(t *testing.T) {
 	t.Parallel()
 
@@ -155,6 +217,9 @@ func TestRewriteStandaloneChangelogRecordsDocumentationPolicy(t *testing.T) {
 	}
 	if !strings.Contains(string(got), "Reconcile standalone dependency checksums") {
 		t.Fatalf("standalone changelog does not record dependency checksums:\n%s", got)
+	}
+	if !strings.Contains(string(got), "Track the pinned documentation-tool lockfile") {
+		t.Fatalf("standalone changelog does not record the tracked lockfile:\n%s", got)
 	}
 	second := rewriteStandaloneChangelog(got)
 	if string(second) != string(got) {
