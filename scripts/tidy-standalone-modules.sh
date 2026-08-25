@@ -100,7 +100,7 @@ rebuild_proxy() {
     fi
     mkdir -p "${proxy}"
     "${tool}" standalone-proxy \
-        --destination-root "${destination_root}" \
+        --destination-root "${snapshot_root}" \
         --output "${proxy}" \
         --through-wave "${through_wave}"
 }
