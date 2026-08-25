@@ -17,6 +17,8 @@ func TestStandaloneModuleArchiveExcludesNestedModules(t *testing.T) {
 	writeProxyTestFile(t, root, "queue.go", "package queue\n")
 	writeProxyTestFile(t, root, "queueservice/go.mod", "module github.com/faustbrian/go-queue/queueservice\n")
 	writeProxyTestFile(t, root, "queueservice/service.go", "package queueservice\n")
+	writeProxyTestFile(t, root, ".golib/mutation-bootstrap/root.zip", "ci evidence")
+	writeProxyTestFile(t, root, ".golib/scripts/check.sh", "#!/bin/sh\n")
 	item := standaloneModulePlan{
 		Directory:  ".",
 		Path:       "github.com/faustbrian/go-queue",

@@ -18,6 +18,8 @@ documented in each module's changelog.
 - Prepare every releasable standalone module for its first stable `v1.0.0`
   record with dated, idempotent changelog and module metadata updates while
   keeping generated Kafka and Merkle release descriptions consistent.
+- Seed first-run standalone CI with checksum-approved, content-addressed
+  mutation checkpoints instead of repeating unchanged mutation campaigns.
 - Generate standalone module checksums in dependency order so local `v1.0.0`
   proxy verification cannot retain hashes from unfinished dependency trees.
 - Route standalone Makefile targets through the installed `.golib` tooling so

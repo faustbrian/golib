@@ -136,6 +136,9 @@ while IFS=$'\t' read -r module_path module_directory; do
             continue
         fi
         relative="${source#"${module_directory}/"}"
+        if [[ "${relative}" == ".golib" || "${relative}" == ".golib/"* ]]; then
+            continue
+        fi
         nested=0
         while IFS= read -r nested_module; do
             [[ -n "${nested_module}" ]] || continue

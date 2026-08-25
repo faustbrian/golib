@@ -222,7 +222,7 @@ func standaloneModuleArchive(
 			return nil
 		}
 		if entry.IsDir() {
-			if relative == ".git" || relative == ".artifacts" ||
+			if relative == ".git" || relative == ".artifacts" || relative == ".golib" ||
 				standalonePathWithin(relative, nested) {
 				return filepath.SkipDir
 			}

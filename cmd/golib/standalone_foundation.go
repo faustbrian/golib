@@ -48,6 +48,7 @@ func installStandaloneFoundation(
 	destination string,
 	repository standaloneRepository,
 	paths map[string]string,
+	requiredServices []string,
 ) error {
 	packageMakefile := filepath.Join(destination, "Makefile")
 	preservedMakefile := filepath.Join(destination, ".golib/package.mk")
@@ -95,6 +96,15 @@ func installStandaloneFoundation(
 	if err := copyStandaloneScripts(sourceRoot, destination, repository, paths); err != nil {
 		return err
 	}
+	if err := copyStandaloneServiceFixtures(
+		sourceRoot,
+		destination,
+		repository,
+		paths,
+		requiredServices,
+	); err != nil {
+		return err
+	}
 	if err := writeStandaloneMutationPolicies(
 		sourceRoot,
 		destination,
@@ -131,6 +141,88 @@ func installStandaloneFoundation(
 	}
 
 	return nil
+}
+
+func copyStandaloneServiceFixtures(
+	sourceRoot string,
+	destination string,
+	repository standaloneRepository,
+	paths map[string]string,
+	requiredServices []string,
+) error {
+	fixtures := []struct {
+		source      string
+		destination string
+		services    []string
+	}{
+		{
+			source:      "pkg/rabbitstream/rabbitmq/integration",
+			destination: ".golib/services/rabbitstream",
+			services:    []string{"rabbitstream", "rabbitstream-standalone"},
+		},
+		{
+			source:      "pkg/search/adapters/opensearch/scripts/opensearch-images.env",
+			destination: ".golib/services/opensearch/opensearch-images.env",
+			services:    []string{"opensearch"},
+		},
+	}
+	for _, fixture := range fixtures {
+		if !standaloneServicesIntersect(requiredServices, fixture.services) {
+			continue
+		}
+		source := filepath.Join(sourceRoot, filepath.FromSlash(fixture.source))
+		info, err := os.Stat(source)
+		if err != nil {
+			return fmt.Errorf("inspect standalone service fixture %s: %w", fixture.source, err)
+		}
+		if !info.IsDir() {
+			if err := copyStandaloneFoundationFileAs(
+				sourceRoot,
+				destination,
+				fixture.source,
+				fixture.destination,
+				repository,
+				paths,
+			); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := filepath.WalkDir(source, func(filename string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			relative, err := filepath.Rel(source, filename)
+			if err != nil {
+				return err
+			}
+			return copyStandaloneFoundationFileAs(
+				sourceRoot,
+				destination,
+				filepath.ToSlash(filepath.Join(fixture.source, relative)),
+				filepath.ToSlash(filepath.Join(fixture.destination, relative)),
+				repository,
+				paths,
+			)
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func standaloneServicesIntersect(required []string, candidates []string) bool {
+	for _, service := range required {
+		for _, candidate := range candidates {
+			if service == candidate {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func writeStandaloneMutationPolicies(sourceRoot string, destination string, prefix string) error {
@@ -356,7 +448,27 @@ find_make_target() {
 			`version="${2:-v1.0.0}"`,
 		})
 	}
+	if toolingRelative == "scripts/mutation-verifier-identity.sh" {
+		replacements = append(replacements,
+			replacement{
+				`[[ -f "${root}/${input}" ]]`,
+				`[[ -f "${root}/.golib/${input}" ]]`,
+			},
+			replacement{
+				`shasum -a 256 "${root}/${input}"`,
+				`shasum -a 256 "${root}/.golib/${input}"`,
+			},
+		)
+	}
 	replacements = append(replacements,
+		replacement{
+			`${root}/pkg/rabbitstream/rabbitmq/integration`,
+			`${root}/.golib/services/rabbitstream`,
+		},
+		replacement{
+			`${root}/pkg/search/adapters/opensearch/scripts/opensearch-images.env`,
+			`${root}/.golib/services/opensearch/opensearch-images.env`,
+		},
 		replacement{
 			`${root}/scripts/`,
 			`${root}/.golib/scripts/`,
@@ -895,7 +1007,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
-        run: ./.golib/scripts/restore-ci-mutation-evidence.sh '${{ matrix.directory }}'
+        run: |
+          set -euo pipefail
+          seed='.golib/mutation-bootstrap/${{ matrix.artifact }}.zip'
+          if [[ -s "${seed}" ]]; then
+            ./.golib/scripts/restore-ci-mutation-evidence.sh \
+              '${{ matrix.directory }}' "${seed}"
+          else
+            ./.golib/scripts/restore-ci-mutation-evidence.sh \
+              '${{ matrix.directory }}'
+          fi
       - name: Run strict module contract
         if: inputs.release_dry_run != true
         run: ./.golib/scripts/with-disposable-go-cache.sh ./.golib/scripts/run-modules.sh check --modules '${{ matrix.directory }}'

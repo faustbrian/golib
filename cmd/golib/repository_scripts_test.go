@@ -805,6 +805,22 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 		filepath.Join(root, "pkg", "authentication", "authotel", "proxy_untracked_test.go"),
 		"package authotel\n",
 	)
+	mutationBootstrap := filepath.Join(
+		root,
+		"pkg",
+		"authentication",
+		"authotel",
+		".golib",
+		"mutation-bootstrap",
+	)
+	if err := os.MkdirAll(mutationBootstrap, 0o755); err != nil {
+		t.Fatalf("create mutation bootstrap fixture: %v", err)
+	}
+	writeTestFile(
+		t,
+		filepath.Join(mutationBootstrap, "root.zip"),
+		"ci evidence\n",
+	)
 	first := t.TempDir()
 	second := t.TempDir()
 
@@ -838,6 +854,17 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 		}
 		if string(firstArchive) != string(secondArchive) {
 			t.Fatalf("local proxy archive for %s is not deterministic", modulePath)
+		}
+		if modulePath == "github.com/faustbrian/golib/pkg/authentication/authotel" {
+			reader, err := zip.NewReader(bytes.NewReader(firstArchive), int64(len(firstArchive)))
+			if err != nil {
+				t.Fatalf("open authotel local proxy archive: %v", err)
+			}
+			for _, file := range reader.File {
+				if strings.Contains(file.Name, "/.golib/") {
+					t.Fatalf("local proxy archive includes repository tooling: %s", file.Name)
+				}
+			}
 		}
 	}
 	authotelManifest, err := os.ReadFile(filepath.Join(

@@ -479,6 +479,54 @@ if [[ "${module_path}" != "github.com/faustbrian/golib" &&
 	}
 }
 
+func TestRewriteStandaloneToolingRelocatesVerifierInputsWithoutChangingLabels(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`[[ -f "${root}/${input}" ]]
+printf 'file\t%s\t%s\n' "${input}" "$(
+    shasum -a 256 "${root}/${input}" | awk '{print $1}'
+)"
+`)
+	got := string(rewriteStandaloneTooling(
+		input,
+		".golib/scripts/mutation-verifier-identity.sh",
+		"github.com/faustbrian/go-queue",
+	))
+	for _, wanted := range []string{
+		`[[ -f "${root}/.golib/${input}" ]]`,
+		`shasum -a 256 "${root}/.golib/${input}"`,
+		`printf 'file\t%s\t%s\n' "${input}"`,
+	} {
+		if !strings.Contains(got, wanted) {
+			t.Errorf("rewritten verifier does not contain %q:\n%s", wanted, got)
+		}
+	}
+}
+
+func TestRewriteStandaloneToolingRelocatesSharedServiceFixtures(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`integration="${root}/pkg/rabbitstream/rabbitmq/integration"
+source "${root}/pkg/search/adapters/opensearch/scripts/opensearch-images.env"
+`)
+	got := string(rewriteStandaloneTooling(
+		input,
+		".golib/scripts/start-services.sh",
+		"github.com/faustbrian/go-queue",
+	))
+	for _, wanted := range []string{
+		`${root}/.golib/services/rabbitstream`,
+		`${root}/.golib/services/opensearch/opensearch-images.env`,
+	} {
+		if !strings.Contains(got, wanted) {
+			t.Errorf("rewritten service tooling does not contain %q:\n%s", wanted, got)
+		}
+	}
+	if strings.Contains(got, `${root}/pkg/`) {
+		t.Fatalf("rewritten service tooling retains monorepo fixture path:\n%s", got)
+	}
+}
+
 func TestWriteStandaloneWorkspaceIncludesEveryRepositoryModule(t *testing.T) {
 	t.Parallel()
 

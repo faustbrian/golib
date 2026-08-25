@@ -99,6 +99,7 @@ func populateStandaloneRepository(
 		destination,
 		repository,
 		paths,
+		standaloneRepositoryRequiredServices(current, repository.Family),
 	); err != nil {
 		return err
 	}
@@ -178,6 +179,22 @@ func populateStandaloneRepository(
 	}
 
 	return nil
+}
+
+func standaloneRepositoryRequiredServices(current catalog, family string) []string {
+	services := make([]string, 0)
+	for _, item := range current.Modules {
+		if item.Family != family {
+			continue
+		}
+		for _, service := range item.RequiredServices {
+			if !slices.Contains(services, service) {
+				services = append(services, service)
+			}
+		}
+	}
+	sort.Strings(services)
+	return services
 }
 
 func addStandaloneChangelogEntries(destination string, current catalog) error {
