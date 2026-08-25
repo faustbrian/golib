@@ -70,6 +70,165 @@ func TestStandaloneSupersededModulePathsRetiresPostgresqlIdentity(t *testing.T) 
 	}
 }
 
+func TestFormatStandaloneGoSourcesRestoresCanonicalImports(t *testing.T) {
+	t.Parallel()
+
+	destination := t.TempDir()
+	filename := filepath.Join(destination, "adapter.go")
+	input := `package adapter
+
+import (
+	"github.com/faustbrian/go-transactional-outbox"
+	"github.com/faustbrian/go-queue/job"
+)
+
+var _, _ = outbox.ErrConflict, job.ErrInvalidPayload
+`
+	if err := os.WriteFile(filename, []byte(input), 0o644); err != nil {
+		t.Fatalf("write unformatted standalone source: %v", err)
+	}
+
+	if err := formatStandaloneGoSources(destination, []string{"adapter.go"}); err != nil {
+		t.Fatalf("format standalone source: %v", err)
+	}
+
+	formatted, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatalf("read formatted standalone source: %v", err)
+	}
+	want := `package adapter
+
+import (
+	"github.com/faustbrian/go-queue/job"
+	"github.com/faustbrian/go-transactional-outbox"
+)
+
+var _, _ = outbox.ErrConflict, job.ErrInvalidPayload
+`
+	if string(formatted) != want {
+		t.Fatalf("formatted source =\n%s\nwant:\n%s", formatted, want)
+	}
+}
+
+func TestStandaloneExistingTrackedFilesSkipsRemovedGeneratedFiles(t *testing.T) {
+	t.Parallel()
+
+	destination := t.TempDir()
+	if output, err := exec.Command("git", "-C", destination, "init", "--quiet").CombinedOutput(); err != nil {
+		t.Fatalf("initialize standalone fixture: %v\n%s", err, output)
+	}
+	for _, relative := range []string{"retained.txt", ".golib/package.mk"} {
+		filename := filepath.Join(destination, relative)
+		if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+			t.Fatalf("create tracked file directory: %v", err)
+		}
+		if err := os.WriteFile(filename, []byte(relative+"\n"), 0o644); err != nil {
+			t.Fatalf("write tracked fixture: %v", err)
+		}
+	}
+	if output, err := exec.Command("git", "-C", destination, "add", "retained.txt", ".golib/package.mk").CombinedOutput(); err != nil {
+		t.Fatalf("stage standalone fixture: %v\n%s", err, output)
+	}
+	if err := os.Remove(filepath.Join(destination, ".golib", "package.mk")); err != nil {
+		t.Fatalf("remove obsolete generated file: %v", err)
+	}
+
+	files, err := standaloneExistingTrackedFiles(destination)
+	if err != nil {
+		t.Fatalf("list existing tracked files: %v", err)
+	}
+	if len(files) != 1 || files[0] != "retained.txt" {
+		t.Fatalf("existing tracked files = %v, want [retained.txt]", files)
+	}
+}
+
+func TestRestoreStandaloneTrackedFilesRecoversInterruptedDeletion(t *testing.T) {
+	t.Parallel()
+
+	destination := t.TempDir()
+	if output, err := exec.Command("git", "-C", destination, "init", "--quiet").CombinedOutput(); err != nil {
+		t.Fatalf("initialize standalone fixture: %v\n%s", err, output)
+	}
+	filename := filepath.Join(destination, ".golib", "restore.sh")
+	if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+		t.Fatalf("create generated file directory: %v", err)
+	}
+	if err := os.WriteFile(filename, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write generated fixture: %v", err)
+	}
+	if output, err := exec.Command("git", "-C", destination, "add", ".golib/restore.sh").CombinedOutput(); err != nil {
+		t.Fatalf("stage generated fixture: %v\n%s", err, output)
+	}
+	commit := exec.Command(
+		"git", "-C", destination,
+		"-c", "user.name=Test", "-c", "user.email=test@example.test",
+		"commit", "--quiet", "-m", "fixture",
+	)
+	if output, err := commit.CombinedOutput(); err != nil {
+		t.Fatalf("commit generated fixture: %v\n%s", err, output)
+	}
+	if err := os.Remove(filename); err != nil {
+		t.Fatalf("remove generated fixture: %v", err)
+	}
+
+	if err := restoreStandaloneTrackedFiles(destination); err != nil {
+		t.Fatalf("restore interrupted generated deletion: %v", err)
+	}
+	contents, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatalf("read restored generated file: %v", err)
+	}
+	if string(contents) != "#!/bin/sh\nexit 0\n" {
+		t.Fatalf("restored generated file = %q", contents)
+	}
+	info, err := os.Stat(filename)
+	if err != nil {
+		t.Fatalf("inspect restored generated file: %v", err)
+	}
+	if info.Mode().Perm() != 0o755 {
+		t.Fatalf("restored generated file mode = %o, want 755", info.Mode().Perm())
+	}
+}
+
+func TestWriteStandaloneCIContractRefreshesOnlyOwnedCIEntrypoints(t *testing.T) {
+	t.Parallel()
+
+	destination := t.TempDir()
+	if err := writeStandaloneCIContract(
+		testRepositoryRoot(t),
+		destination,
+		standaloneRepository{Name: "go-example"},
+	); err != nil {
+		t.Fatalf("write standalone CI contract: %v", err)
+	}
+	workflow, err := os.ReadFile(filepath.Join(destination, ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatalf("read standalone workflow: %v", err)
+	}
+	for _, required := range []string{
+		"group: go-example-",
+		"id: strict_contract",
+		"id: release_dry_run",
+		"CONTRACT_OUTCOME:",
+	} {
+		if !strings.Contains(string(workflow), required) {
+			t.Fatalf("standalone workflow lacks %q", required)
+		}
+	}
+	stage, err := os.ReadFile(filepath.Join(
+		destination,
+		".golib",
+		"scripts",
+		"stage-ci-evidence.sh",
+	))
+	if err != nil {
+		t.Fatalf("read standalone evidence stage: %v", err)
+	}
+	if !strings.Contains(string(stage), "<destination> <outcome>") {
+		t.Fatal("standalone evidence stage lacks explicit outcome contract")
+	}
+}
+
 func TestRewriteStandaloneContentsAdvancesSupersededCollisionVersion(t *testing.T) {
 	t.Parallel()
 

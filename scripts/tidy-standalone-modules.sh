@@ -21,7 +21,6 @@ mkdir -p "${GOCACHE}" "${GOMODCACHE}"
 tool="${task_root}/golib"
 proxy="${task_root}/proxy"
 go build -o "${tool}" ./cmd/golib
-"${tool}" standalone-clean-sums --destination-root "${destination_root}"
 
 module_root() {
     local repository="$1"
@@ -88,29 +87,72 @@ tidy_manifest_selection() {
     printf 'tidied %d modules\n' "${count}"
 }
 
-wave_count="$(jq '.release_waves | length' "${manifest}")"
-for ((wave = 1; wave <= wave_count; wave++)); do
-    rebuild_proxy "$((wave - 1))"
-    selection="$(jq -r --argjson wave "$((wave - 1))" '
-        .release_waves[$wave][] as $module_path
-        | .modules[]
-        | select(.module_path == $module_path)
+standalone_manifest_digest() {
+    while IFS=$'\t' read -r repository directory module_path; do
+        [[ -z "${module_path}" ]] && continue
+        module_directory="$(module_root "${repository}" "${directory}")"
+        printf 'module %s\n' "${module_path}"
+        shasum -a 256 "${module_directory}/go.mod"
+        if [[ -f "${module_directory}/go.sum" ]]; then
+            shasum -a 256 "${module_directory}/go.sum"
+        else
+            printf 'go.sum absent\n'
+        fi
+    done < <(jq -r '
+        .modules[]
+        | [.repository, .directory, .module_path]
+        | @tsv
+    ' "${manifest}") | shasum -a 256 | awk '{print $1}'
+}
+
+tidy_all_modules() {
+    local wave selection
+
+    for ((wave = 1; wave <= wave_count; wave++)); do
+        rebuild_proxy "$((wave - 1))"
+        selection="$(jq -r --argjson wave "$((wave - 1))" '
+            .release_waves[$wave][] as $module_path
+            | .modules[]
+            | select(.module_path == $module_path)
+            | [.repository, .directory, .module_path]
+            | @tsv
+        ' "${manifest}")"
+        printf 'tidying release wave %d/%d\n' "${wave}" "${wave_count}"
+        tidy_manifest_selection "${selection}"
+    done
+
+    rebuild_proxy "${wave_count}"
+    selection="$(jq -r '
+        .modules[]
+        | select(.releasable == false)
         | [.repository, .directory, .module_path]
         | @tsv
     ' "${manifest}")"
-    printf 'tidying release wave %d/%d\n' "${wave}" "${wave_count}"
+    printf 'tidying non-releasable harness modules\n'
     tidy_manifest_selection "${selection}"
-done
+    rebuild_proxy "${wave_count}"
+}
 
-rebuild_proxy "${wave_count}"
-selection="$(jq -r '
-    .modules[]
-    | select(.releasable == false)
-    | [.repository, .directory, .module_path]
-    | @tsv
-' "${manifest}")"
-printf 'tidying non-releasable harness modules\n'
-tidy_manifest_selection "${selection}"
+wave_count="$(jq '.release_waves | length' "${manifest}")"
+maximum_passes="$((wave_count + 2))"
+converged=0
+for ((pass = 1; pass <= maximum_passes; pass++)); do
+    before="$(standalone_manifest_digest)"
+    "${tool}" standalone-clean-sums --destination-root "${destination_root}"
+    printf 'standalone checksum convergence pass %d/%d\n' \
+        "${pass}" "${maximum_passes}"
+    tidy_all_modules
+    after="$(standalone_manifest_digest)"
+    if [[ "${before}" == "${after}" ]]; then
+        converged=1
+        break
+    fi
+done
+[[ "${converged}" -eq 1 ]] || {
+    printf 'standalone module checksums did not converge after %d passes\n' \
+        "${maximum_passes}" >&2
+    exit 1
+}
 
 selection="$(jq -r '
     .modules[]

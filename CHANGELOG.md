@@ -7,6 +7,10 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Converge standalone checksums to a fixed point before publishing bootstrap
+  archives, format Go sources after import-path rewriting, and always attach an
+  attributable CI outcome even when a fixture module has no applicable gate
+  artifacts.
 - Track the pinned documentation-tool lockfile in standalone repositories so
   clean CI checkouts can install the exact validated cspell dependency.
 - Reconcile every standalone dependency checksum against deterministic current

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/format"
 	"io"
 	"os"
 	"os/exec"
@@ -189,6 +190,80 @@ func populateStandaloneRepositories(root string, arguments []string) error {
 	return nil
 }
 
+func refreshStandaloneCI(root string, arguments []string) error {
+	flags := flag.NewFlagSet("standalone-ci-refresh", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	destinationRoot := flags.String(
+		"destination-root",
+		"/Users/brian/Developer/golib",
+		"directory containing the standalone repositories",
+	)
+	family := flags.String("family", "", "refresh only one package family")
+	if err := flags.Parse(arguments); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("unexpected positional arguments")
+	}
+
+	manifest := standaloneManifest{}
+	if err := readStandaloneJSON(
+		filepath.Join(root, "migration/standalone/repositories.json"),
+		&manifest,
+	); err != nil {
+		return err
+	}
+	selected := 0
+	for _, repository := range manifest.Repositories {
+		if *family != "" && repository.Family != *family {
+			continue
+		}
+		destination := filepath.Join(*destinationRoot, repository.DestinationDirectory)
+		if err := requireStandaloneDestination(destination, repository.Name); err != nil {
+			return fmt.Errorf("%s: %w", repository.Name, err)
+		}
+		if err := writeStandaloneCIContract(root, destination, repository); err != nil {
+			return fmt.Errorf("%s: %w", repository.Name, err)
+		}
+		selected++
+	}
+	if selected == 0 {
+		return fmt.Errorf("no repository matched family %q", *family)
+	}
+	fmt.Printf("refreshed standalone CI in %d repositories\n", selected)
+
+	return nil
+}
+
+func writeStandaloneCIContract(
+	sourceRoot string,
+	destination string,
+	repository standaloneRepository,
+) error {
+	workflow := strings.ReplaceAll(standaloneCIWorkflow, "{{REPOSITORY}}", repository.Name)
+	workflowPath := filepath.Join(destination, ".github", "workflows", "ci.yml")
+	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
+		return fmt.Errorf("create workflow directory: %w", err)
+	}
+	if err := os.WriteFile(workflowPath, []byte(workflow), 0o644); err != nil {
+		return fmt.Errorf("write workflow: %w", err)
+	}
+
+	stage, err := os.ReadFile(filepath.Join(sourceRoot, "scripts", "stage-ci-evidence.sh"))
+	if err != nil {
+		return fmt.Errorf("read evidence stage: %w", err)
+	}
+	stagePath := filepath.Join(destination, ".golib", "scripts", "stage-ci-evidence.sh")
+	if err := os.MkdirAll(filepath.Dir(stagePath), 0o755); err != nil {
+		return fmt.Errorf("create evidence stage directory: %w", err)
+	}
+	if err := os.WriteFile(stagePath, stage, 0o755); err != nil {
+		return fmt.Errorf("write evidence stage: %w", err)
+	}
+
+	return nil
+}
+
 func standaloneSupersededModulePaths() map[string]string {
 	return map[string]string{
 		standaloneModulePrefix + "go-postgresql": standaloneModulePrefix + "go-postgres",
@@ -221,7 +296,7 @@ func populateStandaloneRepository(
 	); err != nil {
 		return err
 	}
-	files, err := standaloneTrackedFiles(destination)
+	files, err := standaloneExistingTrackedFiles(destination)
 	if err != nil {
 		return err
 	}
@@ -229,6 +304,7 @@ func populateStandaloneRepository(
 	if err != nil {
 		return err
 	}
+	changedGoFiles := make([]string, 0)
 	for _, relative := range files {
 		filename := filepath.Join(destination, relative)
 		info, err := os.Lstat(filename)
@@ -271,9 +347,15 @@ func populateStandaloneRepository(
 		if bytes.Equal(contents, rewritten) {
 			continue
 		}
+		if filepath.Ext(relative) == ".go" {
+			changedGoFiles = append(changedGoFiles, relative)
+		}
 		if err := os.WriteFile(filename, rewritten, info.Mode().Perm()); err != nil {
 			return fmt.Errorf("rewrite %s: %w", relative, err)
 		}
+	}
+	if err := formatStandaloneGoSources(destination, changedGoFiles); err != nil {
+		return err
 	}
 
 	repositoryCatalog, err := standaloneCatalog(
@@ -309,6 +391,38 @@ func populateStandaloneRepository(
 	if len(repositoryCatalog.Modules) > 1 {
 		if err := writeStandaloneWorkspace(destination, repositoryCatalog); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func formatStandaloneGoSources(destination string, files []string) error {
+	for _, relative := range files {
+		if filepath.Ext(relative) != ".go" {
+			continue
+		}
+		filename := filepath.Join(destination, relative)
+		info, err := os.Lstat(filename)
+		if err != nil {
+			return fmt.Errorf("inspect Go source %s: %w", relative, err)
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		contents, err := os.ReadFile(filename)
+		if err != nil {
+			return fmt.Errorf("read Go source %s: %w", relative, err)
+		}
+		formatted, err := format.Source(contents)
+		if err != nil {
+			return fmt.Errorf("format Go source %s: %w", relative, err)
+		}
+		if bytes.Equal(contents, formatted) {
+			continue
+		}
+		if err := os.WriteFile(filename, formatted, info.Mode().Perm()); err != nil {
+			return fmt.Errorf("write formatted Go source %s: %w", relative, err)
 		}
 	}
 
@@ -662,23 +776,54 @@ func restoreStandaloneTrackedFiles(destination string) error {
 	}
 	for _, relative := range files {
 		filename := filepath.Join(destination, relative)
-		info, err := os.Lstat(filename)
+		mode, err := standaloneTrackedFileMode(destination, relative)
 		if err != nil {
-			return fmt.Errorf("inspect tracked file %s: %w", relative, err)
+			return err
 		}
-		if !info.Mode().IsRegular() {
-			continue
+		info, err := os.Lstat(filename)
+		if err == nil {
+			if !info.Mode().IsRegular() {
+				continue
+			}
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("inspect tracked file %s: %w", relative, err)
 		}
 		command := exec.Command("git", "-C", destination, "show", "HEAD:"+relative)
 		contents, err := command.Output()
 		if err != nil {
 			return fmt.Errorf("restore tracked file %s from extracted HEAD: %w", relative, err)
 		}
-		if err := os.WriteFile(filename, contents, info.Mode().Perm()); err != nil {
+		if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+			return fmt.Errorf("create tracked file directory %s: %w", relative, err)
+		}
+		if err := os.WriteFile(filename, contents, mode); err != nil {
 			return fmt.Errorf("restore tracked file %s: %w", relative, err)
+		}
+		if err := os.Chmod(filename, mode); err != nil {
+			return fmt.Errorf("restore tracked file mode %s: %w", relative, err)
 		}
 	}
 	return nil
+}
+
+func standaloneTrackedFileMode(destination string, relative string) (os.FileMode, error) {
+	command := exec.Command("git", "-C", destination, "ls-tree", "HEAD", "--", relative)
+	output, err := command.Output()
+	if err != nil {
+		return 0, fmt.Errorf("inspect tracked file mode %s: %w", relative, err)
+	}
+	fields := strings.Fields(string(output))
+	if len(fields) < 3 {
+		return 0, fmt.Errorf("tracked file mode is unavailable for %s", relative)
+	}
+	switch fields[0] {
+	case "100644":
+		return 0o644, nil
+	case "100755":
+		return 0o755, nil
+	default:
+		return 0, fmt.Errorf("unsupported tracked file mode %s for %s", fields[0], relative)
+	}
 }
 
 func requireStandaloneDestination(destination string, repository string) error {
@@ -711,6 +856,23 @@ func standaloneTrackedFiles(destination string) ([]string, error) {
 		}
 	}
 	return result, nil
+}
+
+func standaloneExistingTrackedFiles(destination string) ([]string, error) {
+	tracked, err := standaloneTrackedFiles(destination)
+	if err != nil {
+		return nil, err
+	}
+	existing := make([]string, 0, len(tracked))
+	for _, relative := range tracked {
+		if _, err := os.Lstat(filepath.Join(destination, relative)); err == nil {
+			existing = append(existing, relative)
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("inspect tracked file %s: %w", relative, err)
+		}
+	}
+
+	return existing, nil
 }
 
 func rewriteStandaloneRepositoryPaths(contents []byte, family string, repository string) []byte {

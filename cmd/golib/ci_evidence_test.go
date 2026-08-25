@@ -35,6 +35,7 @@ func TestCIEvidenceStagingExcludesDisposableState(t *testing.T) {
 		filepath.Join(root, "scripts", "stage-ci-evidence.sh"),
 		"pkg/example",
 		destination,
+		"success",
 	)
 	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
 	if output, err := command.CombinedOutput(); err != nil {
@@ -80,6 +81,7 @@ func TestCIEvidenceStagingRejectsSymlinks(t *testing.T) {
 		filepath.Join(root, "scripts", "stage-ci-evidence.sh"),
 		"pkg/example",
 		destination,
+		"success",
 	)
 	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
 	output, err := command.CombinedOutput()
@@ -114,6 +116,7 @@ func TestCIEvidenceStagingRecoversAbandonedMutationScratch(t *testing.T) {
 		filepath.Join(root, "scripts", "stage-ci-evidence.sh"),
 		"pkg/example",
 		destination,
+		"success",
 	)
 	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
 	if output, commandErr := command.CombinedOutput(); commandErr != nil {
@@ -137,6 +140,7 @@ func TestCIEvidenceStagingRejectsDestinationWithinArtifactTree(t *testing.T) {
 		filepath.Join(root, "scripts", "stage-ci-evidence.sh"),
 		"pkg/example",
 		destination,
+		"success",
 	)
 	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
 	output, err := command.CombinedOutput()

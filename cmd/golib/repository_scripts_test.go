@@ -1769,6 +1769,10 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 		`RELEASE_DRY_RUN: ${{ inputs.release_dry_run }}`,
 		`.releasable == true`,
 		`Run release dry-run`,
+		`id: strict_contract`,
+		`id: release_dry_run`,
+		`CONTRACT_OUTCOME: ${{ inputs.release_dry_run == true && steps.release_dry_run.outcome || steps.strict_contract.outcome }}`,
+		`"${CONTRACT_OUTCOME}"`,
 		`GOLIB_VERIFICATION_SNAPSHOT: '1'`,
 		`./scripts/run-modules.sh release-dry-run`,
 		`--modules '${{ matrix.directory }}'`,
@@ -1789,6 +1793,85 @@ func TestCIUsesCompleteModuleProxiesAndCollisionFreeOutputs(t *testing.T) {
 	strictContract := strings.Index(contract, "Run strict module contract")
 	if restore < 0 || strictContract < 0 || restore > strictContract {
 		t.Fatal("CI does not restore mutation checkpoints before module verification")
+	}
+}
+
+func TestCIStagesAttributableOutcomeWithoutGateArtifacts(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	destination := filepath.Join(t.TempDir(), "evidence")
+	command := exec.Command(
+		filepath.Join(testRepositoryRoot(t), "scripts", "stage-ci-evidence.sh"),
+		"testdata/coverage",
+		destination,
+		"success",
+	)
+	command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", root)
+	for key, value := range map[string]string{
+		"GITHUB_REPOSITORY":  "faustbrian/go-analysis",
+		"GITHUB_RUN_ID":      "1234",
+		"GITHUB_RUN_ATTEMPT": "2",
+		"GITHUB_SHA":         "0123456789abcdef",
+	} {
+		command.Env = environmentWithValues(command.Env, key, value)
+	}
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("stage CI outcome without gate artifacts: %v\n%s", err, output)
+	}
+
+	result := struct {
+		Module     string `json:"module"`
+		Outcome    string `json:"outcome"`
+		Repository string `json:"repository"`
+		RunID      string `json:"run_id"`
+		RunAttempt string `json:"run_attempt"`
+		Revision   string `json:"revision"`
+	}{}
+	contents, err := os.ReadFile(filepath.Join(destination, "ci-result.json"))
+	if err != nil {
+		t.Fatalf("read attributable CI result: %v", err)
+	}
+	if err := json.Unmarshal(contents, &result); err != nil {
+		t.Fatalf("decode attributable CI result: %v", err)
+	}
+	if result.Module != "testdata/coverage" || result.Outcome != "success" ||
+		result.Repository != "faustbrian/go-analysis" || result.RunID != "1234" ||
+		result.RunAttempt != "2" || result.Revision != "0123456789abcdef" {
+		t.Fatalf("attributable CI result = %+v", result)
+	}
+}
+
+func TestStandaloneTidyRepeatsUntilManifestChecksumsConverge(t *testing.T) {
+	t.Parallel()
+
+	contents, err := os.ReadFile(filepath.Join(
+		testRepositoryRoot(t),
+		"scripts",
+		"tidy-standalone-modules.sh",
+	))
+	if err != nil {
+		t.Fatalf("read standalone tidy orchestrator: %v", err)
+	}
+	contract := string(contents)
+	for _, required := range []string{
+		`standalone_manifest_digest()`,
+		`maximum_passes=`,
+		`for ((pass = 1; pass <= maximum_passes; pass++))`,
+		`before="$(standalone_manifest_digest)"`,
+		`after="$(standalone_manifest_digest)"`,
+		`if [[ "${before}" == "${after}" ]]`,
+		`standalone module checksums did not converge`,
+	} {
+		if !strings.Contains(contract, required) {
+			t.Fatalf("standalone tidy orchestrator lacks %q", required)
+		}
+	}
+	loop := strings.Index(contract, `for ((pass = 1; pass <= maximum_passes; pass++))`)
+	clean := strings.Index(contract, `standalone-clean-sums`)
+	if loop < 0 || clean < loop {
+		t.Fatal("standalone checksum cleanup is not repeated inside the convergence loop")
 	}
 }
 
