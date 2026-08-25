@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Merge post-preparation `Unreleased` entries into an existing unpublished
+  initial release record so final standalone release notes contain every
+  extraction fix and repeated preparation remains idempotent.
 - Exclude intentional nested modules from root local-proxy archives so local,
   bootstrap, CI, and public module checksums describe the same source boundary.
 - Clear the task-owned module cache whenever the deterministic standalone proxy

@@ -179,16 +179,21 @@ func prepareStandaloneChangelog(
 	if bracketed {
 		releaseHeading = "## [" + catalogVersion + "] - " + releaseDate
 	}
-	if existing := regexp.MustCompile(
+	existing := regexp.MustCompile(
 		`(?m)^## \[?` + regexp.QuoteMeta(catalogVersion) + `\]? - ([0-9]{4}-[0-9]{2}-[0-9]{2})[ \t]*$`,
-	).FindStringSubmatch(text); existing != nil {
-		if existing[1] != releaseDate {
+	).FindStringSubmatchIndex(text)
+	if existing != nil {
+		if text[existing[2]:existing[3]] != releaseDate {
 			return nil, fmt.Errorf(
 				"existing %s release date %s differs from %s",
 				catalogVersion,
-				existing[1],
+				text[existing[2]:existing[3]],
 				releaseDate,
 			)
+		}
+		if pending := strings.TrimSpace(text[match[1]:existing[0]]); pending != "" {
+			text = text[:match[1]] + "\n\n" + text[existing[0]:existing[1]] +
+				"\n\n" + pending + text[existing[1]:]
 		}
 		return updateStandaloneChangelogLinks(
 			[]byte(text+"\n"),

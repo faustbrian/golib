@@ -146,6 +146,42 @@ func TestPrepareStandaloneChangelogRejectsReleaseDateChange(t *testing.T) {
 	}
 }
 
+func TestPrepareStandaloneChangelogMergesPostPreparationEntriesIntoUnpublishedRelease(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- Final extraction fix.\n\n" +
+		"## [1.0.0] - 2026-08-25\n\n### Added\n\n- Initial API.\n\n" +
+		"[Unreleased]: https://github.com/faustbrian/go-router/compare/v1.0.0...HEAD\n" +
+		"[1.0.0]: https://github.com/faustbrian/go-router/releases/tag/v1.0.0\n")
+	got, err := prepareStandaloneChangelog(
+		input,
+		"go-router",
+		"v1.0.0",
+		"v1.0.0",
+		"2026-08-25",
+	)
+	if err != nil {
+		t.Fatalf("prepareStandaloneChangelog() error = %v", err)
+	}
+	want := "## [Unreleased]\n\n## [1.0.0] - 2026-08-25\n\n### Fixed\n\n- Final extraction fix.\n\n### Added"
+	if !strings.Contains(string(got), want) {
+		t.Fatalf("post-preparation entries were not merged into the release:\n%s", got)
+	}
+	second, err := prepareStandaloneChangelog(
+		got,
+		"go-router",
+		"v1.0.0",
+		"v1.0.0",
+		"2026-08-25",
+	)
+	if err != nil {
+		t.Fatalf("second prepareStandaloneChangelog() error = %v", err)
+	}
+	if string(second) != string(got) {
+		t.Fatalf("release merge is not idempotent:\n%s", second)
+	}
+}
+
 func TestStandaloneStablePurposeUpdatesReleaseStatusOnly(t *testing.T) {
 	t.Parallel()
 
