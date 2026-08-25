@@ -193,6 +193,81 @@ func TestAddStandaloneReadmeBadgesReplacesLegacyWorkflowLinks(t *testing.T) {
 	}
 }
 
+func TestAddStandaloneChangelogEntryUsesExistingChangedSection(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("# Changelog\n\n## [Unreleased]\n\n### Changed\n\n- Existing change.\n")
+	got, err := addStandaloneChangelogEntry(
+		input,
+		"github.com/faustbrian/go-router",
+	)
+	if err != nil {
+		t.Fatalf("addStandaloneChangelogEntry() error = %v", err)
+	}
+	want := "### Changed\n\n" + standaloneChangelogEntry(
+		"github.com/faustbrian/go-router",
+	) + "\n- Existing change."
+	if !strings.Contains(string(got), want) {
+		t.Fatalf("standalone changelog entry was not inserted in Changed:\n%s", got)
+	}
+	second, err := addStandaloneChangelogEntry(got, "github.com/faustbrian/go-router")
+	if err != nil {
+		t.Fatalf("second addStandaloneChangelogEntry() error = %v", err)
+	}
+	if string(second) != string(got) {
+		t.Fatalf("standalone changelog insertion is not idempotent:\n%s", second)
+	}
+}
+
+func TestAddStandaloneChangelogEntryCreatesChangedSection(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("# Changelog\n\n## Unreleased\n\n### Added\n\n- Initial API.\n")
+	got, err := addStandaloneChangelogEntry(
+		input,
+		"github.com/faustbrian/go-router/adapters/otel",
+	)
+	if err != nil {
+		t.Fatalf("addStandaloneChangelogEntry() error = %v", err)
+	}
+	want := "## Unreleased\n\n### Changed\n\n" + standaloneChangelogEntry(
+		"github.com/faustbrian/go-router/adapters/otel",
+	) + "\n\n### Added"
+	if !strings.Contains(string(got), want) {
+		t.Fatalf("standalone Changed section was not created:\n%s", got)
+	}
+}
+
+func TestAddStandaloneChangelogEntryPreservesSpaceBeforeNextHeading(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("# Changelog\n\n## Unreleased\n\n### Changed\n\n### Fixed\n\n- Existing fix.\n")
+	got, err := addStandaloneChangelogEntry(
+		input,
+		"github.com/faustbrian/go-router",
+	)
+	if err != nil {
+		t.Fatalf("addStandaloneChangelogEntry() error = %v", err)
+	}
+	want := standaloneChangelogEntry("github.com/faustbrian/go-router") +
+		"\n\n### Fixed"
+	if !strings.Contains(string(got), want) {
+		t.Fatalf("standalone changelog heading spacing was not preserved:\n%s", got)
+	}
+}
+
+func TestAddStandaloneChangelogEntryRejectsMissingUnreleasedSection(t *testing.T) {
+	t.Parallel()
+
+	_, err := addStandaloneChangelogEntry(
+		[]byte("# Changelog\n"),
+		"github.com/faustbrian/go-router",
+	)
+	if err == nil {
+		t.Fatal("addStandaloneChangelogEntry() error = nil")
+	}
+}
+
 func TestRemoveStandaloneOwnedChecksumsKeepsExternalModules(t *testing.T) {
 	t.Parallel()
 

@@ -151,6 +151,9 @@ func populateStandaloneRepository(
 	if err != nil {
 		return err
 	}
+	if err := addStandaloneChangelogEntries(destination, repositoryCatalog); err != nil {
+		return err
+	}
 	if err := writeStandaloneJSON(filepath.Join(destination, "modules.json"), repositoryCatalog); err != nil {
 		return err
 	}
@@ -175,6 +178,74 @@ func populateStandaloneRepository(
 	}
 
 	return nil
+}
+
+func addStandaloneChangelogEntries(destination string, current catalog) error {
+	for _, item := range current.Modules {
+		if !item.Releasable {
+			continue
+		}
+		root := destination
+		if item.Directory != "." {
+			root = filepath.Join(destination, filepath.FromSlash(item.Directory))
+		}
+		filename := filepath.Join(root, "CHANGELOG.md")
+		contents, err := os.ReadFile(filename)
+		if err != nil {
+			return fmt.Errorf("read changelog for %s: %w", item.Path, err)
+		}
+		rewritten, err := addStandaloneChangelogEntry(contents, item.Path)
+		if err != nil {
+			return fmt.Errorf("update changelog for %s: %w", item.Path, err)
+		}
+		if bytes.Equal(contents, rewritten) {
+			continue
+		}
+		if err := os.WriteFile(filename, rewritten, 0o644); err != nil {
+			return fmt.Errorf("write changelog for %s: %w", item.Path, err)
+		}
+	}
+	return nil
+}
+
+func standaloneChangelogEntry(modulePath string) string {
+	return "- Publish the module from its standalone `" + modulePath +
+		"` identity while preserving its documented API and behavior."
+}
+
+func addStandaloneChangelogEntry(contents []byte, modulePath string) ([]byte, error) {
+	entry := standaloneChangelogEntry(modulePath)
+	if bytes.Contains(contents, []byte(entry)) {
+		return contents, nil
+	}
+
+	text := strings.TrimRight(string(contents), "\n")
+	unreleased := regexp.MustCompile(`(?m)^## (?:\[Unreleased\]|Unreleased)[ \t]*$`)
+	heading := unreleased.FindStringIndex(text)
+	if heading == nil {
+		return nil, errors.New("missing Unreleased section")
+	}
+	sectionEnd := len(text)
+	if next := strings.Index(text[heading[1]:], "\n## "); next >= 0 {
+		sectionEnd = heading[1] + next
+	}
+	section := text[heading[1]:sectionEnd]
+	changed := regexp.MustCompile(`(?m)^### Changed[ \t]*$`).FindStringIndex(section)
+
+	var rewritten string
+	if changed != nil {
+		insertAt := heading[1] + changed[1]
+		remainder := text[insertAt:]
+		if strings.HasPrefix(remainder, "\n\n") &&
+			!strings.HasPrefix(remainder, "\n\n#") {
+			remainder = remainder[1:]
+		}
+		rewritten = text[:insertAt] + "\n\n" + entry + remainder
+	} else {
+		rewritten = text[:heading[1]] + "\n\n### Changed\n\n" + entry +
+			text[heading[1]:]
+	}
+	return []byte(rewritten + "\n"), nil
 }
 
 func addStandaloneReadmeBadges(

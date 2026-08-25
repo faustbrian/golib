@@ -13,7 +13,8 @@ documented in each module's changelog.
 - Normalize standalone README badges, remove migration-only tooling on repeated
   generation, keep the repository contract portable on stock CI runners, and
   scope legacy-path enforcement around audited migration artifacts while
-  replacing machine-local reference checkout links.
+  replacing machine-local reference checkout links and recording every root
+  and nested module identity migration in its changelog.
 - Generate standalone module checksums in dependency order so local `v1.0.0`
   proxy verification cannot retain hashes from unfinished dependency trees.
 - Route standalone Makefile targets through the installed `.golib` tooling so
