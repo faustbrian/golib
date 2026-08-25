@@ -90,6 +90,7 @@ func prepareStandaloneReleases(root string, arguments []string) error {
 			}
 			item.Lifecycle = "stable"
 			item.Version = standaloneInitialVersion
+			item.Purpose = standaloneStablePurpose(item.Path, item.Purpose)
 			prepared++
 		}
 		if err := writeStandaloneJSON(filepath.Join(destination, "modules.json"), current); err != nil {
@@ -105,6 +106,18 @@ func prepareStandaloneReleases(root string, arguments []string) error {
 	}
 
 	return nil
+}
+
+func standaloneStablePurpose(modulePath string, purpose string) string {
+	switch modulePath {
+	case "github.com/faustbrian/go-kafka":
+		return "`kafka` is the stable v1 bounded first-party Apache Kafka " +
+			"client policy for Go services."
+	case "github.com/faustbrian/go-merkle-tree":
+		return strings.Replace(purpose, "current pre-v1 surface", "stable v1 surface", 1)
+	default:
+		return purpose
+	}
 }
 
 func prepareStandaloneModuleChangelog(

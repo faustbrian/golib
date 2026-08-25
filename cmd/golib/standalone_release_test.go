@@ -80,3 +80,28 @@ func TestPrepareStandaloneChangelogRejectsReleaseDateChange(t *testing.T) {
 		t.Fatal("prepareStandaloneChangelog() error = nil")
 	}
 }
+
+func TestStandaloneStablePurposeUpdatesReleaseStatusOnly(t *testing.T) {
+	t.Parallel()
+
+	if got := standaloneStablePurpose(
+		"github.com/faustbrian/go-kafka",
+		"draft",
+	); got != "`kafka` is the stable v1 bounded first-party Apache Kafka client policy for Go services." {
+		t.Fatalf("kafka stable purpose = %q", got)
+	}
+	const merkle = "The current pre-v1 surface uses a fixed profile."
+	if got := standaloneStablePurpose(
+		"github.com/faustbrian/go-merkle-tree",
+		merkle,
+	); got != "The stable v1 surface uses a fixed profile." {
+		t.Fatalf("merkle stable purpose = %q", got)
+	}
+	const verkle = "The package-owned pre-v1 profile is deliberately v0."
+	if got := standaloneStablePurpose(
+		"github.com/faustbrian/go-verkle-tree",
+		verkle,
+	); got != verkle {
+		t.Fatalf("verkle profile purpose changed = %q", got)
+	}
+}
