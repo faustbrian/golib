@@ -57,6 +57,8 @@ type standaloneRepository struct {
 	Family string `json:"family"`
 	// Name is the destination GitHub repository name.
 	Name string `json:"name"`
+	// LegacyName identifies the disposable repository being replaced.
+	LegacyName string `json:"legacy_repository"`
 	// ModulePath is the root public Go module path.
 	ModulePath string `json:"module_path"`
 	// SourceDirectory is the directory extracted from the monorepo.
@@ -234,6 +236,7 @@ func buildStandaloneManifest(current catalog, sourceCommit string, ciRun int64) 
 			repository = &standaloneRepository{
 				Family:               family,
 				Name:                 repositoryName,
+				LegacyName:           legacyStandaloneRepositoryName(family),
 				ModulePath:           standaloneModulePrefix + repositoryName,
 				SourceDirectory:      "pkg/" + family,
 				DestinationDirectory: repositoryName,
@@ -312,6 +315,17 @@ func standaloneRepositoryName(family string) string {
 		return "go-rabbitmq-streams"
 	default:
 		return "go-" + family
+	}
+}
+
+func legacyStandaloneRepositoryName(family string) string {
+	switch family {
+	case "outbox":
+		return "go-outbox"
+	case "postgres":
+		return "go-postgres"
+	default:
+		return standaloneRepositoryName(family)
 	}
 }
 

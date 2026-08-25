@@ -14,6 +14,7 @@
     {
       "family": "adaptive-throttle",
       "name": "go-adaptive-throttle",
+      "legacy_repository": "go-adaptive-throttle",
       "module_path": "github.com/faustbrian/go-adaptive-throttle",
       "source_directory": "pkg/adaptive-throttle",
       "destination_directory": "go-adaptive-throttle",
@@ -24,6 +25,7 @@
     {
       "family": "analysis",
       "name": "go-analysis",
+      "legacy_repository": "go-analysis",
       "module_path": "github.com/faustbrian/go-analysis",
       "source_directory": "pkg/analysis",
       "destination_directory": "go-analysis",
@@ -35,6 +37,7 @@
     {
       "family": "api-query",
       "name": "go-api-query",
+      "legacy_repository": "go-api-query",
       "module_path": "github.com/faustbrian/go-api-query",
       "source_directory": "pkg/api-query",
       "destination_directory": "go-api-query",
@@ -45,6 +48,7 @@
     {
       "family": "audit",
       "name": "go-audit",
+      "legacy_repository": "go-audit",
       "module_path": "github.com/faustbrian/go-audit",
       "source_directory": "pkg/audit",
       "destination_directory": "go-audit",
@@ -56,6 +60,7 @@
     {
       "family": "authentication",
       "name": "go-authentication",
+      "legacy_repository": "go-authentication",
       "module_path": "github.com/faustbrian/go-authentication",
       "source_directory": "pkg/authentication",
       "destination_directory": "go-authentication",
@@ -69,6 +74,7 @@
     {
       "family": "authorization",
       "name": "go-authorization",
+      "legacy_repository": "go-authorization",
       "module_path": "github.com/faustbrian/go-authorization",
       "source_directory": "pkg/authorization",
       "destination_directory": "go-authorization",
@@ -80,6 +86,7 @@
     {
       "family": "barcode",
       "name": "go-barcode",
+      "legacy_repository": "go-barcode",
       "module_path": "github.com/faustbrian/go-barcode",
       "source_directory": "pkg/barcode",
       "destination_directory": "go-barcode",
@@ -90,6 +97,7 @@
     {
       "family": "bulkhead",
       "name": "go-bulkhead",
+      "legacy_repository": "go-bulkhead",
       "module_path": "github.com/faustbrian/go-bulkhead",
       "source_directory": "pkg/bulkhead",
       "destination_directory": "go-bulkhead",
@@ -102,6 +110,7 @@
     {
       "family": "cache",
       "name": "go-cache",
+      "legacy_repository": "go-cache",
       "module_path": "github.com/faustbrian/go-cache",
       "source_directory": "pkg/cache",
       "destination_directory": "go-cache",
@@ -112,6 +121,7 @@
     {
       "family": "calendar",
       "name": "go-calendar",
+      "legacy_repository": "go-calendar",
       "module_path": "github.com/faustbrian/go-calendar",
       "source_directory": "pkg/calendar",
       "destination_directory": "go-calendar",
@@ -122,6 +132,7 @@
     {
       "family": "capability",
       "name": "go-capability",
+      "legacy_repository": "go-capability",
       "module_path": "github.com/faustbrian/go-capability",
       "source_directory": "pkg/capability",
       "destination_directory": "go-capability",
@@ -132,6 +143,7 @@
     {
       "family": "circuit-breaker",
       "name": "go-circuit-breaker",
+      "legacy_repository": "go-circuit-breaker",
       "module_path": "github.com/faustbrian/go-circuit-breaker",
       "source_directory": "pkg/circuit-breaker",
       "destination_directory": "go-circuit-breaker",
@@ -143,6 +155,7 @@
     {
       "family": "cli",
       "name": "go-cli",
+      "legacy_repository": "go-cli",
       "module_path": "github.com/faustbrian/go-cli",
       "source_directory": "pkg/cli",
       "destination_directory": "go-cli",
@@ -154,6 +167,7 @@
     {
       "family": "clock",
       "name": "go-clock",
+      "legacy_repository": "go-clock",
       "module_path": "github.com/faustbrian/go-clock",
       "source_directory": "pkg/clock",
       "destination_directory": "go-clock",
@@ -164,6 +178,7 @@
     {
       "family": "cloudevents",
       "name": "go-cloudevents",
+      "legacy_repository": "go-cloudevents",
       "module_path": "github.com/faustbrian/go-cloudevents",
       "source_directory": "pkg/cloudevents",
       "destination_directory": "go-cloudevents",
@@ -175,6 +190,7 @@
     {
       "family": "concurrency-limit",
       "name": "go-concurrency-limit",
+      "legacy_repository": "go-concurrency-limit",
       "module_path": "github.com/faustbrian/go-concurrency-limit",
       "source_directory": "pkg/concurrency-limit",
       "destination_directory": "go-concurrency-limit",
@@ -187,6 +203,7 @@
     {
       "family": "config",
       "name": "go-config",
+      "legacy_repository": "go-config",
       "module_path": "github.com/faustbrian/go-config",
       "source_directory": "pkg/config",
       "destination_directory": "go-config",
@@ -198,6 +215,7 @@
     {
       "family": "correlation",
       "name": "go-correlation",
+      "legacy_repository": "go-correlation",
       "module_path": "github.com/faustbrian/go-correlation",
       "source_directory": "pkg/correlation",
       "destination_directory": "go-correlation",
@@ -209,6 +227,7 @@
     {
       "family": "ecma-regexp",
       "name": "go-ecma-regexp",
+      "legacy_repository": "go-ecma-regexp",
       "module_path": "github.com/faustbrian/go-ecma-regexp",
       "source_directory": "pkg/ecma-regexp",
       "destination_directory": "go-ecma-regexp",
@@ -219,6 +238,7 @@
     {
       "family": "event-sourcing",
       "name": "go-event-sourcing",
+      "legacy_repository": "go-event-sourcing",
       "module_path": "github.com/faustbrian/go-event-sourcing",
       "source_directory": "pkg/event-sourcing",
       "destination_directory": "go-event-sourcing",
@@ -235,6 +255,7 @@
     {
       "family": "external-sort",
       "name": "go-external-sort",
+      "legacy_repository": "go-external-sort",
       "module_path": "github.com/faustbrian/go-external-sort",
       "source_directory": "pkg/external-sort",
       "destination_directory": "go-external-sort",
@@ -245,6 +266,7 @@
     {
       "family": "fault-injection",
       "name": "go-fault-injection",
+      "legacy_repository": "go-fault-injection",
       "module_path": "github.com/faustbrian/go-fault-injection",
       "source_directory": "pkg/fault-injection",
       "destination_directory": "go-fault-injection",
@@ -257,6 +279,7 @@
     {
       "family": "feature-flags",
       "name": "go-feature-flags",
+      "legacy_repository": "go-feature-flags",
       "module_path": "github.com/faustbrian/go-feature-flags",
       "source_directory": "pkg/feature-flags",
       "destination_directory": "go-feature-flags",
@@ -267,6 +290,7 @@
     {
       "family": "filesystem",
       "name": "go-filesystem",
+      "legacy_repository": "go-filesystem",
       "module_path": "github.com/faustbrian/go-filesystem",
       "source_directory": "pkg/filesystem",
       "destination_directory": "go-filesystem",
@@ -277,6 +301,7 @@
     {
       "family": "geo",
       "name": "go-geo",
+      "legacy_repository": "go-geo",
       "module_path": "github.com/faustbrian/go-geo",
       "source_directory": "pkg/geo",
       "destination_directory": "go-geo",
@@ -287,6 +312,7 @@
     {
       "family": "hedge",
       "name": "go-hedge",
+      "legacy_repository": "go-hedge",
       "module_path": "github.com/faustbrian/go-hedge",
       "source_directory": "pkg/hedge",
       "destination_directory": "go-hedge",
@@ -297,6 +323,7 @@
     {
       "family": "http-client",
       "name": "go-http-client",
+      "legacy_repository": "go-http-client",
       "module_path": "github.com/faustbrian/go-http-client",
       "source_directory": "pkg/http-client",
       "destination_directory": "go-http-client",
@@ -307,6 +334,7 @@
     {
       "family": "http-middleware",
       "name": "go-http-middleware",
+      "legacy_repository": "go-http-middleware",
       "module_path": "github.com/faustbrian/go-http-middleware",
       "source_directory": "pkg/http-middleware",
       "destination_directory": "go-http-middleware",
@@ -318,6 +346,7 @@
     {
       "family": "http-signature",
       "name": "go-http-signature",
+      "legacy_repository": "go-http-signature",
       "module_path": "github.com/faustbrian/go-http-signature",
       "source_directory": "pkg/http-signature",
       "destination_directory": "go-http-signature",
@@ -330,6 +359,7 @@
     {
       "family": "idempotency",
       "name": "go-idempotency",
+      "legacy_repository": "go-idempotency",
       "module_path": "github.com/faustbrian/go-idempotency",
       "source_directory": "pkg/idempotency",
       "destination_directory": "go-idempotency",
@@ -341,6 +371,7 @@
     {
       "family": "identifier",
       "name": "go-identifier",
+      "legacy_repository": "go-identifier",
       "module_path": "github.com/faustbrian/go-identifier",
       "source_directory": "pkg/identifier",
       "destination_directory": "go-identifier",
@@ -351,6 +382,7 @@
     {
       "family": "international",
       "name": "go-international",
+      "legacy_repository": "go-international",
       "module_path": "github.com/faustbrian/go-international",
       "source_directory": "pkg/international",
       "destination_directory": "go-international",
@@ -361,6 +393,7 @@
     {
       "family": "json-schema",
       "name": "go-json-schema",
+      "legacy_repository": "go-json-schema",
       "module_path": "github.com/faustbrian/go-json-schema",
       "source_directory": "pkg/json-schema",
       "destination_directory": "go-json-schema",
@@ -372,6 +405,7 @@
     {
       "family": "jsonapi",
       "name": "go-jsonapi",
+      "legacy_repository": "go-jsonapi",
       "module_path": "github.com/faustbrian/go-jsonapi",
       "source_directory": "pkg/jsonapi",
       "destination_directory": "go-jsonapi",
@@ -382,6 +416,7 @@
     {
       "family": "jsonrpc",
       "name": "go-jsonrpc",
+      "legacy_repository": "go-jsonrpc",
       "module_path": "github.com/faustbrian/go-jsonrpc",
       "source_directory": "pkg/jsonrpc",
       "destination_directory": "go-jsonrpc",
@@ -392,6 +427,7 @@
     {
       "family": "kafka",
       "name": "go-kafka",
+      "legacy_repository": "go-kafka",
       "module_path": "github.com/faustbrian/go-kafka",
       "source_directory": "pkg/kafka",
       "destination_directory": "go-kafka",
@@ -406,6 +442,7 @@
     {
       "family": "keyphrase",
       "name": "go-keyphrase",
+      "legacy_repository": "go-keyphrase",
       "module_path": "github.com/faustbrian/go-keyphrase",
       "source_directory": "pkg/keyphrase",
       "destination_directory": "go-keyphrase",
@@ -416,6 +453,7 @@
     {
       "family": "knapsack",
       "name": "go-knapsack",
+      "legacy_repository": "go-knapsack",
       "module_path": "github.com/faustbrian/go-knapsack",
       "source_directory": "pkg/knapsack",
       "destination_directory": "go-knapsack",
@@ -428,6 +466,7 @@
     {
       "family": "lease",
       "name": "go-lease",
+      "legacy_repository": "go-lease",
       "module_path": "github.com/faustbrian/go-lease",
       "source_directory": "pkg/lease",
       "destination_directory": "go-lease",
@@ -438,6 +477,7 @@
     {
       "family": "localized",
       "name": "go-localized",
+      "legacy_repository": "go-localized",
       "module_path": "github.com/faustbrian/go-localized",
       "source_directory": "pkg/localized",
       "destination_directory": "go-localized",
@@ -448,6 +488,7 @@
     {
       "family": "log",
       "name": "go-log",
+      "legacy_repository": "go-log",
       "module_path": "github.com/faustbrian/go-log",
       "source_directory": "pkg/log",
       "destination_directory": "go-log",
@@ -458,6 +499,7 @@
     {
       "family": "math",
       "name": "go-math",
+      "legacy_repository": "go-math",
       "module_path": "github.com/faustbrian/go-math",
       "source_directory": "pkg/math",
       "destination_directory": "go-math",
@@ -468,6 +510,7 @@
     {
       "family": "measurement",
       "name": "go-measurement",
+      "legacy_repository": "go-measurement",
       "module_path": "github.com/faustbrian/go-measurement",
       "source_directory": "pkg/measurement",
       "destination_directory": "go-measurement",
@@ -478,6 +521,7 @@
     {
       "family": "merkle-patricia-trie",
       "name": "go-merkle-patricia-trie",
+      "legacy_repository": "go-merkle-patricia-trie",
       "module_path": "github.com/faustbrian/go-merkle-patricia-trie",
       "source_directory": "pkg/merkle-patricia-trie",
       "destination_directory": "go-merkle-patricia-trie",
@@ -488,6 +532,7 @@
     {
       "family": "merkle-tree",
       "name": "go-merkle-tree",
+      "legacy_repository": "go-merkle-tree",
       "module_path": "github.com/faustbrian/go-merkle-tree",
       "source_directory": "pkg/merkle-tree",
       "destination_directory": "go-merkle-tree",
@@ -498,6 +543,7 @@
     {
       "family": "migrations",
       "name": "go-migrations",
+      "legacy_repository": "go-migrations",
       "module_path": "github.com/faustbrian/go-migrations",
       "source_directory": "pkg/migrations",
       "destination_directory": "go-migrations",
@@ -508,6 +554,7 @@
     {
       "family": "money",
       "name": "go-money",
+      "legacy_repository": "go-money",
       "module_path": "github.com/faustbrian/go-money",
       "source_directory": "pkg/money",
       "destination_directory": "go-money",
@@ -518,6 +565,7 @@
     {
       "family": "openapi",
       "name": "go-openapi",
+      "legacy_repository": "go-openapi",
       "module_path": "github.com/faustbrian/go-openapi",
       "source_directory": "pkg/openapi",
       "destination_directory": "go-openapi",
@@ -529,6 +577,7 @@
     {
       "family": "opening-hours",
       "name": "go-opening-hours",
+      "legacy_repository": "go-opening-hours",
       "module_path": "github.com/faustbrian/go-opening-hours",
       "source_directory": "pkg/opening-hours",
       "destination_directory": "go-opening-hours",
@@ -539,6 +588,7 @@
     {
       "family": "openrpc",
       "name": "go-openrpc",
+      "legacy_repository": "go-openrpc",
       "module_path": "github.com/faustbrian/go-openrpc",
       "source_directory": "pkg/openrpc",
       "destination_directory": "go-openrpc",
@@ -549,6 +599,7 @@
     {
       "family": "password",
       "name": "go-password",
+      "legacy_repository": "go-password",
       "module_path": "github.com/faustbrian/go-password",
       "source_directory": "pkg/password",
       "destination_directory": "go-password",
@@ -559,6 +610,7 @@
     {
       "family": "postgres",
       "name": "go-postgresql",
+      "legacy_repository": "go-postgres",
       "module_path": "github.com/faustbrian/go-postgresql",
       "source_directory": "pkg/postgres",
       "destination_directory": "go-postgresql",
@@ -570,6 +622,7 @@
     {
       "family": "prompts",
       "name": "go-prompts",
+      "legacy_repository": "go-prompts",
       "module_path": "github.com/faustbrian/go-prompts",
       "source_directory": "pkg/prompts",
       "destination_directory": "go-prompts",
@@ -581,6 +634,7 @@
     {
       "family": "queue",
       "name": "go-queue",
+      "legacy_repository": "go-queue",
       "module_path": "github.com/faustbrian/go-queue",
       "source_directory": "pkg/queue",
       "destination_directory": "go-queue",
@@ -592,6 +646,7 @@
     {
       "family": "queue-control-plane",
       "name": "go-queue-control-plane",
+      "legacy_repository": "go-queue-control-plane",
       "module_path": "github.com/faustbrian/go-queue-control-plane",
       "source_directory": "pkg/queue-control-plane",
       "destination_directory": "go-queue-control-plane",
@@ -602,6 +657,7 @@
     {
       "family": "rabbitstream",
       "name": "go-rabbitmq-streams",
+      "legacy_repository": "go-rabbitmq-streams",
       "module_path": "github.com/faustbrian/go-rabbitmq-streams",
       "source_directory": "pkg/rabbitstream",
       "destination_directory": "go-rabbitmq-streams",
@@ -614,6 +670,7 @@
     {
       "family": "rate-limit",
       "name": "go-rate-limit",
+      "legacy_repository": "go-rate-limit",
       "module_path": "github.com/faustbrian/go-rate-limit",
       "source_directory": "pkg/rate-limit",
       "destination_directory": "go-rate-limit",
@@ -624,6 +681,7 @@
     {
       "family": "resilience",
       "name": "go-resilience",
+      "legacy_repository": "go-resilience",
       "module_path": "github.com/faustbrian/go-resilience",
       "source_directory": "pkg/resilience",
       "destination_directory": "go-resilience",
@@ -634,6 +692,7 @@
     {
       "family": "retry",
       "name": "go-retry",
+      "legacy_repository": "go-retry",
       "module_path": "github.com/faustbrian/go-retry",
       "source_directory": "pkg/retry",
       "destination_directory": "go-retry",
@@ -644,6 +703,7 @@
     {
       "family": "router",
       "name": "go-router",
+      "legacy_repository": "go-router",
       "module_path": "github.com/faustbrian/go-router",
       "source_directory": "pkg/router",
       "destination_directory": "go-router",
@@ -654,6 +714,7 @@
     {
       "family": "rule-engine",
       "name": "go-rule-engine",
+      "legacy_repository": "go-rule-engine",
       "module_path": "github.com/faustbrian/go-rule-engine",
       "source_directory": "pkg/rule-engine",
       "destination_directory": "go-rule-engine",
@@ -668,6 +729,7 @@
     {
       "family": "scheduler",
       "name": "go-scheduler",
+      "legacy_repository": "go-scheduler",
       "module_path": "github.com/faustbrian/go-scheduler",
       "source_directory": "pkg/scheduler",
       "destination_directory": "go-scheduler",
@@ -678,6 +740,7 @@
     {
       "family": "schema-registry",
       "name": "go-schema-registry",
+      "legacy_repository": "go-schema-registry",
       "module_path": "github.com/faustbrian/go-schema-registry",
       "source_directory": "pkg/schema-registry",
       "destination_directory": "go-schema-registry",
@@ -690,6 +753,7 @@
     {
       "family": "search",
       "name": "go-search",
+      "legacy_repository": "go-search",
       "module_path": "github.com/faustbrian/go-search",
       "source_directory": "pkg/search",
       "destination_directory": "go-search",
@@ -701,6 +765,7 @@
     {
       "family": "secret-envelope",
       "name": "go-secret-envelope",
+      "legacy_repository": "go-secret-envelope",
       "module_path": "github.com/faustbrian/go-secret-envelope",
       "source_directory": "pkg/secret-envelope",
       "destination_directory": "go-secret-envelope",
@@ -711,6 +776,7 @@
     {
       "family": "semaphore",
       "name": "go-semaphore",
+      "legacy_repository": "go-semaphore",
       "module_path": "github.com/faustbrian/go-semaphore",
       "source_directory": "pkg/semaphore",
       "destination_directory": "go-semaphore",
@@ -721,6 +787,7 @@
     {
       "family": "sequencer",
       "name": "go-sequencer",
+      "legacy_repository": "go-sequencer",
       "module_path": "github.com/faustbrian/go-sequencer",
       "source_directory": "pkg/sequencer",
       "destination_directory": "go-sequencer",
@@ -731,6 +798,7 @@
     {
       "family": "service",
       "name": "go-service",
+      "legacy_repository": "go-service",
       "module_path": "github.com/faustbrian/go-service",
       "source_directory": "pkg/service",
       "destination_directory": "go-service",
@@ -748,6 +816,7 @@
     {
       "family": "settings",
       "name": "go-settings",
+      "legacy_repository": "go-settings",
       "module_path": "github.com/faustbrian/go-settings",
       "source_directory": "pkg/settings",
       "destination_directory": "go-settings",
@@ -758,6 +827,7 @@
     {
       "family": "state-machine",
       "name": "go-state-machine",
+      "legacy_repository": "go-state-machine",
       "module_path": "github.com/faustbrian/go-state-machine",
       "source_directory": "pkg/state-machine",
       "destination_directory": "go-state-machine",
@@ -768,6 +838,7 @@
     {
       "family": "tabular",
       "name": "go-tabular",
+      "legacy_repository": "go-tabular",
       "module_path": "github.com/faustbrian/go-tabular",
       "source_directory": "pkg/tabular",
       "destination_directory": "go-tabular",
@@ -778,6 +849,7 @@
     {
       "family": "telemetry",
       "name": "go-telemetry",
+      "legacy_repository": "go-telemetry",
       "module_path": "github.com/faustbrian/go-telemetry",
       "source_directory": "pkg/telemetry",
       "destination_directory": "go-telemetry",
@@ -788,6 +860,7 @@
     {
       "family": "temporal",
       "name": "go-temporal",
+      "legacy_repository": "go-temporal",
       "module_path": "github.com/faustbrian/go-temporal",
       "source_directory": "pkg/temporal",
       "destination_directory": "go-temporal",
@@ -798,6 +871,7 @@
     {
       "family": "tenancy",
       "name": "go-tenancy",
+      "legacy_repository": "go-tenancy",
       "module_path": "github.com/faustbrian/go-tenancy",
       "source_directory": "pkg/tenancy",
       "destination_directory": "go-tenancy",
@@ -808,6 +882,7 @@
     {
       "family": "outbox",
       "name": "go-transactional-outbox",
+      "legacy_repository": "go-outbox",
       "module_path": "github.com/faustbrian/go-transactional-outbox",
       "source_directory": "pkg/outbox",
       "destination_directory": "go-transactional-outbox",
@@ -822,6 +897,7 @@
     {
       "family": "validation",
       "name": "go-validation",
+      "legacy_repository": "go-validation",
       "module_path": "github.com/faustbrian/go-validation",
       "source_directory": "pkg/validation",
       "destination_directory": "go-validation",
@@ -832,6 +908,7 @@
     {
       "family": "verkle-tree",
       "name": "go-verkle-tree",
+      "legacy_repository": "go-verkle-tree",
       "module_path": "github.com/faustbrian/go-verkle-tree",
       "source_directory": "pkg/verkle-tree",
       "destination_directory": "go-verkle-tree",
@@ -842,6 +919,7 @@
     {
       "family": "webhook",
       "name": "go-webhook",
+      "legacy_repository": "go-webhook",
       "module_path": "github.com/faustbrian/go-webhook",
       "source_directory": "pkg/webhook",
       "destination_directory": "go-webhook",
@@ -852,6 +930,7 @@
     {
       "family": "wire",
       "name": "go-wire",
+      "legacy_repository": "go-wire",
       "module_path": "github.com/faustbrian/go-wire",
       "source_directory": "pkg/wire",
       "destination_directory": "go-wire",
@@ -862,6 +941,7 @@
     {
       "family": "workflow",
       "name": "go-workflow",
+      "legacy_repository": "go-workflow",
       "module_path": "github.com/faustbrian/go-workflow",
       "source_directory": "pkg/workflow",
       "destination_directory": "go-workflow",
@@ -872,6 +952,7 @@
     {
       "family": "wsdl",
       "name": "go-wsdl",
+      "legacy_repository": "go-wsdl",
       "module_path": "github.com/faustbrian/go-wsdl",
       "source_directory": "pkg/wsdl",
       "destination_directory": "go-wsdl",
@@ -882,6 +963,7 @@
     {
       "family": "xsd",
       "name": "go-xsd",
+      "legacy_repository": "go-xsd",
       "module_path": "github.com/faustbrian/go-xsd",
       "source_directory": "pkg/xsd",
       "destination_directory": "go-xsd",

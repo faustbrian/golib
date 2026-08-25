@@ -2064,7 +2064,13 @@ func validatePaths(root string) {
 	obsoleteRoot := "github.com/faustbrian/" + "go-"
 	command := exec.Command("git", "grep", "-n", obsoleteRoot)
 	command.Dir = root
-	command.Args = append(command.Args, "--", ":(exclude).ai/GOAL_MONOREPO_REMEDIATION.md")
+	command.Args = append(
+		command.Args,
+		"--",
+		":(exclude).ai/GOAL_MONOREPO_REMEDIATION.md",
+		":(exclude)cmd/golib/standalone_test.go",
+		":(exclude,glob)migration/standalone/**",
+	)
 	if output, err := command.Output(); err == nil && len(output) != 0 {
 		fatal("obsolete owned module paths remain:\n%s", output)
 	}

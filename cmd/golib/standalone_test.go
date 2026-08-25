@@ -56,6 +56,12 @@ func TestBuildStandaloneManifestMapsFamiliesAndReleaseDependencies(t *testing.T)
 	) {
 		t.Fatalf("repository names = %v", got)
 	}
+	if got := legacyRepositoryNames(manifest.Repositories); !slices.Equal(
+		got,
+		[]string{"go-postgres", "go-rabbitmq-streams", "go-outbox"},
+	) {
+		t.Fatalf("legacy repository names = %v", got)
+	}
 	if got := standaloneModulePaths(manifest.Modules); !slices.Equal(got, []string{
 		"github.com/faustbrian/go-postgresql",
 		"github.com/faustbrian/go-rabbitmq-streams",
@@ -98,6 +104,15 @@ func repositoryNames(repositories []standaloneRepository) []string {
 	names := make([]string, 0, len(repositories))
 	for _, repository := range repositories {
 		names = append(names, repository.Name)
+	}
+
+	return names
+}
+
+func legacyRepositoryNames(repositories []standaloneRepository) []string {
+	names := make([]string, 0, len(repositories))
+	for _, repository := range repositories {
+		names = append(names, repository.LegacyName)
 	}
 
 	return names
