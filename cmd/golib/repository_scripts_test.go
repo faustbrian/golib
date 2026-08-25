@@ -1031,6 +1031,87 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	}
 }
 
+func TestLocalProxyExcludesNestedModulesFromRootArchive(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.6\n")
+	writeTestFile(t, filepath.Join(root, "root.go"), "package root\n")
+	if err := os.MkdirAll(filepath.Join(root, "nested"), 0o755); err != nil {
+		t.Fatalf("create nested module directory: %v", err)
+	}
+	writeTestFile(t, filepath.Join(root, "nested", "go.mod"), "module example.test/root/nested\n\ngo 1.26.6\n")
+	writeTestFile(t, filepath.Join(root, "nested", "nested.go"), "package nested\n")
+	writeTestFile(t, filepath.Join(root, "modules.json"), `{
+  "modules": [
+    {
+      "directory": ".",
+      "module_path": "example.test/root",
+      "releasable": true,
+      "owned_dependencies": []
+    },
+    {
+      "directory": "nested",
+      "module_path": "example.test/root/nested",
+      "releasable": true,
+      "owned_dependencies": []
+    }
+  ]
+}
+`)
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = root
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+	add := exec.Command("git", "add", "go.mod", "root.go", "nested/go.mod", "nested/nested.go", "modules.json")
+	add.Dir = root
+	if output, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture repository: %v\n%s", err, output)
+	}
+	if err := copyStandaloneFoundationFileAs(
+		testRepositoryRoot(t),
+		root,
+		"scripts/build-local-proxy.sh",
+		filepath.Join(".golib", "scripts", "build-local-proxy.sh"),
+		standaloneRepository{Name: "go-example"},
+		map[string]string{},
+	); err != nil {
+		t.Fatalf("write standalone local proxy builder: %v", err)
+	}
+
+	output := t.TempDir()
+	command := exec.Command(
+		filepath.Join(root, ".golib", "scripts", "build-local-proxy.sh"),
+		output,
+		"v1.0.0",
+		".",
+	)
+	command.Dir = root
+	if result, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("build root local proxy: %v\n%s", err, result)
+	}
+
+	archive, err := zip.OpenReader(filepath.Join(
+		output,
+		filepath.FromSlash("example.test/root/@v/v1.0.0.zip"),
+	))
+	if err != nil {
+		t.Fatalf("open root module archive: %v", err)
+	}
+	defer func() {
+		if err := archive.Close(); err != nil {
+			t.Errorf("close root module archive: %v", err)
+		}
+	}()
+	for _, file := range archive.File {
+		if strings.Contains(file.Name, "/nested/") {
+			t.Fatalf("root archive contains nested module file %s", file.Name)
+		}
+	}
+}
+
 func TestLocalProxyUsesPlannedStableVersionForOwnedDependencies(t *testing.T) {
 	t.Parallel()
 

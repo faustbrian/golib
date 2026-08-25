@@ -194,6 +194,13 @@ func TestWriteStandaloneCIContractRefreshesOnlyOwnedCIEntrypoints(t *testing.T) 
 	t.Parallel()
 
 	destination := t.TempDir()
+	if err := os.WriteFile(
+		filepath.Join(destination, "CHANGELOG.md"),
+		[]byte("# Changelog\n\n## Unreleased\n\n## 1.0.0 - 2026-08-25\n"),
+		0o644,
+	); err != nil {
+		t.Fatalf("write standalone changelog fixture: %v", err)
+	}
 	if err := writeStandaloneCIContract(
 		testRepositoryRoot(t),
 		destination,
@@ -226,6 +233,32 @@ func TestWriteStandaloneCIContractRefreshesOnlyOwnedCIEntrypoints(t *testing.T) 
 	}
 	if !strings.Contains(string(stage), "<destination> <outcome>") {
 		t.Fatal("standalone evidence stage lacks explicit outcome contract")
+	}
+	proxy, err := os.ReadFile(filepath.Join(
+		destination,
+		".golib",
+		"scripts",
+		"build-local-proxy.sh",
+	))
+	if err != nil {
+		t.Fatalf("read standalone local proxy builder: %v", err)
+	}
+	if !strings.Contains(string(proxy), `($current == "." and . != ".")`) {
+		t.Fatal("standalone local proxy builder retains the root nesting defect")
+	}
+	if strings.Contains(string(proxy), `github\.com/faustbrian/golib/pkg/`) ||
+		!strings.Contains(string(proxy), `github\.com/faustbrian/go-`) {
+		t.Fatal("standalone local proxy builder retains monorepo module matching")
+	}
+	changelog, err := os.ReadFile(filepath.Join(destination, "CHANGELOG.md"))
+	if err != nil {
+		t.Fatalf("read refreshed standalone changelog: %v", err)
+	}
+	if !strings.Contains(
+		string(changelog),
+		"Exclude intentional nested modules from root local-proxy archives",
+	) {
+		t.Fatal("standalone changelog does not record the local proxy fix")
 	}
 }
 

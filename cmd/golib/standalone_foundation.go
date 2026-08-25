@@ -882,10 +882,23 @@ find_make_target() {
 		)
 	}
 	if toolingRelative == "scripts/build-local-proxy.sh" {
-		replacements = append(replacements, replacement{
-			`version="${2:-v0.0.0}"`,
-			`version="${2:-` + releaseVersion + `}"`,
-		})
+		replacements = append(replacements,
+			replacement{
+				`version="${2:-v0.0.0}"`,
+				`version="${2:-` + releaseVersion + `}"`,
+			},
+			replacement{
+				`github\.com/faustbrian/golib/pkg/[a-z0-9/-]+`,
+				`github\.com/faustbrian/go-[a-z0-9/-]+`,
+			},
+			replacement{
+				`| select(startswith($current + "/"))`,
+				`| select(
+            ($current == "." and . != ".") or
+            ($current != "." and startswith($current + "/"))
+        )`,
+			},
+		)
 	}
 	if toolingRelative == "scripts/mutation-verifier-identity.sh" {
 		replacements = append(replacements,
@@ -1127,6 +1140,12 @@ func rewriteStandaloneChangelog(contents []byte) []byte {
 		flat    string
 		wrapped string
 	}{
+		{
+			flat: "- Exclude intentional nested modules from root local-proxy archives so local, bootstrap, CI, and public module checksums describe the same source boundary.",
+			wrapped: "- Exclude intentional nested modules from root local-proxy archives so local,\n" +
+				"  bootstrap, CI, and public module checksums describe the same source\n" +
+				"  boundary.",
+		},
 		{
 			flat: "- Harden standalone documentation validation with deterministic spelling and link checks, package-specific documentation gates, and repository-local contributor guidance.",
 			wrapped: "- Harden standalone documentation validation with deterministic spelling and\n" +

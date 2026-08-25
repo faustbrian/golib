@@ -260,6 +260,28 @@ func writeStandaloneCIContract(
 	if err := os.WriteFile(stagePath, stage, 0o755); err != nil {
 		return fmt.Errorf("write evidence stage: %w", err)
 	}
+	if err := copyStandaloneFoundationFileAs(
+		sourceRoot,
+		destination,
+		"scripts/build-local-proxy.sh",
+		filepath.Join(".golib", "scripts", "build-local-proxy.sh"),
+		repository,
+		map[string]string{},
+	); err != nil {
+		return fmt.Errorf("write local proxy builder: %w", err)
+	}
+	changelogPath := filepath.Join(destination, "CHANGELOG.md")
+	changelog, err := os.ReadFile(changelogPath)
+	if err != nil {
+		return fmt.Errorf("read standalone changelog: %w", err)
+	}
+	if err := os.WriteFile(
+		changelogPath,
+		rewriteStandaloneChangelog(changelog),
+		0o644,
+	); err != nil {
+		return fmt.Errorf("write standalone changelog: %w", err)
+	}
 
 	return nil
 }

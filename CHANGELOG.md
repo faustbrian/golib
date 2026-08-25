@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Exclude intentional nested modules from root local-proxy archives so local,
+  bootstrap, CI, and public module checksums describe the same source boundary.
 - Clear the task-owned module cache whenever the deterministic standalone proxy
   is rebuilt so fixed-point checksum verification cannot reuse stale archives
   for unchanged module versions.
