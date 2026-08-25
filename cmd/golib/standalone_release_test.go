@@ -13,6 +13,7 @@ func TestPrepareStandaloneChangelogCreatesBracketedRelease(t *testing.T) {
 		input,
 		"go-router",
 		"adapters/otel/v1.0.0",
+		"v1.0.0",
 		"2026-08-25",
 	)
 	if err != nil {
@@ -34,6 +35,7 @@ func TestPrepareStandaloneChangelogCreatesBracketedRelease(t *testing.T) {
 		got,
 		"go-router",
 		"adapters/otel/v1.0.0",
+		"v1.0.0",
 		"2026-08-25",
 	)
 	if err != nil {
@@ -52,6 +54,7 @@ func TestPrepareStandaloneChangelogCreatesUnbracketedRelease(t *testing.T) {
 		input,
 		"go-router",
 		"v1.0.0",
+		"v1.0.0",
 		"2026-08-25",
 	)
 	if err != nil {
@@ -66,6 +69,31 @@ func TestPrepareStandaloneChangelogCreatesUnbracketedRelease(t *testing.T) {
 	}
 }
 
+func TestPrepareStandaloneChangelogSupportsCollisionSuccessorVersion(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("# Changelog\n\n## [Unreleased]\n\n### Changed\n\n- Canonical release.\n")
+	got, err := prepareStandaloneChangelog(
+		input,
+		"go-postgres",
+		"v1.0.1",
+		"v1.0.1",
+		"2026-08-25",
+	)
+	if err != nil {
+		t.Fatalf("prepareStandaloneChangelog() error = %v", err)
+	}
+	for _, want := range []string{
+		"## [1.0.1] - 2026-08-25",
+		"[Unreleased]: https://github.com/faustbrian/go-postgres/compare/v1.0.1...HEAD",
+		"[1.0.1]: https://github.com/faustbrian/go-postgres/releases/tag/v1.0.1",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("release output is missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestPrepareStandaloneChangelogRejectsReleaseDateChange(t *testing.T) {
 	t.Parallel()
 
@@ -73,6 +101,7 @@ func TestPrepareStandaloneChangelogRejectsReleaseDateChange(t *testing.T) {
 	_, err := prepareStandaloneChangelog(
 		input,
 		"go-router",
+		"v1.0.0",
 		"v1.0.0",
 		"2026-08-25",
 	)

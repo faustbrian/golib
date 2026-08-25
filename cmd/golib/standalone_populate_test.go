@@ -17,6 +17,10 @@ func TestRewriteStandaloneContentsRewritesOwnedPathsAndVersions(t *testing.T) {
 		"github.com/faustbrian/golib/pkg/outbox": "github.com/faustbrian/go-transactional-outbox",
 		"github.com/faustbrian/golib/pkg/queue":  "github.com/faustbrian/go-queue",
 	}
+	versions := map[string]string{
+		"github.com/faustbrian/go-transactional-outbox": "v1.0.0",
+		"github.com/faustbrian/go-queue":                "v1.0.1",
+	}
 	input := `module github.com/faustbrian/golib/pkg/outbox/adapters/queue
 
 require (
@@ -25,12 +29,12 @@ require (
 )
 `
 
-	got := rewriteStandaloneContents([]byte(input), paths, true)
+	got := rewriteStandaloneContents([]byte(input), paths, versions, true)
 	want := `module github.com/faustbrian/go-transactional-outbox/adapters/queue
 
 require (
 	github.com/faustbrian/go-transactional-outbox v1.0.0
-	github.com/faustbrian/go-queue v1.0.0
+	github.com/faustbrian/go-queue v1.0.1
 )
 `
 	if string(got) != want {
@@ -49,6 +53,7 @@ func TestRewriteStandaloneContentsUsesLongestModulePathFirst(t *testing.T) {
 	got := rewriteStandaloneContents(
 		[]byte("github.com/faustbrian/golib/pkg/queue/queueservice/worker"),
 		paths,
+		nil,
 		false,
 	)
 	if string(got) != "github.com/faustbrian/go-queue/queueservice/worker" {
@@ -445,7 +450,15 @@ func TestStandaloneCatalogRebasesRepositoryPaths(t *testing.T) {
 		"github.com/faustbrian/golib/pkg/queue":  "github.com/faustbrian/go-queue",
 	}
 
-	got, err := standaloneCatalog(current, "outbox", "go-transactional-outbox", paths)
+	got, err := standaloneCatalog(
+		current,
+		"outbox",
+		"go-transactional-outbox",
+		paths,
+		map[string]string{
+			"github.com/faustbrian/go-transactional-outbox/adapters/queue": "v1.0.0",
+		},
+	)
 	if err != nil {
 		t.Fatalf("standaloneCatalog() error = %v", err)
 	}
@@ -477,7 +490,22 @@ func TestStandaloneCatalogRejectsModulesOutsideFamily(t *testing.T) {
 
 	_, err := standaloneCatalog(catalog{Modules: []module{{
 		Directory: "pkg/queue",
-	}}}, "outbox", "go-transactional-outbox", nil)
+	}}}, "outbox", "go-transactional-outbox", nil, nil)
+	if err == nil {
+		t.Fatal("standaloneCatalog() error = nil")
+	}
+}
+
+func TestStandaloneCatalogRejectsMissingReleaseVersion(t *testing.T) {
+	t.Parallel()
+
+	_, err := standaloneCatalog(catalog{Modules: []module{{
+		Directory:  "pkg/outbox",
+		Path:       "github.com/faustbrian/golib/pkg/outbox",
+		Releasable: true,
+	}}}, "outbox", "go-transactional-outbox", map[string]string{
+		"github.com/faustbrian/golib/pkg/outbox": "github.com/faustbrian/go-transactional-outbox",
+	}, nil)
 	if err == nil {
 		t.Fatal("standaloneCatalog() error = nil")
 	}
@@ -507,6 +535,19 @@ if [[ "${module_path}" != "github.com/faustbrian/golib" &&
 	}
 	if strings.Contains(got, "github.com/faustbrian/golib") {
 		t.Fatalf("rewritten tooling retains monorepo path:\n%s", got)
+	}
+}
+
+func TestRewriteStandaloneToolingUsesPostgresCollisionSuccessorVersion(t *testing.T) {
+	t.Parallel()
+
+	got := string(rewriteStandaloneTooling(
+		[]byte(`"${GOLIB_LOCAL_PROXY}" v0.0.0`),
+		"scripts/check-module.sh",
+		"github.com/faustbrian/go-postgres",
+	))
+	if got != `"${GOLIB_LOCAL_PROXY}" v1.0.1` {
+		t.Fatalf("rewritten tooling = %q", got)
 	}
 }
 

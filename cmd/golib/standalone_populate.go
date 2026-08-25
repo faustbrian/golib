@@ -50,8 +50,12 @@ func populateStandaloneRepositories(root string, arguments []string) error {
 		return err
 	}
 	paths := make(map[string]string, len(manifest.Modules))
+	versions := make(map[string]string, len(manifest.Modules))
 	for _, item := range manifest.Modules {
 		paths[item.PreviousPath] = item.Path
+		if item.Releasable {
+			versions[item.Path] = item.ReleaseVersion
+		}
 	}
 
 	selected := 0
@@ -67,6 +71,7 @@ func populateStandaloneRepositories(root string, arguments []string) error {
 			repository,
 			current,
 			paths,
+			versions,
 		); err != nil {
 			return fmt.Errorf("%s: %w", repository.Family, err)
 		}
@@ -84,6 +89,7 @@ func populateStandaloneRepository(
 	repository standaloneRepository,
 	current catalog,
 	paths map[string]string,
+	versions map[string]string,
 ) error {
 	if err := requireStandaloneDestination(destination, repository.Name); err != nil {
 		return err
@@ -126,7 +132,12 @@ func populateStandaloneRepository(
 		if relative == "go.sum" || strings.HasSuffix(relative, "/go.sum") {
 			contents = removeStandaloneOwnedChecksums(contents, paths)
 		}
-		rewritten := rewriteStandaloneContents(contents, paths, relative == "go.mod" || strings.HasSuffix(relative, "/go.mod"))
+		rewritten := rewriteStandaloneContents(
+			contents,
+			paths,
+			versions,
+			relative == "go.mod" || strings.HasSuffix(relative, "/go.mod"),
+		)
 		rewritten = rewriteStandaloneRepositoryPaths(
 			rewritten,
 			repository.Family,
@@ -148,6 +159,7 @@ func populateStandaloneRepository(
 		repository.Family,
 		repository.Name,
 		paths,
+		versions,
 	)
 	if err != nil {
 		return err
@@ -595,7 +607,12 @@ func writeStandaloneJSON(filename string, value any) error {
 	return nil
 }
 
-func rewriteStandaloneContents(contents []byte, paths map[string]string, goMod bool) []byte {
+func rewriteStandaloneContents(
+	contents []byte,
+	paths map[string]string,
+	versions map[string]string,
+	goMod bool,
+) []byte {
 	keys := make([]string, 0, len(paths))
 	for previous := range paths {
 		keys = append(keys, previous)
@@ -613,10 +630,14 @@ func rewriteStandaloneContents(contents []byte, paths map[string]string, goMod b
 	}
 
 	for _, modulePath := range paths {
+		version := versions[modulePath]
+		if version == "" {
+			version = "v1.0.0"
+		}
 		pattern := regexp.MustCompile(
 			`(` + regexp.QuoteMeta(modulePath) + `\s+)v0\.0\.0(\s|$)`,
 		)
-		rewritten = pattern.ReplaceAll(rewritten, []byte(`${1}v1.0.0${2}`))
+		rewritten = pattern.ReplaceAll(rewritten, []byte(`${1}`+version+`${2}`))
 	}
 
 	return rewritten
@@ -627,6 +648,7 @@ func standaloneCatalog(
 	family string,
 	repository string,
 	paths map[string]string,
+	versions map[string]string,
 ) (catalog, error) {
 	prefix := "pkg/" + family
 	result := catalog{
@@ -640,8 +662,15 @@ func standaloneCatalog(
 		}
 		item.Directory = rebaseStandalonePath(item.Directory, prefix)
 		item.Path = rewriteStandalonePath(item.Path, paths)
+		if item.Releasable {
+			version := versions[item.Path]
+			if version == "" {
+				return catalog{}, fmt.Errorf("module %s has no release version", item.Path)
+			}
+			item.Version = strings.TrimPrefix(version, "v")
+		}
 		item.Purpose = string(rewriteStandaloneRepositoryPaths(
-			rewriteStandaloneContents([]byte(item.Purpose), paths, false),
+			rewriteStandaloneContents([]byte(item.Purpose), paths, versions, false),
 			family,
 			repository,
 		))

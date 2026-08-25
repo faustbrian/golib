@@ -48,7 +48,7 @@ type standaloneCounts struct {
 	Repositories int `json:"repositories"`
 	// Modules includes releasable modules and repository-local harness modules.
 	Modules int `json:"modules"`
-	// ReleasableModules is the number of modules requiring v1.0.0 tags.
+	// ReleasableModules is the number of modules requiring initial stable tags.
 	ReleasableModules int `json:"releasable_modules"`
 }
 
@@ -82,7 +82,9 @@ type standaloneModulePlan struct {
 	Repository string `json:"repository"`
 	// Releasable distinguishes public modules from fixtures and harnesses.
 	Releasable bool `json:"releasable"`
-	// ReleaseTag is the root or directory-prefixed v1.0.0 tag.
+	// ReleaseVersion is the immutable public semantic version to publish.
+	ReleaseVersion string `json:"release_version,omitempty"`
+	// ReleaseTag is the root or directory-prefixed stable release tag.
 	ReleaseTag string `json:"release_tag,omitempty"`
 	// OwnedDependencies contains rewritten standalone module dependencies.
 	OwnedDependencies []string `json:"owned_dependencies"`
@@ -93,9 +95,11 @@ type standaloneCollision struct {
 	PreviousPath string `json:"previous_path"`
 	// Version is the cached semantic version whose content cannot be replaced.
 	Version string `json:"version"`
-	// Replacement is the fresh module identity selected for the canonical code.
+	// Replacement is the module identity selected for the canonical code.
 	Replacement string `json:"replacement_path"`
-	// Reason explains why a repository rename is mandatory.
+	// ReplacementVersion is the first version available for canonical content.
+	ReplacementVersion string `json:"replacement_version"`
+	// Reason explains why the cached version cannot contain canonical content.
 	Reason string `json:"reason"`
 }
 
@@ -188,16 +192,18 @@ func buildStandaloneManifest(current catalog, sourceCommit string, ciRun int64) 
 		ExcludedFamilies: []string{"secret-store"},
 		Collisions: []standaloneCollision{
 			{
-				PreviousPath: standaloneModulePrefix + "go-outbox",
-				Version:      "v1.0.0",
-				Replacement:  standaloneModulePrefix + "go-transactional-outbox",
-				Reason:       "the previous v1.0.0 is immutable in the public Go proxy and checksum database",
+				PreviousPath:       standaloneModulePrefix + "go-outbox",
+				Version:            "v1.0.0",
+				Replacement:        standaloneModulePrefix + "go-transactional-outbox",
+				ReplacementVersion: "v1.0.0",
+				Reason:             "the previous v1.0.0 is immutable in the public Go proxy and checksum database",
 			},
 			{
-				PreviousPath: standaloneModulePrefix + "go-postgres",
-				Version:      "v1.0.0",
-				Replacement:  standaloneModulePrefix + "go-postgresql",
-				Reason:       "the previous v1.0.0 is immutable in the public Go proxy and checksum database",
+				PreviousPath:       standaloneModulePrefix + "go-postgres",
+				Version:            "v1.0.0",
+				Replacement:        standaloneModulePrefix + "go-postgres",
+				ReplacementVersion: "v1.0.1",
+				Reason:             "the previous v1.0.0 is immutable; canonical content starts at v1.0.1",
 			},
 		},
 	}
@@ -260,10 +266,12 @@ func buildStandaloneManifest(current catalog, sourceCommit string, ciRun int64) 
 		sort.Strings(dependencies)
 
 		releaseTag := ""
+		releaseVersion := ""
 		if item.Releasable {
-			releaseTag = "v1.0.0"
+			releaseVersion = standaloneReleaseVersionForPath(newPath)
+			releaseTag = releaseVersion
 			if directory != "." {
-				releaseTag = path.Clean(directory) + "/v1.0.0"
+				releaseTag = path.Clean(directory) + "/" + releaseVersion
 			}
 		}
 		manifest.Modules = append(manifest.Modules, standaloneModulePlan{
@@ -273,6 +281,7 @@ func buildStandaloneManifest(current catalog, sourceCommit string, ciRun int64) 
 			Path:              newPath,
 			Repository:        repositoryName,
 			Releasable:        item.Releasable,
+			ReleaseVersion:    releaseVersion,
 			ReleaseTag:        releaseTag,
 			OwnedDependencies: dependencies,
 		})
@@ -309,8 +318,6 @@ func standaloneRepositoryName(family string) string {
 	switch family {
 	case "outbox":
 		return "go-transactional-outbox"
-	case "postgres":
-		return "go-postgresql"
 	case "rabbitstream":
 		return "go-rabbitmq-streams"
 	default:
@@ -323,10 +330,17 @@ func legacyStandaloneRepositoryName(family string) string {
 	case "outbox":
 		return "go-outbox"
 	case "postgres":
-		return "go-postgres"
+		return "go-postgresql"
 	default:
 		return standaloneRepositoryName(family)
 	}
+}
+
+func standaloneReleaseVersionForPath(modulePath string) string {
+	if modulePath == standaloneModulePrefix+"go-postgres" {
+		return "v1.0.1"
+	}
+	return "v1.0.0"
 }
 
 func standalonePath(modulePath string) (string, error) {

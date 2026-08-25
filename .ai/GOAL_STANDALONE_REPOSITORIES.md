@@ -25,7 +25,9 @@ external facts and MUST be audited rather than overwritten.
 - Map `pkg/rabbitstream` to `github.com/faustbrian/go-rabbitmq-streams`.
 - Use the final audited repository and module counts; fail on any unexplained
   difference from the migration manifest.
-- The first valid release of every root and nested module MUST be `v1.0.0`.
+- The first valid release of every root and nested module MUST be `v1.0.0`,
+  except `github.com/faustbrian/go-postgres`, whose immutable legacy
+  `v1.0.0` requires the canonical implementation to start at `v1.0.1`.
 - Nested modules MUST use path-prefixed tags such as
   `adapters/gokafka/v1.0.0`.
 - Do not publish prereleases.
@@ -75,8 +77,9 @@ or the checksum database. Before assigning `v1.0.0`:
 - Detect existing immutable versions and content collisions.
 - Never move, overwrite, or republish a cached path/version with new content.
 - Produce an explicit collision-resolution map before publication.
-- Use a new legitimate module/repository path where a clean `v1.0.0` cannot be
-  published safely.
+- Use a new legitimate module/repository path or the next immutable patch
+  version where a clean `v1.0.0` cannot be published safely and the user has
+  explicitly selected the canonical identity.
 - Treat unresolved proxy or checksum collisions as release blockers.
 
 ## Legacy Repository Replacement
@@ -219,8 +222,8 @@ Before public publication:
 
 Repository-level dependency cycles MAY require a temporary checksum-pinned
 bootstrap proxy for exact-head CI before the initial tags. Such a proxy MUST be
-removed from the final proof. Final release proof MUST resolve official
-`v1.0.0` versions from public infrastructure only.
+removed from the final proof. Final release proof MUST resolve the
+manifest-declared official stable versions from public infrastructure only.
 
 ## Release Process
 
@@ -230,8 +233,9 @@ Release in dependency-DAG waves:
 2. Push canonical `main` for the next dependency wave.
 3. Wait for CI and CodeQL on the exact pushed commit.
 4. Require every repository and module release-readiness gate to pass.
-5. Create signed or annotated `v1.0.0` tags without moving them later.
-6. Create path-prefixed `v1.0.0` tags for nested modules.
+5. Create signed or annotated manifest-declared stable tags without moving
+   them later.
+6. Create path-prefixed manifest-declared stable tags for nested modules.
 7. Create GitHub Releases with changelog, SBOM, provenance, and attestations.
 8. Verify public proxy availability and checksum identity.
 9. Update dependants to official published versions.
@@ -262,7 +266,9 @@ The goal is complete only when:
 - Every audited package family has exactly one correctly named repository.
 - Every releasable root and nested module has a valid standalone module path.
 - `secret-store` is excluded and no released module depends on it.
-- Legacy standalone code, branches, tags, releases, and history are removed.
+- Legacy standalone code, branches, tags, releases, and history are removed,
+  except that `go-postgresql` remains as an explicitly archived legacy
+  repository with no canonical release role.
 - Public proxy collisions are resolved without violating module immutability.
 - Every repository is independently buildable and maintainable.
 - Every repository has complete licensing, governance, documentation, CI,
@@ -271,7 +277,8 @@ The goal is complete only when:
 - Every production package has meaningful 100% coverage and 100% viable
   mutation strength.
 - Cross-repository verification passes without workspace or replacement help.
-- Every releasable root and nested module has a valid `v1.0.0` release.
+- Every releasable root and nested module has its valid manifest-declared
+  stable release (`v1.0.0`, or `go-postgres` at `v1.0.1`).
 - Clean consumers install every module from the public proxy.
 - The source-free `golib` coordination repository accurately represents the
   released ecosystem.

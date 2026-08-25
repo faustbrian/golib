@@ -14,8 +14,6 @@ import (
 	"time"
 )
 
-const standaloneInitialVersion = "v1.0.0"
-
 var standaloneUnreleasedHeading = regexp.MustCompile(
 	`(?m)^## (\[Unreleased\]|Unreleased)[ \t]*$`,
 )
@@ -76,7 +74,12 @@ func prepareStandaloneReleases(root string, arguments []string) error {
 			if item.Lifecycle != "pre-v1" && item.Lifecycle != "stable" {
 				return fmt.Errorf("%s: unsupported lifecycle %q", item.Path, item.Lifecycle)
 			}
-			if item.Version != "unreleased" && item.Version != standaloneInitialVersion {
+			releaseVersion := plan.ReleaseVersion
+			if releaseVersion == "" {
+				releaseVersion = "v1.0.0"
+			}
+			catalogVersion := strings.TrimPrefix(releaseVersion, "v")
+			if item.Version != "unreleased" && item.Version != catalogVersion {
 				return fmt.Errorf("%s: unsupported current version %q", item.Path, item.Version)
 			}
 			if err := prepareStandaloneModuleChangelog(
@@ -84,12 +87,13 @@ func prepareStandaloneReleases(root string, arguments []string) error {
 				repository.Name,
 				*item,
 				plan.ReleaseTag,
+				releaseVersion,
 				*releaseDate,
 			); err != nil {
 				return err
 			}
 			item.Lifecycle = "stable"
-			item.Version = standaloneInitialVersion
+			item.Version = catalogVersion
 			item.Purpose = standaloneStablePurpose(item.Path, item.Purpose)
 			prepared++
 		}
@@ -125,6 +129,7 @@ func prepareStandaloneModuleChangelog(
 	repository string,
 	item module,
 	releaseTag string,
+	releaseVersion string,
 	releaseDate string,
 ) error {
 	moduleRoot := destination
@@ -140,6 +145,7 @@ func prepareStandaloneModuleChangelog(
 		contents,
 		repository,
 		releaseTag,
+		releaseVersion,
 		releaseDate,
 	)
 	if err != nil {
@@ -158,6 +164,7 @@ func prepareStandaloneChangelog(
 	contents []byte,
 	repository string,
 	releaseTag string,
+	releaseVersion string,
 	releaseDate string,
 ) ([]byte, error) {
 	text := strings.TrimRight(string(contents), "\n")
@@ -166,17 +173,18 @@ func prepareStandaloneChangelog(
 		return nil, errors.New("missing Unreleased section")
 	}
 	bracketed := text[match[2]:match[3]] == "[Unreleased]"
-	releaseVersion := strings.TrimPrefix(standaloneInitialVersion, "v")
-	releaseHeading := "## " + releaseVersion + " - " + releaseDate
+	catalogVersion := strings.TrimPrefix(releaseVersion, "v")
+	releaseHeading := "## " + catalogVersion + " - " + releaseDate
 	if bracketed {
-		releaseHeading = "## [" + releaseVersion + "] - " + releaseDate
+		releaseHeading = "## [" + catalogVersion + "] - " + releaseDate
 	}
 	if existing := regexp.MustCompile(
-		`(?m)^## \[?1\.0\.0\]? - ([0-9]{4}-[0-9]{2}-[0-9]{2})[ \t]*$`,
+		`(?m)^## \[?` + regexp.QuoteMeta(catalogVersion) + `\]? - ([0-9]{4}-[0-9]{2}-[0-9]{2})[ \t]*$`,
 	).FindStringSubmatch(text); existing != nil {
 		if existing[1] != releaseDate {
 			return nil, fmt.Errorf(
-				"existing v1.0.0 release date %s differs from %s",
+				"existing %s release date %s differs from %s",
+				catalogVersion,
 				existing[1],
 				releaseDate,
 			)
@@ -185,6 +193,7 @@ func prepareStandaloneChangelog(
 			[]byte(text+"\n"),
 			repository,
 			releaseTag,
+			catalogVersion,
 			bracketed,
 		), nil
 	}
@@ -195,6 +204,7 @@ func prepareStandaloneChangelog(
 		[]byte(text+"\n"),
 		repository,
 		releaseTag,
+		catalogVersion,
 		bracketed,
 	), nil
 }
@@ -203,6 +213,7 @@ func updateStandaloneChangelogLinks(
 	contents []byte,
 	repository string,
 	releaseTag string,
+	releaseVersion string,
 	bracketed bool,
 ) []byte {
 	if !bracketed {
@@ -218,9 +229,9 @@ func updateStandaloneChangelogLinks(
 	} else {
 		text += "\n\n" + unreleased
 	}
-	releaseLink := "[1.0.0]: " + base + "/releases/tag/" +
+	releaseLink := "[" + releaseVersion + "]: " + base + "/releases/tag/" +
 		url.PathEscape(releaseTag)
-	versionLink := regexp.MustCompile(`(?m)^\[1\.0\.0\]:[^\n]*$`)
+	versionLink := regexp.MustCompile(`(?m)^\[` + regexp.QuoteMeta(releaseVersion) + `\]:[^\n]*$`)
 	if versionLink.MatchString(text) {
 		text = versionLink.ReplaceAllString(text, releaseLink)
 	} else {

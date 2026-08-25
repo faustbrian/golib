@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Keep the canonical PostgreSQL module at `github.com/faustbrian/go-postgres`,
+  start its stable line at `v1.0.1` because the legacy `v1.0.0` is immutable,
+  and reserve `go-postgresql` as the archived legacy repository.
 - Generate standalone CI with attributable per-module jobs, a stable required
   summary, content-addressed mutation evidence, checksum-pinned bootstrap
   dependencies, build-tag-aware CodeQL, and an explicit `v1.0.0` dry run.

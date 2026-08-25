@@ -58,7 +58,7 @@ func installStandaloneFoundation(
 			return fmt.Errorf("read package Makefile: %w", readErr)
 		}
 		if readErr == nil {
-			contents = rewriteStandaloneContents(contents, paths, false)
+			contents = rewriteStandaloneContents(contents, paths, nil, false)
 			contents = rewriteStandaloneRepositoryPaths(
 				contents,
 				repository.Family,
@@ -380,7 +380,7 @@ func copyStandaloneFoundationFileAs(
 	if bytesContainNUL(contents) {
 		return fmt.Errorf("foundation file is unexpectedly binary: %s", sourceRelative)
 	}
-	contents = rewriteStandaloneContents(contents, paths, false)
+	contents = rewriteStandaloneContents(contents, paths, nil, false)
 	contents = rewriteStandaloneRepositoryPaths(
 		contents,
 		repository.Family,
@@ -411,11 +411,12 @@ func rewriteStandaloneTooling(contents []byte, relative string, modulePath strin
 	}
 	type replacement struct{ previous, next string }
 	replacements := make([]replacement, 0, 7)
+	releaseVersion := standaloneReleaseVersionForPath(modulePath)
 	if toolingRelative == "scripts/check-module.sh" {
 		replacements = append(replacements,
 			replacement{
 				`"${GOLIB_LOCAL_PROXY}" v0.0.0`,
-				`"${GOLIB_LOCAL_PROXY}" v1.0.0`,
+				`"${GOLIB_LOCAL_PROXY}" ` + releaseVersion,
 			},
 			replacement{
 				`if [[ "${module_path}" != "github.com/faustbrian/golib" &&
@@ -469,7 +470,7 @@ find_make_target() {
 	if toolingRelative == "scripts/build-local-proxy.sh" {
 		replacements = append(replacements, replacement{
 			`version="${2:-v0.0.0}"`,
-			`version="${2:-v1.0.0}"`,
+			`version="${2:-` + releaseVersion + `}"`,
 		})
 	}
 	if toolingRelative == "scripts/mutation-verifier-identity.sh" {
@@ -836,7 +837,8 @@ record="$(jq -ce --arg directory "${module}" \
     "${root}/modules.json")"
 module_path="$(jq -r '.module_path' <<<"${record}")"
 tag_prefix="$(jq -r '.tag_prefix' <<<"${record}")"
-tag="${tag_prefix}1.0.0"
+version="v$(jq -r '.version' <<<"${record}")"
+tag="${tag_prefix}${version#v}"
 directory="${root}/${module}"
 
 [[ "$(sed -n 's/^module[[:space:]]\+//p' "${directory}/go.mod")" == "${module_path}" ]]
@@ -859,14 +861,14 @@ trap cleanup EXIT HUP INT TERM
 
 if [[ "${public}" -eq 1 ]]; then
     GOPROXY="https://proxy.golang.org,direct" GOWORK=off \
-        go list -m "${module_path}@v1.0.0" >/dev/null
+        go list -m "${module_path}@${version}" >/dev/null
 else
     proxy="${task}/proxy"
     mkdir "${proxy}"
-    "${root}/.golib/scripts/build-local-proxy.sh" "${proxy}" v1.0.0
+    "${root}/.golib/scripts/build-local-proxy.sh" "${proxy}" "${version}"
     GOPROXY="file://${proxy},https://proxy.golang.org,direct" \
         GONOSUMDB="github.com/faustbrian/go-*" GOWORK=off \
-        go list -m "${module_path}@v1.0.0" >/dev/null
+        go list -m "${module_path}@${version}" >/dev/null
 fi
 
 printf 'release dry-run passed: %s %s\n' "${module_path}" "${tag}"
@@ -883,7 +885,7 @@ on:
   workflow_dispatch:
     inputs:
       release_dry_run:
-        description: Run the v1.0.0 dry-run for every releasable module
+        description: Run the stable v1 dry-run for every releasable module
         required: false
         default: false
         type: boolean

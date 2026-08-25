@@ -52,18 +52,18 @@ func TestBuildStandaloneManifestMapsFamiliesAndReleaseDependencies(t *testing.T)
 	}
 	if got := repositoryNames(manifest.Repositories); !slices.Equal(
 		got,
-		[]string{"go-postgresql", "go-rabbitmq-streams", "go-transactional-outbox"},
+		[]string{"go-postgres", "go-rabbitmq-streams", "go-transactional-outbox"},
 	) {
 		t.Fatalf("repository names = %v", got)
 	}
 	if got := legacyRepositoryNames(manifest.Repositories); !slices.Equal(
 		got,
-		[]string{"go-postgres", "go-rabbitmq-streams", "go-outbox"},
+		[]string{"go-postgresql", "go-rabbitmq-streams", "go-outbox"},
 	) {
 		t.Fatalf("legacy repository names = %v", got)
 	}
 	if got := standaloneModulePaths(manifest.Modules); !slices.Equal(got, []string{
-		"github.com/faustbrian/go-postgresql",
+		"github.com/faustbrian/go-postgres",
 		"github.com/faustbrian/go-rabbitmq-streams",
 		"github.com/faustbrian/go-transactional-outbox",
 		"github.com/faustbrian/go-transactional-outbox/adapters/gokafka",
@@ -72,7 +72,7 @@ func TestBuildStandaloneManifestMapsFamiliesAndReleaseDependencies(t *testing.T)
 	}
 	if !reflect.DeepEqual(manifest.ReleaseWaves, [][]string{
 		{
-			"github.com/faustbrian/go-postgresql",
+			"github.com/faustbrian/go-postgres",
 			"github.com/faustbrian/go-rabbitmq-streams",
 		},
 		{"github.com/faustbrian/go-transactional-outbox"},
@@ -82,6 +82,11 @@ func TestBuildStandaloneManifestMapsFamiliesAndReleaseDependencies(t *testing.T)
 	}
 	if !slices.Equal(manifest.ExcludedFamilies, []string{"secret-store"}) {
 		t.Fatalf("excluded families = %v", manifest.ExcludedFamilies)
+	}
+	for _, item := range manifest.Modules {
+		if item.Path == "github.com/faustbrian/go-postgres" && item.ReleaseTag != "v1.0.1" {
+			t.Fatalf("postgres release tag = %q", item.ReleaseTag)
+		}
 	}
 }
 

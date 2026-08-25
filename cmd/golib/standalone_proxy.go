@@ -15,8 +15,6 @@ import (
 	"time"
 )
 
-const standaloneReleaseVersion = "v1.0.0"
-
 func buildStandaloneProxy(root string, arguments []string) error {
 	flags := flag.NewFlagSet("standalone-proxy", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -141,11 +139,15 @@ func writeStandaloneProxyModule(
 		return fmt.Errorf("read %s go.mod: %w", item.Path, err)
 	}
 	moduleDirectory := filepath.Join(output, filepath.FromSlash(item.Path), "@v")
+	releaseVersion := item.ReleaseVersion
+	if releaseVersion == "" {
+		releaseVersion = "v1.0.0"
+	}
 	if err := os.MkdirAll(moduleDirectory, 0o755); err != nil {
 		return fmt.Errorf("create proxy directory for %s: %w", item.Path, err)
 	}
 	if err := os.WriteFile(
-		filepath.Join(moduleDirectory, standaloneReleaseVersion+".mod"),
+		filepath.Join(moduleDirectory, releaseVersion+".mod"),
 		goMod,
 		0o644,
 	); err != nil {
@@ -154,13 +156,13 @@ func writeStandaloneProxyModule(
 	info, err := json.Marshal(struct {
 		Version string    `json:"Version"`
 		Time    time.Time `json:"Time"`
-	}{standaloneReleaseVersion, time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)})
+	}{releaseVersion, time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)})
 	if err != nil {
 		return fmt.Errorf("encode proxy info for %s: %w", item.Path, err)
 	}
 	info = append(info, '\n')
 	if err := os.WriteFile(
-		filepath.Join(moduleDirectory, standaloneReleaseVersion+".info"),
+		filepath.Join(moduleDirectory, releaseVersion+".info"),
 		info,
 		0o644,
 	); err != nil {
@@ -168,7 +170,7 @@ func writeStandaloneProxyModule(
 	}
 	if err := os.WriteFile(
 		filepath.Join(moduleDirectory, "list"),
-		[]byte(standaloneReleaseVersion+"\n"),
+		[]byte(releaseVersion+"\n"),
 		0o644,
 	); err != nil {
 		return fmt.Errorf("write proxy list for %s: %w", item.Path, err)
@@ -179,7 +181,7 @@ func writeStandaloneProxyModule(
 		return err
 	}
 	if err := os.WriteFile(
-		filepath.Join(moduleDirectory, standaloneReleaseVersion+".zip"),
+		filepath.Join(moduleDirectory, releaseVersion+".zip"),
 		archive,
 		0o644,
 	); err != nil {
@@ -240,7 +242,11 @@ func standaloneModuleArchive(
 
 	var buffer bytes.Buffer
 	archive := zip.NewWriter(&buffer)
-	prefix := item.Path + "@" + standaloneReleaseVersion + "/"
+	releaseVersion := item.ReleaseVersion
+	if releaseVersion == "" {
+		releaseVersion = "v1.0.0"
+	}
+	prefix := item.Path + "@" + releaseVersion + "/"
 	for _, relative := range files {
 		contents, err := os.ReadFile(filepath.Join(moduleRoot, relative))
 		if err != nil {

@@ -20,11 +20,12 @@ releasable modules. `secret-store` is intentionally excluded.
 
 The public Go proxy and checksum database already contain incompatible
 `v1.0.0` versions for `github.com/faustbrian/go-postgres` and
-`github.com/faustbrian/go-outbox`. Those identities cannot be overwritten.
-The canonical packages therefore move to these fresh identities:
+`github.com/faustbrian/go-outbox`. Those versions cannot be overwritten.
+The canonical packages use these collision resolutions:
 
-- `github.com/faustbrian/go-postgresql`
-- `github.com/faustbrian/go-transactional-outbox`
+- `github.com/faustbrian/go-postgres` starts its canonical line at `v1.0.1`;
+  the legacy `go-postgresql` repository is archived.
+- `github.com/faustbrian/go-transactional-outbox` starts at `v1.0.0`.
 
 ## Legacy Audit
 
@@ -54,7 +55,7 @@ go run ./cmd/golib standalone-populate \
   --destination-root /Users/brian/Developer/golib
 ```
 
-Owned `v1.0.0` module checksums cannot be generated from a proxy containing
+Owned stable module checksums cannot be generated from a proxy containing
 unfinished dependency trees. Settle all module files in the manifest's release
 waves instead:
 
