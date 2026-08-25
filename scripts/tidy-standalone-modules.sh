@@ -50,17 +50,23 @@ rebuild_proxy() {
 assert_owned_dependencies_available() {
     local module_path="$1"
 
-    while IFS= read -r dependency; do
+    while IFS=$'\t' read -r dependency version; do
         [[ -z "${dependency}" ]] && continue
-        if [[ ! -f "${proxy}/${dependency}/@v/v1.0.0.mod" ]]; then
+        if [[ -z "${version}" || ! -f "${proxy}/${dependency}/@v/${version}.mod" ]]; then
             printf '%s requires unavailable owned dependency %s\n' \
                 "${module_path}" "${dependency}" >&2
             exit 1
         fi
     done < <(jq -r --arg module_path "${module_path}" '
-        .modules[]
+        . as $manifest
+        | .modules[]
         | select(.module_path == $module_path)
-        | .owned_dependencies[]
+        | .owned_dependencies[] as $dependency
+        | [
+            $dependency,
+            ($manifest.modules[] | select(.module_path == $dependency) | .release_version)
+        ]
+        | @tsv
     ' "${manifest}")
 }
 

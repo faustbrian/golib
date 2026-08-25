@@ -70,6 +70,21 @@ func TestStandaloneSupersededModulePathsRetiresPostgresqlIdentity(t *testing.T) 
 	}
 }
 
+func TestRewriteStandaloneContentsAdvancesSupersededCollisionVersion(t *testing.T) {
+	t.Parallel()
+
+	got := rewriteStandaloneContents(
+		[]byte("require github.com/faustbrian/go-postgresql v1.0.0\n"),
+		standaloneSupersededModulePaths(),
+		map[string]string{"github.com/faustbrian/go-postgres": "v1.0.1"},
+		true,
+	)
+	want := "require github.com/faustbrian/go-postgres v1.0.1\n"
+	if string(got) != want {
+		t.Fatalf("rewriteStandaloneContents() = %q, want %q", got, want)
+	}
+}
+
 func TestRewriteStandaloneRepositoryPathsRequiresFamilyBoundary(t *testing.T) {
 	t.Parallel()
 

@@ -643,8 +643,12 @@ func rewriteStandaloneContents(
 		if version == "" {
 			version = "v1.0.0"
 		}
+		versionPattern := `v0\.0\.0`
+		if version != "v1.0.0" {
+			versionPattern = `(?:v0\.0\.0|v1\.0\.0)`
+		}
 		pattern := regexp.MustCompile(
-			`(` + regexp.QuoteMeta(modulePath) + `\s+)v0\.0\.0(\s|$)`,
+			`(` + regexp.QuoteMeta(modulePath) + `\s+)` + versionPattern + `(\s|$)`,
 		)
 		rewritten = pattern.ReplaceAll(rewritten, []byte(`${1}`+version+`${2}`))
 	}
