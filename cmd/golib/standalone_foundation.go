@@ -112,6 +112,15 @@ func installStandaloneFoundation(
 	); err != nil {
 		return err
 	}
+	packageLintConfiguration, err := installStandaloneLintConfiguration(
+		sourceRoot,
+		destination,
+		repository,
+		paths,
+	)
+	if err != nil {
+		return err
+	}
 
 	generated := map[string]string{
 		"Makefile":                                   standaloneMakefile,
@@ -126,6 +135,9 @@ func installStandaloneFoundation(
 		".golib/scripts/with-disposable-go-cache.sh": standaloneDisposableCache,
 	}
 	for relative, template := range generated {
+		if relative == ".golangci.yml" && packageLintConfiguration {
+			continue
+		}
 		contents := strings.ReplaceAll(template, "{{REPOSITORY}}", repository.Name)
 		filename := filepath.Join(destination, relative)
 		if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
@@ -141,6 +153,31 @@ func installStandaloneFoundation(
 	}
 
 	return nil
+}
+
+func installStandaloneLintConfiguration(
+	sourceRoot string,
+	destination string,
+	repository standaloneRepository,
+	paths map[string]string,
+) (bool, error) {
+	sourceRelative := filepath.Join("pkg", repository.Family, ".golangci.yml")
+	if _, err := os.Stat(filepath.Join(sourceRoot, sourceRelative)); os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("inspect package lint configuration: %w", err)
+	}
+	if err := copyStandaloneFoundationFileAs(
+		sourceRoot,
+		destination,
+		sourceRelative,
+		".golangci.yml",
+		repository,
+		paths,
+	); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func copyStandaloneServiceFixtures(
@@ -580,22 +617,6 @@ run:
 
 linters:
   default: standard
-  enable:
-    - bodyclose
-    - errorlint
-    - exhaustive
-    - gocritic
-    - gosec
-    - nilerr
-    - noctx
-    - prealloc
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
-    - testifylint
-    - unconvert
-    - unparam
-    - wastedassign
 
 issues:
   max-issues-per-linter: 0
