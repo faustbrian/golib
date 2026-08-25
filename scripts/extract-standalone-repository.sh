@@ -51,14 +51,26 @@ for family in "${families[@]}"; do
         printf 'destination worktree is not clean: %s\n' "${destination}" >&2
         exit 1
     fi
-    if git -C "${destination}" show-ref --quiet; then
-        printf 'destination already contains refs: %s\n' "${destination}" >&2
-        exit 1
-    fi
     expected_origin="git@github.com:faustbrian/${repository}.git"
     if [[ "$(git -C "${destination}" remote get-url origin)" != "${expected_origin}" ]]; then
         printf 'destination origin does not match %s: %s\n' \
             "${expected_origin}" "${destination}" >&2
+        exit 1
+    fi
+    if git -C "${destination}" show-ref --quiet; then
+        source_tree="$(git rev-parse "${source_commit}:${source_directory}")"
+        main_tree="$(git -C "${destination}" rev-parse 'refs/heads/main^{tree}' 2>/dev/null || true)"
+        remote_tree="$(git -C "${destination}" rev-parse 'refs/remotes/origin/main^{tree}' 2>/dev/null || true)"
+        ref_count="$(git -C "${destination}" show-ref | wc -l | tr -d '[:space:]')"
+        if [[ "${ref_count}" == "2" && "${main_tree}" == "${source_tree}" &&
+              "${remote_tree}" == "${source_tree}" ]]; then
+            printf '%s\t%s\t%s\n' \
+                "${family}" \
+                "$(git -C "${destination}" rev-parse main)" \
+                "$(git -C "${destination}" rev-list --count main)"
+            continue
+        fi
+        printf 'destination contains non-canonical refs: %s\n' "${destination}" >&2
         exit 1
     fi
     if git ls-tree -r --name-only "${source_commit}" -- "${source_directory}" |
