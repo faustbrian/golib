@@ -57,6 +57,7 @@
         ".ai/GOAL_RESILIENCE_HARDEN.md",
         ".ai/GOAL_SECURITY.md",
         ".ai/GOAL_SPECIFICATION_DECISIONS.md",
+        ".ai/GOAL_STANDALONE_REPOSITORIES.md",
         ".ai/GOAL_SUPPLY_CHAIN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
@@ -754,6 +755,43 @@
             "docs/performance.md",
             "docs/security/threat-model.md",
             "docs/specification-governance.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": ".ai/GOAL_STANDALONE_REPOSITORIES.md",
+          "requirements_sha256": "a7093b13bb6f61bebcc09479678557529b15b8387b8f423fc0f08f8d5f765ac4",
+          "implementation_evidence": [
+            "CHANGELOG.md",
+            "README.md",
+            "docs/architecture.md",
+            "docs/hardening-report.md",
+            "docs/migration/standalone.md",
+            "docs/performance.md",
+            "docs/security/threat-model.md"
           ],
           "verification_gates": [
             "format-check",

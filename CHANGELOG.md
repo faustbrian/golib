@@ -7,6 +7,12 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Generate standalone CI with attributable per-module jobs, a stable required
+  summary, content-addressed mutation evidence, checksum-pinned bootstrap
+  dependencies, build-tag-aware CodeQL, and an explicit `v1.0.0` dry run.
+- Normalize standalone README badges, remove migration-only tooling on repeated
+  generation, keep the repository contract portable on stock CI runners, and
+  scope legacy-path enforcement around audited migration artifacts.
 - Generate standalone module checksums in dependency order so local `v1.0.0`
   proxy verification cannot retain hashes from unfinished dependency trees.
 - Route standalone Makefile targets through the installed `.golib` tooling so

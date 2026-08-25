@@ -131,6 +131,9 @@ func populateStandaloneRepository(
 			repository.Family,
 			repository.Name,
 		)
+		if relative == "README.md" {
+			rewritten = addStandaloneReadmeBadges(rewritten, repository)
+		}
 		if bytes.Equal(contents, rewritten) {
 			continue
 		}
@@ -172,6 +175,58 @@ func populateStandaloneRepository(
 	}
 
 	return nil
+}
+
+func addStandaloneReadmeBadges(
+	contents []byte,
+	repository standaloneRepository,
+) []byte {
+	lines := strings.Split(strings.TrimRight(string(contents), "\n"), "\n")
+	heading := -1
+	for index, line := range lines {
+		if strings.HasPrefix(line, "# ") {
+			heading = index
+			break
+		}
+	}
+	if heading == -1 {
+		return contents
+	}
+
+	body := heading + 1
+	for body < len(lines) && strings.TrimSpace(lines[body]) == "" {
+		body++
+	}
+	for body < len(lines) && strings.HasPrefix(lines[body], "[![") {
+		body++
+	}
+	for body < len(lines) && strings.TrimSpace(lines[body]) == "" {
+		body++
+	}
+
+	workflow := "https://github.com/faustbrian/" + repository.Name +
+		"/actions/workflows/ci.yml"
+	badges := []string{
+		"[![CI](" + workflow + "/badge.svg?branch=main)](" + workflow + ")",
+		"[![CodeQL](https://img.shields.io/badge/CodeQL-required-blue)](" + workflow + ")",
+		"[![Coverage](https://img.shields.io/badge/coverage-100%25_required-blue)](CONTRIBUTING.md#verification)",
+		"[![Mutation](https://img.shields.io/badge/mutation-100%25_required-blue)](CONTRIBUTING.md#verification)",
+		"[![Documentation](https://img.shields.io/badge/docs-checked_in_CI-blue)](docs/)",
+		"[![Go Reference](https://pkg.go.dev/badge/" + repository.ModulePath + ".svg)](https://pkg.go.dev/" + repository.ModulePath + ")",
+		"[![Release](https://img.shields.io/github/v/release/faustbrian/" + repository.Name + "?sort=semver)](https://github.com/faustbrian/" + repository.Name + "/releases)",
+		"[![Go](https://img.shields.io/badge/go-1.26.6-00ADD8?logo=go)](https://go.dev/)",
+		"[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)",
+	}
+
+	result := make([]string, 0, len(lines)+len(badges)+2)
+	result = append(result, lines[:heading+1]...)
+	result = append(result, "")
+	result = append(result, badges...)
+	if body < len(lines) {
+		result = append(result, "")
+		result = append(result, lines[body:]...)
+	}
+	return []byte(strings.Join(result, "\n") + "\n")
 }
 
 func removeStandaloneOwnedChecksums(contents []byte, paths map[string]string) []byte {
@@ -303,6 +358,9 @@ func removeLegacyRootTooling(sourceRoot string, destination string) error {
 		return err
 	}
 	for _, relative := range []string{
+		".golib/scripts/capture-standalone-repository-audit.sh",
+		".golib/scripts/extract-standalone-repository.sh",
+		".golib/scripts/tidy-standalone-modules.sh",
 		"scripts/repository-check.sh",
 		"scripts/with-disposable-go-cache.sh",
 	} {

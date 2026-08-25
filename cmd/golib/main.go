@@ -2080,11 +2080,14 @@ func validatePaths(root string) {
 		command.Args,
 		"--",
 		":(exclude).ai/GOAL_MONOREPO_REMEDIATION.md",
+		":(exclude).ai/GOAL_STANDALONE_REPOSITORIES.md",
 		":(exclude)cmd/golib/standalone_foundation.go",
 		":(exclude)cmd/golib/standalone_populate.go",
 		":(exclude)cmd/golib/standalone_populate_test.go",
+		":(exclude)cmd/golib/standalone_proxy_test.go",
 		":(exclude)cmd/golib/standalone_test.go",
 		":(exclude,glob)migration/standalone/**",
+		":(exclude)scripts/tidy-standalone-modules.sh",
 	)
 	if output, err := command.Output(); err == nil && len(output) != 0 {
 		fatal("obsolete owned module paths remain:\n%s", output)

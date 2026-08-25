@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -79,6 +80,105 @@ func TestStandaloneMakefileUsesInstalledRepositoryTooling(t *testing.T) {
 	}
 	if strings.Contains(standaloneMakefile, "\n\t./scripts/") {
 		t.Fatal("standalone Makefile invokes the package-owned scripts directory")
+	}
+}
+
+func TestRemoveLegacyRootToolingDeletesMigrationOnlyInstalledScripts(t *testing.T) {
+	t.Parallel()
+
+	source := t.TempDir()
+	destination := t.TempDir()
+	for _, filename := range []string{
+		filepath.Join(source, "scripts", "tidy-standalone-modules.sh"),
+		filepath.Join(destination, ".golib", "scripts", "tidy-standalone-modules.sh"),
+	} {
+		if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+			t.Fatalf("create script directory: %v", err)
+		}
+		if err := os.WriteFile(filename, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatalf("write script: %v", err)
+		}
+	}
+
+	if err := removeLegacyRootTooling(source, destination); err != nil {
+		t.Fatalf("removeLegacyRootTooling() error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(
+		destination,
+		".golib",
+		"scripts",
+		"tidy-standalone-modules.sh",
+	)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("migration-only installed script remains: %v", err)
+	}
+}
+
+func TestStandaloneWorkflowRetainsStrictCIContracts(t *testing.T) {
+	t.Parallel()
+
+	for _, required := range []string{
+		"name: Required",
+		"name: Quality / ${{ matrix.directory }}",
+		"GOLIB_BOOTSTRAP_PROXY_URL",
+		"GOLIB_BOOTSTRAP_PROXY_SHA256",
+		"restore-ci-mutation-evidence.sh",
+		"stage-ci-evidence.sh",
+		"actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+		"RIPGREP_SHA256",
+		"denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed",
+		"ZSH_DEB_SHA256",
+		"codeql-build.sh",
+		"security-events: write",
+	} {
+		if !strings.Contains(standaloneCIWorkflow, required) {
+			t.Fatalf("standalone workflow does not contain %q", required)
+		}
+	}
+	if strings.Contains(standaloneCIWorkflow, "apt-get install") {
+		t.Fatal("standalone workflow installs an unpinned package-manager tool")
+	}
+}
+
+func TestStandaloneRepositoryCheckUsesRunnerProvidedSearchTooling(t *testing.T) {
+	t.Parallel()
+
+	if strings.Contains(standaloneRepositoryCheck, "if rg ") {
+		t.Fatal("standalone repository contract requires uninstalled ripgrep")
+	}
+	if !strings.Contains(standaloneRepositoryCheck, "grep -REn") {
+		t.Fatal("standalone repository contract does not use standard grep")
+	}
+}
+
+func TestAddStandaloneReadmeBadgesReplacesLegacyWorkflowLinks(t *testing.T) {
+	t.Parallel()
+
+	repository := standaloneRepository{
+		Name:       "go-router",
+		ModulePath: "github.com/faustbrian/go-router",
+	}
+	input := []byte("# router\n\n" +
+		"[![CI](https://github.com/faustbrian/golib/actions/workflows/ci.yml/badge.svg)]" +
+		"(https://github.com/faustbrian/golib/actions/workflows/ci.yml)\n\n" +
+		"Explicit routing.\n")
+	got := addStandaloneReadmeBadges(input, repository)
+	text := string(got)
+	for _, required := range []string{
+		"github.com/faustbrian/go-router/actions/workflows/ci.yml",
+		"pkg.go.dev/github.com/faustbrian/go-router",
+		"coverage-100%25_required",
+		"mutation-100%25_required",
+		"Explicit routing.",
+	} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("standalone README does not contain %q:\n%s", required, text)
+		}
+	}
+	if strings.Contains(text, "github.com/faustbrian/golib/actions") {
+		t.Fatalf("standalone README retains the legacy workflow URL:\n%s", text)
+	}
+	if second := addStandaloneReadmeBadges(got, repository); string(second) != text {
+		t.Fatalf("standalone README badges are not idempotent:\n%s", second)
 	}
 }
 

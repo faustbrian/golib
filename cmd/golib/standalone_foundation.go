@@ -110,6 +110,7 @@ func installStandaloneFoundation(
 		".github/workflows/ci.yml":                   standaloneCIWorkflow,
 		".golib/scripts/run-modules.sh":              standaloneRunModules,
 		".golib/scripts/check-go-safety.sh":          standaloneSafetyScript,
+		".golib/scripts/codeql-build.sh":             standaloneCodeQLBuild,
 		".golib/scripts/repository-check.sh":         standaloneRepositoryCheck,
 		".golib/scripts/release.sh":                  standaloneReleaseScript,
 		".golib/scripts/with-disposable-go-cache.sh": standaloneDisposableCache,
@@ -211,7 +212,8 @@ func copyStandaloneScripts(
 			return os.MkdirAll(filepath.Join(destination, destinationRelative), 0o755)
 		}
 		if sourceRelative == "scripts/capture-standalone-repository-audit.sh" ||
-			sourceRelative == "scripts/extract-standalone-repository.sh" {
+			sourceRelative == "scripts/extract-standalone-repository.sh" ||
+			sourceRelative == "scripts/tidy-standalone-modules.sh" {
 			return nil
 		}
 		return copyStandaloneFoundationFileAs(
@@ -552,6 +554,62 @@ fi
 printf 'standalone safety policy passed for %s\n' "${module}"
 `
 
+const standaloneCodeQLBuild = `#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+task="$(mktemp -d "${TMPDIR:-/tmp}/golib-codeql-build.XXXXXX")"
+cleanup() {
+    find "${task}" -depth -delete 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
+
+while IFS= read -r module; do
+    [[ -n "${module}" ]] || continue
+    module_root="${root}"
+    if [[ "${module}" != "." ]]; then
+        module_root="${root}/${module}"
+    fi
+    while IFS= read -r package; do
+        [[ -n "${package}" ]] || continue
+        package_tags="$(
+            jq -r \
+                --arg module "${module}" \
+                --arg package "${package}" '
+                    .modules[]
+                    | select(.directory == $module)
+                    | .packages[]
+                    | select(.import_path == $package)
+                    | .build_tags[]?
+                ' "${root}/modules.json"
+        )"
+        slug="$(printf '%s' "${package}" | tr '/.' '--')"
+        if [[ "${module}" == "benchmarks/platform" && -n "${package_tags}" ]]; then
+            package_tags=benchmark_disabled
+        fi
+        if [[ -z "${package_tags}" ]]; then
+            (cd "${module_root}" && GOWORK=off go build -o "${task}/${slug}" "${package}")
+            continue
+        fi
+        variant=0
+        while IFS= read -r tag; do
+            [[ -n "${tag}" ]] || continue
+            (cd "${module_root}" && GOWORK=off go build \
+                -tags="${tag}" -o "${task}/${slug}-${variant}" "${package}")
+            variant=$((variant + 1))
+        done <<<"${package_tags}"
+    done < <(
+        jq -r --arg module "${module}" '
+            .modules[]
+            | select(.directory == $module)
+            | .packages[]
+            | select(.build_required == true)
+            | .import_path
+        ' "${root}/modules.json"
+    )
+done < <(jq -r '.modules[].directory' "${root}/modules.json")
+`
+
 const standaloneRepositoryCheck = `#!/usr/bin/env bash
 set -euo pipefail
 
@@ -582,9 +640,14 @@ while IFS= read -r module; do
     fi
 done < <(jq -r '.modules[].module_path' "${root}/modules.json")
 
-if rg -n 'github\.com/faustbrian/golib/pkg|/Users/[^/]+/Developer|\.\./go-' \
-    --glob '!go.sum' --glob '!CHANGELOG.md' \
-    --glob '!.golib/scripts/repository-check.sh' "${root}"; then
+if grep -REnI \
+    --exclude-dir='.git' \
+    --exclude-dir='.artifacts' \
+    --exclude='go.sum' \
+    --exclude='CHANGELOG.md' \
+    --exclude='repository-check.sh' \
+    'github\.com/faustbrian/golib/pkg|/Users/[^/]+/Developer|\.\./go-' \
+    "${root}"; then
     printf 'monorepo or sibling-checkout reference remains\n' >&2
     exit 1
 fi
@@ -682,6 +745,12 @@ on:
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
+    inputs:
+      release_dry_run:
+        description: Run the v1.0.0 dry-run for every releasable module
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   actions: read
@@ -692,6 +761,42 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  prepare:
+    name: Select modules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      matrix: ${{ steps.selection.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Select repository modules
+        id: selection
+        env:
+          RELEASE_DRY_RUN: ${{ inputs.release_dry_run }}
+        run: |
+          set -euo pipefail
+          filter='.'
+          if [[ "${RELEASE_DRY_RUN}" == true ]]; then
+            filter='map(select(.releasable == true))'
+          fi
+          matrix="$(
+            jq -c \
+              --arg filter "${filter}" '
+                .modules
+                | if $filter == "." then . else map(select(.releasable == true)) end
+                | map({
+                    directory,
+                    artifact: (
+                      if .directory == "." then "root"
+                      else (.directory | gsub("/"; "-"))
+                      end
+                    )
+                  })
+              ' modules.json
+          )"
+          [[ "$(jq 'length' <<<"${matrix}")" -gt 0 ]]
+          echo "matrix=${matrix}" >>"${GITHUB_OUTPUT}"
+
   repository-contract:
     name: Repository contract
     runs-on: ubuntu-24.04
@@ -703,9 +808,15 @@ jobs:
       - run: ./.golib/scripts/repository-check.sh
 
   quality:
-    name: Quality
+    name: Quality / ${{ matrix.directory }}
+    needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -714,9 +825,108 @@ jobs:
         with:
           go-version-file: .go-version
           cache: false
-      - name: Install required system tools
-        run: sudo apt-get update && sudo apt-get install --yes ripgrep
-      - run: ./.golib/scripts/with-disposable-go-cache.sh ./.golib/scripts/run-modules.sh check --all
+      - name: Set up pinned ripgrep
+        env:
+          RIPGREP_VERSION: 15.2.0
+          RIPGREP_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/ripgrep.tar.gz"
+          root="${RUNNER_TEMP}/ripgrep"
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            --output "${archive}"
+          printf '%s  %s\n' "${RIPGREP_SHA256}" "${archive}" | sha256sum --check -
+          mkdir -p "${root}"
+          tar --extract --gzip --file "${archive}" --directory "${root}" \
+            --strip-components 1
+          echo "${root}" >>"${GITHUB_PATH}"
+          "${root}/rg" --version | grep -Eq "^ripgrep ${RIPGREP_VERSION}( |$)"
+      - name: Set up Node
+        if: github.repository == 'faustbrian/go-ecma-regexp' || github.repository == 'faustbrian/go-queue-control-plane'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.4.1'
+          package-manager-cache: false
+      - name: Set up Deno
+        if: github.repository == 'faustbrian/go-ecma-regexp'
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: '2.9.4'
+          cache: false
+      - name: Set up CLI shell runtime
+        if: github.repository == 'faustbrian/go-cli'
+        env:
+          ZSH_DEB_SHA256: bd5cc8dd3a01a6db38c0a815d75202c356a9c7f378674ba7bed9bc86dcba8af0
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/zsh.deb"
+          root="${RUNNER_TEMP}/zsh-runtime"
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            'https://archive.ubuntu.com/ubuntu/pool/main/z/zsh/zsh_5.9-6ubuntu2_amd64.deb' \
+            --output "${archive}"
+          printf '%s  %s\n' "${ZSH_DEB_SHA256}" "${archive}" | sha256sum --check -
+          mkdir -p "${root}"
+          dpkg-deb --extract "${archive}" "${root}"
+          echo "${root}/bin" >>"${GITHUB_PATH}"
+          "${root}/bin/zsh" --version | grep -Eq '^zsh 5\.9 '
+      - name: Set up unpublished module proxy
+        if: vars.GOLIB_BOOTSTRAP_PROXY_URL != ''
+        env:
+          PROXY_URL: ${{ vars.GOLIB_BOOTSTRAP_PROXY_URL }}
+          PROXY_SHA256: ${{ vars.GOLIB_BOOTSTRAP_PROXY_SHA256 }}
+        run: |
+          set -euo pipefail
+          [[ "${PROXY_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          archive="${RUNNER_TEMP}/golib-proxy.tar.gz"
+          proxy="${RUNNER_TEMP}/golib-proxy"
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            "${PROXY_URL}" --output "${archive}"
+          printf '%s  %s\n' "${PROXY_SHA256}" "${archive}" | sha256sum --check -
+          mkdir -p "${proxy}"
+          tar --extract --gzip --file "${archive}" --directory "${proxy}"
+          echo "GOPROXY=file://${proxy},https://proxy.golang.org,direct" >>"${GITHUB_ENV}"
+          echo 'GONOSUMDB=github.com/faustbrian/go-*' >>"${GITHUB_ENV}"
+      - name: Restore content-addressed mutation evidence
+        if: inputs.release_dry_run != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+        run: ./.golib/scripts/restore-ci-mutation-evidence.sh '${{ matrix.directory }}'
+      - name: Run strict module contract
+        if: inputs.release_dry_run != true
+        run: ./.golib/scripts/with-disposable-go-cache.sh ./.golib/scripts/run-modules.sh check --modules '${{ matrix.directory }}'
+      - name: Run release dry-run
+        if: inputs.release_dry_run == true
+        env:
+          GOLIB_VERIFICATION_SNAPSHOT: '1'
+        run: |
+          set -euo pipefail
+          output='.artifacts/release-dry-run.log'
+          if [[ '${{ matrix.directory }}' != '.' ]]; then
+            output='.artifacts/${{ matrix.directory }}/release-dry-run.log'
+          fi
+          mkdir -p "$(dirname "${output}")"
+          ./.golib/scripts/with-disposable-go-cache.sh \
+            ./.golib/scripts/run-modules.sh release-dry-run \
+            --modules '${{ matrix.directory }}' 2>&1 | tee "${output}"
+      - name: Stage attributable evidence
+        if: always()
+        run: >-
+          ./.golib/scripts/stage-ci-evidence.sh '${{ matrix.directory }}'
+          '${{ format('{0}/golib-evidence-{1}', runner.temp, matrix.artifact) }}'
+      - name: Upload attributable evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: evidence-${{ matrix.artifact }}
+          path: ${{ format('{0}/golib-evidence-{1}', runner.temp, matrix.artifact) }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
 
   codeql:
     name: CodeQL
@@ -734,10 +944,51 @@ jobs:
         with:
           go-version-file: .go-version
           cache: false
+      - name: Set up unpublished module proxy
+        if: vars.GOLIB_BOOTSTRAP_PROXY_URL != ''
+        env:
+          PROXY_URL: ${{ vars.GOLIB_BOOTSTRAP_PROXY_URL }}
+          PROXY_SHA256: ${{ vars.GOLIB_BOOTSTRAP_PROXY_SHA256 }}
+        run: |
+          set -euo pipefail
+          [[ "${PROXY_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          archive="${RUNNER_TEMP}/golib-proxy.tar.gz"
+          proxy="${RUNNER_TEMP}/golib-proxy"
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            "${PROXY_URL}" --output "${archive}"
+          printf '%s  %s\n' "${PROXY_SHA256}" "${archive}" | sha256sum --check -
+          mkdir -p "${proxy}"
+          tar --extract --gzip --file "${archive}" --directory "${proxy}"
+          echo "GOPROXY=file://${proxy},https://proxy.golang.org,direct" >>"${GITHUB_ENV}"
+          echo 'GONOSUMDB=github.com/faustbrian/go-*' >>"${GITHUB_ENV}"
       - uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
         with:
           languages: go
           queries: security-extended,security-and-quality
-      - run: ./.golib/scripts/with-disposable-go-cache.sh ./.golib/scripts/run-modules.sh test --all
+      - run: ./.golib/scripts/with-disposable-go-cache.sh ./.golib/scripts/codeql-build.sh
       - uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+
+  required:
+    name: Required
+    if: always()
+    needs: [prepare, repository-contract, quality, codeql]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every repository result
+        env:
+          PREPARE_RESULT: ${{ needs.prepare.result }}
+          CONTRACT_RESULT: ${{ needs.repository-contract.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
+        run: |
+          set -euo pipefail
+          for result in \
+            "${PREPARE_RESULT}" \
+            "${CONTRACT_RESULT}" \
+            "${QUALITY_RESULT}" \
+            "${CODEQL_RESULT}"; do
+            [[ "${result}" == success ]]
+          done
 `
