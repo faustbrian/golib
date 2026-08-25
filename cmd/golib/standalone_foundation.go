@@ -1095,25 +1095,61 @@ func rewriteStandaloneContributing(contents []byte) []byte {
 }
 
 func rewriteStandaloneChangelog(contents []byte) []byte {
-	const flatEntry = "- Harden standalone documentation validation with deterministic spelling and link checks, package-specific documentation gates, and repository-local contributor guidance."
-	const entry = "- Harden standalone documentation validation with deterministic spelling and\n  link checks, package-specific documentation gates, and repository-local\n  contributor guidance."
-	text := string(contents)
-	if strings.Contains(text, entry) {
-		return contents
+	entries := []struct {
+		flat    string
+		wrapped string
+	}{
+		{
+			flat: "- Harden standalone documentation validation with deterministic spelling and link checks, package-specific documentation gates, and repository-local contributor guidance.",
+			wrapped: "- Harden standalone documentation validation with deterministic spelling and\n" +
+				"  link checks, package-specific documentation gates, and repository-local\n" +
+				"  contributor guidance.",
+		},
+		{
+			flat: "- Reconcile standalone dependency checksums against deterministic current module archives so CI, local verification, and release consumers resolve identical content.",
+			wrapped: "- Reconcile standalone dependency checksums against deterministic current\n" +
+				"  module archives so CI, local verification, and release consumers resolve\n" +
+				"  identical content.",
+		},
 	}
-	if strings.Contains(text, flatEntry) {
-		return []byte(strings.ReplaceAll(text, flatEntry, entry))
+	text := string(contents)
+	for _, entry := range entries {
+		text = strings.ReplaceAll(text, entry.flat, entry.wrapped)
 	}
 	header := "## [Unreleased]\n"
 	if !strings.Contains(text, header) {
 		header = "## Unreleased\n"
 	}
-	return []byte(strings.Replace(
-		text,
-		header,
-		header+"\n### Changed\n\n"+entry+"\n",
-		1,
-	))
+	headerIndex := strings.Index(text, header)
+	if headerIndex < 0 {
+		return []byte(text)
+	}
+	bodyStart := headerIndex + len(header)
+	bodyEnd := len(text)
+	if next := strings.Index(text[bodyStart:], "\n## "); next >= 0 {
+		bodyEnd = bodyStart + next
+	}
+	section := text[bodyStart:bodyEnd]
+	missing := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !strings.Contains(section, entry.wrapped) {
+			missing = append(missing, entry.wrapped)
+		}
+	}
+	if len(missing) == 0 {
+		return []byte(text)
+	}
+
+	addition := strings.Join(missing, "\n") + "\n\n"
+	const changedHeading = "\n### Changed\n"
+	if changedIndex := strings.Index(section, changedHeading); changedIndex >= 0 {
+		insertion := bodyStart + changedIndex + len(changedHeading)
+		if insertion < len(text) && text[insertion] == '\n' {
+			insertion++
+		}
+		return []byte(text[:insertion] + addition + text[insertion:])
+	}
+	return []byte(text[:bodyStart] + "\n### Changed\n\n" + addition + text[bodyStart:])
 }
 
 func rewriteStandaloneSecurity(contents []byte, repositoryName string) []byte {

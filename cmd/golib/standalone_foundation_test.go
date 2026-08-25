@@ -153,6 +153,9 @@ func TestRewriteStandaloneChangelogRecordsDocumentationPolicy(t *testing.T) {
 	if !strings.Contains(string(got), "Harden standalone documentation validation") {
 		t.Fatalf("standalone changelog does not record documentation policy:\n%s", got)
 	}
+	if !strings.Contains(string(got), "Reconcile standalone dependency checksums") {
+		t.Fatalf("standalone changelog does not record dependency checksums:\n%s", got)
+	}
 	second := rewriteStandaloneChangelog(got)
 	if string(second) != string(got) {
 		t.Fatalf("standalone changelog rewrite is not idempotent:\n%s", second)

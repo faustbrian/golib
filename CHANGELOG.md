@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Reconcile every standalone dependency checksum against deterministic current
+  module archives before publishing the shared CI bootstrap proxy.
 - Run repository-wide and package-owned documentation gates together in
   standalone CI, with deterministic spelling and link policy plus corrected
   pre-publication and authoritative-source handling.
