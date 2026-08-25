@@ -28,8 +28,8 @@ remains external confirmation rather than local evidence.
 
 The normative dialect inputs were:
 
-- [Draft 3 Core](https://json-schema.org/draft-03/json-schema-core.html) and
-  [Validation](https://json-schema.org/draft-03/json-schema-validation.html);
+- [Draft 3](https://datatracker.ietf.org/doc/html/draft-zyp-json-schema-03),
+  which combines core and validation behavior;
 - [Draft 4 Core](https://json-schema.org/draft-04/json-schema-core) and
   [Validation](https://json-schema.org/draft-04/json-schema-validation);
 - [Draft 6 Core](https://json-schema.org/draft-06/json-schema-core) and

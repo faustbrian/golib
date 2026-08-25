@@ -52,7 +52,7 @@ request or policy does not make it safe.
 
 Usually no. Decisions depend on subject, resource, attributes, time, and
 revision, making safe keys and invalidation difficult. Cache immutable manifests
-advisorially by exact revision and continue to verify repository state.
+as advisory input by exact revision and continue to verify repository state.
 
 ## How do I debug without leaking data?
 

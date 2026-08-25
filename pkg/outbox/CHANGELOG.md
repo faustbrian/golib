@@ -10,6 +10,8 @@ publisher contracts are public compatibility surfaces.
 
 ### Documentation
 
+- Correct stale package, standalone, and authoritative-source links in public
+  documentation.
 - Replace obsolete standalone-repository links and workflow claims with
   monorepo-canonical targets and current release guidance.
 

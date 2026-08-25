@@ -660,6 +660,14 @@ printf 'file\t%s\t%s\n' "${input}" "$(
 			t.Errorf("rewritten verifier does not contain %q:\n%s", wanted, got)
 		}
 	}
+	second := string(rewriteStandaloneTooling(
+		[]byte(got),
+		".golib/scripts/package-source-digest.sh",
+		"github.com/faustbrian/go-validation",
+	))
+	if second != got {
+		t.Fatalf("standalone package digest rewrite is not idempotent:\n%s", second)
+	}
 }
 
 func TestRewriteStandaloneToolingRelocatesSharedServiceFixtures(t *testing.T) {
@@ -683,6 +691,119 @@ source "${root}/pkg/search/adapters/opensearch/scripts/opensearch-images.env"
 	}
 	if strings.Contains(got, `${root}/pkg/`) {
 		t.Fatalf("rewritten service tooling retains monorepo fixture path:\n%s", got)
+	}
+}
+
+func TestRewriteStandaloneToolingAllowsRepositoryRelativePackageDigests(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`package_directory="$1"
+case "${package_directory}" in
+    pkg/*) ;;
+    *)
+        printf 'package directory must be beneath pkg/: %s\n' \
+            "${package_directory}" >&2
+        exit 2
+        ;;
+esac
+absolute="${root}/${package_directory}"
+`)
+	got := string(rewriteStandaloneTooling(
+		input,
+		".golib/scripts/package-source-digest.sh",
+		"github.com/faustbrian/go-validation",
+	))
+	if strings.Contains(got, "beneath pkg") {
+		t.Fatalf("standalone package digest retains monorepo path policy:\n%s", got)
+	}
+	for _, wanted := range []string{
+		`package_directory="$1"`,
+		`package_directory="${package_directory#./}"`,
+		`/*|../*|*/../*|*/..)`,
+		`absolute="${root}/${package_directory}"`,
+	} {
+		if !strings.Contains(got, wanted) {
+			t.Errorf("standalone package digest does not contain %q:\n%s", wanted, got)
+		}
+	}
+	second := string(rewriteStandaloneTooling(
+		[]byte(got),
+		".golib/scripts/package-source-digest.sh",
+		"github.com/faustbrian/go-validation",
+	))
+	if second != got {
+		t.Fatalf("standalone package digest rewrite is not idempotent:\n%s", second)
+	}
+}
+
+func TestRewriteStandaloneToolingRunsRootAndPackageDocumentationContracts(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`if [[ "${module}" == "." ]]; then
+                GOWORK=off "${root}/scripts/check-documentation.sh"
+            elif target="$(find_make_target docs documentation)"; then
+                make "${target}"
+            else
+                GOWORK=off go test ./... -run '^Example' -count=1
+            fi
+`)
+	got := string(rewriteStandaloneTooling(
+		input,
+		".golib/scripts/check-module.sh",
+		"github.com/faustbrian/go-validation",
+	))
+	for _, wanted := range []string{
+		`if [[ "${module}" == "." ]]; then`,
+		`GOWORK=off "${root}/.golib/scripts/check-documentation.sh"`,
+		`if target="$(find_make_target docs documentation)"; then`,
+		`package_make "${target}"`,
+		`elif [[ "${module}" != "." ]]; then`,
+	} {
+		if !strings.Contains(got, wanted) {
+			t.Errorf("standalone docs tooling does not contain %q:\n%s", wanted, got)
+		}
+	}
+	second := string(rewriteStandaloneTooling(
+		[]byte(got),
+		".golib/scripts/check-module.sh",
+		"github.com/faustbrian/go-validation",
+	))
+	if second != got {
+		t.Fatalf("standalone docs tooling rewrite is not idempotent:\n%s", second)
+	}
+}
+
+func TestRewriteStandaloneDocumentationToolingDefersUnpublishedModuleLinks(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`"${lychee}" \
+    --cache=false \
+    --no-progress \
+    README.md 'docs/**/*.md'
+`)
+	got := string(rewriteStandaloneTooling(
+		input,
+		".golib/scripts/check-documentation.sh",
+		"github.com/faustbrian/go-validation",
+	))
+	for _, wanted := range []string{
+		"golib-unpublished-pkg-go-dev",
+		`^https://pkg\.go\.dev/(badge/)?github\.com/faustbrian/go-`,
+		`^https://doi\.org/10\.1145/190314\.190317$`,
+		`^https://service\.unece\.org/trade/`,
+		`^https://www\.iso\.org/standard/`,
+	} {
+		if !strings.Contains(got, wanted) {
+			t.Errorf("standalone documentation tooling does not contain %q:\n%s", wanted, got)
+		}
+	}
+	second := string(rewriteStandaloneTooling(
+		[]byte(got),
+		".golib/scripts/check-documentation.sh",
+		"github.com/faustbrian/go-validation",
+	))
+	if second != got {
+		t.Fatalf("standalone documentation tooling rewrite is not idempotent:\n%s", second)
 	}
 }
 

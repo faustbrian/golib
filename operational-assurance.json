@@ -4543,6 +4543,206 @@
       "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-JSONRPC-TYPED-DISPATCH.md",
       "evidence_sha256": "5365ac053692a61e7d94aab231d4e45e8f7a7866f465fc8f850b613e6ad30bf8",
       "rationale": "Dispatcher.Dispatch preserves its existing validation, hooks, notification handling, errors, and encoding while the new typed entry point is additive and outside the retained observation."
+    },
+    {
+      "module": "pkg/adaptive-throttle",
+      "from_sha256": "5bc5dd1d5a489428fee9caa538589e856a47a28e3c9b8e26486a9e206bc7e3cc",
+      "to_sha256": "1e28d483078659686ad4e85a9017795d9f9ffefd38e0677e3dc1f612b9559299",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/audit",
+      "from_sha256": "3a6581a13dcfefecbf558987c83002199053ad52c98c30036f9d35848d36b5d0",
+      "to_sha256": "282d3e449479ad70e71f7853f7a184af591a5864f7c58ac1078471be4741e6fa",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/authentication",
+      "from_sha256": "45fb6f16190b0e6c385832177a9c7b6b9e181899617637e79281a8b1f28b5834",
+      "to_sha256": "adce1bcd37c9732e3b1bc7e2d8a446189c8fc891d922cb3ba0a17f3c6b8b84a6",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/authorization",
+      "from_sha256": "7509c4782dda8291e10c9ec91b8547d58804029d7a25575371368241b0239c4e",
+      "to_sha256": "8e944608173313ff42cfc5bcf4d667a50cd57398f72b6cec4dded50e6745f30f",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/bulkhead",
+      "from_sha256": "dd88bd6f51521658368ed8a0fc846701edd9fb01cf415c9fa30adb0240a44191",
+      "to_sha256": "4e52f43e92c0f6cf73a33d7bc83df70c8e01bc76954b40b27dac45d1c8ddadc4",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/capability",
+      "from_sha256": "744531d8d2787f4ad5beb78a23f4e08a64fad73d46bef9d37aa28ce287513fde",
+      "to_sha256": "cfe189226296e387c90c7e61914ffd9d9a8eec0ad853202514e70d5402ca75f5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/circuit-breaker",
+      "from_sha256": "0b40fcf8d7ba772b04ef96c611c9d075ab3fa2014cf910ce31f1294f60177b67",
+      "to_sha256": "2c795589c165ae689207643a5fda2aebcf855bf47e2f1024b04a58d97a662fda",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/concurrency-limit",
+      "from_sha256": "29e972f5e89aa5ac937ecf1b07b2cdf4044ec6d7b876d0ffa6cf9354c3b6898d",
+      "to_sha256": "0ae3cb1b614bcae878d47eb5a941b4158ba49b38c3ac0147ed43f1144df753e3",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/config",
+      "from_sha256": "790d88777a916815bde2d167e4a938b61d5d9c9fc1546494f6b2dfea7db825f2",
+      "to_sha256": "da32192a7946a249b09d269193526b61e15a7ba90f0b644d755b37104f5fe5f1",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/correlation",
+      "from_sha256": "1825d1bd168221dbdb9b5f13d1a5d3168fc6556e54b526d1363d516e170deb1c",
+      "to_sha256": "e2bb3356543bca69fd5a1e628d85d3d9b8b8c0fbb8030e1469a7848a6bb0c9df",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/filesystem",
+      "from_sha256": "52e078d05e835451f61f41c4e550b96b99279a7ecee7000edd66c768457bb02b",
+      "to_sha256": "0fe9314941b0f10288cfea91837110c682fb45e4f92f9657e110a36fd3b3a41b",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/hedge",
+      "from_sha256": "350bb37952faf1079d0c5d953aab372a503c05e9a30e17935d816dd4f68ed5e9",
+      "to_sha256": "99798339328e1916afad9bd1e39e547ae1e6c85309640eae604eef6021277489",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/http-client",
+      "from_sha256": "0617e46e8416a5f48ab42321dc03fe27fdaabc8e5f561fcc823678bb158172cf",
+      "to_sha256": "c94f81b5148a894923d29bcc0301d368c9de12525176b2c9fb88b2b1eeefa8e8",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/http-middleware",
+      "from_sha256": "99a3c18aee467d830f3743ab5b7ca9c51a30267fd332c02311656346d7306fb7",
+      "to_sha256": "1385283172f9dde2d748cd74bf852bb7566dfafef5b09effda22e209bb4f0d9c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/http-signature",
+      "from_sha256": "c03c7c87996b0353ae47cdc7cb722857eb648440a67de5b4f1c51d3999375794",
+      "to_sha256": "94acab2a8cff26e03d9d4041cdf7f78d885b8118743dbeb2feed4ecf0f368aae",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/jsonrpc",
+      "from_sha256": "3e1e9d5d868353d91b386b1fb4478114229c5a145af5cef8493de81299ee7b1d",
+      "to_sha256": "5b3b52dd82f92007d698263cda734dad5c525064128e12e6c4c3bcaedd0ccfde",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/rate-limit",
+      "from_sha256": "db194bf9086c2a31b6a52cf1a4082f6b079f7876bd0d1bc22002b36a4dd1a02f",
+      "to_sha256": "c0bb3db89c4dfbed26b1ec93718a455d9e68c93707d3373b7e66632a66812cf5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/retry",
+      "from_sha256": "a88f6663a6e63b8a5f2a158e74a98b335b6d4371086e767eab92a2882649607a",
+      "to_sha256": "e96bf2ece580142af645a264b3d4159e7f9a22178fb70fb972a71a3f369335e5",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/router",
+      "from_sha256": "39978240d432f1ef3e391c0cfcfdfcab1c684e1c38469fca4f85133552c978ed",
+      "to_sha256": "17f02650453c3690d036a9db0482825f285e1467d8fc23457e1a3f9f7fb5d012",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/secret-envelope",
+      "from_sha256": "9b54688939328b4820ce0c8df75815853ce1b83474ba6d838744a0150f0aab90",
+      "to_sha256": "2d32d62cabb98601c94485783cea838387b2ed073d9d612b892c7e0c915f0039",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/service",
+      "from_sha256": "8fe06675f07c6117c50e92c927262a04d92beb9ea03a5d52c9a9b382cc95a312",
+      "to_sha256": "3f5718bbd58bad0f7e2046e391ff528d99421feca523ec1c06c608344b6c5378",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/telemetry",
+      "from_sha256": "1f2de50f7d920318b56ea8bfa3630a27777e3376dcf4c102b3550700b46bc8cc",
+      "to_sha256": "22ca76ae56557af4f9b0cb824a74dc72e34bf43d24538affd6396168d9021c3c",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/tenancy",
+      "from_sha256": "b7bc35f35eb7f551326359ef57b207ffb34a35e9fdd0212473bfbbf8743ac25b",
+      "to_sha256": "b11757935d0caeca9902c5c25f8e41fcea441efad6e03b6ad7bb7ec298503ed2",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/validation",
+      "from_sha256": "a541baee8df5134abbd67157c45afd9ad9c081a5bac6c7dbd0c665a3c2b06100",
+      "to_sha256": "9684685863670f31ea7d9bac9cb4ed1a9fc3022cb475737b20d4cab0f4b5f80a",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
+    },
+    {
+      "module": "pkg/webhook",
+      "from_sha256": "4170de093e88456afaff6007c4559cce4c194fe2b7bad2d34050c1c460606a7b",
+      "to_sha256": "ab83c3873a2d6c68cea65942fb94103e44269faa4f5b9a2eb39f2464d84238ae",
+      "evidence_path": "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
+      "evidence_sha256": "c0adce302cf82f9a8f9149f3709120e24f01c981f7f282d717d4d59b291218e3",
+      "rationale": "Standalone proxy archive selection now matches tracked public module content; the verifier identity changed without altering behavior exercised by retained operational-assurance evidence."
     }
   ]
 }

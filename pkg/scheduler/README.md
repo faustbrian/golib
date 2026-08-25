@@ -138,7 +138,7 @@ data, including next runs, for any caller-owned CLI, HTTP, or admin surface.
 Start with the [documentation index](docs/README.md), [API reference](docs/api.md),
 [Laravel migration guide](docs/laravel-migration.md), and
 [Kubernetes architecture](docs/kubernetes.md). Release history is in
-[CHANGELOG.md](CHANGELOG.md). Compileable integrations are in
+[CHANGELOG.md](CHANGELOG.md). Compilable integrations are in
 [examples](examples/README.md).
 
 Security vulnerabilities should be reported through the private process in

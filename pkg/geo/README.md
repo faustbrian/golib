@@ -64,7 +64,7 @@ interoperability and fuzz corpora, allocation baselines, and residual risks.
 
 - Longitude is `[-180, 180]`; latitude is `[-90, 90]`; bearings are `[0, 360)`.
 - NaN and infinity are rejected. Negative zero is canonicalized to positive
-  zero. Decimal JSON/text uses Go's shortest round-trippable representation.
+  zero. Decimal JSON/text uses Go's shortest round-trip-safe representation.
 - Bounds are inclusive. `west > east` explicitly crosses the antimeridian.
 - Polygon boundaries are `Boundary`; holes are excluded from `Interior`.
 - Empty Point, LineString, and Polygon values have no v1 representation. Empty

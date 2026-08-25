@@ -96,14 +96,14 @@ release gate was rerun cleanly on 2026-07-15.
 | Recovery major matrix | `for version in 14 15 16 17 18; do make recovery POSTGRES_VERSION=$version >/dev/null || exit $?; echo "PostgreSQL $version recovery PASS"; done` | Pass on 14, 15, 16, 17, and 18 with fail-fast per-major evidence |
 | Migration runtime | `make migration-integration POSTGRES_VERSION=18` | Pass: parser and concurrent clean install |
 | Standalone adapters | `make adapter` | Pass: `queue` and telemetry race suites at 100% coverage |
-| Remote workflows | PostgreSQL, CI, publisher integration, fuzz, benchmark, and security workflows for the release commit | Pass: [CI and publisher adapters](https://github.com/faustbrian/golib/actions/runs/29414378391), [PostgreSQL 14-18](https://github.com/faustbrian/golib/actions/runs/29414378471), [security](https://github.com/faustbrian/golib/actions/runs/29414378352), [fuzzing](https://github.com/faustbrian/golib/actions/runs/29414394360), and [benchmarks](https://github.com/faustbrian/golib/actions/runs/29414395951) on the release tree; the pull-request-only dependency review was intentionally not applicable to the `main` push |
+| Remote workflows | PostgreSQL, CI, publisher integration, fuzz, benchmark, and security workflows for the release commit | Historical monorepo runs are not standalone release evidence. Exact-head standalone CI and CodeQL must pass before publication. |
 
 ## Current release verdict
 
-**GREEN.** Every local command and named remote workflow in the table is green,
-all identified package high/medium findings are closed, and the PostgreSQL
-integration and recovery matrices pass on every supported major. No release
-blocker identified by this audit remains open.
+The historical package hardening evidence is green and all identified
+high/medium findings are closed. The standalone release remains pending until
+exact-head CI, CodeQL, PostgreSQL integration, recovery, and publication gates
+pass in `go-transactional-outbox`.
 
 Residual delivery risks under this green verdict remain: publisher acceptance
 followed by an ambiguous PostgreSQL result can duplicate; application replay

@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Correct stale package, standalone, and authoritative-source links in public
+  documentation.
+
 ### Added
 
 - register the exact Apache Kafka, Confluent Local, Testcontainers Ryuk,

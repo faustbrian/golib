@@ -7,8 +7,350 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
+
+var standaloneSpellingIgnoreRegExpList = []string{
+	"/```[\\s\\S]*?```/g",
+	"/`[^`\\n]+`/g",
+	`/https?:\/\/[^\s)]+/g`,
+}
+
+var standaloneSpellingWords = []string{
+	"abortability",
+	"acks",
+	"AIMD",
+	"ALPN",
+	"antimeridian",
+	"Arazzo",
+	"arities",
+	"autovacuum",
+	"backpressured",
+	"backpressures",
+	"Banderwagon",
+	"benchmem",
+	"benchtime",
+	"Besu",
+	"bidi",
+	"bignum",
+	"bignums",
+	"BIPM",
+	"bodyclose",
+	"bodyless",
+	"boundedly",
+	"Brakmo",
+	"bulkheading",
+	"bytea",
+	"bytewise",
+	"calendarclock",
+	"calendarconfig",
+	"calendartemporal",
+	"calendartest",
+	"calendarvalidation",
+	"calendarwire",
+	"cancelably",
+	"canonicality",
+	"canonicalizer",
+	"Canonicalizers",
+	"Cavage",
+	"CEFACT",
+	"cenkalti",
+	"checkpointed",
+	"checkpointing",
+	"CLDR",
+	"cooldowns",
+	"copylocks",
+	"dataref",
+	"Datatypes",
+	"dateperiod",
+	"dateranges",
+	"dedup",
+	"Defaultable",
+	"deferrability",
+	"definedness",
+	"depguard",
+	"drainable",
+	"ECMAREGEXP",
+	"entrancy",
+	"EPSG",
+	"Erigon",
+	"errgroup",
+	"errorlint",
+	"Eventsourcing",
+	"Eventtest",
+	"evictable",
+	"EWKB",
+	"EWKT",
+	"Excelize",
+	"Excelize's",
+	"Exploitability",
+	"failback",
+	"fenceable",
+	"finalizer",
+	"finalizers",
+	"fixarrays",
+	"formedness",
+	"fstatat",
+	"fsyncs",
+	"geohash",
+	"geohashes",
+	"Glippy",
+	"gnark",
+	"gnark's",
+	"GOARCH",
+	"gochecknoglobals",
+	"Goexit",
+	"gofmt",
+	"gofumpt",
+	"goimports",
+	"goleak",
+	"golines",
+	"gomodguard",
+	"golib",
+	"goodput",
+	"Graphviz",
+	"Grule",
+	"Grule's",
+	"Hallgren",
+	"HDFS",
+	"healthhttp",
+	"heartbeated",
+	"hedgeable",
+	"hexary",
+	"HGETALL",
+	"HLEN",
+	"Hoeffding",
+	"hostless",
+	"hrefs",
+	"HSTS",
+	"HTTPCLIENT",
+	"HTTPMIDDLEWARE",
+	"HTTPWG",
+	"Hyperledger",
+	"hysteretic",
+	"IDNA",
+	"IFMA",
+	"inflectors",
+	"instrumenter",
+	"interfacebloat",
+	"interprocedural",
+	"ireturn",
+	"IUGG",
+	"JAAS",
+	"Jetify",
+	"kadm",
+	"Karney",
+	"Keccak",
+	"keepalive",
+	"keylessly",
+	"kubeconfig",
+	"kubelet",
+	"leaderlessly",
+	"leaderlessness",
+	"leakless",
+	"lestrrat",
+	"libphonenumber",
+	"libpq",
+	"linearizable",
+	"llms",
+	"locationless",
+	"Logrus",
+	"loopclosure",
+	"lostcancel",
+	"matoous",
+	"maxmemory",
+	"merkleization",
+	"MERKLETREE",
+	"metacharacters",
+	"Methodless",
+	"microbenchmark",
+	"microbenchmarks",
+	"Misordered",
+	"misresolution",
+	"MLSD",
+	"MLST",
+	"MTOM",
+	"multichecker",
+	"Multiproof",
+	"multiranges",
+	"multiset",
+	"multisets",
+	"multitenancy",
+	"nacks",
+	"Nethermind",
+	"NFKC",
+	"NFKD",
+	"nilaway",
+	"nilness",
+	"noctx",
+	"noeviction",
+	"nonblank",
+	"nonblocking",
+	"noncanonical",
+	"noncomment",
+	"nondecreasing",
+	"Noninteractive",
+	"nonminimal",
+	"nonportable",
+	"nonpositive",
+	"nontransactional",
+	"nsqd",
+	"O'Malley",
+	"OAUTHBEARER",
+	"obsoletion",
+	"OCSP",
+	"oklog",
+	"OOXML",
+	"ORPC",
+	"openfeature",
+	"Packagist",
+	"parseability",
+	"PASETO",
+	"PCRE",
+	"Pedersen",
+	"Petstore",
+	"pgxpool",
+	"poolers",
+	"postorder",
+	"precomputation",
+	"preemptible",
+	"preflighted",
+	"preflights",
+	"prehash",
+	"prehashed",
+	"preimplement",
+	"presigning",
+	"prevalidated",
+	"promlinter",
+	"pseudonymization",
+	"pseudonymize",
+	"punycoded",
+	"quickstarts",
+	"quiesces",
+	"qvalues",
+	"ratelimithttp",
+	"ratelimitlog",
+	"ratelimitprincipal",
+	"ratelimitqueue",
+	"ratelimitrpc",
+	"ratelimittelemetry",
+	"ratelimittest",
+	"readback",
+	"reauthenticated",
+	"reauthenticates",
+	"reauthentication",
+	"rebaseline",
+	"rebaselining",
+	"redispatch",
+	"Redpanda",
+	"redrive",
+	"redriven",
+	"redrives",
+	"reentrancy",
+	"reentrantly",
+	"reindexing",
+	"remappable",
+	"remediations",
+	"replayability",
+	"repolled",
+	"repolls",
+	"Repr",
+	"requiredness",
+	"resampler",
+	"reserialized",
+	"retryer",
+	"revalidations",
+	"revisioned",
+	"revisioning",
+	"RSASSA",
+	"RUSTSEC",
+	"sampledrate",
+	"Sarama",
+	"Sarama's",
+	"SARIF",
+	"savepoints",
+	"seccomp",
+	"seekability",
+	"Semian",
+	"Semian's",
+	"servicetest",
+	"shamaton",
+	"shipit",
+	"Shopspring",
+	"Sigstore",
+	"simplefeatures",
+	"singleflight",
+	"slowloris",
+	"sluggable",
+	"sortation",
+	"spatie",
+	"Spatie's",
+	"speedata",
+	"SPKI",
+	"sqlclosecheck",
+	"SRID",
+	"sslmode",
+	"subcodes",
+	"SUBPROOF",
+	"subresource",
+	"subschema",
+	"subschemas",
+	"subsecond",
+	"Subtag",
+	"subtries",
+	"subvalues",
+	"Symfony",
+	"synctest",
+	"Temurin",
+	"terminality",
+	"timeofday",
+	"TOCTOU",
+	"Toggl",
+	"Toxiproxy",
+	"Tracestate",
+	"triggerable",
+	"trimpath",
+	"txaty",
+	"tzdata",
+	"Unacked",
+	"unacquired",
+	"unactivated",
+	"unadvanced",
+	"uncacheable",
+	"uncancellable",
+	"uncited",
+	"unclaimable",
+	"uncompiled",
+	"unconfigured",
+	"unencodable",
+	"unguessability",
+	"unioned",
+	"unjittered",
+	"unmarshal",
+	"unmarshalling",
+	"unpartitioned",
+	"unranking",
+	"unskewed",
+	"unstarted",
+	"upcaster",
+	"upcasters",
+	"upcasting",
+	"urfave",
+	"userinfo",
+	"valkeygo",
+	"variadics",
+	"varint",
+	"vettool",
+	"voku",
+	"worktrees",
+	"writability",
+	"xorshift",
+	"XSTS",
+	"Yugabyte",
+	"Zstandard",
+	"zxinggo",
+}
 
 type standaloneMutationHistory struct {
 	SchemaVersion           int              `json:"schema_version"`
@@ -436,6 +778,18 @@ func copyStandaloneFoundationFileAs(
 	if sourceRelative == "AGENTS.md" {
 		contents = rewriteStandaloneAgentPolicy(contents)
 	}
+	if sourceRelative == "CONTRIBUTING.md" {
+		contents = rewriteStandaloneContributing(contents)
+	}
+	if sourceRelative == "SECURITY.md" {
+		contents = rewriteStandaloneSecurity(contents, repository.Name)
+	}
+	if sourceRelative == "cspell.json" {
+		contents, err = rewriteStandaloneSpellingConfiguration(contents)
+		if err != nil {
+			return fmt.Errorf("rewrite standalone spelling configuration: %w", err)
+		}
+	}
 	filename := filepath.Join(destination, destinationRelative)
 	if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
 		return fmt.Errorf("create foundation directory for %s: %w", destinationRelative, err)
@@ -497,16 +851,6 @@ make_has_target() {
 find_make_target() {
     local target`,
 			},
-			replacement{
-				`if [[ "${module}" == "." ]]; then
-                GOWORK=off "${root}/scripts/check-documentation.sh"
-            elif target="$(find_make_target docs documentation)"; then
-                make "${target}"`,
-				`if target="$(find_make_target docs documentation)"; then
-                make "${target}"
-            elif [[ "${module}" == "." ]]; then
-                GOWORK=off "${root}/scripts/check-documentation.sh"`,
-			},
 		)
 	}
 	if toolingRelative == "scripts/build-local-proxy.sh" {
@@ -526,6 +870,28 @@ find_make_target() {
 				`shasum -a 256 "${root}/.golib/${input}"`,
 			},
 		)
+	}
+	if toolingRelative == "scripts/package-source-digest.sh" {
+		replacements = append(replacements, replacement{
+			`package_directory="$1"
+case "${package_directory}" in
+    pkg/*) ;;
+    *)
+        printf 'package directory must be beneath pkg/: %s\n' \
+            "${package_directory}" >&2
+        exit 2
+        ;;
+esac`,
+			`package_directory="$1"
+package_directory="${package_directory#./}"
+case "${package_directory}" in
+    ""|/*|../*|*/../*|*/..)
+        printf 'package directory must be repository-relative: %s\n' \
+            "${package_directory}" >&2
+        exit 2
+        ;;
+esac`,
+		})
 	}
 	replacements = append(replacements,
 		replacement{
@@ -553,20 +919,63 @@ find_make_target() {
 		contents = []byte(strings.ReplaceAll(string(contents), item.previous, item.next))
 	}
 	if toolingRelative == "scripts/check-module.sh" {
+		canonicalDocs := "if [[ \"${module}\" == \".\" ]]; then\n" +
+			"                GOWORK=off \"${root}/.golib/scripts/check-documentation.sh\"\n" +
+			"            fi\n" +
+			"            if target=\"$(find_make_target docs documentation)\"; then\n" +
+			"                make \"${target}\"\n" +
+			"            elif [[ \"${module}\" != \".\" ]]; then\n" +
+			"                GOWORK=off go test ./... -run '^Example' -count=1\n" +
+			"            fi"
+		legacyDocs := []string{
+			"if [[ \"${module}\" == \".\" ]]; then\n" +
+				"                GOWORK=off \"${root}/.golib/scripts/check-documentation.sh\"\n" +
+				"            elif target=\"$(find_make_target docs documentation)\"; then\n" +
+				"                make \"${target}\"\n" +
+				"            else\n" +
+				"                GOWORK=off go test ./... -run '^Example' -count=1\n" +
+				"            fi",
+			"if target=\"$(find_make_target docs documentation)\"; then\n" +
+				"                package_make \"${target}\"\n" +
+				"            elif [[ \"${module}\" == \".\" ]]; then\n" +
+				"                GOWORK=off \"${root}/.golib/scripts/check-documentation.sh\"\n" +
+				"            else\n" +
+				"                GOWORK=off go test ./... -run '^Example' -count=1\n" +
+				"            fi",
+		}
+		for _, legacy := range legacyDocs {
+			contents = []byte(strings.ReplaceAll(string(contents), legacy, canonicalDocs))
+		}
 		contents = []byte(strings.ReplaceAll(
 			string(contents),
-			`make GOWORK=off "${target}"`,
-			`package_make GOWORK=off "${target}"`,
+			`                make GOWORK=off "${target}"`,
+			`                package_make GOWORK=off "${target}"`,
 		))
 		contents = []byte(strings.ReplaceAll(
 			string(contents),
-			`make "${target}"`,
-			`package_make "${target}"`,
+			`                make "${target}"`,
+			`                package_make "${target}"`,
 		))
 		contents = []byte(strings.ReplaceAll(
 			string(contents),
 			"                make \\\n",
 			"                package_make \\\n",
+		))
+		for strings.Contains(string(contents), "package_package_make") {
+			contents = []byte(strings.ReplaceAll(
+				string(contents),
+				"package_package_make",
+				"package_make",
+			))
+		}
+	}
+	if toolingRelative == "scripts/package-source-digest.sh" &&
+		!strings.Contains(string(contents), `package_directory="$1"`) {
+		contents = []byte(strings.Replace(
+			string(contents),
+			`package_directory="${package_directory#./}"`,
+			"package_directory=\"$1\"\n"+`package_directory="${package_directory#./}"`,
+			1,
 		))
 	}
 	if toolingRelative == "scripts/check-documentation.sh" {
@@ -575,6 +984,40 @@ find_make_target() {
 			"go run ./cmd/golib documentation\n",
 			"test -s README.md\n",
 		))
+		if !strings.Contains(string(contents), "golib-unpublished-pkg-go-dev") {
+			contents = []byte(strings.Replace(
+				string(contents),
+				`"${lychee}" \
+    --cache=false \
+`,
+				`# golib-unpublished-pkg-go-dev: public-proxy checks own publication readiness.
+"${lychee}" \
+    --cache=false \
+    --exclude '^https://pkg\.go\.dev/(badge/)?github\.com/faustbrian/go-' \
+    --exclude '^https://doi\.org/10\.1145/190314\.190317$' \
+    --exclude '^https://service\.unece\.org/trade/' \
+    --exclude '^https://www\.iso\.org/standard/' \
+`,
+				1,
+			))
+		}
+		for _, exclusion := range []string{
+			`^https://pkg\.go\.dev/(badge/)?github\.com/faustbrian/go-`,
+			`^https://doi\.org/10\.1145/190314\.190317$`,
+			`^https://service\.unece\.org/trade/`,
+			`^https://www\.iso\.org/standard/`,
+		} {
+			argument := "    --exclude '" + exclusion + "' \\\n"
+			if strings.Contains(string(contents), argument) {
+				continue
+			}
+			contents = []byte(strings.Replace(
+				string(contents),
+				"    --max-concurrency 16 \\\n",
+				argument+"    --max-concurrency 16 \\\n",
+				1,
+			))
+		}
 	}
 	return contents
 }
@@ -600,6 +1043,148 @@ func rewriteStandaloneAgentPolicy(contents []byte) []byte {
 		text = strings.ReplaceAll(text, previous, next)
 	}
 	return []byte(text)
+}
+
+func rewriteStandaloneContributing(contents []byte) []byte {
+	replacements := []struct{ previous, next string }{
+		{
+			"[dependency governance policy](docs/dependency-governance.md)",
+			"[dependency governance policy](AGENTS.md#dependencies-and-supply-chain)",
+		},
+		{
+			"[specification governance contract](docs/specification-governance.md)",
+			"[specification governance contract](AGENTS.md#design)",
+		},
+		{
+			"make specification-decisions\n",
+			"",
+		},
+		{
+			"make check MODULES=pkg/<library>",
+			"make check",
+		},
+		{
+			"make ci-changed BASE=origin/main",
+			"make ci",
+		},
+		{
+			"[module lifecycle procedures](docs/module-lifecycle.md)",
+			"[repository structure policy](AGENTS.md#repository-structure)",
+		},
+	}
+	text := string(contents)
+	for _, replacement := range replacements {
+		text = strings.ReplaceAll(text, replacement.previous, replacement.next)
+	}
+	mutationRequirement := "Required mutation gates must finish with zero surviving viable mutants."
+	for strings.Contains(text, mutationRequirement+"\n\n"+mutationRequirement) {
+		text = strings.ReplaceAll(
+			text,
+			mutationRequirement+"\n\n"+mutationRequirement,
+			mutationRequirement,
+		)
+	}
+	if !strings.Contains(text, mutationRequirement) {
+		text = strings.ReplaceAll(
+			text,
+			"Do not add package-local workflows, permanent replacements,",
+			mutationRequirement+"\n\nDo not add package-local workflows, permanent replacements,",
+		)
+	}
+	return []byte(text)
+}
+
+func rewriteStandaloneChangelog(contents []byte) []byte {
+	const flatEntry = "- Harden standalone documentation validation with deterministic spelling and link checks, package-specific documentation gates, and repository-local contributor guidance."
+	const entry = "- Harden standalone documentation validation with deterministic spelling and\n  link checks, package-specific documentation gates, and repository-local\n  contributor guidance."
+	text := string(contents)
+	if strings.Contains(text, entry) {
+		return contents
+	}
+	if strings.Contains(text, flatEntry) {
+		return []byte(strings.ReplaceAll(text, flatEntry, entry))
+	}
+	header := "## [Unreleased]\n"
+	if !strings.Contains(text, header) {
+		header = "## Unreleased\n"
+	}
+	return []byte(strings.Replace(
+		text,
+		header,
+		header+"\n### Changed\n\n"+entry+"\n",
+		1,
+	))
+}
+
+func rewriteStandaloneSecurity(contents []byte, repositoryName string) []byte {
+	text := strings.ReplaceAll(
+		string(contents),
+		"`faustbrian/golib`",
+		"`faustbrian/"+repositoryName+"`",
+	)
+	text = strings.ReplaceAll(
+		text,
+		"Until modules reach `v1`, only the latest released minor line receives security\nfixes. After `v1`, support windows are documented per module and in",
+		"The latest stable `v1` release line receives security fixes. Support windows\nare documented per module and in",
+	)
+	text = strings.ReplaceAll(
+		text,
+		"The repository-wide [threat model](docs/security/threat-model.md),\n[security matrix](docs/security/security-matrix.md), and\n[residual-risk register](docs/security/residual-risks.md) define shared trust\nboundaries and open release risks. Package-specific threat models refine those\nrules for their owned boundary; they do not replace the repository model.",
+		"The repository [safety and concurrency policy](AGENTS.md#safety-and-concurrency)\nand [supply-chain policy](AGENTS.md#dependencies-and-supply-chain) define shared\ntrust boundaries and release requirements. Package-specific security guidance\nrefines those rules for its owned boundary.",
+	)
+	return []byte(text)
+}
+
+func rewriteStandaloneSpellingConfiguration(contents []byte) ([]byte, error) {
+	configuration := map[string]json.RawMessage{}
+	if err := json.Unmarshal(contents, &configuration); err != nil {
+		return nil, err
+	}
+
+	words := make([]string, 0)
+	if raw, ok := configuration["words"]; ok {
+		if err := json.Unmarshal(raw, &words); err != nil {
+			return nil, fmt.Errorf("decode words: %w", err)
+		}
+	}
+	words = append(words, standaloneSpellingWords...)
+	configuration["words"] = mustStandaloneJSON(sortedUniqueStrings(words))
+
+	ignoreRegExpList := make([]string, 0)
+	if raw, ok := configuration["ignoreRegExpList"]; ok {
+		if err := json.Unmarshal(raw, &ignoreRegExpList); err != nil {
+			return nil, fmt.Errorf("decode ignoreRegExpList: %w", err)
+		}
+	}
+	ignoreRegExpList = append(ignoreRegExpList, standaloneSpellingIgnoreRegExpList...)
+	configuration["ignoreRegExpList"] = mustStandaloneJSON(sortedUniqueStrings(ignoreRegExpList))
+
+	rewritten, err := json.MarshalIndent(configuration, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(rewritten, '\n'), nil
+}
+
+func sortedUniqueStrings(values []string) []string {
+	unique := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		unique[value] = struct{}{}
+	}
+	result := make([]string, 0, len(unique))
+	for value := range unique {
+		result = append(result, value)
+	}
+	slices.Sort(result)
+	return result
+}
+
+func mustStandaloneJSON(value any) json.RawMessage {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return encoded
 }
 
 const standaloneMakefile = `SHELL := /usr/bin/env bash

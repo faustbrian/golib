@@ -8,6 +8,7 @@ selected_module="${GOLIB_STANDALONE_MUTATION_MODULE:-}"
 task="$(mktemp -d -t golib-mutation-bootstrap.XXXXXX)"
 
 cleanup() {
+    chmod -R u+w "${task}" 2>/dev/null || true
     find "${task}" -depth -delete 2>/dev/null || true
 }
 trap cleanup EXIT HUP INT TERM

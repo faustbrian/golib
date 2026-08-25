@@ -48,6 +48,7 @@ func migrateStandaloneToolingReferences(root string, arguments []string) error {
 	changed := 0
 	for _, repository := range manifest.Repositories {
 		destination := filepath.Join(*destinationRoot, repository.DestinationDirectory)
+		modulePath := standaloneModulePrefix + repository.Name
 		sharedTooling, err := standaloneSharedToolingPaths(destination)
 		if err != nil {
 			return fmt.Errorf("%s: %w", repository.Name, err)
@@ -72,8 +73,29 @@ func migrateStandaloneToolingReferences(root string, arguments []string) error {
 			if bytes.IndexByte(contents, 0) >= 0 {
 				continue
 			}
-			rewritten := rewriteStandaloneSharedToolingReferences(
-				contents,
+			rewritten := contents
+			if relative == "CONTRIBUTING.md" {
+				rewritten = rewriteStandaloneContributing(rewritten)
+			}
+			if relative == "CHANGELOG.md" {
+				rewritten = rewriteStandaloneChangelog(rewritten)
+			}
+			if relative == "SECURITY.md" {
+				rewritten = rewriteStandaloneSecurity(rewritten, repository.Name)
+			}
+			if relative == "cspell.json" {
+				rewritten, err = rewriteStandaloneSpellingConfiguration(rewritten)
+				if err != nil {
+					return fmt.Errorf("rewrite %s/%s: %w", repository.Name, relative, err)
+				}
+			}
+			if relative == ".golib/scripts/package-source-digest.sh" ||
+				relative == ".golib/scripts/check-module.sh" ||
+				relative == ".golib/scripts/check-documentation.sh" {
+				rewritten = rewriteStandaloneTooling(rewritten, relative, modulePath)
+			}
+			rewritten = rewriteStandaloneSharedToolingReferences(
+				rewritten,
 				relative,
 				destination,
 				sharedTooling,

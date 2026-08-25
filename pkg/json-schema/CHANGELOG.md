@@ -7,6 +7,8 @@ Changelog structure and semantic versioning after v1.
 
 ### Documentation
 
+- Correct stale package, standalone, and authoritative-source links in public
+  documentation.
 - Link the package README to the repository-wide Golib documentation portal.
 
 - Add a machine-validated provenance manifest that binds the official test

@@ -18,5 +18,5 @@ classification.
 
 The current `authentication` checkout is intentionally not imported because
 it has no released module tag. This keeps `password` reproducible offline and
-avoids an unportable sibling replacement. An application-level adapter can
+avoids a non-portable sibling replacement. An application-level adapter can
 implement `authentication.Authenticator` without changing either core package.

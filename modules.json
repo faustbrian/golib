@@ -428,6 +428,7 @@
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-REFERENCE-DURABILITY-MATRIX.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-RELEASE-SNAPSHOT-SELECTION.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-SNAPSHOT-INDEX.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TELEMETRY-ENDPOINT.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TENANCY-HEADER-FILTER.md",
             "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-TENANCY-UNRELATED-HEADER.md",
@@ -783,11 +784,12 @@
         },
         {
           "file": ".ai/GOAL_STANDALONE_REPOSITORIES.md",
-          "requirements_sha256": "a7093b13bb6f61bebcc09479678557529b15b8387b8f423fc0f08f8d5f765ac4",
+          "requirements_sha256": "80c34e71b2f2da58b2ac9e91152f1f8ea1a3944ea7b3eaee19b02f31de6a5755",
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
+            "docs/assurance/evidence/OA-INPUT-DIGEST-MIGRATION-STANDALONE-PROXY.md",
             "docs/hardening-report.md",
             "docs/migration/standalone.md",
             "docs/performance.md",

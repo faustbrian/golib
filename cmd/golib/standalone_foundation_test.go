@@ -53,6 +53,153 @@ func TestInstallStandaloneLintConfiguration(t *testing.T) {
 	}
 }
 
+func TestRewriteStandaloneContributingUsesStandaloneContracts(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`New direct dependencies must follow the
+[dependency governance policy](docs/dependency-governance.md).
+Specification-backed changes must follow the
+[specification governance contract](docs/specification-governance.md).
+
+Run during development:
+
+\x60\x60\x60bash
+make inventory
+make specification-decisions
+make check MODULES=pkg/<library>
+\x60\x60\x60
+
+Before submitting a repository-wide change:
+
+\x60\x60\x60bash
+make ci-changed BASE=origin/main
+\x60\x60\x60
+
+Follow [module lifecycle procedures](docs/module-lifecycle.md).
+
+Do not add package-local workflows, permanent replacements, machine-specific
+paths, bypass flags, broad mutation exclusions, or aggregate quality metrics.
+`)
+	got := string(rewriteStandaloneContributing(input))
+	for _, forbidden := range []string{
+		"docs/dependency-governance.md",
+		"docs/specification-governance.md",
+		"docs/module-lifecycle.md",
+		"make check MODULES=pkg/<library>",
+		"make ci-changed",
+		"make specification-decisions",
+	} {
+		if strings.Contains(got, forbidden) {
+			t.Errorf("standalone contributor guide retains %q:\n%s", forbidden, got)
+		}
+	}
+	for _, wanted := range []string{
+		"AGENTS.md#dependencies-and-supply-chain",
+		"AGENTS.md#design",
+		"AGENTS.md#repository-structure",
+		"make check",
+		"make ci",
+		"zero surviving viable mutants",
+	} {
+		if !strings.Contains(got, wanted) {
+			t.Errorf("standalone contributor guide does not contain %q:\n%s", wanted, got)
+		}
+	}
+	second := rewriteStandaloneContributing([]byte(got))
+	if string(second) != got {
+		t.Fatalf("standalone contributor guide rewrite is not idempotent:\n%s", second)
+	}
+}
+
+func TestRewriteStandaloneSpellingConfigurationAddsStandaloneMarkdownPolicy(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`{
+  "version": "0.2",
+  "words": ["existing", "golib"],
+  "ignoreRegExpList": ["/existing/g"]
+}
+`)
+	got, err := rewriteStandaloneSpellingConfiguration(input)
+	if err != nil {
+		t.Fatalf("rewriteStandaloneSpellingConfiguration() error = %v", err)
+	}
+	for _, wanted := range []string{
+		`"version": "0.2"`,
+		`"existing"`,
+		`"golib"`,
+		"/```[\\\\s\\\\S]*?```/g",
+		"/`[^`\\\\n]+`/g",
+		`/https?:\\/\\/[^\\s)]+/g`,
+	} {
+		if !strings.Contains(string(got), wanted) {
+			t.Errorf("standalone spelling configuration does not contain %q:\n%s", wanted, got)
+		}
+	}
+	second, err := rewriteStandaloneSpellingConfiguration(got)
+	if err != nil {
+		t.Fatalf("second rewriteStandaloneSpellingConfiguration() error = %v", err)
+	}
+	if string(second) != string(got) {
+		t.Fatalf("standalone spelling configuration is not idempotent:\n%s", second)
+	}
+}
+
+func TestRewriteStandaloneChangelogRecordsDocumentationPolicy(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("# Changelog\n\n## [Unreleased]\n\n## [1.0.0]\n")
+	got := rewriteStandaloneChangelog(input)
+	if !strings.Contains(string(got), "Harden standalone documentation validation") {
+		t.Fatalf("standalone changelog does not record documentation policy:\n%s", got)
+	}
+	second := rewriteStandaloneChangelog(got)
+	if string(second) != string(got) {
+		t.Fatalf("standalone changelog rewrite is not idempotent:\n%s", second)
+	}
+
+	unbracketed := rewriteStandaloneChangelog([]byte("# Changelog\n\n## Unreleased\n"))
+	if !strings.Contains(string(unbracketed), "Harden standalone documentation validation") {
+		t.Fatalf("unbracketed standalone changelog was not updated:\n%s", unbracketed)
+	}
+}
+
+func TestRewriteStandaloneSecurityUsesRepositoryOwnedPolicies(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("Report through `faustbrian/golib`.\n\n" +
+		"Until modules reach `v1`, only the latest released minor line receives security\n" +
+		"fixes. After `v1`, support windows are documented per module and in\n" +
+		"[`COMPATIBILITY.md`](COMPATIBILITY.md).\n\n" +
+		"The repository-wide [threat model](docs/security/threat-model.md),\n" +
+		"[security matrix](docs/security/security-matrix.md), and\n" +
+		"[residual-risk register](docs/security/residual-risks.md) define shared trust\n" +
+		"boundaries and open release risks. Package-specific threat models refine those\n" +
+		"rules for their owned boundary; they do not replace the repository model.\n")
+	got := string(rewriteStandaloneSecurity(input, "go-validation"))
+	for _, forbidden := range []string{
+		"faustbrian/golib",
+		"Until modules reach",
+		"docs/security/threat-model.md",
+		"docs/security/security-matrix.md",
+		"docs/security/residual-risks.md",
+	} {
+		if strings.Contains(got, forbidden) {
+			t.Errorf("standalone security policy retains %q:\n%s", forbidden, got)
+		}
+	}
+	for _, wanted := range []string{
+		"faustbrian/go-validation",
+		"latest stable `v1` release line",
+		"AGENTS.md#safety-and-concurrency",
+		"AGENTS.md#dependencies-and-supply-chain",
+	} {
+		if !strings.Contains(got, wanted) {
+			t.Errorf("standalone security policy does not contain %q:\n%s", wanted, got)
+		}
+	}
+}
+
 func TestStandaloneSafetyProgramMatchesRepositoryPolicy(t *testing.T) {
 	directory := t.TempDir()
 	program := filepath.Join(directory, "safety.go")

@@ -7,6 +7,8 @@ and releases use Semantic Versioning.
 
 ### Documentation
 
+- Correct stale package, standalone, and authoritative-source links in public
+  documentation.
 - Link the package README to the repository-wide Golib documentation portal.
 
 ### Changed

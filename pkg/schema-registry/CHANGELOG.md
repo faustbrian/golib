@@ -7,6 +7,8 @@
 
 ### Documentation
 
+- Correct stale package, standalone, and authoritative-source links in public
+  documentation.
 - Link the package README to the repository-wide Golib documentation portal.
 
 - Replace the obsolete JSON Schema pseudo-version with the canonical monorepo
