@@ -129,6 +129,7 @@ func installStandaloneFoundation(
 		".github/workflows/ci.yml":                   standaloneCIWorkflow,
 		".golib/scripts/run-modules.sh":              standaloneRunModules,
 		".golib/scripts/check-go-safety.sh":          standaloneSafetyScript,
+		".golib/scripts/check-go-safety.go":          standaloneSafetyProgram,
 		".golib/scripts/codeql-build.sh":             standaloneCodeQLBuild,
 		".golib/scripts/repository-check.sh":         standaloneRepositoryCheck,
 		".golib/scripts/release.sh":                  standaloneReleaseScript,
@@ -144,7 +145,7 @@ func installStandaloneFoundation(
 			return fmt.Errorf("create %s parent: %w", relative, err)
 		}
 		mode := fs.FileMode(0o644)
-		if strings.HasPrefix(relative, ".golib/scripts/") {
+		if strings.HasSuffix(relative, ".sh") {
 			mode = 0o755
 		}
 		if err := os.WriteFile(filename, []byte(contents), mode); err != nil {
@@ -703,13 +704,97 @@ root="$(git rev-parse --show-toplevel)"
 module="$1"
 directory="${root}/${module}"
 
-if rg -n --glob '*.go' --glob '!**/*_test.go' \
-    '(^|[^[:alnum:]_])(unsafe\.|os\.Exit\(|log\.Fatal|http\.DefaultClient)' \
-    "${directory}"; then
-    printf 'forbidden unsafe or process-global production API detected\n' >&2
-    exit 1
-fi
+go run "${root}/.golib/scripts/check-go-safety.go" "${directory}"
 printf 'standalone safety policy passed for %s\n' "${module}"
+`
+
+const standaloneSafetyProgram = `package main
+
+import (
+	"fmt"
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "usage: check-go-safety <directory>")
+		os.Exit(2)
+	}
+	violations, err := scan(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	for _, violation := range violations {
+		fmt.Fprintln(os.Stderr, violation)
+	}
+	if len(violations) != 0 {
+		os.Exit(1)
+	}
+}
+
+func scan(directory string) ([]string, error) {
+	violations := make([]string, 0)
+	err := filepath.WalkDir(directory, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if path != directory && excludedDirectory(entry.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		fileSet := token.NewFileSet()
+		file, err := parser.ParseFile(fileSet, path, nil, parser.ParseComments)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+		for _, imported := range file.Imports {
+			name, err := strconv.Unquote(imported.Path.Value)
+			if err != nil {
+				return fmt.Errorf("parse import in %s: %w", path, err)
+			}
+			if name == "unsafe" || name == "C" {
+				violations = append(violations, fmt.Sprintf(
+					"%s:%d: forbidden import %q",
+					path,
+					fileSet.Position(imported.Pos()).Line,
+					name,
+				))
+			}
+		}
+		for _, group := range file.Comments {
+			for _, comment := range group.List {
+				if strings.HasPrefix(strings.TrimSpace(comment.Text), "//go:linkname") {
+					violations = append(violations, fmt.Sprintf(
+						"%s:%d: forbidden go:linkname directive",
+						path,
+						fileSet.Position(comment.Pos()).Line,
+					))
+				}
+			}
+		}
+		return nil
+	})
+	sort.Strings(violations)
+	return violations, err
+}
+
+func excludedDirectory(name string) bool {
+	return name == "vendor" || name == "testdata" || strings.HasPrefix(name, ".")
+}
 `
 
 const standaloneCodeQLBuild = `#!/usr/bin/env bash
