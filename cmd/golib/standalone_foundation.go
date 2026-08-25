@@ -33,6 +33,7 @@ var standaloneFoundationFiles = []string{
 	"COMPATIBILITY.md",
 	"CONTRIBUTING.md",
 	"DEPRECATION.md",
+	"SECURITY.md",
 	"SUPPORT.md",
 	"cspell.json",
 	"package-lock.json",
@@ -74,6 +75,13 @@ func installStandaloneFoundation(
 	}
 
 	for _, relative := range standaloneFoundationFiles {
+		if relative == "SECURITY.md" {
+			if _, err := os.Stat(filepath.Join(destination, relative)); err == nil {
+				continue
+			} else if !os.IsNotExist(err) {
+				return fmt.Errorf("inspect package security policy: %w", err)
+			}
+		}
 		if err := copyStandaloneFoundationFile(
 			sourceRoot,
 			destination,
@@ -555,7 +563,11 @@ jq -e --arg repository "${repository}" '
     (.modules | length > 0) and
     all(.modules[];
         (.directory == "." or (.directory | startswith("/") | not)) and
-        (.module_path == $repository or (.module_path | startswith($repository + "/")))
+        (
+            .releasable == false or
+            .module_path == $repository or
+            (.module_path | startswith($repository + "/"))
+        )
     )
 ' "${root}/modules.json" >/dev/null
 

@@ -2072,6 +2072,9 @@ func validatePaths(root string) {
 		command.Args,
 		"--",
 		":(exclude).ai/GOAL_MONOREPO_REMEDIATION.md",
+		":(exclude)cmd/golib/standalone_foundation.go",
+		":(exclude)cmd/golib/standalone_populate.go",
+		":(exclude)cmd/golib/standalone_populate_test.go",
 		":(exclude)cmd/golib/standalone_test.go",
 		":(exclude,glob)migration/standalone/**",
 	)
