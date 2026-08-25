@@ -57,6 +57,9 @@ func populateStandaloneRepositories(root string, arguments []string) error {
 			versions[item.Path] = item.ReleaseVersion
 		}
 	}
+	for previous, replacement := range standaloneSupersededModulePaths() {
+		paths[previous] = replacement
+	}
 
 	selected := 0
 	for _, repository := range manifest.Repositories {
@@ -81,6 +84,12 @@ func populateStandaloneRepositories(root string, arguments []string) error {
 	}
 
 	return nil
+}
+
+func standaloneSupersededModulePaths() map[string]string {
+	return map[string]string{
+		standaloneModulePrefix + "go-postgresql": standaloneModulePrefix + "go-postgres",
+	}
 }
 
 func populateStandaloneRepository(

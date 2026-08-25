@@ -61,6 +61,15 @@ func TestRewriteStandaloneContentsUsesLongestModulePathFirst(t *testing.T) {
 	}
 }
 
+func TestStandaloneSupersededModulePathsRetiresPostgresqlIdentity(t *testing.T) {
+	t.Parallel()
+
+	paths := standaloneSupersededModulePaths()
+	if got := paths["github.com/faustbrian/go-postgresql"]; got != "github.com/faustbrian/go-postgres" {
+		t.Fatalf("postgres replacement = %q", got)
+	}
+}
+
 func TestRewriteStandaloneRepositoryPathsRequiresFamilyBoundary(t *testing.T) {
 	t.Parallel()
 

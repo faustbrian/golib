@@ -94,6 +94,42 @@ func TestPrepareStandaloneChangelogSupportsCollisionSuccessorVersion(t *testing.
 	}
 }
 
+func TestPrepareStandaloneChangelogPromotesUnpublishedCollisionRecord(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("# Changelog\n\n## [Unreleased]\n\n## [1.0.0] - 2026-08-25\n\n" +
+		"Document the initial stable `v1.0.0` scope.\n\n" +
+		"Dependencies remain at `v1.0.0`.\n\n" +
+		"### v1.0.0 scope\n\nIncluded in `v1.0.0`.\n\n" +
+		"[Unreleased]: https://github.com/faustbrian/go-postgres/compare/v1.0.0...HEAD\n" +
+		"[1.0.0]: https://github.com/faustbrian/go-postgres/releases/tag/v1.0.0\n")
+	got, err := prepareStandaloneChangelog(
+		input,
+		"go-postgres",
+		"v1.0.1",
+		"v1.0.1",
+		"2026-08-25",
+	)
+	if err != nil {
+		t.Fatalf("prepareStandaloneChangelog() error = %v", err)
+	}
+	for _, want := range []string{
+		"## [1.0.1] - 2026-08-25",
+		"initial stable `v1.0.1` scope",
+		"Dependencies remain at `v1.0.0`.",
+		"### v1.0.1 scope",
+		"Included in `v1.0.1`.",
+		"[1.0.1]: https://github.com/faustbrian/go-postgres/releases/tag/v1.0.1",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("promoted changelog is missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(string(got), "## [1.0.0]") {
+		t.Fatalf("legacy collision heading remains:\n%s", got)
+	}
+}
+
 func TestPrepareStandaloneChangelogRejectsReleaseDateChange(t *testing.T) {
 	t.Parallel()
 

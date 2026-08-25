@@ -168,6 +168,7 @@ func prepareStandaloneChangelog(
 	releaseDate string,
 ) ([]byte, error) {
 	text := strings.TrimRight(string(contents), "\n")
+	text = promoteStandaloneCollisionChangelog(text, repository, releaseVersion)
 	match := standaloneUnreleasedHeading.FindStringSubmatchIndex(text)
 	if match == nil {
 		return nil, errors.New("missing Unreleased section")
@@ -207,6 +208,25 @@ func prepareStandaloneChangelog(
 		catalogVersion,
 		bracketed,
 	), nil
+}
+
+func promoteStandaloneCollisionChangelog(text string, repository string, releaseVersion string) string {
+	if repository != "go-postgres" || releaseVersion != "v1.0.1" {
+		return text
+	}
+	replacements := []struct{ previous, replacement string }{
+		{"## [1.0.0] - ", "## [1.0.1] - "},
+		{"## 1.0.0 - ", "## 1.0.1 - "},
+		{"[1.0.0]:", "[1.0.1]:"},
+		{"initial stable `v1.0.0` scope", "initial stable `v1.0.1` scope"},
+		{"### v1.0.0 scope", "### v1.0.1 scope"},
+		{"included in `v1.0.0`", "included in `v1.0.1`"},
+		{"Included in `v1.0.0`", "Included in `v1.0.1`"},
+	}
+	for _, replacement := range replacements {
+		text = strings.Replace(text, replacement.previous, replacement.replacement, 1)
+	}
+	return text
 }
 
 func updateStandaloneChangelogLinks(
