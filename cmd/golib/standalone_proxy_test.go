@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -19,6 +20,8 @@ func TestStandaloneModuleArchiveExcludesNestedModules(t *testing.T) {
 	writeProxyTestFile(t, root, "queueservice/service.go", "package queueservice\n")
 	writeProxyTestFile(t, root, ".golib/mutation-bootstrap/root.zip", "ci evidence")
 	writeProxyTestFile(t, root, ".golib/scripts/check.sh", "#!/bin/sh\n")
+	initializeProxyTestRepository(t, root)
+	writeProxyTestFile(t, root, "generated-binary", "untracked output")
 	item := standaloneModulePlan{
 		Directory:  ".",
 		Path:       "github.com/faustbrian/go-queue",
@@ -59,6 +62,7 @@ func TestStandaloneModuleArchiveIsDeterministic(t *testing.T) {
 
 	root := t.TempDir()
 	writeProxyTestFile(t, root, "go.mod", "module github.com/faustbrian/go-clock\n")
+	initializeProxyTestRepository(t, root)
 	item := standaloneModulePlan{
 		Directory:  ".",
 		Path:       "github.com/faustbrian/go-clock",
@@ -74,6 +78,17 @@ func TestStandaloneModuleArchiveIsDeterministic(t *testing.T) {
 	}
 	if !bytes.Equal(first, second) {
 		t.Fatal("standalone module archives are not deterministic")
+	}
+}
+
+func initializeProxyTestRepository(t *testing.T, root string) {
+	t.Helper()
+	for _, arguments := range [][]string{{"init", "--quiet"}, {"add", "--", "."}} {
+		command := exec.Command("git", arguments...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", arguments, err, output)
+		}
 	}
 }
 

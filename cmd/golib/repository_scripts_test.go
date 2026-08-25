@@ -864,6 +864,9 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 				if strings.Contains(file.Name, "/.golib/") {
 					t.Fatalf("local proxy archive includes repository tooling: %s", file.Name)
 				}
+				if strings.HasSuffix(file.Name, "/proxy_untracked_test.go") {
+					t.Fatalf("local proxy archive includes untracked output: %s", file.Name)
+				}
 			}
 		}
 	}
@@ -908,15 +911,10 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 			t.Errorf("close authotel local archive: %v", err)
 		}
 	}()
-	untrackedIncluded := false
 	for _, file := range authotelArchive.File {
 		if strings.HasSuffix(file.Name, "/proxy_untracked_test.go") {
-			untrackedIncluded = true
-			break
+			t.Fatal("local proxy included untracked module source")
 		}
-	}
-	if !untrackedIncluded {
-		t.Fatal("local proxy omitted untracked module source")
 	}
 
 	parentSelection := t.TempDir()

@@ -124,6 +124,37 @@ func TestRemoveLegacyRootToolingDeletesMigrationOnlyInstalledScripts(t *testing.
 	}
 }
 
+func TestCopyStandaloneScriptsRemovesMigrationOnlyScripts(t *testing.T) {
+	t.Parallel()
+
+	source := t.TempDir()
+	destination := t.TempDir()
+	for _, relative := range standaloneMigrationOnlyScripts {
+		for _, root := range []string{source, filepath.Join(destination, ".golib")} {
+			filename := filepath.Join(root, relative)
+			if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+				t.Fatalf("create script directory: %v", err)
+			}
+			if err := os.WriteFile(filename, []byte("#!/bin/sh\n"), 0o755); err != nil {
+				t.Fatalf("write script: %v", err)
+			}
+		}
+	}
+	if err := copyStandaloneScripts(
+		source,
+		destination,
+		standaloneRepository{Name: "go-example"},
+		map[string]string{},
+	); err != nil {
+		t.Fatalf("copyStandaloneScripts() error = %v", err)
+	}
+	for _, relative := range standaloneMigrationOnlyScripts {
+		if _, err := os.Stat(filepath.Join(destination, ".golib", relative)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("migration-only installed script remains: %s: %v", relative, err)
+		}
+	}
+}
+
 func TestStandaloneWorkflowRetainsStrictCIContracts(t *testing.T) {
 	t.Parallel()
 

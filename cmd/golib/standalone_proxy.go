@@ -7,8 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -209,36 +209,32 @@ func standaloneModuleArchive(
 	}
 	sort.Strings(nested)
 
+	command := exec.Command("git", "ls-files", "-z", "--cached", "--", ".")
+	command.Dir = moduleRoot
+	output, err := command.Output()
+	if err != nil {
+		return nil, fmt.Errorf("inventory tracked module files %s: %w", item.Path, err)
+	}
 	files := make([]string, 0)
-	err := filepath.WalkDir(moduleRoot, func(filename string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+	for _, raw := range bytes.Split(output, []byte{0}) {
+		if len(raw) == 0 {
+			continue
 		}
-		relative, err := filepath.Rel(moduleRoot, filename)
+		relative := filepath.Clean(string(raw))
+		if relative == ".golib" || strings.HasPrefix(relative, ".golib"+string(filepath.Separator)) ||
+			relative == ".artifacts" ||
+			strings.HasPrefix(relative, ".artifacts"+string(filepath.Separator)) ||
+			standalonePathWithin(relative, nested) {
+			continue
+		}
+		info, err := os.Lstat(filepath.Join(moduleRoot, relative))
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("inspect tracked archive file %s: %w", relative, err)
 		}
-		if relative == "." {
-			return nil
-		}
-		if entry.IsDir() {
-			if relative == ".git" || relative == ".artifacts" || relative == ".golib" ||
-				standalonePathWithin(relative, nested) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return nil
-		}
-		if !entry.Type().IsRegular() {
-			return nil
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			continue
 		}
 		files = append(files, relative)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("inventory module archive %s: %w", item.Path, err)
 	}
 	sort.Strings(files)
 

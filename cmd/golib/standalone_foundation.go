@@ -288,7 +288,7 @@ func copyStandaloneScripts(
 	paths map[string]string,
 ) error {
 	source := filepath.Join(sourceRoot, "scripts")
-	return filepath.WalkDir(source, func(filename string, entry fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(source, func(filename string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -303,9 +303,7 @@ func copyStandaloneScripts(
 		if entry.IsDir() {
 			return os.MkdirAll(filepath.Join(destination, destinationRelative), 0o755)
 		}
-		if sourceRelative == "scripts/capture-standalone-repository-audit.sh" ||
-			sourceRelative == "scripts/extract-standalone-repository.sh" ||
-			sourceRelative == "scripts/tidy-standalone-modules.sh" {
+		if standaloneMigrationOnlyScript(sourceRelative) {
 			return nil
 		}
 		return copyStandaloneFoundationFileAs(
@@ -317,6 +315,32 @@ func copyStandaloneScripts(
 			paths,
 		)
 	})
+	if err != nil {
+		return err
+	}
+	for _, relative := range standaloneMigrationOnlyScripts {
+		filename := filepath.Join(destination, ".golib", relative)
+		if err := os.Remove(filename); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove migration-only standalone script %s: %w", relative, err)
+		}
+	}
+	return nil
+}
+
+var standaloneMigrationOnlyScripts = []string{
+	"scripts/capture-standalone-repository-audit.sh",
+	"scripts/extract-standalone-repository.sh",
+	"scripts/migrate-standalone-mutation-evidence.sh",
+	"scripts/tidy-standalone-modules.sh",
+}
+
+func standaloneMigrationOnlyScript(relative string) bool {
+	for _, candidate := range standaloneMigrationOnlyScripts {
+		if relative == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func copyStandaloneFoundationFile(
