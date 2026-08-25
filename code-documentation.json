@@ -10,9 +10,9 @@
       "documented_packages": 0,
       "missing_package_comments": 1,
       "duplicate_package_comments": 0,
-      "exported_declarations": 169,
-      "documented_declarations": 33,
-      "missing_declaration_comments": 136,
+      "exported_declarations": 179,
+      "documented_declarations": 36,
+      "missing_declaration_comments": 143,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -975,6 +975,55 @@
           "path": "cmd/golib/source_documentation.go",
           "line": 51,
           "symbol": "Comments",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/standalone_foundation.go",
+          "line": 13,
+          "symbol": "SchemaVersion",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/standalone_foundation.go",
+          "line": 14,
+          "symbol": "Reason",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/standalone_foundation.go",
+          "line": 15,
+          "symbol": "VerifierMigrationReview",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/standalone_foundation.go",
+          "line": 16,
+          "symbol": "VerifierMigrations",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/standalone_foundation.go",
+          "line": 17,
+          "symbol": "Entries",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/standalone_foundation.go",
+          "line": 21,
+          "symbol": "SchemaVersion",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/standalone_foundation.go",
+          "line": 22,
+          "symbol": "Packages",
           "message": "exported declaration has no documentation comment"
         }
       ]

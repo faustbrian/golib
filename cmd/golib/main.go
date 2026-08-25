@@ -114,7 +114,7 @@ type modFile struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: golib <manifest|standalone-manifest|validate|cohesion|documentation|specifications|assurance|select|safety>")
+		fatal("usage: golib <manifest|standalone-manifest|standalone-populate|validate|cohesion|documentation|specifications|assurance|select|safety>")
 	}
 
 	root, err := repositoryRoot()
@@ -128,6 +128,10 @@ func main() {
 	case "standalone-manifest":
 		if err := writeStandaloneManifest(root, os.Args[2:]); err != nil {
 			fatal("standalone manifest: %v", err)
+		}
+	case "standalone-populate":
+		if err := populateStandaloneRepositories(root, os.Args[2:]); err != nil {
+			fatal("standalone populate: %v", err)
 		}
 	case "validate":
 		validate(root)
