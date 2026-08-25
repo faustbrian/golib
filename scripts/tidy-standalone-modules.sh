@@ -6,6 +6,7 @@ root="$(git rev-parse --show-toplevel)"
 manifest="${GOLIB_STANDALONE_MANIFEST:-${root}/migration/standalone/repositories.json}"
 destination_root="${GOLIB_STANDALONE_ROOT:-/Users/brian/Developer/golib}"
 task_root="$(mktemp -d /tmp/golib-standalone-tidy.XXXXXX)"
+snapshot_root="${task_root}/repositories"
 
 cleanup() {
     chmod -R u+w "${task_root}" 2>/dev/null || true
@@ -18,6 +19,35 @@ export GOMODCACHE="${task_root}/gomodcache"
 export GONOSUMDB="github.com/faustbrian/go-*"
 mkdir -p "${GOCACHE}" "${GOMODCACHE}"
 
+snapshot_repositories() {
+    local repository source destination dirty_manifests
+
+    mkdir -p "${snapshot_root}"
+    while IFS= read -r repository; do
+        [[ -z "${repository}" ]] && continue
+        source="${destination_root}/${repository}"
+        destination="${snapshot_root}/${repository}"
+        dirty_manifests="$(
+            git -C "${source}" status --short --untracked-files=all -- \
+                'go.mod' 'go.sum' ':(glob)**/go.mod' ':(glob)**/go.sum'
+        )"
+        if [[ -n "${dirty_manifests}" ]]; then
+            printf '%s has uncommitted module manifest changes:\n%s\n' \
+                "${repository}" "${dirty_manifests}" >&2
+            exit 1
+        fi
+        git clone --quiet --no-hardlinks --no-checkout \
+            "${source}" "${destination}"
+        git -C "${destination}" checkout --quiet --detach \
+            "$(git -C "${source}" rev-parse HEAD)"
+        git -C "${destination}" config --local core.fsmonitor false
+        git -C "${destination}" remote set-url origin \
+            "$(git -C "${source}" remote get-url origin)"
+    done < <(jq -r '.repositories[].name' "${manifest}")
+}
+
+snapshot_repositories
+
 tool="${task_root}/golib"
 proxy="${task_root}/proxy"
 go build -o "${tool}" ./cmd/golib
@@ -25,12 +55,39 @@ go build -o "${tool}" ./cmd/golib
 module_root() {
     local repository="$1"
     local directory="$2"
-    local result="${destination_root}/${repository}"
+    local result="${snapshot_root}/${repository}"
 
     if [[ "${directory}" != "." ]]; then
         result="${result}/${directory}"
     fi
     printf '%s\n' "${result}"
+}
+
+sync_module_manifests() {
+    local repository directory module_path source_root destination file
+
+    while IFS=$'\t' read -r repository directory module_path; do
+        [[ -z "${module_path}" ]] && continue
+        source_root="$(module_root "${repository}" "${directory}")"
+        destination="${destination_root}/${repository}"
+        if [[ "${directory}" != "." ]]; then
+            destination="${destination}/${directory}"
+        fi
+
+        for file in go.mod go.sum; do
+            if [[ -f "${source_root}/${file}" ]]; then
+                if ! cmp -s "${source_root}/${file}" "${destination}/${file}"; then
+                    cp "${source_root}/${file}" "${destination}/${file}"
+                fi
+            elif [[ -f "${destination}/${file}" ]]; then
+                unlink "${destination}/${file}"
+            fi
+        done
+    done < <(jq -r '
+        .modules[]
+        | [.repository, .directory, .module_path]
+        | @tsv
+    ' "${manifest}")
 }
 
 rebuild_proxy() {
@@ -140,7 +197,7 @@ maximum_passes="$((wave_count + 2))"
 converged=0
 for ((pass = 1; pass <= maximum_passes; pass++)); do
     before="$(standalone_manifest_digest)"
-    "${tool}" standalone-clean-sums --destination-root "${destination_root}"
+    "${tool}" standalone-clean-sums --destination-root "${snapshot_root}"
     printf 'standalone checksum convergence pass %d/%d\n' \
         "${pass}" "${maximum_passes}"
     tidy_all_modules
@@ -173,3 +230,4 @@ while IFS=$'\t' read -r repository directory module_path; do
     verified=$((verified + 1))
 done <<< "${selection}"
 printf 'tidy verification passed for %d modules\n' "${verified}"
+sync_module_manifests
