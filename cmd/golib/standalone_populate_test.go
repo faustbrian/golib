@@ -66,6 +66,17 @@ func TestRewriteStandaloneRepositoryPathsRequiresFamilyBoundary(t *testing.T) {
 	}
 }
 
+func TestRewriteStandaloneRepositoryPathsReplacesReferenceCheckout(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("Reference `/Users/brian/Developer/cline/json-schema`.\n")
+	got := rewriteStandaloneRepositoryPaths(input, "json-schema", "go-json-schema")
+	want := "Reference `https://github.com/faustbrian/json-schema`.\n"
+	if string(got) != want {
+		t.Fatalf("rewriteStandaloneRepositoryPaths() = %q, want %q", got, want)
+	}
+}
+
 func TestStandaloneMakefileUsesInstalledRepositoryTooling(t *testing.T) {
 	t.Parallel()
 

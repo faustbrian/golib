@@ -438,6 +438,10 @@ func rewriteStandaloneRepositoryPaths(contents []byte, family string, repository
 	prefix := "pkg/" + family
 	replacements := []struct{ previous, next string }{
 		{
+			"/Users/brian/Developer/cline/json-schema",
+			"https://github.com/faustbrian/json-schema",
+		},
+		{
 			"https://github.com/faustbrian/golib/blob/main/" + prefix + "/",
 			"https://github.com/faustbrian/" + repository + "/blob/main/",
 		},
