@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Clear the task-owned module cache whenever the deterministic standalone proxy
+  is rebuilt so fixed-point checksum verification cannot reuse stale archives
+  for unchanged module versions.
 - Converge standalone checksums to a fixed point before publishing bootstrap
   archives, format Go sources after import-path rewriting, and always attach an
   attributable CI outcome even when a fixture module has no applicable gate

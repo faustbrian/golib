@@ -1859,6 +1859,7 @@ func TestStandaloneTidyRepeatsUntilManifestChecksumsConverge(t *testing.T) {
 		`standalone_manifest_digest()`,
 		`maximum_passes=`,
 		`for ((pass = 1; pass <= maximum_passes; pass++))`,
+		`find "${GOMODCACHE}" -mindepth 1 -depth -delete`,
 		`before="$(standalone_manifest_digest)"`,
 		`after="$(standalone_manifest_digest)"`,
 		`if [[ "${before}" == "${after}" ]]`,

@@ -36,6 +36,8 @@ module_root() {
 rebuild_proxy() {
     local through_wave="$1"
 
+    chmod -R u+w "${GOMODCACHE}" 2>/dev/null || true
+    find "${GOMODCACHE}" -mindepth 1 -depth -delete
     if [[ -d "${proxy}" ]]; then
         find "${proxy}" -depth -delete
     fi
