@@ -114,7 +114,7 @@ type modFile struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: golib <manifest|standalone-manifest|standalone-populate|standalone-clean-sums|standalone-proxy|validate|cohesion|documentation|specifications|assurance|select|safety>")
+		fatal("usage: golib <manifest|standalone-manifest|standalone-populate|standalone-release-prepare|standalone-clean-sums|standalone-proxy|validate|cohesion|documentation|specifications|assurance|select|safety>")
 	}
 
 	root, err := repositoryRoot()
@@ -132,6 +132,10 @@ func main() {
 	case "standalone-populate":
 		if err := populateStandaloneRepositories(root, os.Args[2:]); err != nil {
 			fatal("standalone populate: %v", err)
+		}
+	case "standalone-release-prepare":
+		if err := prepareStandaloneReleases(root, os.Args[2:]); err != nil {
+			fatal("standalone release prepare: %v", err)
 		}
 	case "standalone-clean-sums":
 		if err := cleanStandaloneChecksums(root, os.Args[2:]); err != nil {

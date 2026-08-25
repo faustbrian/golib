@@ -15,6 +15,8 @@ documented in each module's changelog.
   scope legacy-path enforcement around audited migration artifacts while
   replacing machine-local reference checkout links and recording every root
   and nested module identity migration in its changelog.
+- Prepare every releasable standalone module for its first stable `v1.0.0`
+  record with dated, idempotent changelog and module metadata updates.
 - Generate standalone module checksums in dependency order so local `v1.0.0`
   proxy verification cannot retain hashes from unfinished dependency trees.
 - Route standalone Makefile targets through the installed `.golib` tooling so
