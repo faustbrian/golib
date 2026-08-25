@@ -25,6 +25,83 @@ type standalonePackageCatalog struct {
 	Packages []packageInfo `json:"packages"`
 }
 
+func migrateStandaloneToolingReferences(root string, arguments []string) error {
+	flags := flag.NewFlagSet("standalone-tooling-references", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	destinationRoot := flags.String(
+		"destination-root",
+		"/Users/brian/Developer/golib",
+		"directory containing the standalone repositories",
+	)
+	check := flags.Bool("check", false, "report stale references without changing them")
+	if err := flags.Parse(arguments); err != nil {
+		return err
+	}
+
+	manifest := standaloneManifest{}
+	if err := readStandaloneJSON(
+		filepath.Join(root, "migration/standalone/repositories.json"),
+		&manifest,
+	); err != nil {
+		return err
+	}
+	changed := 0
+	for _, repository := range manifest.Repositories {
+		destination := filepath.Join(*destinationRoot, repository.DestinationDirectory)
+		sharedTooling, err := standaloneSharedToolingPaths(destination)
+		if err != nil {
+			return fmt.Errorf("%s: %w", repository.Name, err)
+		}
+		files, err := standaloneTrackedFiles(destination)
+		if err != nil {
+			return fmt.Errorf("%s: %w", repository.Name, err)
+		}
+		for _, relative := range files {
+			filename := filepath.Join(destination, relative)
+			info, err := os.Lstat(filename)
+			if err != nil {
+				return fmt.Errorf("inspect %s/%s: %w", repository.Name, relative, err)
+			}
+			if !info.Mode().IsRegular() {
+				continue
+			}
+			contents, err := os.ReadFile(filename)
+			if err != nil {
+				return fmt.Errorf("read %s/%s: %w", repository.Name, relative, err)
+			}
+			if bytes.IndexByte(contents, 0) >= 0 {
+				continue
+			}
+			rewritten := rewriteStandaloneSharedToolingReferences(
+				contents,
+				relative,
+				destination,
+				sharedTooling,
+			)
+			if bytes.Equal(contents, rewritten) {
+				continue
+			}
+			changed++
+			if *check {
+				continue
+			}
+			if err := os.WriteFile(filename, rewritten, info.Mode().Perm()); err != nil {
+				return fmt.Errorf("rewrite %s/%s: %w", repository.Name, relative, err)
+			}
+		}
+	}
+	if *check && changed != 0 {
+		return fmt.Errorf("%d standalone files retain monorepo tooling references", changed)
+	}
+	if *check {
+		fmt.Println("standalone tooling references are canonical")
+	} else {
+		fmt.Printf("rewrote standalone tooling references in %d files\n", changed)
+	}
+
+	return nil
+}
+
 func populateStandaloneRepositories(root string, arguments []string) error {
 	flags := flag.NewFlagSet("standalone-populate", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -122,6 +199,10 @@ func populateStandaloneRepository(
 	if err != nil {
 		return err
 	}
+	sharedTooling, err := standaloneSharedToolingPaths(destination)
+	if err != nil {
+		return err
+	}
 	for _, relative := range files {
 		filename := filepath.Join(destination, relative)
 		info, err := os.Lstat(filename)
@@ -151,6 +232,12 @@ func populateStandaloneRepository(
 			rewritten,
 			repository.Family,
 			repository.Name,
+		)
+		rewritten = rewriteStandaloneSharedToolingReferences(
+			rewritten,
+			relative,
+			destination,
+			sharedTooling,
 		)
 		if relative == "README.md" {
 			rewritten = addStandaloneReadmeBadges(rewritten, repository)
@@ -200,6 +287,63 @@ func populateStandaloneRepository(
 	}
 
 	return nil
+}
+
+func standaloneSharedToolingPaths(destination string) ([]string, error) {
+	root := filepath.Join(destination, ".golib", "scripts")
+	paths := make([]string, 0)
+	err := filepath.WalkDir(root, func(filename string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		relative, err := filepath.Rel(filepath.Join(destination, ".golib"), filename)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, filepath.ToSlash(relative))
+
+		return nil
+	})
+	sort.Strings(paths)
+
+	return paths, err
+}
+
+func rewriteStandaloneSharedToolingReferences(
+	contents []byte,
+	currentRelative string,
+	destination string,
+	sharedTooling []string,
+) []byte {
+	currentRelative = filepath.ToSlash(currentRelative)
+	for _, sharedRelative := range sharedTooling {
+		packageTool := filepath.Join(destination, filepath.FromSlash(sharedRelative))
+		_, packageErr := os.Stat(packageTool)
+		if packageErr == nil && currentRelative != sharedRelative {
+			continue
+		}
+		if packageErr != nil && !os.IsNotExist(packageErr) {
+			continue
+		}
+		installedRelative := ".golib/" + sharedRelative
+		for _, prefix := range []string{
+			"${root}/",
+			"$root/",
+			"$$(git rev-parse --show-toplevel)/",
+			"$(git rev-parse --show-toplevel)/",
+		} {
+			contents = bytes.ReplaceAll(
+				contents,
+				[]byte(prefix+sharedRelative),
+				[]byte(prefix+installedRelative),
+			)
+		}
+	}
+
+	return contents
 }
 
 func standaloneRepositoryRequiredServices(current catalog, family string) []string {

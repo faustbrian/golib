@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -50,29 +51,28 @@ func installStandaloneFoundation(
 	paths map[string]string,
 	requiredServices []string,
 ) error {
-	packageMakefile := filepath.Join(destination, "Makefile")
 	preservedMakefile := filepath.Join(destination, ".golib/package.mk")
-	if _, err := os.Stat(preservedMakefile); os.IsNotExist(err) {
-		contents, readErr := os.ReadFile(packageMakefile)
-		if readErr != nil && !os.IsNotExist(readErr) {
-			return fmt.Errorf("read package Makefile: %w", readErr)
+	packageMakefile := filepath.Join(sourceRoot, repository.SourceDirectory, "Makefile")
+	contents, readErr := os.ReadFile(packageMakefile)
+	if readErr != nil && !os.IsNotExist(readErr) {
+		return fmt.Errorf("read package Makefile: %w", readErr)
+	}
+	if readErr == nil {
+		contents = rewriteStandaloneContents(contents, paths, nil, false)
+		contents = rewriteStandaloneRepositoryPaths(
+			contents,
+			repository.Family,
+			repository.Name,
+		)
+		contents = rewriteStandalonePackageMakefile(contents)
+		if err := os.MkdirAll(filepath.Join(destination, ".golib"), 0o755); err != nil {
+			return fmt.Errorf("create tooling directory: %w", err)
 		}
-		if readErr == nil {
-			contents = rewriteStandaloneContents(contents, paths, nil, false)
-			contents = rewriteStandaloneRepositoryPaths(
-				contents,
-				repository.Family,
-				repository.Name,
-			)
-			if err := os.MkdirAll(filepath.Join(destination, ".golib"), 0o755); err != nil {
-				return fmt.Errorf("create tooling directory: %w", err)
-			}
-			if err := os.WriteFile(preservedMakefile, contents, 0o644); err != nil {
-				return fmt.Errorf("preserve package Makefile: %w", err)
-			}
+		if err := os.WriteFile(preservedMakefile, contents, 0o644); err != nil {
+			return fmt.Errorf("preserve package Makefile: %w", err)
 		}
-	} else if err != nil {
-		return fmt.Errorf("inspect preserved package Makefile: %w", err)
+	} else if err := os.Remove(preservedMakefile); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove obsolete package Makefile: %w", err)
 	}
 
 	for _, relative := range standaloneFoundationFiles {
@@ -154,6 +154,10 @@ func installStandaloneFoundation(
 	}
 
 	return nil
+}
+
+func rewriteStandalonePackageMakefile(contents []byte) []byte {
+	return bytes.ReplaceAll(contents, []byte("../../scripts/"), []byte("./.golib/scripts/"))
 }
 
 func installStandaloneLintConfiguration(

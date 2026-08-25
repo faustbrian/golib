@@ -123,6 +123,69 @@ func TestStandaloneMakefileUsesInstalledRepositoryTooling(t *testing.T) {
 	}
 }
 
+func TestRewriteStandalonePackageMakefileUsesInstalledRepositoryTooling(t *testing.T) {
+	t.Parallel()
+
+	input := []byte("./scripts/with-gocache.sh ../../scripts/check-api-baseline.sh .\n")
+	want := "./scripts/with-gocache.sh ./.golib/scripts/check-api-baseline.sh .\n"
+	if got := string(rewriteStandalonePackageMakefile(input)); got != want {
+		t.Fatalf("rewriteStandalonePackageMakefile() = %q, want %q", got, want)
+	}
+}
+
+func TestRewriteStandaloneSharedToolingReferencesRedirectsSelfWrapper(t *testing.T) {
+	t.Parallel()
+
+	destination := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(destination, "scripts"), 0o755); err != nil {
+		t.Fatalf("create scripts directory: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(destination, "scripts", "check-mutation.sh"),
+		[]byte("wrapper"),
+		0o755,
+	); err != nil {
+		t.Fatalf("write package wrapper: %v", err)
+	}
+	input := []byte("exec \"${root}/scripts/check-mutation.sh\" .\n")
+	want := "exec \"${root}/.golib/scripts/check-mutation.sh\" .\n"
+	got := rewriteStandaloneSharedToolingReferences(
+		input,
+		"scripts/check-mutation.sh",
+		destination,
+		[]string{"scripts/check-mutation.sh"},
+	)
+	if string(got) != want {
+		t.Fatalf("rewriteStandaloneSharedToolingReferences() = %q, want %q", got, want)
+	}
+}
+
+func TestRewriteStandaloneSharedToolingReferencesPreservesPackageTool(t *testing.T) {
+	t.Parallel()
+
+	destination := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(destination, "scripts"), 0o755); err != nil {
+		t.Fatalf("create scripts directory: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(destination, "scripts", "release.sh"),
+		[]byte("package release"),
+		0o755,
+	); err != nil {
+		t.Fatalf("write package tool: %v", err)
+	}
+	input := []byte("\"$root/scripts/release.sh\" v1.0.0\n")
+	got := rewriteStandaloneSharedToolingReferences(
+		input,
+		"scripts/verify-release.sh",
+		destination,
+		[]string{"scripts/release.sh"},
+	)
+	if string(got) != string(input) {
+		t.Fatalf("rewriteStandaloneSharedToolingReferences() = %q, want %q", got, input)
+	}
+}
+
 func TestRemoveLegacyRootToolingDeletesMigrationOnlyInstalledScripts(t *testing.T) {
 	t.Parallel()
 
