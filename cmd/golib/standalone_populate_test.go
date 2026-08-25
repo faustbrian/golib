@@ -65,6 +65,23 @@ func TestRewriteStandaloneRepositoryPathsRequiresFamilyBoundary(t *testing.T) {
 	}
 }
 
+func TestStandaloneMakefileUsesInstalledRepositoryTooling(t *testing.T) {
+	t.Parallel()
+
+	for _, command := range []string{
+		"./.golib/scripts/with-disposable-go-cache.sh",
+		"./.golib/scripts/run-modules.sh",
+		"./.golib/scripts/repository-check.sh",
+	} {
+		if !strings.Contains(standaloneMakefile, command) {
+			t.Fatalf("standalone Makefile does not invoke %s", command)
+		}
+	}
+	if strings.Contains(standaloneMakefile, "\n\t./scripts/") {
+		t.Fatal("standalone Makefile invokes the package-owned scripts directory")
+	}
+}
+
 func TestRemoveStandaloneOwnedChecksumsKeepsExternalModules(t *testing.T) {
 	t.Parallel()
 

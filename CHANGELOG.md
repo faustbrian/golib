@@ -9,6 +9,8 @@ documented in each module's changelog.
 
 - Generate standalone module checksums in dependency order so local `v1.0.0`
   proxy verification cannot retain hashes from unfinished dependency trees.
+- Route standalone Makefile targets through the installed `.golib` tooling so
+  local repository checks execute the same contract as CI.
 - Separate release-rehearsal artifacts from strict verification evidence and
   restore the newest exact content-matching mutation checkpoint across prior
   trusted runs, so release artifacts and stale partial runs cannot trigger
