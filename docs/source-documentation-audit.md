@@ -6,7 +6,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 
 | Module | Packages | Package gaps | Exported declarations | Missing comments | Malformed comments | Generated gaps | Markers |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `.` | 1 | 1 | 136 | 136 | 0 | 0 | 0 |
+| `.` | 1 | 1 | 168 | 136 | 0 | 0 | 0 |
 | `pkg/adaptive-throttle` | 1 | 0 | 106 | 66 | 0 | 0 | 0 |
 | `pkg/analysis` | 28 | 1 | 442 | 283 | 0 | 0 | 0 |
 | `pkg/analysis/testdata/coverage` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |

@@ -1,0 +1,2800 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "github.com/faustbrian/golib",
+    "commit": "2ce9d76b35d5f69f216307758fc49c01a5ada315",
+    "ci_run": 32743496559
+  },
+  "counts": {
+    "repositories": 82,
+    "modules": 140,
+    "releasable_modules": 110
+  },
+  "repositories": [
+    {
+      "family": "adaptive-throttle",
+      "name": "go-adaptive-throttle",
+      "module_path": "github.com/faustbrian/go-adaptive-throttle",
+      "source_directory": "pkg/adaptive-throttle",
+      "destination_directory": "go-adaptive-throttle",
+      "modules": [
+        "github.com/faustbrian/go-adaptive-throttle"
+      ]
+    },
+    {
+      "family": "analysis",
+      "name": "go-analysis",
+      "module_path": "github.com/faustbrian/go-analysis",
+      "source_directory": "pkg/analysis",
+      "destination_directory": "go-analysis",
+      "modules": [
+        "example.com/analysis-coverage",
+        "github.com/faustbrian/go-analysis"
+      ]
+    },
+    {
+      "family": "api-query",
+      "name": "go-api-query",
+      "module_path": "github.com/faustbrian/go-api-query",
+      "source_directory": "pkg/api-query",
+      "destination_directory": "go-api-query",
+      "modules": [
+        "github.com/faustbrian/go-api-query"
+      ]
+    },
+    {
+      "family": "audit",
+      "name": "go-audit",
+      "module_path": "github.com/faustbrian/go-audit",
+      "source_directory": "pkg/audit",
+      "destination_directory": "go-audit",
+      "modules": [
+        "github.com/faustbrian/go-audit",
+        "github.com/faustbrian/go-audit/postgres"
+      ]
+    },
+    {
+      "family": "authentication",
+      "name": "go-authentication",
+      "module_path": "github.com/faustbrian/go-authentication",
+      "source_directory": "pkg/authentication",
+      "destination_directory": "go-authentication",
+      "modules": [
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-authentication/authotel",
+        "github.com/faustbrian/go-authentication/jwt",
+        "github.com/faustbrian/go-authentication/oidc"
+      ]
+    },
+    {
+      "family": "authorization",
+      "name": "go-authorization",
+      "module_path": "github.com/faustbrian/go-authorization",
+      "source_directory": "pkg/authorization",
+      "destination_directory": "go-authorization",
+      "modules": [
+        "github.com/faustbrian/go-authorization",
+        "github.com/faustbrian/go-authorization/integration/contracts"
+      ]
+    },
+    {
+      "family": "barcode",
+      "name": "go-barcode",
+      "module_path": "github.com/faustbrian/go-barcode",
+      "source_directory": "pkg/barcode",
+      "destination_directory": "go-barcode",
+      "modules": [
+        "github.com/faustbrian/go-barcode"
+      ]
+    },
+    {
+      "family": "bulkhead",
+      "name": "go-bulkhead",
+      "module_path": "github.com/faustbrian/go-bulkhead",
+      "source_directory": "pkg/bulkhead",
+      "destination_directory": "go-bulkhead",
+      "modules": [
+        "github.com/faustbrian/go-bulkhead",
+        "github.com/faustbrian/go-bulkhead/benchmarks/comparison",
+        "github.com/faustbrian/go-bulkhead/integration/resilience"
+      ]
+    },
+    {
+      "family": "cache",
+      "name": "go-cache",
+      "module_path": "github.com/faustbrian/go-cache",
+      "source_directory": "pkg/cache",
+      "destination_directory": "go-cache",
+      "modules": [
+        "github.com/faustbrian/go-cache"
+      ]
+    },
+    {
+      "family": "calendar",
+      "name": "go-calendar",
+      "module_path": "github.com/faustbrian/go-calendar",
+      "source_directory": "pkg/calendar",
+      "destination_directory": "go-calendar",
+      "modules": [
+        "github.com/faustbrian/go-calendar"
+      ]
+    },
+    {
+      "family": "capability",
+      "name": "go-capability",
+      "module_path": "github.com/faustbrian/go-capability",
+      "source_directory": "pkg/capability",
+      "destination_directory": "go-capability",
+      "modules": [
+        "github.com/faustbrian/go-capability"
+      ]
+    },
+    {
+      "family": "circuit-breaker",
+      "name": "go-circuit-breaker",
+      "module_path": "github.com/faustbrian/go-circuit-breaker",
+      "source_directory": "pkg/circuit-breaker",
+      "destination_directory": "go-circuit-breaker",
+      "modules": [
+        "github.com/faustbrian/go-circuit-breaker",
+        "github.com/faustbrian/go-circuit-breaker/integration/consumers"
+      ]
+    },
+    {
+      "family": "cli",
+      "name": "go-cli",
+      "module_path": "github.com/faustbrian/go-cli",
+      "source_directory": "pkg/cli",
+      "destination_directory": "go-cli",
+      "modules": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-cli/benchmarks"
+      ]
+    },
+    {
+      "family": "clock",
+      "name": "go-clock",
+      "module_path": "github.com/faustbrian/go-clock",
+      "source_directory": "pkg/clock",
+      "destination_directory": "go-clock",
+      "modules": [
+        "github.com/faustbrian/go-clock"
+      ]
+    },
+    {
+      "family": "cloudevents",
+      "name": "go-cloudevents",
+      "module_path": "github.com/faustbrian/go-cloudevents",
+      "source_directory": "pkg/cloudevents",
+      "destination_directory": "go-cloudevents",
+      "modules": [
+        "github.com/faustbrian/go-cloudevents",
+        "github.com/faustbrian/go-cloudevents/adapters/golib"
+      ]
+    },
+    {
+      "family": "concurrency-limit",
+      "name": "go-concurrency-limit",
+      "module_path": "github.com/faustbrian/go-concurrency-limit",
+      "source_directory": "pkg/concurrency-limit",
+      "destination_directory": "go-concurrency-limit",
+      "modules": [
+        "github.com/faustbrian/go-concurrency-limit",
+        "github.com/faustbrian/go-concurrency-limit/benchmarks/comparison",
+        "github.com/faustbrian/go-concurrency-limit/integration/resilience"
+      ]
+    },
+    {
+      "family": "config",
+      "name": "go-config",
+      "module_path": "github.com/faustbrian/go-config",
+      "source_directory": "pkg/config",
+      "destination_directory": "go-config",
+      "modules": [
+        "github.com/faustbrian/go-config",
+        "github.com/faustbrian/go-config/adapters/awssecretsmanager"
+      ]
+    },
+    {
+      "family": "correlation",
+      "name": "go-correlation",
+      "module_path": "github.com/faustbrian/go-correlation",
+      "source_directory": "pkg/correlation",
+      "destination_directory": "go-correlation",
+      "modules": [
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-correlation/integration/siblings"
+      ]
+    },
+    {
+      "family": "ecma-regexp",
+      "name": "go-ecma-regexp",
+      "module_path": "github.com/faustbrian/go-ecma-regexp",
+      "source_directory": "pkg/ecma-regexp",
+      "destination_directory": "go-ecma-regexp",
+      "modules": [
+        "github.com/faustbrian/go-ecma-regexp"
+      ]
+    },
+    {
+      "family": "event-sourcing",
+      "name": "go-event-sourcing",
+      "module_path": "github.com/faustbrian/go-event-sourcing",
+      "source_directory": "pkg/event-sourcing",
+      "destination_directory": "go-event-sourcing",
+      "modules": [
+        "github.com/faustbrian/go-event-sourcing",
+        "github.com/faustbrian/go-event-sourcing/adapters/gokafka",
+        "github.com/faustbrian/go-event-sourcing/adapters/gotelemetry",
+        "github.com/faustbrian/go-event-sourcing/adapters/outbox",
+        "github.com/faustbrian/go-event-sourcing/adapters/queue",
+        "github.com/faustbrian/go-event-sourcing/benchmarks/competitors",
+        "github.com/faustbrian/go-event-sourcing/postgres"
+      ]
+    },
+    {
+      "family": "external-sort",
+      "name": "go-external-sort",
+      "module_path": "github.com/faustbrian/go-external-sort",
+      "source_directory": "pkg/external-sort",
+      "destination_directory": "go-external-sort",
+      "modules": [
+        "github.com/faustbrian/go-external-sort"
+      ]
+    },
+    {
+      "family": "fault-injection",
+      "name": "go-fault-injection",
+      "module_path": "github.com/faustbrian/go-fault-injection",
+      "source_directory": "pkg/fault-injection",
+      "destination_directory": "go-fault-injection",
+      "modules": [
+        "github.com/faustbrian/go-fault-injection",
+        "github.com/faustbrian/go-fault-injection/benchmarks/comparison",
+        "github.com/faustbrian/go-fault-injection/integration/resilience"
+      ]
+    },
+    {
+      "family": "feature-flags",
+      "name": "go-feature-flags",
+      "module_path": "github.com/faustbrian/go-feature-flags",
+      "source_directory": "pkg/feature-flags",
+      "destination_directory": "go-feature-flags",
+      "modules": [
+        "github.com/faustbrian/go-feature-flags"
+      ]
+    },
+    {
+      "family": "filesystem",
+      "name": "go-filesystem",
+      "module_path": "github.com/faustbrian/go-filesystem",
+      "source_directory": "pkg/filesystem",
+      "destination_directory": "go-filesystem",
+      "modules": [
+        "github.com/faustbrian/go-filesystem"
+      ]
+    },
+    {
+      "family": "geo",
+      "name": "go-geo",
+      "module_path": "github.com/faustbrian/go-geo",
+      "source_directory": "pkg/geo",
+      "destination_directory": "go-geo",
+      "modules": [
+        "github.com/faustbrian/go-geo"
+      ]
+    },
+    {
+      "family": "hedge",
+      "name": "go-hedge",
+      "module_path": "github.com/faustbrian/go-hedge",
+      "source_directory": "pkg/hedge",
+      "destination_directory": "go-hedge",
+      "modules": [
+        "github.com/faustbrian/go-hedge"
+      ]
+    },
+    {
+      "family": "http-client",
+      "name": "go-http-client",
+      "module_path": "github.com/faustbrian/go-http-client",
+      "source_directory": "pkg/http-client",
+      "destination_directory": "go-http-client",
+      "modules": [
+        "github.com/faustbrian/go-http-client"
+      ]
+    },
+    {
+      "family": "http-middleware",
+      "name": "go-http-middleware",
+      "module_path": "github.com/faustbrian/go-http-middleware",
+      "source_directory": "pkg/http-middleware",
+      "destination_directory": "go-http-middleware",
+      "modules": [
+        "github.com/faustbrian/go-http-middleware",
+        "github.com/faustbrian/go-http-middleware/integration/siblings"
+      ]
+    },
+    {
+      "family": "http-signature",
+      "name": "go-http-signature",
+      "module_path": "github.com/faustbrian/go-http-signature",
+      "source_directory": "pkg/http-signature",
+      "destination_directory": "go-http-signature",
+      "modules": [
+        "github.com/faustbrian/go-http-signature",
+        "github.com/faustbrian/go-http-signature/benchmarks/comparison",
+        "github.com/faustbrian/go-http-signature/differential/shared-corpus"
+      ]
+    },
+    {
+      "family": "idempotency",
+      "name": "go-idempotency",
+      "module_path": "github.com/faustbrian/go-idempotency",
+      "source_directory": "pkg/idempotency",
+      "destination_directory": "go-idempotency",
+      "modules": [
+        "github.com/faustbrian/go-idempotency",
+        "github.com/faustbrian/go-idempotency/compatibility/ecosystem"
+      ]
+    },
+    {
+      "family": "identifier",
+      "name": "go-identifier",
+      "module_path": "github.com/faustbrian/go-identifier",
+      "source_directory": "pkg/identifier",
+      "destination_directory": "go-identifier",
+      "modules": [
+        "github.com/faustbrian/go-identifier"
+      ]
+    },
+    {
+      "family": "international",
+      "name": "go-international",
+      "module_path": "github.com/faustbrian/go-international",
+      "source_directory": "pkg/international",
+      "destination_directory": "go-international",
+      "modules": [
+        "github.com/faustbrian/go-international"
+      ]
+    },
+    {
+      "family": "json-schema",
+      "name": "go-json-schema",
+      "module_path": "github.com/faustbrian/go-json-schema",
+      "source_directory": "pkg/json-schema",
+      "destination_directory": "go-json-schema",
+      "modules": [
+        "github.com/faustbrian/go-json-schema",
+        "github.com/faustbrian/go-json-schema/benchmarks/comparison"
+      ]
+    },
+    {
+      "family": "jsonapi",
+      "name": "go-jsonapi",
+      "module_path": "github.com/faustbrian/go-jsonapi",
+      "source_directory": "pkg/jsonapi",
+      "destination_directory": "go-jsonapi",
+      "modules": [
+        "github.com/faustbrian/go-jsonapi"
+      ]
+    },
+    {
+      "family": "jsonrpc",
+      "name": "go-jsonrpc",
+      "module_path": "github.com/faustbrian/go-jsonrpc",
+      "source_directory": "pkg/jsonrpc",
+      "destination_directory": "go-jsonrpc",
+      "modules": [
+        "github.com/faustbrian/go-jsonrpc"
+      ]
+    },
+    {
+      "family": "kafka",
+      "name": "go-kafka",
+      "module_path": "github.com/faustbrian/go-kafka",
+      "source_directory": "pkg/kafka",
+      "destination_directory": "go-kafka",
+      "modules": [
+        "github.com/faustbrian/go-kafka",
+        "github.com/faustbrian/go-kafka/adapters/gotelemetry",
+        "github.com/faustbrian/go-kafka/adapters/mskiam",
+        "github.com/faustbrian/go-kafka/benchmarks/clients",
+        "github.com/faustbrian/go-kafka/kafkaservice"
+      ]
+    },
+    {
+      "family": "keyphrase",
+      "name": "go-keyphrase",
+      "module_path": "github.com/faustbrian/go-keyphrase",
+      "source_directory": "pkg/keyphrase",
+      "destination_directory": "go-keyphrase",
+      "modules": [
+        "github.com/faustbrian/go-keyphrase"
+      ]
+    },
+    {
+      "family": "knapsack",
+      "name": "go-knapsack",
+      "module_path": "github.com/faustbrian/go-knapsack",
+      "source_directory": "pkg/knapsack",
+      "destination_directory": "go-knapsack",
+      "modules": [
+        "github.com/faustbrian/go-knapsack",
+        "github.com/faustbrian/go-knapsack/integration/references",
+        "github.com/faustbrian/go-knapsack/objective/gomoney"
+      ]
+    },
+    {
+      "family": "lease",
+      "name": "go-lease",
+      "module_path": "github.com/faustbrian/go-lease",
+      "source_directory": "pkg/lease",
+      "destination_directory": "go-lease",
+      "modules": [
+        "github.com/faustbrian/go-lease"
+      ]
+    },
+    {
+      "family": "localized",
+      "name": "go-localized",
+      "module_path": "github.com/faustbrian/go-localized",
+      "source_directory": "pkg/localized",
+      "destination_directory": "go-localized",
+      "modules": [
+        "github.com/faustbrian/go-localized"
+      ]
+    },
+    {
+      "family": "log",
+      "name": "go-log",
+      "module_path": "github.com/faustbrian/go-log",
+      "source_directory": "pkg/log",
+      "destination_directory": "go-log",
+      "modules": [
+        "github.com/faustbrian/go-log"
+      ]
+    },
+    {
+      "family": "math",
+      "name": "go-math",
+      "module_path": "github.com/faustbrian/go-math",
+      "source_directory": "pkg/math",
+      "destination_directory": "go-math",
+      "modules": [
+        "github.com/faustbrian/go-math"
+      ]
+    },
+    {
+      "family": "measurement",
+      "name": "go-measurement",
+      "module_path": "github.com/faustbrian/go-measurement",
+      "source_directory": "pkg/measurement",
+      "destination_directory": "go-measurement",
+      "modules": [
+        "github.com/faustbrian/go-measurement"
+      ]
+    },
+    {
+      "family": "merkle-patricia-trie",
+      "name": "go-merkle-patricia-trie",
+      "module_path": "github.com/faustbrian/go-merkle-patricia-trie",
+      "source_directory": "pkg/merkle-patricia-trie",
+      "destination_directory": "go-merkle-patricia-trie",
+      "modules": [
+        "github.com/faustbrian/go-merkle-patricia-trie"
+      ]
+    },
+    {
+      "family": "merkle-tree",
+      "name": "go-merkle-tree",
+      "module_path": "github.com/faustbrian/go-merkle-tree",
+      "source_directory": "pkg/merkle-tree",
+      "destination_directory": "go-merkle-tree",
+      "modules": [
+        "github.com/faustbrian/go-merkle-tree"
+      ]
+    },
+    {
+      "family": "migrations",
+      "name": "go-migrations",
+      "module_path": "github.com/faustbrian/go-migrations",
+      "source_directory": "pkg/migrations",
+      "destination_directory": "go-migrations",
+      "modules": [
+        "github.com/faustbrian/go-migrations"
+      ]
+    },
+    {
+      "family": "money",
+      "name": "go-money",
+      "module_path": "github.com/faustbrian/go-money",
+      "source_directory": "pkg/money",
+      "destination_directory": "go-money",
+      "modules": [
+        "github.com/faustbrian/go-money"
+      ]
+    },
+    {
+      "family": "openapi",
+      "name": "go-openapi",
+      "module_path": "github.com/faustbrian/go-openapi",
+      "source_directory": "pkg/openapi",
+      "destination_directory": "go-openapi",
+      "modules": [
+        "github.com/faustbrian/go-openapi",
+        "github.com/faustbrian/go-openapi/interoperability"
+      ]
+    },
+    {
+      "family": "opening-hours",
+      "name": "go-opening-hours",
+      "module_path": "github.com/faustbrian/go-opening-hours",
+      "source_directory": "pkg/opening-hours",
+      "destination_directory": "go-opening-hours",
+      "modules": [
+        "github.com/faustbrian/go-opening-hours"
+      ]
+    },
+    {
+      "family": "openrpc",
+      "name": "go-openrpc",
+      "module_path": "github.com/faustbrian/go-openrpc",
+      "source_directory": "pkg/openrpc",
+      "destination_directory": "go-openrpc",
+      "modules": [
+        "github.com/faustbrian/go-openrpc"
+      ]
+    },
+    {
+      "family": "password",
+      "name": "go-password",
+      "module_path": "github.com/faustbrian/go-password",
+      "source_directory": "pkg/password",
+      "destination_directory": "go-password",
+      "modules": [
+        "github.com/faustbrian/go-password"
+      ]
+    },
+    {
+      "family": "postgres",
+      "name": "go-postgresql",
+      "module_path": "github.com/faustbrian/go-postgresql",
+      "source_directory": "pkg/postgres",
+      "destination_directory": "go-postgresql",
+      "modules": [
+        "github.com/faustbrian/go-postgresql",
+        "github.com/faustbrian/go-postgresql/examples/migrations"
+      ]
+    },
+    {
+      "family": "prompts",
+      "name": "go-prompts",
+      "module_path": "github.com/faustbrian/go-prompts",
+      "source_directory": "pkg/prompts",
+      "destination_directory": "go-prompts",
+      "modules": [
+        "github.com/faustbrian/go-prompts",
+        "github.com/faustbrian/go-prompts/benchmarks/comparison"
+      ]
+    },
+    {
+      "family": "queue",
+      "name": "go-queue",
+      "module_path": "github.com/faustbrian/go-queue",
+      "source_directory": "pkg/queue",
+      "destination_directory": "go-queue",
+      "modules": [
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-queue/queueservice"
+      ]
+    },
+    {
+      "family": "queue-control-plane",
+      "name": "go-queue-control-plane",
+      "module_path": "github.com/faustbrian/go-queue-control-plane",
+      "source_directory": "pkg/queue-control-plane",
+      "destination_directory": "go-queue-control-plane",
+      "modules": [
+        "github.com/faustbrian/go-queue-control-plane"
+      ]
+    },
+    {
+      "family": "rabbitstream",
+      "name": "go-rabbitmq-streams",
+      "module_path": "github.com/faustbrian/go-rabbitmq-streams",
+      "source_directory": "pkg/rabbitstream",
+      "destination_directory": "go-rabbitmq-streams",
+      "modules": [
+        "github.com/faustbrian/go-rabbitmq-streams",
+        "github.com/faustbrian/go-rabbitmq-streams/otel",
+        "github.com/faustbrian/go-rabbitmq-streams/rabbitmq"
+      ]
+    },
+    {
+      "family": "rate-limit",
+      "name": "go-rate-limit",
+      "module_path": "github.com/faustbrian/go-rate-limit",
+      "source_directory": "pkg/rate-limit",
+      "destination_directory": "go-rate-limit",
+      "modules": [
+        "github.com/faustbrian/go-rate-limit"
+      ]
+    },
+    {
+      "family": "resilience",
+      "name": "go-resilience",
+      "module_path": "github.com/faustbrian/go-resilience",
+      "source_directory": "pkg/resilience",
+      "destination_directory": "go-resilience",
+      "modules": [
+        "github.com/faustbrian/go-resilience"
+      ]
+    },
+    {
+      "family": "retry",
+      "name": "go-retry",
+      "module_path": "github.com/faustbrian/go-retry",
+      "source_directory": "pkg/retry",
+      "destination_directory": "go-retry",
+      "modules": [
+        "github.com/faustbrian/go-retry"
+      ]
+    },
+    {
+      "family": "router",
+      "name": "go-router",
+      "module_path": "github.com/faustbrian/go-router",
+      "source_directory": "pkg/router",
+      "destination_directory": "go-router",
+      "modules": [
+        "github.com/faustbrian/go-router"
+      ]
+    },
+    {
+      "family": "rule-engine",
+      "name": "go-rule-engine",
+      "module_path": "github.com/faustbrian/go-rule-engine",
+      "source_directory": "pkg/rule-engine",
+      "destination_directory": "go-rule-engine",
+      "modules": [
+        "github.com/faustbrian/go-rule-engine",
+        "github.com/faustbrian/go-rule-engine/adapters/math",
+        "github.com/faustbrian/go-rule-engine/adapters/measurement",
+        "github.com/faustbrian/go-rule-engine/adapters/temporal",
+        "github.com/faustbrian/go-rule-engine/benchmarks/competitors"
+      ]
+    },
+    {
+      "family": "scheduler",
+      "name": "go-scheduler",
+      "module_path": "github.com/faustbrian/go-scheduler",
+      "source_directory": "pkg/scheduler",
+      "destination_directory": "go-scheduler",
+      "modules": [
+        "github.com/faustbrian/go-scheduler"
+      ]
+    },
+    {
+      "family": "schema-registry",
+      "name": "go-schema-registry",
+      "module_path": "github.com/faustbrian/go-schema-registry",
+      "source_directory": "pkg/schema-registry",
+      "destination_directory": "go-schema-registry",
+      "modules": [
+        "github.com/faustbrian/go-schema-registry",
+        "github.com/faustbrian/go-schema-registry/providers/confluent",
+        "github.com/faustbrian/go-schema-registry/providers/glue"
+      ]
+    },
+    {
+      "family": "search",
+      "name": "go-search",
+      "module_path": "github.com/faustbrian/go-search",
+      "source_directory": "pkg/search",
+      "destination_directory": "go-search",
+      "modules": [
+        "github.com/faustbrian/go-search",
+        "github.com/faustbrian/go-search/adapters/opensearch"
+      ]
+    },
+    {
+      "family": "secret-envelope",
+      "name": "go-secret-envelope",
+      "module_path": "github.com/faustbrian/go-secret-envelope",
+      "source_directory": "pkg/secret-envelope",
+      "destination_directory": "go-secret-envelope",
+      "modules": [
+        "github.com/faustbrian/go-secret-envelope"
+      ]
+    },
+    {
+      "family": "semaphore",
+      "name": "go-semaphore",
+      "module_path": "github.com/faustbrian/go-semaphore",
+      "source_directory": "pkg/semaphore",
+      "destination_directory": "go-semaphore",
+      "modules": [
+        "github.com/faustbrian/go-semaphore"
+      ]
+    },
+    {
+      "family": "sequencer",
+      "name": "go-sequencer",
+      "module_path": "github.com/faustbrian/go-sequencer",
+      "source_directory": "pkg/sequencer",
+      "destination_directory": "go-sequencer",
+      "modules": [
+        "github.com/faustbrian/go-sequencer"
+      ]
+    },
+    {
+      "family": "service",
+      "name": "go-service",
+      "module_path": "github.com/faustbrian/go-service",
+      "source_directory": "pkg/service",
+      "destination_directory": "go-service",
+      "modules": [
+        "github.com/faustbrian/go-service",
+        "github.com/faustbrian/go-service/benchmarks/platform",
+        "github.com/faustbrian/go-service/compatibility",
+        "github.com/faustbrian/go-service/integration/adoption",
+        "github.com/faustbrian/go-service/integration/reference-durability",
+        "github.com/faustbrian/go-service/integration/reference-external",
+        "github.com/faustbrian/go-service/integration/reference-http",
+        "github.com/faustbrian/go-service/integration/reference-platform"
+      ]
+    },
+    {
+      "family": "settings",
+      "name": "go-settings",
+      "module_path": "github.com/faustbrian/go-settings",
+      "source_directory": "pkg/settings",
+      "destination_directory": "go-settings",
+      "modules": [
+        "github.com/faustbrian/go-settings"
+      ]
+    },
+    {
+      "family": "state-machine",
+      "name": "go-state-machine",
+      "module_path": "github.com/faustbrian/go-state-machine",
+      "source_directory": "pkg/state-machine",
+      "destination_directory": "go-state-machine",
+      "modules": [
+        "github.com/faustbrian/go-state-machine"
+      ]
+    },
+    {
+      "family": "tabular",
+      "name": "go-tabular",
+      "module_path": "github.com/faustbrian/go-tabular",
+      "source_directory": "pkg/tabular",
+      "destination_directory": "go-tabular",
+      "modules": [
+        "github.com/faustbrian/go-tabular"
+      ]
+    },
+    {
+      "family": "telemetry",
+      "name": "go-telemetry",
+      "module_path": "github.com/faustbrian/go-telemetry",
+      "source_directory": "pkg/telemetry",
+      "destination_directory": "go-telemetry",
+      "modules": [
+        "github.com/faustbrian/go-telemetry"
+      ]
+    },
+    {
+      "family": "temporal",
+      "name": "go-temporal",
+      "module_path": "github.com/faustbrian/go-temporal",
+      "source_directory": "pkg/temporal",
+      "destination_directory": "go-temporal",
+      "modules": [
+        "github.com/faustbrian/go-temporal"
+      ]
+    },
+    {
+      "family": "tenancy",
+      "name": "go-tenancy",
+      "module_path": "github.com/faustbrian/go-tenancy",
+      "source_directory": "pkg/tenancy",
+      "destination_directory": "go-tenancy",
+      "modules": [
+        "github.com/faustbrian/go-tenancy"
+      ]
+    },
+    {
+      "family": "outbox",
+      "name": "go-transactional-outbox",
+      "module_path": "github.com/faustbrian/go-transactional-outbox",
+      "source_directory": "pkg/outbox",
+      "destination_directory": "go-transactional-outbox",
+      "modules": [
+        "github.com/faustbrian/go-transactional-outbox",
+        "github.com/faustbrian/go-transactional-outbox/adapters/gokafka",
+        "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream",
+        "github.com/faustbrian/go-transactional-outbox/adapters/otel",
+        "github.com/faustbrian/go-transactional-outbox/adapters/queue"
+      ]
+    },
+    {
+      "family": "validation",
+      "name": "go-validation",
+      "module_path": "github.com/faustbrian/go-validation",
+      "source_directory": "pkg/validation",
+      "destination_directory": "go-validation",
+      "modules": [
+        "github.com/faustbrian/go-validation"
+      ]
+    },
+    {
+      "family": "verkle-tree",
+      "name": "go-verkle-tree",
+      "module_path": "github.com/faustbrian/go-verkle-tree",
+      "source_directory": "pkg/verkle-tree",
+      "destination_directory": "go-verkle-tree",
+      "modules": [
+        "github.com/faustbrian/go-verkle-tree"
+      ]
+    },
+    {
+      "family": "webhook",
+      "name": "go-webhook",
+      "module_path": "github.com/faustbrian/go-webhook",
+      "source_directory": "pkg/webhook",
+      "destination_directory": "go-webhook",
+      "modules": [
+        "github.com/faustbrian/go-webhook"
+      ]
+    },
+    {
+      "family": "wire",
+      "name": "go-wire",
+      "module_path": "github.com/faustbrian/go-wire",
+      "source_directory": "pkg/wire",
+      "destination_directory": "go-wire",
+      "modules": [
+        "github.com/faustbrian/go-wire"
+      ]
+    },
+    {
+      "family": "workflow",
+      "name": "go-workflow",
+      "module_path": "github.com/faustbrian/go-workflow",
+      "source_directory": "pkg/workflow",
+      "destination_directory": "go-workflow",
+      "modules": [
+        "github.com/faustbrian/go-workflow"
+      ]
+    },
+    {
+      "family": "wsdl",
+      "name": "go-wsdl",
+      "module_path": "github.com/faustbrian/go-wsdl",
+      "source_directory": "pkg/wsdl",
+      "destination_directory": "go-wsdl",
+      "modules": [
+        "github.com/faustbrian/go-wsdl"
+      ]
+    },
+    {
+      "family": "xsd",
+      "name": "go-xsd",
+      "module_path": "github.com/faustbrian/go-xsd",
+      "source_directory": "pkg/xsd",
+      "destination_directory": "go-xsd",
+      "modules": [
+        "github.com/faustbrian/go-xsd"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "source_directory": "pkg/analysis/testdata/coverage",
+      "directory": "testdata/coverage",
+      "previous_path": "example.com/analysis-coverage",
+      "module_path": "example.com/analysis-coverage",
+      "repository": "go-analysis",
+      "releasable": false,
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/adaptive-throttle",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/adaptive-throttle",
+      "module_path": "github.com/faustbrian/go-adaptive-throttle",
+      "repository": "go-adaptive-throttle",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/analysis",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/analysis",
+      "module_path": "github.com/faustbrian/go-analysis",
+      "repository": "go-analysis",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/api-query",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/api-query",
+      "module_path": "github.com/faustbrian/go-api-query",
+      "repository": "go-api-query",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-jsonapi",
+        "github.com/faustbrian/go-validation"
+      ]
+    },
+    {
+      "source_directory": "pkg/audit",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/audit",
+      "module_path": "github.com/faustbrian/go-audit",
+      "repository": "go-audit",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/audit/postgres",
+      "directory": "postgres",
+      "previous_path": "github.com/faustbrian/golib/pkg/audit/postgres",
+      "module_path": "github.com/faustbrian/go-audit/postgres",
+      "repository": "go-audit",
+      "releasable": true,
+      "release_tag": "postgres/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-audit",
+        "github.com/faustbrian/go-postgresql"
+      ]
+    },
+    {
+      "source_directory": "pkg/authentication",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/authentication",
+      "module_path": "github.com/faustbrian/go-authentication",
+      "repository": "go-authentication",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-clock"
+      ]
+    },
+    {
+      "source_directory": "pkg/authentication/authotel",
+      "directory": "authotel",
+      "previous_path": "github.com/faustbrian/golib/pkg/authentication/authotel",
+      "module_path": "github.com/faustbrian/go-authentication/authotel",
+      "repository": "go-authentication",
+      "releasable": true,
+      "release_tag": "authotel/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-clock"
+      ]
+    },
+    {
+      "source_directory": "pkg/authentication/jwt",
+      "directory": "jwt",
+      "previous_path": "github.com/faustbrian/golib/pkg/authentication/jwt",
+      "module_path": "github.com/faustbrian/go-authentication/jwt",
+      "repository": "go-authentication",
+      "releasable": true,
+      "release_tag": "jwt/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-clock"
+      ]
+    },
+    {
+      "source_directory": "pkg/authentication/oidc",
+      "directory": "oidc",
+      "previous_path": "github.com/faustbrian/golib/pkg/authentication/oidc",
+      "module_path": "github.com/faustbrian/go-authentication/oidc",
+      "repository": "go-authentication",
+      "releasable": true,
+      "release_tag": "oidc/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-clock"
+      ]
+    },
+    {
+      "source_directory": "pkg/authorization",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/authorization",
+      "module_path": "github.com/faustbrian/go-authorization",
+      "repository": "go-authorization",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cache",
+        "github.com/faustbrian/go-jsonrpc",
+        "github.com/faustbrian/go-migrations"
+      ]
+    },
+    {
+      "source_directory": "pkg/authorization/integration/contracts",
+      "directory": "integration/contracts",
+      "previous_path": "github.com/faustbrian/golib/pkg/authorization/integration/contracts",
+      "module_path": "github.com/faustbrian/go-authorization/integration/contracts",
+      "repository": "go-authorization",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-authorization",
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-log",
+        "github.com/faustbrian/go-telemetry"
+      ]
+    },
+    {
+      "source_directory": "pkg/barcode",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/barcode",
+      "module_path": "github.com/faustbrian/go-barcode",
+      "repository": "go-barcode",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/bulkhead",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/bulkhead",
+      "module_path": "github.com/faustbrian/go-bulkhead",
+      "repository": "go-bulkhead",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/bulkhead/benchmarks/comparison",
+      "directory": "benchmarks/comparison",
+      "previous_path": "github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/go-bulkhead/benchmarks/comparison",
+      "repository": "go-bulkhead",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-bulkhead"
+      ]
+    },
+    {
+      "source_directory": "pkg/bulkhead/integration/resilience",
+      "directory": "integration/resilience",
+      "previous_path": "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
+      "module_path": "github.com/faustbrian/go-bulkhead/integration/resilience",
+      "repository": "go-bulkhead",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-bulkhead",
+        "github.com/faustbrian/go-circuit-breaker",
+        "github.com/faustbrian/go-resilience",
+        "github.com/faustbrian/go-retry"
+      ]
+    },
+    {
+      "source_directory": "pkg/cache",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/cache",
+      "module_path": "github.com/faustbrian/go-cache",
+      "repository": "go-cache",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/calendar",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/calendar",
+      "module_path": "github.com/faustbrian/go-calendar",
+      "repository": "go-calendar",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/capability",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/capability",
+      "module_path": "github.com/faustbrian/go-capability",
+      "repository": "go-capability",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/circuit-breaker",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/circuit-breaker",
+      "module_path": "github.com/faustbrian/go-circuit-breaker",
+      "repository": "go-circuit-breaker",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/circuit-breaker/integration/consumers",
+      "directory": "integration/consumers",
+      "previous_path": "github.com/faustbrian/golib/pkg/circuit-breaker/integration/consumers",
+      "module_path": "github.com/faustbrian/go-circuit-breaker/integration/consumers",
+      "repository": "go-circuit-breaker",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-circuit-breaker",
+        "github.com/faustbrian/go-jsonrpc"
+      ]
+    },
+    {
+      "source_directory": "pkg/cli",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/cli",
+      "module_path": "github.com/faustbrian/go-cli",
+      "repository": "go-cli",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/cli/benchmarks",
+      "directory": "benchmarks",
+      "previous_path": "github.com/faustbrian/golib/pkg/cli/benchmarks",
+      "module_path": "github.com/faustbrian/go-cli/benchmarks",
+      "repository": "go-cli",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli"
+      ]
+    },
+    {
+      "source_directory": "pkg/clock",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/clock",
+      "module_path": "github.com/faustbrian/go-clock",
+      "repository": "go-clock",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/cloudevents",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/cloudevents",
+      "module_path": "github.com/faustbrian/go-cloudevents",
+      "repository": "go-cloudevents",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/cloudevents/adapters/golib",
+      "directory": "adapters/golib",
+      "previous_path": "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
+      "module_path": "github.com/faustbrian/go-cloudevents/adapters/golib",
+      "repository": "go-cloudevents",
+      "releasable": true,
+      "release_tag": "adapters/golib/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-audit",
+        "github.com/faustbrian/go-cloudevents",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-event-sourcing",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-json-schema",
+        "github.com/faustbrian/go-kafka",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-rabbitmq-streams",
+        "github.com/faustbrian/go-schema-registry",
+        "github.com/faustbrian/go-telemetry",
+        "github.com/faustbrian/go-tenancy",
+        "github.com/faustbrian/go-transactional-outbox",
+        "github.com/faustbrian/go-workflow"
+      ]
+    },
+    {
+      "source_directory": "pkg/concurrency-limit",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/concurrency-limit",
+      "module_path": "github.com/faustbrian/go-concurrency-limit",
+      "repository": "go-concurrency-limit",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/concurrency-limit/benchmarks/comparison",
+      "directory": "benchmarks/comparison",
+      "previous_path": "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/go-concurrency-limit/benchmarks/comparison",
+      "repository": "go-concurrency-limit",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-concurrency-limit"
+      ]
+    },
+    {
+      "source_directory": "pkg/concurrency-limit/integration/resilience",
+      "directory": "integration/resilience",
+      "previous_path": "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
+      "module_path": "github.com/faustbrian/go-concurrency-limit/integration/resilience",
+      "repository": "go-concurrency-limit",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-concurrency-limit",
+        "github.com/faustbrian/go-hedge",
+        "github.com/faustbrian/go-resilience",
+        "github.com/faustbrian/go-retry"
+      ]
+    },
+    {
+      "source_directory": "pkg/config",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/config",
+      "module_path": "github.com/faustbrian/go-config",
+      "repository": "go-config",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/config/adapters/awssecretsmanager",
+      "directory": "adapters/awssecretsmanager",
+      "previous_path": "github.com/faustbrian/golib/pkg/config/adapters/awssecretsmanager",
+      "module_path": "github.com/faustbrian/go-config/adapters/awssecretsmanager",
+      "repository": "go-config",
+      "releasable": true,
+      "release_tag": "adapters/awssecretsmanager/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-config"
+      ]
+    },
+    {
+      "source_directory": "pkg/correlation",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/correlation",
+      "module_path": "github.com/faustbrian/go-correlation",
+      "repository": "go-correlation",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-identifier"
+      ]
+    },
+    {
+      "source_directory": "pkg/correlation/integration/siblings",
+      "directory": "integration/siblings",
+      "previous_path": "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
+      "module_path": "github.com/faustbrian/go-correlation/integration/siblings",
+      "repository": "go-correlation",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-http-middleware",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-log",
+        "github.com/faustbrian/go-telemetry"
+      ]
+    },
+    {
+      "source_directory": "pkg/ecma-regexp",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/ecma-regexp",
+      "module_path": "github.com/faustbrian/go-ecma-regexp",
+      "repository": "go-ecma-regexp",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/event-sourcing",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/event-sourcing",
+      "module_path": "github.com/faustbrian/go-event-sourcing",
+      "repository": "go-event-sourcing",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/event-sourcing/adapters/gokafka",
+      "directory": "adapters/gokafka",
+      "previous_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka",
+      "module_path": "github.com/faustbrian/go-event-sourcing/adapters/gokafka",
+      "repository": "go-event-sourcing",
+      "releasable": true,
+      "release_tag": "adapters/gokafka/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-event-sourcing",
+        "github.com/faustbrian/go-kafka"
+      ]
+    },
+    {
+      "source_directory": "pkg/event-sourcing/adapters/gotelemetry",
+      "directory": "adapters/gotelemetry",
+      "previous_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
+      "module_path": "github.com/faustbrian/go-event-sourcing/adapters/gotelemetry",
+      "repository": "go-event-sourcing",
+      "releasable": true,
+      "release_tag": "adapters/gotelemetry/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-event-sourcing",
+        "github.com/faustbrian/go-kafka"
+      ]
+    },
+    {
+      "source_directory": "pkg/event-sourcing/adapters/outbox",
+      "directory": "adapters/outbox",
+      "previous_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
+      "module_path": "github.com/faustbrian/go-event-sourcing/adapters/outbox",
+      "repository": "go-event-sourcing",
+      "releasable": true,
+      "release_tag": "adapters/outbox/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-event-sourcing",
+        "github.com/faustbrian/go-event-sourcing/postgres",
+        "github.com/faustbrian/go-transactional-outbox"
+      ]
+    },
+    {
+      "source_directory": "pkg/event-sourcing/adapters/queue",
+      "directory": "adapters/queue",
+      "previous_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue",
+      "module_path": "github.com/faustbrian/go-event-sourcing/adapters/queue",
+      "repository": "go-event-sourcing",
+      "releasable": true,
+      "release_tag": "adapters/queue/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-event-sourcing",
+        "github.com/faustbrian/go-queue"
+      ]
+    },
+    {
+      "source_directory": "pkg/event-sourcing/benchmarks/competitors",
+      "directory": "benchmarks/competitors",
+      "previous_path": "github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors",
+      "module_path": "github.com/faustbrian/go-event-sourcing/benchmarks/competitors",
+      "repository": "go-event-sourcing",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-event-sourcing"
+      ]
+    },
+    {
+      "source_directory": "pkg/event-sourcing/postgres",
+      "directory": "postgres",
+      "previous_path": "github.com/faustbrian/golib/pkg/event-sourcing/postgres",
+      "module_path": "github.com/faustbrian/go-event-sourcing/postgres",
+      "repository": "go-event-sourcing",
+      "releasable": true,
+      "release_tag": "postgres/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-event-sourcing"
+      ]
+    },
+    {
+      "source_directory": "pkg/external-sort",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/external-sort",
+      "module_path": "github.com/faustbrian/go-external-sort",
+      "repository": "go-external-sort",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/fault-injection",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/fault-injection",
+      "module_path": "github.com/faustbrian/go-fault-injection",
+      "repository": "go-fault-injection",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/fault-injection/benchmarks/comparison",
+      "directory": "benchmarks/comparison",
+      "previous_path": "github.com/faustbrian/golib/pkg/fault-injection/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/go-fault-injection/benchmarks/comparison",
+      "repository": "go-fault-injection",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-fault-injection"
+      ]
+    },
+    {
+      "source_directory": "pkg/fault-injection/integration/resilience",
+      "directory": "integration/resilience",
+      "previous_path": "github.com/faustbrian/golib/pkg/fault-injection/integration/resilience",
+      "module_path": "github.com/faustbrian/go-fault-injection/integration/resilience",
+      "repository": "go-fault-injection",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-circuit-breaker",
+        "github.com/faustbrian/go-fault-injection",
+        "github.com/faustbrian/go-resilience",
+        "github.com/faustbrian/go-retry"
+      ]
+    },
+    {
+      "source_directory": "pkg/feature-flags",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/feature-flags",
+      "module_path": "github.com/faustbrian/go-feature-flags",
+      "repository": "go-feature-flags",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/filesystem",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/filesystem",
+      "module_path": "github.com/faustbrian/go-filesystem",
+      "repository": "go-filesystem",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/geo",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/geo",
+      "module_path": "github.com/faustbrian/go-geo",
+      "repository": "go-geo",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/hedge",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/hedge",
+      "module_path": "github.com/faustbrian/go-hedge",
+      "repository": "go-hedge",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-resilience"
+      ]
+    },
+    {
+      "source_directory": "pkg/http-client",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/http-client",
+      "module_path": "github.com/faustbrian/go-http-client",
+      "repository": "go-http-client",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-circuit-breaker"
+      ]
+    },
+    {
+      "source_directory": "pkg/http-middleware",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/http-middleware",
+      "module_path": "github.com/faustbrian/go-http-middleware",
+      "repository": "go-http-middleware",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/http-middleware/integration/siblings",
+      "directory": "integration/siblings",
+      "previous_path": "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
+      "module_path": "github.com/faustbrian/go-http-middleware/integration/siblings",
+      "repository": "go-http-middleware",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-authorization",
+        "github.com/faustbrian/go-circuit-breaker",
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-http-client",
+        "github.com/faustbrian/go-http-middleware",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-jsonapi",
+        "github.com/faustbrian/go-jsonrpc",
+        "github.com/faustbrian/go-log",
+        "github.com/faustbrian/go-openapi",
+        "github.com/faustbrian/go-router",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/http-signature",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/http-signature",
+      "module_path": "github.com/faustbrian/go-http-signature",
+      "repository": "go-http-signature",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/http-signature/benchmarks/comparison",
+      "directory": "benchmarks/comparison",
+      "previous_path": "github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/go-http-signature/benchmarks/comparison",
+      "repository": "go-http-signature",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-http-signature"
+      ]
+    },
+    {
+      "source_directory": "pkg/http-signature/differential/shared-corpus",
+      "directory": "differential/shared-corpus",
+      "previous_path": "github.com/faustbrian/golib/pkg/http-signature/differential/shared-corpus",
+      "module_path": "github.com/faustbrian/go-http-signature/differential/shared-corpus",
+      "repository": "go-http-signature",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-http-signature"
+      ]
+    },
+    {
+      "source_directory": "pkg/idempotency",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/idempotency",
+      "module_path": "github.com/faustbrian/go-idempotency",
+      "repository": "go-idempotency",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-migrations"
+      ]
+    },
+    {
+      "source_directory": "pkg/idempotency/compatibility/ecosystem",
+      "directory": "compatibility/ecosystem",
+      "previous_path": "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
+      "module_path": "github.com/faustbrian/go-idempotency/compatibility/ecosystem",
+      "repository": "go-idempotency",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-idempotency",
+        "github.com/faustbrian/go-log",
+        "github.com/faustbrian/go-migrations",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-telemetry",
+        "github.com/faustbrian/go-transactional-outbox",
+        "github.com/faustbrian/go-webhook"
+      ]
+    },
+    {
+      "source_directory": "pkg/identifier",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/identifier",
+      "module_path": "github.com/faustbrian/go-identifier",
+      "repository": "go-identifier",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/international",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/international",
+      "module_path": "github.com/faustbrian/go-international",
+      "repository": "go-international",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-config",
+        "github.com/faustbrian/go-validation",
+        "github.com/faustbrian/go-wire"
+      ]
+    },
+    {
+      "source_directory": "pkg/json-schema",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/json-schema",
+      "module_path": "github.com/faustbrian/go-json-schema",
+      "repository": "go-json-schema",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/json-schema/benchmarks/comparison",
+      "directory": "benchmarks/comparison",
+      "previous_path": "github.com/faustbrian/golib/pkg/json-schema/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/go-json-schema/benchmarks/comparison",
+      "repository": "go-json-schema",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-json-schema"
+      ]
+    },
+    {
+      "source_directory": "pkg/jsonapi",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/jsonapi",
+      "module_path": "github.com/faustbrian/go-jsonapi",
+      "repository": "go-jsonapi",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/jsonrpc",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/jsonrpc",
+      "module_path": "github.com/faustbrian/go-jsonrpc",
+      "repository": "go-jsonrpc",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/kafka",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/kafka",
+      "module_path": "github.com/faustbrian/go-kafka",
+      "repository": "go-kafka",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/kafka/adapters/gotelemetry",
+      "directory": "adapters/gotelemetry",
+      "previous_path": "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
+      "module_path": "github.com/faustbrian/go-kafka/adapters/gotelemetry",
+      "repository": "go-kafka",
+      "releasable": true,
+      "release_tag": "adapters/gotelemetry/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-kafka"
+      ]
+    },
+    {
+      "source_directory": "pkg/kafka/adapters/mskiam",
+      "directory": "adapters/mskiam",
+      "previous_path": "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
+      "module_path": "github.com/faustbrian/go-kafka/adapters/mskiam",
+      "repository": "go-kafka",
+      "releasable": true,
+      "release_tag": "adapters/mskiam/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-kafka"
+      ]
+    },
+    {
+      "source_directory": "pkg/kafka/benchmarks/clients",
+      "directory": "benchmarks/clients",
+      "previous_path": "github.com/faustbrian/golib/pkg/kafka/benchmarks/clients",
+      "module_path": "github.com/faustbrian/go-kafka/benchmarks/clients",
+      "repository": "go-kafka",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-kafka"
+      ]
+    },
+    {
+      "source_directory": "pkg/kafka/kafkaservice",
+      "directory": "kafkaservice",
+      "previous_path": "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
+      "module_path": "github.com/faustbrian/go-kafka/kafkaservice",
+      "repository": "go-kafka",
+      "releasable": true,
+      "release_tag": "kafkaservice/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-kafka",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/keyphrase",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/keyphrase",
+      "module_path": "github.com/faustbrian/go-keyphrase",
+      "repository": "go-keyphrase",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/knapsack",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/knapsack",
+      "module_path": "github.com/faustbrian/go-knapsack",
+      "repository": "go-knapsack",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-math",
+        "github.com/faustbrian/go-measurement"
+      ]
+    },
+    {
+      "source_directory": "pkg/knapsack/integration/references",
+      "directory": "integration/references",
+      "previous_path": "github.com/faustbrian/golib/pkg/knapsack/integration/references",
+      "module_path": "github.com/faustbrian/go-knapsack/integration/references",
+      "repository": "go-knapsack",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-knapsack",
+        "github.com/faustbrian/go-math",
+        "github.com/faustbrian/go-measurement"
+      ]
+    },
+    {
+      "source_directory": "pkg/knapsack/objective/gomoney",
+      "directory": "objective/gomoney",
+      "previous_path": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "module_path": "github.com/faustbrian/go-knapsack/objective/gomoney",
+      "repository": "go-knapsack",
+      "releasable": true,
+      "release_tag": "objective/gomoney/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-international",
+        "github.com/faustbrian/go-knapsack",
+        "github.com/faustbrian/go-math",
+        "github.com/faustbrian/go-measurement",
+        "github.com/faustbrian/go-money"
+      ]
+    },
+    {
+      "source_directory": "pkg/lease",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/lease",
+      "module_path": "github.com/faustbrian/go-lease",
+      "repository": "go-lease",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-migrations",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/localized",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/localized",
+      "module_path": "github.com/faustbrian/go-localized",
+      "repository": "go-localized",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-api-query",
+        "github.com/faustbrian/go-circuit-breaker",
+        "github.com/faustbrian/go-config",
+        "github.com/faustbrian/go-http-client",
+        "github.com/faustbrian/go-international",
+        "github.com/faustbrian/go-validation",
+        "github.com/faustbrian/go-wire"
+      ]
+    },
+    {
+      "source_directory": "pkg/log",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/log",
+      "module_path": "github.com/faustbrian/go-log",
+      "repository": "go-log",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/math",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/math",
+      "module_path": "github.com/faustbrian/go-math",
+      "repository": "go-math",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/measurement",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/measurement",
+      "module_path": "github.com/faustbrian/go-measurement",
+      "repository": "go-measurement",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-math",
+        "github.com/faustbrian/go-wire"
+      ]
+    },
+    {
+      "source_directory": "pkg/merkle-patricia-trie",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie",
+      "module_path": "github.com/faustbrian/go-merkle-patricia-trie",
+      "repository": "go-merkle-patricia-trie",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/merkle-tree",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/merkle-tree",
+      "module_path": "github.com/faustbrian/go-merkle-tree",
+      "repository": "go-merkle-tree",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/migrations",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/migrations",
+      "module_path": "github.com/faustbrian/go-migrations",
+      "repository": "go-migrations",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/money",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/money",
+      "module_path": "github.com/faustbrian/go-money",
+      "repository": "go-money",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-international",
+        "github.com/faustbrian/go-math"
+      ]
+    },
+    {
+      "source_directory": "pkg/openapi",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/openapi",
+      "module_path": "github.com/faustbrian/go-openapi",
+      "repository": "go-openapi",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-json-schema"
+      ]
+    },
+    {
+      "source_directory": "pkg/openapi/interoperability",
+      "directory": "interoperability",
+      "previous_path": "github.com/faustbrian/golib/pkg/openapi/interoperability",
+      "module_path": "github.com/faustbrian/go-openapi/interoperability",
+      "repository": "go-openapi",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-json-schema",
+        "github.com/faustbrian/go-openapi"
+      ]
+    },
+    {
+      "source_directory": "pkg/opening-hours",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/opening-hours",
+      "module_path": "github.com/faustbrian/go-opening-hours",
+      "repository": "go-opening-hours",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-calendar",
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-config",
+        "github.com/faustbrian/go-temporal",
+        "github.com/faustbrian/go-validation",
+        "github.com/faustbrian/go-wire"
+      ]
+    },
+    {
+      "source_directory": "pkg/openrpc",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/openrpc",
+      "module_path": "github.com/faustbrian/go-openrpc",
+      "repository": "go-openrpc",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/password",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/password",
+      "module_path": "github.com/faustbrian/go-password",
+      "repository": "go-password",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/postgres",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/postgres",
+      "module_path": "github.com/faustbrian/go-postgresql",
+      "repository": "go-postgresql",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/postgres/examples/migrations",
+      "directory": "examples/migrations",
+      "previous_path": "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
+      "module_path": "github.com/faustbrian/go-postgresql/examples/migrations",
+      "repository": "go-postgresql",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-migrations",
+        "github.com/faustbrian/go-postgresql"
+      ]
+    },
+    {
+      "source_directory": "pkg/prompts",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/prompts",
+      "module_path": "github.com/faustbrian/go-prompts",
+      "repository": "go-prompts",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/prompts/benchmarks/comparison",
+      "directory": "benchmarks/comparison",
+      "previous_path": "github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/go-prompts/benchmarks/comparison",
+      "repository": "go-prompts",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-prompts"
+      ]
+    },
+    {
+      "source_directory": "pkg/queue",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/queue",
+      "module_path": "github.com/faustbrian/go-queue",
+      "repository": "go-queue",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/queue-control-plane",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/queue-control-plane",
+      "module_path": "github.com/faustbrian/go-queue-control-plane",
+      "repository": "go-queue-control-plane",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-authorization",
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-migrations",
+        "github.com/faustbrian/go-postgresql",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-telemetry"
+      ]
+    },
+    {
+      "source_directory": "pkg/queue/queueservice",
+      "directory": "queueservice",
+      "previous_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
+      "module_path": "github.com/faustbrian/go-queue/queueservice",
+      "repository": "go-queue",
+      "releasable": true,
+      "release_tag": "queueservice/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/rabbitstream",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/rabbitstream",
+      "module_path": "github.com/faustbrian/go-rabbitmq-streams",
+      "repository": "go-rabbitmq-streams",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/rabbitstream/otel",
+      "directory": "otel",
+      "previous_path": "github.com/faustbrian/golib/pkg/rabbitstream/otel",
+      "module_path": "github.com/faustbrian/go-rabbitmq-streams/otel",
+      "repository": "go-rabbitmq-streams",
+      "releasable": true,
+      "release_tag": "otel/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-rabbitmq-streams"
+      ]
+    },
+    {
+      "source_directory": "pkg/rabbitstream/rabbitmq",
+      "directory": "rabbitmq",
+      "previous_path": "github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq",
+      "module_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
+      "repository": "go-rabbitmq-streams",
+      "releasable": true,
+      "release_tag": "rabbitmq/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-rabbitmq-streams"
+      ]
+    },
+    {
+      "source_directory": "pkg/rate-limit",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/rate-limit",
+      "module_path": "github.com/faustbrian/go-rate-limit",
+      "repository": "go-rate-limit",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-migrations"
+      ]
+    },
+    {
+      "source_directory": "pkg/resilience",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/resilience",
+      "module_path": "github.com/faustbrian/go-resilience",
+      "repository": "go-resilience",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/retry",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/retry",
+      "module_path": "github.com/faustbrian/go-retry",
+      "repository": "go-retry",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-resilience"
+      ]
+    },
+    {
+      "source_directory": "pkg/router",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/router",
+      "module_path": "github.com/faustbrian/go-router",
+      "repository": "go-router",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/rule-engine",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/rule-engine",
+      "module_path": "github.com/faustbrian/go-rule-engine",
+      "repository": "go-rule-engine",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/rule-engine/adapters/math",
+      "directory": "adapters/math",
+      "previous_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/math",
+      "module_path": "github.com/faustbrian/go-rule-engine/adapters/math",
+      "repository": "go-rule-engine",
+      "releasable": true,
+      "release_tag": "adapters/math/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-math",
+        "github.com/faustbrian/go-rule-engine"
+      ]
+    },
+    {
+      "source_directory": "pkg/rule-engine/adapters/measurement",
+      "directory": "adapters/measurement",
+      "previous_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement",
+      "module_path": "github.com/faustbrian/go-rule-engine/adapters/measurement",
+      "repository": "go-rule-engine",
+      "releasable": true,
+      "release_tag": "adapters/measurement/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-math",
+        "github.com/faustbrian/go-measurement",
+        "github.com/faustbrian/go-rule-engine"
+      ]
+    },
+    {
+      "source_directory": "pkg/rule-engine/adapters/temporal",
+      "directory": "adapters/temporal",
+      "previous_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal",
+      "module_path": "github.com/faustbrian/go-rule-engine/adapters/temporal",
+      "repository": "go-rule-engine",
+      "releasable": true,
+      "release_tag": "adapters/temporal/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-calendar",
+        "github.com/faustbrian/go-rule-engine",
+        "github.com/faustbrian/go-temporal"
+      ]
+    },
+    {
+      "source_directory": "pkg/rule-engine/benchmarks/competitors",
+      "directory": "benchmarks/competitors",
+      "previous_path": "github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors",
+      "module_path": "github.com/faustbrian/go-rule-engine/benchmarks/competitors",
+      "repository": "go-rule-engine",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-rule-engine"
+      ]
+    },
+    {
+      "source_directory": "pkg/scheduler",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/scheduler",
+      "module_path": "github.com/faustbrian/go-scheduler",
+      "repository": "go-scheduler",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-idempotency",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-service",
+        "github.com/faustbrian/go-telemetry"
+      ]
+    },
+    {
+      "source_directory": "pkg/schema-registry",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/schema-registry",
+      "module_path": "github.com/faustbrian/go-schema-registry",
+      "repository": "go-schema-registry",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-json-schema"
+      ]
+    },
+    {
+      "source_directory": "pkg/schema-registry/providers/confluent",
+      "directory": "providers/confluent",
+      "previous_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/confluent",
+      "module_path": "github.com/faustbrian/go-schema-registry/providers/confluent",
+      "repository": "go-schema-registry",
+      "releasable": true,
+      "release_tag": "providers/confluent/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-json-schema",
+        "github.com/faustbrian/go-schema-registry"
+      ]
+    },
+    {
+      "source_directory": "pkg/schema-registry/providers/glue",
+      "directory": "providers/glue",
+      "previous_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/glue",
+      "module_path": "github.com/faustbrian/go-schema-registry/providers/glue",
+      "repository": "go-schema-registry",
+      "releasable": true,
+      "release_tag": "providers/glue/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-schema-registry"
+      ]
+    },
+    {
+      "source_directory": "pkg/search",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/search",
+      "module_path": "github.com/faustbrian/go-search",
+      "repository": "go-search",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/search/adapters/opensearch",
+      "directory": "adapters/opensearch",
+      "previous_path": "github.com/faustbrian/golib/pkg/search/adapters/opensearch",
+      "module_path": "github.com/faustbrian/go-search/adapters/opensearch",
+      "repository": "go-search",
+      "releasable": true,
+      "release_tag": "adapters/opensearch/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-search"
+      ]
+    },
+    {
+      "source_directory": "pkg/secret-envelope",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/secret-envelope",
+      "module_path": "github.com/faustbrian/go-secret-envelope",
+      "repository": "go-secret-envelope",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/semaphore",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/semaphore",
+      "module_path": "github.com/faustbrian/go-semaphore",
+      "repository": "go-semaphore",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/sequencer",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/sequencer",
+      "module_path": "github.com/faustbrian/go-sequencer",
+      "repository": "go-sequencer",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/service",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/service",
+      "module_path": "github.com/faustbrian/go-service",
+      "repository": "go-service",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier"
+      ]
+    },
+    {
+      "source_directory": "pkg/service/benchmarks/platform",
+      "directory": "benchmarks/platform",
+      "previous_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
+      "module_path": "github.com/faustbrian/go-service/benchmarks/platform",
+      "repository": "go-service",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/service/compatibility",
+      "directory": "compatibility",
+      "previous_path": "github.com/faustbrian/golib/pkg/service/compatibility",
+      "module_path": "github.com/faustbrian/go-service/compatibility",
+      "repository": "go-service",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-authorization",
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-config",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-log",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-scheduler",
+        "github.com/faustbrian/go-service",
+        "github.com/faustbrian/go-telemetry"
+      ]
+    },
+    {
+      "source_directory": "pkg/service/integration/adoption",
+      "directory": "integration/adoption",
+      "previous_path": "github.com/faustbrian/golib/pkg/service/integration/adoption",
+      "module_path": "github.com/faustbrian/go-service/integration/adoption",
+      "repository": "go-service",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-adaptive-throttle",
+        "github.com/faustbrian/go-bulkhead",
+        "github.com/faustbrian/go-cache",
+        "github.com/faustbrian/go-circuit-breaker",
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-concurrency-limit",
+        "github.com/faustbrian/go-config",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-kafka",
+        "github.com/faustbrian/go-kafka/kafkaservice",
+        "github.com/faustbrian/go-migrations",
+        "github.com/faustbrian/go-postgresql",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-queue/queueservice",
+        "github.com/faustbrian/go-rate-limit",
+        "github.com/faustbrian/go-resilience",
+        "github.com/faustbrian/go-retry",
+        "github.com/faustbrian/go-scheduler",
+        "github.com/faustbrian/go-semaphore",
+        "github.com/faustbrian/go-service",
+        "github.com/faustbrian/go-telemetry"
+      ]
+    },
+    {
+      "source_directory": "pkg/service/integration/reference-durability",
+      "directory": "integration/reference-durability",
+      "previous_path": "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
+      "module_path": "github.com/faustbrian/go-service/integration/reference-durability",
+      "repository": "go-service",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-idempotency",
+        "github.com/faustbrian/go-migrations",
+        "github.com/faustbrian/go-postgresql",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-transactional-outbox",
+        "github.com/faustbrian/go-transactional-outbox/adapters/queue"
+      ]
+    },
+    {
+      "source_directory": "pkg/service/integration/reference-external",
+      "directory": "integration/reference-external",
+      "previous_path": "github.com/faustbrian/golib/pkg/service/integration/reference-external",
+      "module_path": "github.com/faustbrian/go-service/integration/reference-external",
+      "repository": "go-service",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-adaptive-throttle",
+        "github.com/faustbrian/go-bulkhead",
+        "github.com/faustbrian/go-circuit-breaker",
+        "github.com/faustbrian/go-concurrency-limit",
+        "github.com/faustbrian/go-filesystem",
+        "github.com/faustbrian/go-hedge",
+        "github.com/faustbrian/go-http-client",
+        "github.com/faustbrian/go-rate-limit",
+        "github.com/faustbrian/go-resilience",
+        "github.com/faustbrian/go-retry",
+        "github.com/faustbrian/go-secret-envelope",
+        "github.com/faustbrian/go-webhook"
+      ]
+    },
+    {
+      "source_directory": "pkg/service/integration/reference-http",
+      "directory": "integration/reference-http",
+      "previous_path": "github.com/faustbrian/golib/pkg/service/integration/reference-http",
+      "module_path": "github.com/faustbrian/go-service/integration/reference-http",
+      "repository": "go-service",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-audit",
+        "github.com/faustbrian/go-authentication",
+        "github.com/faustbrian/go-authorization",
+        "github.com/faustbrian/go-capability",
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-clock",
+        "github.com/faustbrian/go-config",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-http-middleware",
+        "github.com/faustbrian/go-http-signature",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-jsonrpc",
+        "github.com/faustbrian/go-router",
+        "github.com/faustbrian/go-service",
+        "github.com/faustbrian/go-telemetry",
+        "github.com/faustbrian/go-tenancy",
+        "github.com/faustbrian/go-validation"
+      ]
+    },
+    {
+      "source_directory": "pkg/service/integration/reference-platform",
+      "directory": "integration/reference-platform",
+      "previous_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
+      "module_path": "github.com/faustbrian/go-service/integration/reference-platform",
+      "repository": "go-service",
+      "releasable": false,
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/settings",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/settings",
+      "module_path": "github.com/faustbrian/go-settings",
+      "repository": "go-settings",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/state-machine",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/state-machine",
+      "module_path": "github.com/faustbrian/go-state-machine",
+      "repository": "go-state-machine",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/tabular",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/tabular",
+      "module_path": "github.com/faustbrian/go-tabular",
+      "repository": "go-tabular",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/telemetry",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/telemetry",
+      "module_path": "github.com/faustbrian/go-telemetry",
+      "repository": "go-telemetry",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-cli",
+        "github.com/faustbrian/go-correlation",
+        "github.com/faustbrian/go-identifier",
+        "github.com/faustbrian/go-service"
+      ]
+    },
+    {
+      "source_directory": "pkg/temporal",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/temporal",
+      "module_path": "github.com/faustbrian/go-temporal",
+      "repository": "go-temporal",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-calendar",
+        "github.com/faustbrian/go-config",
+        "github.com/faustbrian/go-validation",
+        "github.com/faustbrian/go-wire"
+      ]
+    },
+    {
+      "source_directory": "pkg/tenancy",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/tenancy",
+      "module_path": "github.com/faustbrian/go-tenancy",
+      "repository": "go-tenancy",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/outbox",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/outbox",
+      "module_path": "github.com/faustbrian/go-transactional-outbox",
+      "repository": "go-transactional-outbox",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/outbox/adapters/gokafka",
+      "directory": "adapters/gokafka",
+      "previous_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
+      "module_path": "github.com/faustbrian/go-transactional-outbox/adapters/gokafka",
+      "repository": "go-transactional-outbox",
+      "releasable": true,
+      "release_tag": "adapters/gokafka/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-kafka",
+        "github.com/faustbrian/go-transactional-outbox"
+      ]
+    },
+    {
+      "source_directory": "pkg/outbox/adapters/gorabbitstream",
+      "directory": "adapters/gorabbitstream",
+      "previous_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gorabbitstream",
+      "module_path": "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream",
+      "repository": "go-transactional-outbox",
+      "releasable": true,
+      "release_tag": "adapters/gorabbitstream/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-rabbitmq-streams",
+        "github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
+        "github.com/faustbrian/go-transactional-outbox"
+      ]
+    },
+    {
+      "source_directory": "pkg/outbox/adapters/otel",
+      "directory": "adapters/otel",
+      "previous_path": "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
+      "module_path": "github.com/faustbrian/go-transactional-outbox/adapters/otel",
+      "repository": "go-transactional-outbox",
+      "releasable": true,
+      "release_tag": "adapters/otel/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-transactional-outbox"
+      ]
+    },
+    {
+      "source_directory": "pkg/outbox/adapters/queue",
+      "directory": "adapters/queue",
+      "previous_path": "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
+      "module_path": "github.com/faustbrian/go-transactional-outbox/adapters/queue",
+      "repository": "go-transactional-outbox",
+      "releasable": true,
+      "release_tag": "adapters/queue/v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-transactional-outbox"
+      ]
+    },
+    {
+      "source_directory": "pkg/validation",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/validation",
+      "module_path": "github.com/faustbrian/go-validation",
+      "repository": "go-validation",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/verkle-tree",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/verkle-tree",
+      "module_path": "github.com/faustbrian/go-verkle-tree",
+      "repository": "go-verkle-tree",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/webhook",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/webhook",
+      "module_path": "github.com/faustbrian/go-webhook",
+      "repository": "go-webhook",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-idempotency",
+        "github.com/faustbrian/go-log",
+        "github.com/faustbrian/go-queue",
+        "github.com/faustbrian/go-telemetry",
+        "github.com/faustbrian/go-transactional-outbox"
+      ]
+    },
+    {
+      "source_directory": "pkg/wire",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/wire",
+      "module_path": "github.com/faustbrian/go-wire",
+      "repository": "go-wire",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/workflow",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/workflow",
+      "module_path": "github.com/faustbrian/go-workflow",
+      "repository": "go-workflow",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    },
+    {
+      "source_directory": "pkg/wsdl",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/wsdl",
+      "module_path": "github.com/faustbrian/go-wsdl",
+      "repository": "go-wsdl",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-wire",
+        "github.com/faustbrian/go-xsd"
+      ]
+    },
+    {
+      "source_directory": "pkg/xsd",
+      "directory": ".",
+      "previous_path": "github.com/faustbrian/golib/pkg/xsd",
+      "module_path": "github.com/faustbrian/go-xsd",
+      "repository": "go-xsd",
+      "releasable": true,
+      "release_tag": "v1.0.0",
+      "owned_dependencies": []
+    }
+  ],
+  "release_waves": [
+    [
+      "github.com/faustbrian/go-adaptive-throttle",
+      "github.com/faustbrian/go-analysis",
+      "github.com/faustbrian/go-audit",
+      "github.com/faustbrian/go-barcode",
+      "github.com/faustbrian/go-bulkhead",
+      "github.com/faustbrian/go-calendar",
+      "github.com/faustbrian/go-capability",
+      "github.com/faustbrian/go-circuit-breaker",
+      "github.com/faustbrian/go-cli",
+      "github.com/faustbrian/go-clock",
+      "github.com/faustbrian/go-cloudevents",
+      "github.com/faustbrian/go-concurrency-limit",
+      "github.com/faustbrian/go-ecma-regexp",
+      "github.com/faustbrian/go-event-sourcing",
+      "github.com/faustbrian/go-external-sort",
+      "github.com/faustbrian/go-fault-injection",
+      "github.com/faustbrian/go-feature-flags",
+      "github.com/faustbrian/go-filesystem",
+      "github.com/faustbrian/go-geo",
+      "github.com/faustbrian/go-http-middleware",
+      "github.com/faustbrian/go-http-signature",
+      "github.com/faustbrian/go-identifier",
+      "github.com/faustbrian/go-json-schema",
+      "github.com/faustbrian/go-jsonapi",
+      "github.com/faustbrian/go-jsonrpc",
+      "github.com/faustbrian/go-kafka",
+      "github.com/faustbrian/go-keyphrase",
+      "github.com/faustbrian/go-log",
+      "github.com/faustbrian/go-math",
+      "github.com/faustbrian/go-merkle-patricia-trie",
+      "github.com/faustbrian/go-merkle-tree",
+      "github.com/faustbrian/go-openrpc",
+      "github.com/faustbrian/go-password",
+      "github.com/faustbrian/go-prompts",
+      "github.com/faustbrian/go-queue",
+      "github.com/faustbrian/go-rabbitmq-streams",
+      "github.com/faustbrian/go-resilience",
+      "github.com/faustbrian/go-router",
+      "github.com/faustbrian/go-rule-engine",
+      "github.com/faustbrian/go-search",
+      "github.com/faustbrian/go-secret-envelope",
+      "github.com/faustbrian/go-semaphore",
+      "github.com/faustbrian/go-sequencer",
+      "github.com/faustbrian/go-settings",
+      "github.com/faustbrian/go-state-machine",
+      "github.com/faustbrian/go-tabular",
+      "github.com/faustbrian/go-tenancy",
+      "github.com/faustbrian/go-transactional-outbox",
+      "github.com/faustbrian/go-validation",
+      "github.com/faustbrian/go-verkle-tree",
+      "github.com/faustbrian/go-wire",
+      "github.com/faustbrian/go-workflow",
+      "github.com/faustbrian/go-xsd"
+    ],
+    [
+      "github.com/faustbrian/go-api-query",
+      "github.com/faustbrian/go-authentication",
+      "github.com/faustbrian/go-correlation",
+      "github.com/faustbrian/go-event-sourcing/adapters/gokafka",
+      "github.com/faustbrian/go-event-sourcing/adapters/gotelemetry",
+      "github.com/faustbrian/go-event-sourcing/adapters/queue",
+      "github.com/faustbrian/go-event-sourcing/postgres",
+      "github.com/faustbrian/go-hedge",
+      "github.com/faustbrian/go-http-client",
+      "github.com/faustbrian/go-kafka/adapters/gotelemetry",
+      "github.com/faustbrian/go-kafka/adapters/mskiam",
+      "github.com/faustbrian/go-measurement",
+      "github.com/faustbrian/go-openapi",
+      "github.com/faustbrian/go-rabbitmq-streams/otel",
+      "github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
+      "github.com/faustbrian/go-retry",
+      "github.com/faustbrian/go-rule-engine/adapters/math",
+      "github.com/faustbrian/go-schema-registry",
+      "github.com/faustbrian/go-search/adapters/opensearch",
+      "github.com/faustbrian/go-transactional-outbox/adapters/gokafka",
+      "github.com/faustbrian/go-transactional-outbox/adapters/otel",
+      "github.com/faustbrian/go-transactional-outbox/adapters/queue",
+      "github.com/faustbrian/go-wsdl"
+    ],
+    [
+      "github.com/faustbrian/go-authentication/authotel",
+      "github.com/faustbrian/go-authentication/jwt",
+      "github.com/faustbrian/go-authentication/oidc",
+      "github.com/faustbrian/go-event-sourcing/adapters/outbox",
+      "github.com/faustbrian/go-knapsack",
+      "github.com/faustbrian/go-rule-engine/adapters/measurement",
+      "github.com/faustbrian/go-schema-registry/providers/confluent",
+      "github.com/faustbrian/go-schema-registry/providers/glue",
+      "github.com/faustbrian/go-service",
+      "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream"
+    ],
+    [
+      "github.com/faustbrian/go-cache",
+      "github.com/faustbrian/go-config",
+      "github.com/faustbrian/go-kafka/kafkaservice",
+      "github.com/faustbrian/go-migrations",
+      "github.com/faustbrian/go-postgresql",
+      "github.com/faustbrian/go-queue/queueservice",
+      "github.com/faustbrian/go-telemetry"
+    ],
+    [
+      "github.com/faustbrian/go-audit/postgres",
+      "github.com/faustbrian/go-authorization",
+      "github.com/faustbrian/go-cloudevents/adapters/golib",
+      "github.com/faustbrian/go-config/adapters/awssecretsmanager",
+      "github.com/faustbrian/go-idempotency",
+      "github.com/faustbrian/go-international",
+      "github.com/faustbrian/go-lease",
+      "github.com/faustbrian/go-rate-limit",
+      "github.com/faustbrian/go-temporal"
+    ],
+    [
+      "github.com/faustbrian/go-localized",
+      "github.com/faustbrian/go-money",
+      "github.com/faustbrian/go-opening-hours",
+      "github.com/faustbrian/go-queue-control-plane",
+      "github.com/faustbrian/go-rule-engine/adapters/temporal",
+      "github.com/faustbrian/go-scheduler",
+      "github.com/faustbrian/go-webhook"
+    ],
+    [
+      "github.com/faustbrian/go-knapsack/objective/gomoney"
+    ]
+  ],
+  "excluded_families": [
+    "secret-store"
+  ],
+  "public_version_collisions": [
+    {
+      "previous_path": "github.com/faustbrian/go-outbox",
+      "version": "v1.0.0",
+      "replacement_path": "github.com/faustbrian/go-transactional-outbox",
+      "reason": "the previous v1.0.0 is immutable in the public Go proxy and checksum database"
+    },
+    {
+      "previous_path": "github.com/faustbrian/go-postgres",
+      "version": "v1.0.0",
+      "replacement_path": "github.com/faustbrian/go-postgresql",
+      "reason": "the previous v1.0.0 is immutable in the public Go proxy and checksum database"
+    }
+  ]
+}
