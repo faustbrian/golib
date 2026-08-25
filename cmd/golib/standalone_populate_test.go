@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,6 +62,121 @@ func TestRewriteStandaloneRepositoryPathsRequiresFamilyBoundary(t *testing.T) {
 	got := rewriteStandaloneRepositoryPaths(input, "log", "go-log")
 	if string(got) != "MODULES=.\ndocs pkg/logging\n" {
 		t.Fatalf("rewriteStandaloneRepositoryPaths() = %q", got)
+	}
+}
+
+func TestRemoveStandaloneOwnedChecksumsKeepsExternalModules(t *testing.T) {
+	t.Parallel()
+
+	paths := map[string]string{
+		"github.com/faustbrian/golib/pkg/queue": "github.com/faustbrian/go-queue",
+	}
+	input := []byte("github.com/faustbrian/golib/pkg/queue v0.0.0 h1:old\n" +
+		"github.com/faustbrian/go-queue v1.0.0 h1:rewritten-old\n" +
+		"github.com/stretchr/testify v1.11.1 h1:external\n")
+	got := removeStandaloneOwnedChecksums(input, paths)
+	want := "github.com/stretchr/testify v1.11.1 h1:external\n"
+	if string(got) != want {
+		t.Fatalf("removeStandaloneOwnedChecksums() = %q, want %q", got, want)
+	}
+}
+
+func TestCleanStandaloneChecksumsFromManifest(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	repositoryRoot := filepath.Join(root, "go-queue")
+	if err := os.MkdirAll(filepath.Join(repositoryRoot, "redis"), 0o755); err != nil {
+		t.Fatalf("create module directories: %v", err)
+	}
+	rootSum := "github.com/faustbrian/golib/pkg/queue v0.0.0 h1:old\n" +
+		"github.com/stretchr/testify v1.11.1 h1:external\n"
+	if err := os.WriteFile(filepath.Join(repositoryRoot, "go.sum"), []byte(rootSum), 0o644); err != nil {
+		t.Fatalf("write root go.sum: %v", err)
+	}
+	nestedSum := "github.com/faustbrian/go-queue v1.0.0 h1:stale\n"
+	if err := os.WriteFile(filepath.Join(repositoryRoot, "redis", "go.sum"), []byte(nestedSum), 0o644); err != nil {
+		t.Fatalf("write nested go.sum: %v", err)
+	}
+	manifest := standaloneManifest{
+		Repositories: []standaloneRepository{{
+			Name:                 "go-queue",
+			DestinationDirectory: "go-queue",
+		}},
+		Modules: []standaloneModulePlan{
+			{
+				Directory:    ".",
+				PreviousPath: "github.com/faustbrian/golib/pkg/queue",
+				Path:         "github.com/faustbrian/go-queue",
+				Repository:   "go-queue",
+			},
+			{
+				Directory:    "redis",
+				PreviousPath: "github.com/faustbrian/golib/pkg/queue/redis",
+				Path:         "github.com/faustbrian/go-queue/redis",
+				Repository:   "go-queue",
+			},
+		},
+	}
+
+	if err := cleanStandaloneChecksumsFromManifest(root, manifest); err != nil {
+		t.Fatalf("cleanStandaloneChecksumsFromManifest() error = %v", err)
+	}
+	gotRoot, err := os.ReadFile(filepath.Join(repositoryRoot, "go.sum"))
+	if err != nil {
+		t.Fatalf("read cleaned root go.sum: %v", err)
+	}
+	if string(gotRoot) != "github.com/stretchr/testify v1.11.1 h1:external\n" {
+		t.Fatalf("cleaned root go.sum = %q", gotRoot)
+	}
+	gotNested, err := os.ReadFile(filepath.Join(repositoryRoot, "redis", "go.sum"))
+	if err != nil {
+		t.Fatalf("read cleaned nested go.sum: %v", err)
+	}
+	if len(gotNested) != 0 {
+		t.Fatalf("cleaned nested go.sum = %q", gotNested)
+	}
+}
+
+func TestCleanStandaloneChecksumsRejectsUnexpectedDestinationOrigin(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	destinationRoot := t.TempDir()
+	repositoryRoot := filepath.Join(destinationRoot, "go-queue")
+	if err := os.MkdirAll(filepath.Join(root, "migration", "standalone"), 0o755); err != nil {
+		t.Fatalf("create manifest directory: %v", err)
+	}
+	manifest := standaloneManifest{Repositories: []standaloneRepository{{
+		Name:                 "go-queue",
+		DestinationDirectory: "go-queue",
+	}}}
+	contents, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("encode manifest: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(root, "migration", "standalone", "repositories.json"),
+		contents,
+		0o644,
+	); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.MkdirAll(repositoryRoot, 0o755); err != nil {
+		t.Fatalf("create repository: %v", err)
+	}
+	for _, arguments := range [][]string{
+		{"init", "-q", repositoryRoot},
+		{"-C", repositoryRoot, "remote", "add", "origin", "git@example.test/wrong.git"},
+	} {
+		if output, err := exec.Command("git", arguments...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", arguments, err, output)
+		}
+	}
+
+	err = cleanStandaloneChecksums(root, []string{"--destination-root", destinationRoot})
+	if err == nil || !strings.Contains(err.Error(), "origin") {
+		t.Fatalf("cleanStandaloneChecksums() error = %v", err)
 	}
 }
 

@@ -43,3 +43,36 @@ documentation.
 The audit must be recaptured only when remote state intentionally changes. It
 must not be rewritten after destructive migration operations to obscure the
 pre-migration state.
+
+## Standalone Population And Dependency Resolution
+
+Populate the extracted repositories with their standalone module identities,
+repository tooling, and governance files:
+
+```sh
+go run ./cmd/golib standalone-populate \
+  --destination-root /Users/brian/Developer/golib
+```
+
+Owned `v1.0.0` module checksums cannot be generated from a proxy containing
+unfinished dependency trees. Settle all module files in the manifest's release
+waves instead:
+
+```sh
+./scripts/tidy-standalone-modules.sh
+```
+
+The script removes stale owned checksums, uses task-owned disposable Go caches,
+builds only completed dependency waves into a deterministic local proxy, runs
+`go mod tidy` with `GOWORK=off`, and finishes with `go mod tidy -diff` for all
+140 retained modules. Missing owned dependency artifacts fail before Go can
+fall back to a legacy public version.
+
+For a read-only consumer rehearsal after repository contents are final, create
+an empty output directory and build the complete local proxy:
+
+```sh
+go run ./cmd/golib standalone-proxy \
+  --destination-root /Users/brian/Developer/golib \
+  --output /path/to/empty/proxy
+```

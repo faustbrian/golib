@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -121,6 +122,9 @@ func populateStandaloneRepository(
 		if bytes.IndexByte(contents, 0) >= 0 {
 			continue
 		}
+		if relative == "go.sum" || strings.HasSuffix(relative, "/go.sum") {
+			contents = removeStandaloneOwnedChecksums(contents, paths)
+		}
 		rewritten := rewriteStandaloneContents(contents, paths, relative == "go.mod" || strings.HasSuffix(relative, "/go.mod"))
 		rewritten = rewriteStandaloneRepositoryPaths(
 			rewritten,
@@ -164,6 +168,103 @@ func populateStandaloneRepository(
 	if len(repositoryCatalog.Modules) > 1 {
 		if err := writeStandaloneWorkspace(destination, repositoryCatalog); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func removeStandaloneOwnedChecksums(contents []byte, paths map[string]string) []byte {
+	owned := make([]string, 0, len(paths)*2)
+	for previous, current := range paths {
+		owned = append(owned, previous, current)
+	}
+	lines := bytes.Split(contents, []byte{'\n'})
+	kept := make([][]byte, 0, len(lines))
+	for _, line := range lines {
+		fields := bytes.Fields(line)
+		remove := false
+		if len(fields) > 0 {
+			modulePath := strings.SplitN(string(fields[0]), "@", 2)[0]
+			for _, candidate := range owned {
+				if modulePath == candidate {
+					remove = true
+					break
+				}
+			}
+		}
+		if !remove {
+			kept = append(kept, line)
+		}
+	}
+	return bytes.Join(kept, []byte{'\n'})
+}
+
+func cleanStandaloneChecksums(root string, arguments []string) error {
+	flags := flag.NewFlagSet("standalone-clean-sums", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	destinationRoot := flags.String(
+		"destination-root",
+		"/Users/brian/Developer/golib",
+		"directory containing the standalone repositories",
+	)
+	if err := flags.Parse(arguments); err != nil {
+		return err
+	}
+
+	manifest := standaloneManifest{}
+	if err := readStandaloneJSON(
+		filepath.Join(root, "migration/standalone/repositories.json"),
+		&manifest,
+	); err != nil {
+		return err
+	}
+	for _, repository := range manifest.Repositories {
+		destination := filepath.Join(*destinationRoot, repository.DestinationDirectory)
+		if err := requireStandaloneDestination(destination, repository.Name); err != nil {
+			return fmt.Errorf("%s: %w", repository.Name, err)
+		}
+	}
+
+	return cleanStandaloneChecksumsFromManifest(*destinationRoot, manifest)
+}
+
+func cleanStandaloneChecksumsFromManifest(
+	destinationRoot string,
+	manifest standaloneManifest,
+) error {
+	repositories := make(map[string]standaloneRepository, len(manifest.Repositories))
+	for _, repository := range manifest.Repositories {
+		repositories[repository.Name] = repository
+	}
+	paths := make(map[string]string, len(manifest.Modules))
+	for _, item := range manifest.Modules {
+		paths[item.PreviousPath] = item.Path
+	}
+
+	for _, item := range manifest.Modules {
+		repository, ok := repositories[item.Repository]
+		if !ok {
+			return fmt.Errorf("module %s references unknown repository %s", item.Path, item.Repository)
+		}
+		moduleRoot := filepath.Join(destinationRoot, repository.DestinationDirectory)
+		if item.Directory != "." {
+			moduleRoot = filepath.Join(moduleRoot, filepath.FromSlash(item.Directory))
+		}
+		filename := filepath.Join(moduleRoot, "go.sum")
+		contents, err := os.ReadFile(filename)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("read %s: %w", filename, err)
+		}
+		cleaned := removeStandaloneOwnedChecksums(contents, paths)
+		if bytes.Equal(cleaned, contents) {
+			continue
+		}
+		if err := os.WriteFile(filename, cleaned, 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", filename, err)
 		}
 	}
 

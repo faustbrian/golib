@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Generate standalone module checksums in dependency order so local `v1.0.0`
+  proxy verification cannot retain hashes from unfinished dependency trees.
 - Separate release-rehearsal artifacts from strict verification evidence and
   restore the newest exact content-matching mutation checkpoint across prior
   trusted runs, so release artifacts and stale partial runs cannot trigger
