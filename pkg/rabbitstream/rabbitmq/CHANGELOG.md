@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Preserve the configured RPC timeout for established environments and
+  sessions without overlapping slow connection attempts.
 - Accept both immediate connection rejection and deadline expiry from the
   upstream client when invalid TLS identities are correctly rejected.
 - Make broker-restart recovery tests use their full bounded deadline instead
