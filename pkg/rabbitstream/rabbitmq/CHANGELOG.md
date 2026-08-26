@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Pin the published core module revision so external consumers can resolve the
+  adapter without a repository workspace.
 - Preserve the configured RPC timeout for established environments and
   sessions without overlapping slow connection attempts.
 - Accept both immediate connection rejection and deadline expiry from the

@@ -3,7 +3,7 @@ module github.com/faustbrian/golib/pkg/rabbitstream/rabbitmq
 go 1.26.6
 
 require (
-	github.com/faustbrian/golib/pkg/rabbitstream v0.0.0
+	github.com/faustbrian/golib/pkg/rabbitstream v0.0.0-20260826055029-0d5a5055816a
 	github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3
 )
 
