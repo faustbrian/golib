@@ -37,6 +37,22 @@ func BenchmarkDispatchSingleTyped(b *testing.B) {
 	}
 }
 
+func BenchmarkRejectDuplicateMembersNestedRequest(b *testing.B) {
+	payload := []byte(`{"jsonrpc":"2.0","method":"list","params":{"filters":{"self":[{"attribute":"shipment_tracking_number","operator":"equals","value":"00464300432930685779","boolean":"or"},{"attribute":"parcel_tracking_number","operator":"equals","value":"00464300432930685779","boolean":"or"},{"attribute":"return_tracking_number","operator":"equals","value":"00464300432930685779","boolean":"or"}]}},"id":"01J11MBA2VAZRCS95H9BW26M3C"}`)
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := rejectDuplicateMembers(
+			payload,
+			"jsonrpc",
+			"method",
+			"params",
+			"id",
+		); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkDispatchBatch(b *testing.B) {
 	dispatcher := benchmarkDispatcher()
 	payload := []byte(`[

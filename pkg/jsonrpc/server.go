@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"reflect"
 	"runtime/debug"
 	"strings"
@@ -500,10 +499,6 @@ func DecodeParams[T any](params json.RawMessage) (T, *Error) {
 	if err := decoder.Decode(&value); err != nil {
 		return value, InvalidParams().WithCause(err)
 	}
-	var extra any
-	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		return value, InvalidParams()
-	}
 	return value, nil
 }
 
@@ -517,9 +512,7 @@ func namedParameterNamesMatch[T any](params json.RawMessage) bool {
 		return true
 	}
 	var object map[string]json.RawMessage
-	if json.Unmarshal(trimmed, &object) != nil {
-		return true
-	}
+	_ = json.Unmarshal(trimmed, &object)
 	for name := range object {
 		if _, ok := names[name]; !ok {
 			return false

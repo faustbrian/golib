@@ -186,6 +186,11 @@ func TestProtocolDefensivePaths(t *testing.T) {
 	if err := rejectDuplicateMembers([]byte(`null`)); err != nil {
 		t.Errorf("rejectDuplicateMembers(non-object) error = %v", err)
 	}
+	if err := rejectDuplicateMembers(
+		[]byte(`{"escaped\\key":"quoted\"value"}`),
+	); err != nil {
+		t.Errorf("rejectDuplicateMembers(escaped object) error = %v", err)
+	}
 	for _, input := range []string{
 		`{"code":"bad","message":"message"}`,
 		`{"code":1,"message":2}`,

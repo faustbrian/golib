@@ -442,68 +442,96 @@ func rejectDuplicateMembers(data []byte, reservedNames ...string) error {
 	if !utf8.Valid(data) {
 		return errors.New("jsonrpc: invalid UTF-8")
 	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
+	if !json.Valid(data) {
+		return errors.New("jsonrpc: invalid JSON")
+	}
 	type frame struct {
 		object      bool
 		expectsName bool
 		seen        map[string]struct{}
 	}
 	frames := make([]frame, 0, 8)
-	sawToken := false
 	completeValue := func() {
 		if len(frames) > 0 && frames[len(frames)-1].object {
 			frames[len(frames)-1].expectsName = true
 		}
 	}
-	for {
-		token, err := decoder.Token()
-		if errors.Is(err, io.EOF) {
-			if !sawToken {
-				return io.EOF
+	for index := 0; index < len(data); index++ {
+		switch data[index] {
+		case '{':
+			var seen map[string]struct{}
+			if len(reservedNames) == 0 || len(frames) == 0 {
+				seen = make(map[string]struct{})
 			}
-			if len(frames) != 0 {
-				return io.ErrUnexpectedEOF
-			}
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		sawToken = true
-		if delimiter, ok := token.(json.Delim); ok {
-			switch delimiter {
-			case '{':
-				frames = append(frames, frame{object: true, expectsName: true, seen: make(map[string]struct{})})
-			case '[':
-				frames = append(frames, frame{})
-			case '}', ']':
-				frames = frames[:len(frames)-1]
-				completeValue()
-			}
-			continue
-		}
-		if len(frames) == 0 {
-			continue
-		}
-		current := &frames[len(frames)-1]
-		if !current.object || !current.expectsName {
+			frames = append(frames, frame{
+				object:      true,
+				expectsName: true,
+				seen:        seen,
+			})
+		case '[':
+			frames = append(frames, frame{})
+		case '}', ']':
+			frames = frames[:len(frames)-1]
 			completeValue()
-			continue
-		}
-		name := token.(string)
-		if len(frames) == 1 {
-			for _, reservedName := range reservedNames {
-				if name != reservedName && strings.EqualFold(name, reservedName) {
-					return fmt.Errorf("jsonrpc: protocol member %q is case-sensitive", reservedName)
+		case '"':
+			end := index + 1
+			escaped := false
+			for ; end < len(data); end++ {
+				switch {
+				case escaped:
+					escaped = false
+				case data[end] == '\\':
+					escaped = true
+				case data[end] == '"':
+					goto stringComplete
 				}
 			}
-		}
-		if len(reservedNames) == 0 || len(frames) == 1 {
-			if _, duplicate := current.seen[name]; duplicate {
-				return fmt.Errorf("jsonrpc: duplicate object member %q", name)
+		stringComplete:
+			if len(frames) > 0 {
+				current := &frames[len(frames)-1]
+				if current.object && current.expectsName {
+					var name string
+					_ = json.Unmarshal(data[index:end+1], &name)
+					if len(frames) == 1 {
+						for _, reservedName := range reservedNames {
+							if name != reservedName && strings.EqualFold(
+								name,
+								reservedName,
+							) {
+								return fmt.Errorf(
+									"jsonrpc: protocol member %q is case-sensitive",
+									reservedName,
+								)
+							}
+						}
+					}
+					if current.seen != nil {
+						if _, duplicate := current.seen[name]; duplicate {
+							return fmt.Errorf(
+								"jsonrpc: duplicate object member %q",
+								name,
+							)
+						}
+						current.seen[name] = struct{}{}
+					}
+					current.expectsName = false
+				} else {
+					completeValue()
+				}
 			}
+			index = end
+		case ' ', '\t', '\r', '\n', ':', ',':
+			continue
+		default:
+			for index+1 < len(data) && !strings.ContainsRune(
+				",]} \t\r\n",
+				rune(data[index+1]),
+			) {
+				index++
+			}
+			completeValue()
 		}
-		current.seen[name] = struct{}{}
-		current.expectsName = false
 	}
+
+	return nil
 }
